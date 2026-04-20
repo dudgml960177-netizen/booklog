@@ -51,10 +51,12 @@
 
   <!-- 상단 헤더 -->
   <header class="app-header">
-    <div class="header-logo">북로그</div>
-    <div class="header-actions">
-      <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
-      <button class="header-btn" onclick="openProfile()" title="프로필">☰</button>
+    <div class="header-inner">
+      <div class="header-logo">북로그</div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
+        <button class="header-btn" onclick="openProfile()" title="프로필">☰</button>
+      </div>
     </div>
   </header>
 
@@ -68,6 +70,7 @@
   </div>
 
   <main class="app-main">
+  <div class="main-inner">
 
     <!-- 갤러리 -->
     <div class="panel on" id="p-gallery">
@@ -151,6 +154,7 @@
       </div>
     </div>
 
+  </div><!-- main-inner -->
   </main>
 </div>
 

@@ -41,7 +41,21 @@ const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 // ── 초기화 ────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   showScreen('loading');
+
+  // 이메일 인증 후 URL에 토큰이 있는 경우 처리
+  const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+  const accessToken  = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+  if (accessToken && refreshToken) {
+    await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+
+  // 타임아웃 안전장치 — 5초 후에도 로딩 중이면 로그인 화면으로
+  const loadingTimeout = setTimeout(() => showScreen('auth'), 5000);
+
   const { data: { session } } = await sb.auth.getSession();
+  clearTimeout(loadingTimeout);
   if (session) {
     currentUser = session.user;
     await loadData();
