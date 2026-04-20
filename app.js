@@ -103,14 +103,23 @@ sb.auth.onAuthStateChange(async (event, session) => {
   }
 });
 
-// ── 데이터 로드 ───────────────────────────
 async function loadData() {
-  const [booksRes, quotesRes] = await Promise.all([
-    sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-    sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-  ]);
-  allBooks  = booksRes.data  || [];
-  allQuotes = quotesRes.data || [];
+  try {
+    const [booksRes, quotesRes] = await Promise.all([
+      sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+    ]);
+
+    // 데이터가 없으면(null이면) 빈 리스트([])라도 넣어줘서 에러를 막음
+    allBooks  = booksRes.data  || [];
+    allQuotes = quotesRes.data || [];
+    
+    console.log("데이터 로드 성공!", allBooks.length, "권의 책이 있습니다.");
+  } catch (error) {
+    console.error("데이터 로드 중 진짜 에러 발생:", error);
+    allBooks = [];
+    allQuotes = [];
+  }
 }
 
 // ── 인증 ──────────────────────────────────
