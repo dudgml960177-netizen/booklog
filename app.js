@@ -92,11 +92,12 @@ sb.auth.onAuthStateChange(async (event, session) => {
     showScreen('app');
     buildGallery();
   }
-  if (event === 'SIGNED_OUT') {
-    currentUser = null;
-    allBooks = []; allQuotes = [];
-    showScreen('auth');
-  }
+ if (event === 'SIGNED_OUT') {
+  currentUser = null;
+  allBooks = []; allQuotes = [];
+  localStorage.clear(); // ← 여기에 한 번 더 넣어두면 '자동 로그아웃' 때도 청소해줘요!
+  showScreen('auth');
+}
   if (event === 'TOKEN_REFRESHED' && session) {
     currentUser = session.user;
   }
