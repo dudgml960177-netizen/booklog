@@ -143,7 +143,9 @@ async function doSignup() {
 
 async function doLogout() {
   await sb.auth.signOut();
+  localStorage.clear(); // ← 이 한 줄을 꼭 넣어주세요! (브라우저 메모장 비우기)
   closeModal('modal-profile');
+  window.location.reload(); // ← 이 줄도 넣으면 화면이 새로고침되어 더 깨끗해져요.
 }
 
 function showAuthError(msg, success = false) {
