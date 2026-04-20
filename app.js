@@ -68,6 +68,7 @@ async function init() {
   }, 5000); 
 
   try {
+    
   showScreen('loading');
   try {
     const { data } = await sb.auth.getSession();
