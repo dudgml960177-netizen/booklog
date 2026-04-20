@@ -1,72 +1,4 @@
-// ═══════════════════════════════════════════
-// 북로그 — 메인 앱 로직 v2
-// ═══════════════════════════════════════════
-// ── 설정 (이 부분은 건드리지 마세요) ──────────────────
-const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
-
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// ── 화면 전환 함수 (가장 먼저 정의되어야 함) ─────────────
-function showScreen(name) {
-  const screens = ['loading', 'auth', 'app'];
-  screens.forEach(n => {
-    const el = document.getElementById('screen-' + n);
-    if (el) el.style.display = 'none';
-  });
-  const target = document.getElementById('screen-' + name);
-  if (target) {
-    target.style.display = 'flex';
-    target.style.flexDirection = 'column';
-  }
-}
-
-// ── 초기화 함수 (무조건 3초 뒤에 로딩 종료) ──────────────
-async function init() {
-  showScreen('loading');
-  
-  // [핵심] 3초 타이머: 서버가 대답 안 해도 무조건 로그인창으로 탈출!
-  const forceExit = setTimeout(() => {
-    console.log("서버 응답 지연으로 강제 전환합니다.");
-    showScreen('auth');
-  }, 3000);
-
-  try {
-    const { data } = await sb.auth.getSession();
-    clearTimeout(forceExit); // 응답이 오면 타이머 취소
-
-    if (data?.session) {
-      currentUser = data.session.user;
-      await loadData();
-      showScreen('app');
-      if (typeof buildGallery === 'function') buildGallery();
-    } else {
-      showScreen('auth');
-    }
-  } catch (e) {
-    clearTimeout(forceExit);
-    console.error("오류 발생:", e);
-    showScreen('auth');
-  }
-}
-
-// ── 데이터 로드 함수 (안전 버전) ──────────────────────
-async function loadData() {
-  try {
-    if (!currentUser) return;
-    const [booksRes, quotesRes] = await Promise.all([
-      sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-      sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-    ]);
-    allBooks = booksRes.data || [];
-    allQuotes = quotesRes.data || [];
-  } catch (err) {
-    allBooks = [];
-    allQuotes = [];
-  }
-}
-
+// 1. 기본 설정 및 DB 연결
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY  = `${SUPABASE_URL}/functions/v1/naver-book`;
@@ -74,7 +6,7 @@ const NAVER_PROXY  = `${SUPABASE_URL}/functions/v1/naver-book`;
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── 상태 ──────────────────────────────────
+// 2. 앱 상태 변수 (데이터 저장소)
 let currentUser   = null;
 let allBooks      = [];
 let allQuotes     = [];
@@ -92,7 +24,6 @@ let donutChart    = null;
 let curYM         = 'all';
 let curYR         = 'all';
 
-// 타이머 상태
 let timerInterval = null;
 let timerSeconds  = 0;
 let timerRunning  = false;
@@ -109,67 +40,63 @@ const YC = {
 const GCOLS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040','#6a8a6a'];
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 
-// ── 초기화 ────────────────────────────────
+// 3. 화면 관리 및 초기화 로직 (무한 로딩 방지)
 function showScreen(name) {
   ['loading','auth','app'].forEach(n => {
     const el = document.getElementById('screen-' + n);
-    if (!el) return;
-    el.style.display = 'none';
+    if (el) el.style.display = 'none';
   });
   const el = document.getElementById('screen-' + name);
-  if (el) el.style.display = (name === 'loading') ? 'flex' : 'flex';
-  if (el) el.style.flexDirection = 'column';
-}
-
-async function init() {
-  showScreen('loading'); // 1. 일단 로딩 화면을 보여줌
-  
-  try {
-    // 2. 서버에 로그인 정보를 물어봄
-    const { data, error } = await sb.auth.getSession();
-    
-    // 에러가 있거나 로그인 정보가 없으면 바로 로그인 화면으로!
-    if (error || !data || !data.session) {
-      showScreen('auth');
-      return;
-    }
-
-    // 3. 로그인 되어 있다면 데이터를 가져옴
-    currentUser = data.session.user;
-    await loadData();
-    showScreen('app'); // 앱 화면으로 이동
-    buildGallery();
-    
-  } catch(e) {
-    // 무슨 문제가 생겨도 일단 로그인 화면으로 보내서 무한 로딩을 차단함
-    console.error("초기화 중 오류:", e);
-    showScreen('auth');
+  if (el) {
+    el.style.display = 'flex';
+    el.style.flexDirection = 'column';
   }
 }
 
-    
+async function init() {
   showScreen('loading');
+  
+  // [안전장치] 3초 뒤에 무조건 로딩 종료
+  const timeout = setTimeout(() => {
+    if (document.getElementById('screen-loading').style.display !== 'none') {
+      showScreen('auth');
+    }
+  }, 3000);
+
   try {
     const { data } = await sb.auth.getSession();
     if (data?.session) {
       currentUser = data.session.user;
-      try {
-        await loadData();
-      } catch (dbError) {
-        console.error("데이터 로드 실패:", dbError);
-        // 데이터 로드 실패해도 일단 앱 화면은 보여줘야 함
-      }
+      await loadData();
+      clearTimeout(timeout);
       showScreen('app');
       buildGallery();
     } else {
+      clearTimeout(timeout);
       showScreen('auth');
     }
   } catch(e) {
-    console.error("인증 확인 실패:", e);
+    clearTimeout(timeout);
     showScreen('auth');
   }
 }
 
+async function loadData() {
+  try {
+    if (!currentUser) return;
+    const [booksRes, quotesRes] = await Promise.all([
+      sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+    ]);
+    allBooks  = booksRes.data  || [];
+    allQuotes = quotesRes.data || [];
+  } catch (error) {
+    allBooks = [];
+    allQuotes = [];
+  }
+}
+
+// 4. 인증 및 로그인 관련
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -177,43 +104,20 @@ if (document.readyState === 'loading') {
 }
 
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN') {
+  if (event === 'SIGNED_IN' && session) {
     currentUser = session.user;
     await loadData();
     showScreen('app');
     buildGallery();
   }
- if (event === 'SIGNED_OUT') {
-  currentUser = null;
-  allBooks = []; allQuotes = [];
-  localStorage.clear(); // ← 여기에 한 번 더 넣어두면 '자동 로그아웃' 때도 청소해줘요!
-  showScreen('auth');
-}
-  if (event === 'TOKEN_REFRESHED' && session) {
-    currentUser = session.user;
+  if (event === 'SIGNED_OUT') {
+    currentUser = null;
+    allBooks = []; allQuotes = [];
+    localStorage.clear();
+    showScreen('auth');
   }
 });
 
-async function loadData() {
-  try {
-    const [booksRes, quotesRes] = await Promise.all([
-      sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-      sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
-    ]);
-
-    // 데이터가 없으면(null이면) 빈 리스트([])라도 넣어줘서 에러를 막음
-    allBooks  = booksRes.data  || [];
-    allQuotes = quotesRes.data || [];
-    
-    console.log("데이터 로드 성공!", allBooks.length, "권의 책이 있습니다.");
-  } catch (error) {
-    console.error("데이터 로드 중 진짜 에러 발생:", error);
-    allBooks = [];
-    allQuotes = [];
-  }
-}
-
-// ── 인증 ──────────────────────────────────
 function authSwitch(tab, btn) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('on'));
   btn.classList.add('on');
@@ -244,9 +148,9 @@ async function doSignup() {
 
 async function doLogout() {
   await sb.auth.signOut();
-  localStorage.clear(); // ← 이 한 줄을 꼭 넣어주세요! (브라우저 메모장 비우기)
+  localStorage.clear();
   closeModal('modal-profile');
-  window.location.reload(); // ← 이 줄도 넣으면 화면이 새로고침되어 더 깨끗해져요.
+  window.location.reload();
 }
 
 function showAuthError(msg, success = false) {
@@ -258,7 +162,7 @@ function showAuthError(msg, success = false) {
   el.style.borderColor = success ? '#a8d8a8' : '#e8b8a8';
 }
 
-// ── 탭 전환 ───────────────────────────────
+// 5. 메뉴 및 탭 기능
 function sw(name, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
@@ -276,7 +180,7 @@ function sw(name, btn) {
   }
 }
 
-// ── 갤러리 ────────────────────────────────
+// 6. 갤러리 및 테이블
 function filterStatus(status, btn) {
   curFilter = status;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('on'));
@@ -306,7 +210,6 @@ function buildGallery() {
   });
 }
 
-// ── 테이블 ────────────────────────────────
 function buildTable() {
   const tb = document.getElementById('tbl-body'); tb.innerHTML = '';
   allBooks.forEach(b => {
@@ -322,7 +225,7 @@ function buildTable() {
   });
 }
 
-// ── 문장 수집 ─────────────────────────────
+// 7. 문장 수집
 function buildQuotes() {
   const tags = ['전체', ...new Set(allQuotes.map(q => q.tag).filter(Boolean))];
   const fEl = document.getElementById('q-filter'); fEl.innerHTML = '';
@@ -364,7 +267,7 @@ function genreColor(genre) {
   return map[g] || '#b07030';
 }
 
-// ── 타이머 ────────────────────────────────
+// 8. 타이머
 function buildTimer() {
   const el = document.getElementById('timer-book-select');
   if (!el) return;
@@ -419,7 +322,6 @@ async function saveTimer() {
   if (timerSeconds < 60) { alert('최소 1분 이상 읽어야 저장할 수 있어요.'); return; }
   const bookSel = document.getElementById('timer-book-select');
   const bookId = bookSel?.value || timerBookId;
-  if (!bookId) { alert('책을 선택해주세요.'); return; }
   const book = allBooks.find(b => b.id === bookId);
   const today = new Date().toISOString().slice(0,10);
   const mins = Math.round(timerSeconds / 60);
@@ -434,7 +336,7 @@ async function saveTimer() {
   alert(`${mins}분 저장됐어요!`);
 }
 
-// ── 달력 ──────────────────────────────────
+// 9. 달력
 function moveCal(dir) {
   calM += dir;
   if (calM > 11) { calM = 0; calY++; }
@@ -490,7 +392,7 @@ function renderCal() {
   }
 }
 
-// ── 통계 ──────────────────────────────────
+// 10. 통계
 function buildStats() {
   const sg = document.getElementById('stat-grid'); sg.innerHTML = '';
   const done = allBooks.filter(b => b.status === '완독');
@@ -504,12 +406,10 @@ function buildStats() {
   const monthPages = thisMonth.reduce((a,b) => a+(b.pages||0), 0);
   const yearPages  = thisYear.reduce((a,b) => a+(b.pages||0), 0);
 
-  // 좋아하는 작가
   const authorMap = {};
   done.forEach(b => { if(b.author) authorMap[b.author] = (authorMap[b.author]||0)+1; });
   const topAuthor = Object.entries(authorMap).sort((a,b)=>b[1]-a[1])[0];
 
-  // 좋아하는 출판사
   const pubMap = {};
   done.forEach(b => { if(b.publisher) pubMap[b.publisher] = (pubMap[b.publisher]||0)+1; });
   const topPub = Object.entries(pubMap).sort((a,b)=>b[1]-a[1])[0];
@@ -583,11 +483,6 @@ function buildMonthly() {
     done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
     monthChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:curYM+'년',data:vals,borderColor:c.line,borderWidth:2,pointBackgroundColor:c.line,pointBorderColor:'#faf6ef',pointBorderWidth:1.5,pointRadius:3.5,pointHoverRadius:6,fill:true,backgroundColor:(ct)=>{const g=ct.chart.ctx.createLinearGradient(0,0,0,130);g.addColorStop(0,`rgba(${c.rgb},0.28)`);g.addColorStop(1,`rgba(${c.rgb},0.02)`);return g;},tension:0.42}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#faf6ef',borderColor:c.line,borderWidth:1,titleColor:'#2e1f0e',bodyColor:'#5c3d1e',titleFont:{family:'Pretendard',size:11},bodyFont:{family:'Pretendard',size:11},callbacks:{label:ct=>' '+ct.parsed.y+'권'}}},scales:{x:{grid:{display:false},ticks:{font:{family:'Pretendard',size:10},color:'#a08c72'}},y:{grid:{color:'rgba(207,195,172,0.32)'},border:{dash:[3,3]},ticks:{font:{family:'Pretendard',size:10},color:'#a08c72',stepSize:1},min:0}}}});
   }
-  const filtered=curYM==='all'?done:done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM);
-  const total=filtered.length;const cnt=Array(12).fill(0);filtered.forEach(b=>cnt[parseInt(b.date_finish.slice(5,7))-1]++);
-  const mx=Math.max(...cnt);const bestM=mx===0?'-':(cnt.indexOf(mx)+1)+'월 ('+mx+'권)';
-  const yrs=new Set(done.map(b=>b.date_finish.slice(0,4))).size||1;
-  document.getElementById('monthly-stat').innerHTML=`<div class="si"><span class="sn">${total}</span><span class="sl">${curYM==='all'?'누적 완독':curYM+'년 완독'}</span></div><div class="si"><span class="sn">${curYM==='all'?Math.round(total/yrs*10)/10:Math.round(total/12*10)/10}</span><span class="sl">${curYM==='all'?'연평균':'월평균'}</span></div><div class="si"><span class="sn">${bestM}</span><span class="sl">최다 독서월</span></div>`;
 }
 
 function buildGenre() {
@@ -597,7 +492,7 @@ function buildGenre() {
   done.forEach(b=>{const g=Array.isArray(b.genre)?b.genre[0]:(b.genre||'미분류');genreMap[g]=(genreMap[g]||0)+1;});
   const genres=Object.keys(genreMap);const vals=genres.map(g=>genreMap[g]);
   const total=vals.reduce((a,b)=>a+b,0)||1;const maxV=Math.max(...vals)||1;
-  const dl=document.getElementById('donut-layout');dl.innerHTML='';
+  const dl=document.getElementById('donut-layout');
   const db=document.createElement('div');db.className='donut-box';
   const dc=document.createElement('canvas');dc.width=130;dc.height=130;
   const ctr=document.createElement('div');ctr.className='dcenter';
@@ -610,8 +505,7 @@ function buildGenre() {
     r.innerHTML=`<div class="lsw" style="background:${GCOLS[i%GCOLS.length]}"></div><div class="lbar-wrap"><div class="lname">${g}</div><div class="ltrack"><div class="lfill" style="width:${Math.round(vals[i]/maxV*100)}%;background:${GCOLS[i%GCOLS.length]}"></div></div></div><div class="lright"><span class="lpct">${pct}%</span><span class="lcnt">${vals[i]}권</span></div>`;
     lc.appendChild(r);
   });
-  dl.appendChild(db);dl.appendChild(lc);
-  document.getElementById('genre-stat').innerHTML=`<div class="si"><span class="sn">${total}</span><span class="sl">총 권수</span></div><div class="si"><span class="sn">${genres.length}</span><span class="sl">장르 수</span></div>`;
+  dl.innerHTML=''; dl.appendChild(db);dl.appendChild(lc);
   donutChart=new Chart(dc.getContext('2d'),{type:'doughnut',data:{labels:genres,datasets:[{data:vals,backgroundColor:GCOLS.slice(0,genres.length),borderColor:'#faf6ef',borderWidth:3,hoverOffset:5}]},options:{responsive:false,cutout:'68%',animation:{animateRotate:true,duration:600},plugins:{legend:{display:false},tooltip:{backgroundColor:'#faf6ef',borderColor:'#cfc3ac',borderWidth:1,titleColor:'#2e1f0e',bodyColor:'#5c3d1e',titleFont:{family:'Pretendard',size:11},bodyFont:{family:'Pretendard',size:11},callbacks:{label:c=>' '+c.label+' '+c.parsed+'권'}}}}});
 }
 
@@ -624,21 +518,15 @@ function buildRating() {
   const maxD=Math.max(...dist)||1;
   const avg=total>0?(filtered.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(2):'—';
   const stars=s=>'★'.repeat(s)+'☆'.repeat(5-s);
-  const layout=document.getElementById('rating-layout');layout.innerHTML='';
+  const layout=document.getElementById('rating-layout');
   const barsEl=document.createElement('div');barsEl.className='rating-bars';
   [5,4,3,2,1].forEach((s,i)=>{
     const cnt=dist[i],pct=total>0?Math.round(cnt/total*100):0,wpct=Math.round(cnt/maxD*100);
-    const inside=wpct>=22;
     const row=document.createElement('div');row.className='rbar-row';
-    row.innerHTML=`<span class="rbar-label">${stars(s)}</span><div class="rbar-outer"><div class="rbar-fill" style="width:${wpct}%;background:${RCOLS[i]}">${inside?`<span class="rbar-val">${cnt}권</span>`:''}</div>${!inside&&cnt>0?`<span class="rbar-val-out" style="left:${wpct}%;">${cnt}권</span>`:''}</div><span style="font-size:.63rem;color:var(--tx3);min-width:26px;text-align:right;">${pct}%</span>`;
+    row.innerHTML=`<span class="rbar-label">${stars(s)}</span><div class="rbar-outer"><div class="rbar-fill" style="width:${wpct}%;background:${RCOLS[i]}"></div></div><span style="font-size:.63rem;color:var(--tx3);min-width:26px;text-align:right;">${pct}%</span>`;
     barsEl.appendChild(row);
   });
-  layout.appendChild(barsEl);
-  const sumEl=document.createElement('div');sumEl.className='rating-summary';
-  sumEl.innerHTML=`<div class="rs-avg">${avg}</div><div class="rs-lbl">평균 평점</div>`;
-  const distEl=document.createElement('div');distEl.className='rs-dist';
-  [5,4,3,2,1].forEach((s,i)=>{const r=document.createElement('div');r.className='rs-star-row';r.innerHTML=`<span class="rs-star" style="font-size:11px;">${'★'.repeat(s)}</span><div class="rs-mini"><div class="rs-mini-fill" style="width:${Math.round(dist[i]/maxD*100)}%;background:${RCOLS[i]}"></div></div>`;distEl.appendChild(r);});
-  sumEl.appendChild(distEl);layout.appendChild(sumEl);
+  layout.innerHTML=''; layout.appendChild(barsEl);
 }
 
 function buildMilestone() {
@@ -655,11 +543,12 @@ function buildMilestone() {
     {n:new Set(done.map(b=>b.date_finish?.slice(0,7)).filter(Boolean)).size+'개월',l:'독서한 달 수',prog:0,target:''},
     {n:done.filter(b=>b.rating>=4).length+'권',l:'★★★★ 이상',prog:Math.min(done.filter(b=>b.rating>=4).length/100,1),target:'명작 100권'},
   ];
-  const g=document.getElementById('ms-grid');g.innerHTML='';
+  const g=document.getElementById('ms-grid');
+  g.innerHTML='';
   items.forEach(it=>{const el=document.createElement('div');el.className='ms-card';el.innerHTML=`<div class="ms-n">${it.n}</div><div class="ms-l">${it.l}</div>`+(it.prog>0?`<div class="ms-prog"><div class="ms-prog-fill" style="width:${Math.round(it.prog*100)}%"></div></div><div class="ms-target">${it.target}</div>`:'');g.appendChild(el);});
 }
 
-// ── 책 추가 모달 ───────────────────────────
+// 11. 책 추가 및 모달
 function openAddBook() {
   editingBookId = null; selectedBook = null; curRating = 0; curStatus = '완독';
   document.getElementById('modal-book-title').textContent = '책 추가';
@@ -680,7 +569,6 @@ function openAddBook() {
   openModal('modal-book');
 }
 
-// ── 책 검색 ───────────────────────────────
 async function searchBook() {
   const q = document.getElementById('book-search-input').value.trim();
   if (!q) return;
@@ -713,7 +601,7 @@ async function searchBook() {
       res.appendChild(el);
     });
   } catch(e) {
-    res.innerHTML = '<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';
+    res.innerHTML = '<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패.</div>';
   }
 }
 
@@ -721,13 +609,12 @@ function selectBook(book) {
   selectedBook = book;
   document.getElementById('search-section').style.display = 'none';
   document.getElementById('book-form').style.display = '';
-  const coverHTML = book.cover ? `<img class="selected-cover" src="${book.cover}" alt="${book.title}">` : `<div class="selected-cover" style="background:linear-gradient(150deg,#a07040,#5c3010);"></div>`;
+  const coverHTML = book.cover ? `<img class="selected-cover" src="${book.cover}" alt="${book.title}">` : `<div class="selected-cover" style="background:#a07040;"></div>`;
   document.getElementById('selected-book-info').innerHTML = `
     ${coverHTML}
     <div class="selected-info">
       <div class="selected-title">${book.title}</div>
       <div class="selected-author">${book.author}</div>
-      <div class="selected-desc">${book.description || ''}</div>
       <span class="selected-change" onclick="changeBook()">다른 책 선택</span>
     </div>`;
 }
@@ -736,8 +623,6 @@ function changeBook() {
   selectedBook = null;
   document.getElementById('search-section').style.display = '';
   document.getElementById('book-form').style.display = 'none';
-  document.getElementById('search-results').innerHTML = '';
-  document.getElementById('book-search-input').value = '';
 }
 
 function setStar(n) { curRating = n; updateStars(n); }
@@ -754,17 +639,17 @@ function addQuoteField(text='', page='', tag='') {
   const list = document.getElementById('quotes-list');
   const el = document.createElement('div'); el.className='quote-field';
   el.innerHTML = `<button class="quote-remove" onclick="this.parentElement.remove()">✕</button>
-    <textarea class="form-input" placeholder="인상 깊은 문장을 입력하세요..." rows="2" data-qtext>${text}</textarea>
+    <textarea class="form-input" placeholder="문장 입력..." rows="2" data-qtext>${text}</textarea>
     <div class="quote-field-row">
-      <input type="text" class="form-input" placeholder="태그 (예: 삶, 감동)" data-qtag value="${tag}">
-      <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}">
+      <input type="text" class="form-input" placeholder="태그" data-qtag value="${tag}">
+      <input type="text" class="form-input" placeholder="페이지" data-qpage value="${page}">
     </div>`;
   list.appendChild(el);
 }
 
-// ── 책 저장 ───────────────────────────────
+// 12. 저장 및 상세
 async function saveBook() {
-  if (!selectedBook && !editingBookId) { alert('책을 검색해서 선택해주세요.'); return; }
+  if (!selectedBook && !editingBookId) { alert('책을 선택해주세요.'); return; }
   const genre     = document.getElementById('book-genre').value;
   const review    = document.getElementById('book-review').value.trim();
   const dateStart = document.getElementById('book-start').value;
@@ -797,12 +682,10 @@ async function saveBook() {
   try {
     let bookId = editingBookId;
     if (editingBookId) {
-      const { error } = await sb.from('books').update(bookData).eq('id', editingBookId);
-      if (error) throw error;
+      await sb.from('books').update(bookData).eq('id', editingBookId);
       await sb.from('quotes').delete().eq('book_id', editingBookId);
     } else {
-      const { data, error } = await sb.from('books').insert(bookData).select().single();
-      if (error) throw error;
+      const { data } = await sb.from('books').insert(bookData).select().single();
       bookId = data?.id;
     }
     if (bookId && newQuotes.length) {
@@ -811,12 +694,9 @@ async function saveBook() {
     closeModal('modal-book');
     await loadData();
     buildGallery();
-  } catch(e) {
-    alert('저장 중 오류: ' + (e.message || JSON.stringify(e)));
-  }
+  } catch(e) { alert('오류 발생'); }
 }
 
-// ── 책 상세 ───────────────────────────────
 function openDetail(bookId) {
   curBookId = bookId;
   const b = allBooks.find(b => b.id === bookId);
@@ -824,72 +704,31 @@ function openDetail(bookId) {
   document.getElementById('detail-title').textContent = b.title;
   const quotes = allQuotes.filter(q => q.book_id === bookId);
   const genre = Array.isArray(b.genre) ? b.genre.join(', ') : (b.genre || '');
-  const coverHTML = b.cover ? `<img class="detail-cover" src="${b.cover}" alt="${b.title}">` : `<div class="detail-cover-ph">${b.title}</div>`;
-
-  // 줄거리 더보기 처리
-  const MAX_DESC = 150;
-  let descHTML = '';
-  if (b.description) {
-    if (b.description.length > MAX_DESC) {
-      descHTML = `<div class="detail-sec">줄거리</div>
-        <div class="detail-body">
-          <span class="desc-short">${b.description.slice(0, MAX_DESC)}...</span>
-          <span class="desc-full" style="display:none;">${b.description}</span>
-          <span class="desc-toggle" onclick="toggleDesc(this)">더 보기</span>
-        </div><div class="detail-divhr"></div>`;
-    } else {
-      descHTML = `<div class="detail-sec">줄거리</div><div class="detail-body">${b.description}</div><div class="detail-divhr"></div>`;
-    }
-  }
-
+  const coverHTML = b.cover ? `<img class="detail-cover" src="${b.cover}">` : `<div class="detail-cover-ph">${b.title}</div>`;
   const readingTime = b.reading_time ? `<span class="detail-chip">📖 ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>` : '';
-  const sourceTag = b.source ? `<span class="detail-chip">${b.source}</span>` : '';
-  const pagesTag = b.pages ? `<span class="detail-chip">${b.pages}p</span>` : '';
 
   let html = `<div class="detail-head">${coverHTML}
-    <div style="flex:1;min-width:0;">
+    <div style="flex:1;">
       <div class="detail-title">${b.title}</div>
-      <div class="detail-sub">${b.author||''}${b.publisher?' · '+b.publisher:''}</div>
-      <div class="detail-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
+      <div class="detail-stars">${'★'.repeat(b.rating||0)}</div>
       <div class="detail-chips">
-        ${genre?`<span class="detail-chip">${genre}</span>`:''}
-        ${b.status?`<span class="detail-chip">${b.status}</span>`:''}
-        ${b.date_finish?`<span class="detail-chip">${b.date_finish}</span>`:''}
-        ${pagesTag}${readingTime}${sourceTag}
-        ${b.reread?`<span class="detail-chip">다시 읽고 싶음</span>`:''}
+        <span class="detail-chip">${genre}</span>
+        <span class="detail-chip">${b.status}</span>
+        ${readingTime}
       </div>
     </div>
   </div>`;
-  html += descHTML;
   if (b.review) html += `<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
   if (quotes.length) {
-    html += `<div class="detail-divhr"></div><div class="detail-sec">인상 깊은 문장</div>`;
-    quotes.forEach(q => {
-      html += `<div class="detail-quote">${q.text}<div class="detail-qsrc">${q.page?'p.'+q.page+' ':''}${q.tag?'#'+q.tag:''}</div></div>`;
-    });
+    html += `<div class="detail-sec">문장</div>`;
+    quotes.forEach(q => { html += `<div class="detail-quote">${q.text}</div>`; });
   }
   document.getElementById('detail-body').innerHTML = html;
   openModal('modal-detail');
 }
 
-function toggleDesc(el) {
-  const parent = el.parentElement;
-  const short = parent.querySelector('.desc-short');
-  const full  = parent.querySelector('.desc-full');
-  if (full.style.display === 'none') {
-    short.style.display = 'none';
-    full.style.display  = '';
-    el.textContent = '접기';
-  } else {
-    short.style.display = '';
-    full.style.display  = 'none';
-    el.textContent = '더 보기';
-  }
-}
-
 async function deleteBook() {
-  if (!curBookId) return;
-  if (!confirm('이 책 기록을 삭제할까요?')) return;
+  if (!confirm('삭제할까요?')) return;
   await sb.from('quotes').delete().eq('book_id', curBookId);
   await sb.from('books').delete().eq('id', curBookId);
   closeModal('modal-detail');
@@ -899,48 +738,21 @@ async function deleteBook() {
 
 function editBook() {
   const b = allBooks.find(b => b.id === curBookId);
-  if (!b) return;
   editingBookId = curBookId;
-  selectedBook = { title:b.title, author:b.author, publisher:b.publisher, cover:b.cover, description:b.description, isbn:b.isbn };
+  selectedBook = { title:b.title, author:b.author, cover:b.cover };
   closeModal('modal-detail');
-  document.getElementById('modal-book-title').textContent = '책 수정';
-  document.getElementById('search-section').style.display = 'none';
   selectBook(selectedBook);
-  curRating = b.rating || 0; curStatus = b.status || '완독';
-  updateStars(curRating);
-  document.querySelectorAll('.status-btn').forEach(btn => btn.classList.toggle('on', btn.textContent===curStatus));
-  document.getElementById('book-genre').value = Array.isArray(b.genre) ? b.genre[0] : (b.genre||'');
-  document.getElementById('book-review').value = b.review || '';
-  document.getElementById('book-start').value  = b.date_start  || '';
-  document.getElementById('book-finish').value = b.date_finish || '';
-  document.getElementById('book-reread').checked = b.reread || false;
-  document.getElementById('book-pages').value = b.pages || '';
-  document.getElementById('book-source').value = b.source || '';
-  const list = document.getElementById('quotes-list'); list.innerHTML = '';
-  allQuotes.filter(q => q.book_id === b.id).forEach(q => addQuoteField(q.text, q.page, q.tag));
   openModal('modal-book');
 }
 
-// ── 프로필 ────────────────────────────────
+// 13. 프로필
 async function openProfile() {
-  const tempName = currentUser.email?.split('@')[0] || '독서가';
-  document.getElementById('profile-avatar').textContent = tempName.slice(0,1).toUpperCase();
-  document.getElementById('profile-name').textContent = tempName;
   document.getElementById('profile-email').textContent = currentUser.email;
-  document.getElementById('profile-display-name').value = tempName;
   openModal('modal-profile');
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-  if (profile) {
-    const name = profile.display_name || profile.username || tempName;
-    document.getElementById('profile-avatar').textContent = name.slice(0,1).toUpperCase();
-    document.getElementById('profile-name').textContent = name;
-    document.getElementById('profile-display-name').value = name;
-  }
 }
 
 async function saveProfile() {
   const name = document.getElementById('profile-display-name').value.trim();
-  if (!name) return;
   await sb.from('profiles').update({ display_name: name }).eq('id', currentUser.id);
   closeModal('modal-profile');
 }
