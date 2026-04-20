@@ -10,7 +10,7 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── 상태 ──────────────────────────────────
-let currentUser   = null;
+let currentUser   = null;`
 let allBooks      = [];
 let allQuotes     = [];
 let curFilter     = '전체';
@@ -39,29 +39,31 @@ const GCOLS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 
 // ── 초기화 ────────────────────────────────
-// 앱 시작 즉시 로딩 화면 표시
-document.addEventListener('DOMContentLoaded', () => {
+async function init() {
   showScreen('loading');
-});
-
-// Supabase 인증 상태 변화 감지 — 이게 핵심
-// 라이브러리 로드 완료 후 자동으로 현재 세션 확인해서 이벤트 발생
-sb.auth.onAuthStateChange(async (event, session) => {
-  console.log('Auth event:', event, session ? 'has session' : 'no session');
-
-  if (event === 'INITIAL_SESSION') {
-    // 앱 시작시 세션 확인 완료
-    if (session) {
-      currentUser = session.user;
+  try {
+    const { data, error } = await sb.auth.getSession();
+    if (data?.session) {
+      currentUser = data.session.user;
       await loadData();
       showScreen('app');
       buildGallery();
     } else {
       showScreen('auth');
     }
-    return;
+  } catch(e) {
+    showScreen('auth');
   }
+}
 
+// 페이지 로드 즉시 실행
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN') {
     currentUser = session.user;
     await loadData();
@@ -69,15 +71,13 @@ sb.auth.onAuthStateChange(async (event, session) => {
     buildGallery();
     return;
   }
-
   if (event === 'SIGNED_OUT') {
     currentUser = null;
     allBooks = []; allQuotes = [];
     showScreen('auth');
     return;
   }
-
-  if (event === 'TOKEN_REFRESHED') {
+  if (event === 'TOKEN_REFRESHED' && session) {
     currentUser = session.user;
     return;
   }
