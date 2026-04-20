@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#b07030">
+  <title>북로그 — 나만의 독서 기록</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ── 로딩 화면 ── -->
+<div id="screen-loading" class="screen active">
+  <div class="loading-wrap">
+    <div class="loading-logo">북로그</div>
+    <div class="loading-sub">나만의 독서 기록</div>
+    <div class="loading-spinner"></div>
+  </div>
+</div>
+
+<!-- ── 로그인 화면 ── -->
+<div id="screen-auth" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-logo">북로그</div>
+    <div class="auth-tagline">읽은 것들이 쌓여 나를 만든다</div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab on" onclick="authSwitch('login',this)">로그인</button>
+        <button class="auth-tab" onclick="authSwitch('signup',this)">회원가입</button>
+      </div>
+      <div id="auth-error" class="auth-error" style="display:none;"></div>
+      <div id="form-login">
+        <input type="email" id="login-email" class="auth-input" placeholder="이메일">
+        <input type="password" id="login-pw" class="auth-input" placeholder="비밀번호">
+        <button class="auth-btn" onclick="doLogin()">로그인</button>
+      </div>
+      <div id="form-signup" style="display:none;">
+        <input type="email" id="signup-email" class="auth-input" placeholder="이메일">
+        <input type="password" id="signup-pw" class="auth-input" placeholder="비밀번호 (6자 이상)">
+        <input type="text" id="signup-name" class="auth-input" placeholder="닉네임">
+        <button class="auth-btn" onclick="doSignup()">회원가입</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 메인 앱 화면 ── -->
+<div id="screen-app" class="screen">
+
+  <!-- 상단 헤더 -->
+  <header class="app-header">
+    <div class="header-logo">북로그</div>
+    <div class="header-actions">
+      <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
+      <button class="header-btn" onclick="openProfile()" title="프로필">☰</button>
+    </div>
+  </header>
+
+  <!-- 탭 -->
+  <div class="tabs">
+    <button class="tab on"  onclick="sw('gallery',this)">🖼 갤러리</button>
+    <button class="tab"     onclick="sw('table',this)">📋 테이블</button>
+    <button class="tab"     onclick="sw('quotes',this)">✍️ 문장</button>
+    <button class="tab"     onclick="sw('cal',this)">📅 달력</button>
+    <button class="tab"     onclick="sw('graph',this)">📊 통계</button>
+  </div>
+
+  <main class="app-main">
+
+    <!-- 갤러리 -->
+    <div class="panel on" id="p-gallery">
+      <div class="filter-row">
+        <button class="filter-btn on" onclick="filterStatus('전체',this)">전체</button>
+        <button class="filter-btn" onclick="filterStatus('완독',this)">완독</button>
+        <button class="filter-btn" onclick="filterStatus('읽는중',this)">읽는중</button>
+        <button class="filter-btn" onclick="filterStatus('읽고싶음',this)">읽고싶음</button>
+      </div>
+      <div class="gallery" id="gal-grid">
+        <div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>
+      </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="panel" id="p-table">
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead><tr><th>제목</th><th>저자</th><th>장르</th><th>평점</th><th>상태</th><th>완독일</th></tr></thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 문장 수집 -->
+    <div class="panel" id="p-quotes">
+      <div class="q-filter" id="q-filter"></div>
+      <div class="quote-feed" id="q-feed">
+        <div class="empty-state">수집된 문장이 없어요.<br>책 기록에서 인상 깊은 문장을 추가해보세요!</div>
+      </div>
+    </div>
+
+    <!-- 달력 -->
+    <div class="panel" id="p-cal">
+      <div class="card">
+        <div class="cal-hd">
+          <button class="cal-nav" onclick="moveCal(-1)">◀</button>
+          <div class="cal-ttl" id="cal-ttl"></div>
+          <button class="cal-nav" onclick="moveCal(1)">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid">
+          <div class="dow">일</div><div class="dow">월</div><div class="dow">화</div>
+          <div class="dow">수</div><div class="dow">목</div><div class="dow">금</div><div class="dow">토</div>
+        </div>
+        <div class="cal-list">
+          <div class="cal-list-ttl">이 달의 완독</div>
+          <div id="cal-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 통계 -->
+    <div class="panel" id="p-graph">
+      <div class="stat-grid" id="stat-grid"></div>
+      <div class="card">
+        <div class="row-hd">
+          <div class="sec" style="margin:0;">독서 통계</div>
+          <div class="gtabs">
+            <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
+            <button class="gst"    onclick="showGraph('genre',this)">장르별</button>
+            <button class="gst"    onclick="showGraph('rating',this)">평점별</button>
+          </div>
+        </div>
+        <div id="g-monthly">
+          <div class="yr-row" id="yr-row-m"></div>
+          <canvas id="chart-monthly" height="150"></canvas>
+          <div class="stat-row" id="monthly-stat"></div>
+        </div>
+        <div id="g-genre" style="display:none;">
+          <div class="donut-layout" id="donut-layout"></div>
+          <div class="stat-row" id="genre-stat"></div>
+        </div>
+        <div id="g-rating" style="display:none;">
+          <div class="yr-row" id="yr-row-r"></div>
+          <div class="rating-layout" id="rating-layout"></div>
+        </div>
+        <div class="ms-wrap">
+          <div class="ms-title">평생 독서 기록</div>
+          <div class="ms-grid" id="ms-grid"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── 책 추가/수정 모달 ── -->
+<div id="modal-book" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-book-title">책 추가</div>
+      <button class="modal-close" onclick="closeModal('modal-book')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- 책 검색 -->
+      <div class="search-section" id="search-section">
+        <div class="search-row">
+          <input type="text" id="book-search-input" class="search-input" placeholder="책 제목으로 검색..." onkeydown="if(event.key==='Enter')searchBook()">
+          <button class="search-btn" onclick="searchBook()">검색</button>
+        </div>
+        <div id="search-results" class="search-results"></div>
+      </div>
+
+      <!-- 선택된 책 정보 -->
+      <div id="book-form" style="display:none;">
+        <div class="selected-book" id="selected-book-info"></div>
+
+        <div class="form-group">
+          <label class="form-label">읽기 상태</label>
+          <div class="status-btns">
+            <button class="status-btn" onclick="setStatus('읽고싶음',this)">읽고싶음</button>
+            <button class="status-btn" onclick="setStatus('읽는중',this)">읽는중</button>
+            <button class="status-btn on" onclick="setStatus('완독',this)">완독</button>
+            <button class="status-btn" onclick="setStatus('중단',this)">중단</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">시작일</label>
+            <input type="date" id="book-start" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">완독일</label>
+            <input type="date" id="book-finish" class="form-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">평점</label>
+          <div class="star-input" id="star-input">
+            <span class="star" onclick="setStar(1)">★</span>
+            <span class="star" onclick="setStar(2)">★</span>
+            <span class="star" onclick="setStar(3)">★</span>
+            <span class="star" onclick="setStar(4)">★</span>
+            <span class="star" onclick="setStar(5)">★</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">장르</label>
+          <select id="book-genre" class="form-input">
+            <option value="">선택</option>
+            <option>소설</option><option>한국소설</option><option>외국소설</option>
+            <option>SF/판타지</option><option>추리/스릴러</option>
+            <option>에세이</option><option>시/시집</option>
+            <option>인문</option><option>철학</option><option>역사</option><option>사회/정치</option>
+            <option>자기계발</option><option>경제/경영</option>
+            <option>과학</option><option>수학</option><option>기술/공학</option>
+            <option>예술/디자인</option><option>여행</option><option>요리</option>
+            <option>아동/청소년</option><option>만화/그래픽노블</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">감상</label>
+          <textarea id="book-review" class="form-textarea" placeholder="이 책을 읽고 느낀 점을 자유롭게 적어보세요..." rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">인상 깊은 문장</label>
+          <div id="quotes-list"></div>
+          <button class="add-quote-btn" onclick="addQuoteField()">＋ 문장 추가</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">다시 읽고 싶음</label>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="book-reread">
+            <span class="toggle"></span>
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" onclick="closeModal('modal-book')">취소</button>
+          <button class="btn-save" onclick="saveBook()">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 프로필 모달 ── -->
+<div id="modal-profile" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">내 프로필</div>
+      <button class="modal-close" onclick="closeModal('modal-profile')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="profile-avatar" id="profile-avatar"></div>
+      <div class="profile-name" id="profile-name"></div>
+      <div class="profile-email" id="profile-email"></div>
+      <div class="form-group" style="margin-top:1.2rem;">
+        <label class="form-label">닉네임 변경</label>
+        <input type="text" id="profile-display-name" class="form-input">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="doLogout()">로그아웃</button>
+        <button class="btn-save" onclick="saveProfile()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 책 상세 모달 ── -->
+<div id="modal-detail" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="detail-title"></div>
+      <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel btn-delete" onclick="deleteBook()">삭제</button>
+      <button class="btn-save" onclick="editBook()">수정</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+</body>
+</html>
