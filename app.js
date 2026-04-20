@@ -60,15 +60,21 @@ async function init() {
   showScreen('loading');
   try {
     const { data } = await sb.auth.getSession();
-    if (data && data.session) {
+    if (data?.session) {
       currentUser = data.session.user;
-      await loadData();
+      try {
+        await loadData();
+      } catch (dbError) {
+        console.error("데이터 로드 실패:", dbError);
+        // 데이터 로드 실패해도 일단 앱 화면은 보여줘야 함
+      }
       showScreen('app');
       buildGallery();
     } else {
       showScreen('auth');
     }
   } catch(e) {
+    console.error("인증 확인 실패:", e);
     showScreen('auth');
   }
 }
