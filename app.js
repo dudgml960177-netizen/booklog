@@ -57,17 +57,31 @@ function showScreen(name) {
 }
 
 async function init() {
-  showScreen('loading');
+  showScreen('loading'); // 1. 일단 로딩 화면을 보여줌
   
-  // 5초 뒤에는 무조건 로딩 화면을 끄고 앱을 보여줘! (강제 탈출 장치)
-  setTimeout(() => {
-    if (document.getElementById('screen-loading').style.display !== 'none') {
-      console.log("로딩이 너무 길어서 강제로 화면을 엽니다.");
-      showScreen('app');
-    }
-  }, 5000); 
-
   try {
+    // 2. 서버에 로그인 정보를 물어봄
+    const { data, error } = await sb.auth.getSession();
+    
+    // 에러가 있거나 로그인 정보가 없으면 바로 로그인 화면으로!
+    if (error || !data || !data.session) {
+      showScreen('auth');
+      return;
+    }
+
+    // 3. 로그인 되어 있다면 데이터를 가져옴
+    currentUser = data.session.user;
+    await loadData();
+    showScreen('app'); // 앱 화면으로 이동
+    buildGallery();
+    
+  } catch(e) {
+    // 무슨 문제가 생겨도 일단 로그인 화면으로 보내서 무한 로딩을 차단함
+    console.error("초기화 중 오류:", e);
+    showScreen('auth');
+  }
+}
+
     
   showScreen('loading');
   try {
