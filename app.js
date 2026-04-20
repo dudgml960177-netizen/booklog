@@ -58,6 +58,17 @@ function showScreen(name) {
 
 async function init() {
   showScreen('loading');
+  
+  // 5초 뒤에는 무조건 로딩 화면을 끄고 앱을 보여줘! (강제 탈출 장치)
+  setTimeout(() => {
+    if (document.getElementById('screen-loading').style.display !== 'none') {
+      console.log("로딩이 너무 길어서 강제로 화면을 엽니다.");
+      showScreen('app');
+    }
+  }, 5000); 
+
+  try {
+  showScreen('loading');
   try {
     const { data } = await sb.auth.getSession();
     if (data?.session) {
