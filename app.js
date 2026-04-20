@@ -39,31 +39,40 @@ const GCOLS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 
 // ── 초기화 ────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  showScreen('loading');
-
-  // 이메일 인증 후 URL에 토큰이 있는 경우 처리
-  const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
-  const accessToken  = hashParams.get('access_token');
-  const refreshToken = hashParams.get('refresh_token');
-  if (accessToken && refreshToken) {
-    await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    window.history.replaceState(null, '', window.location.pathname);
-  }
-
-  // 타임아웃 안전장치 — 5초 후에도 로딩 중이면 로그인 화면으로
-  const loadingTimeout = setTimeout(() => showScreen('auth'), 5000);
-
-  const { data: { session } } = await sb.auth.getSession();
-  clearTimeout(loadingTimeout);
-  if (session) {
-    currentUser = session.user;
-    await loadData();
-    showScreen('app');
-    buildGallery();
-  } else {
+async function initApp() {
+  const fallback = setTimeout(() => {
+    if (document.getElementById('screen-loading').classList.contains('active')) {
+      showScreen('auth');
+    }
+  }, 2000);
+  try {
+    if (window.location.hash.includes('access_token')) {
+      const hp = new URLSearchParams(window.location.hash.substring(1));
+      const at = hp.get('access_token'), rt = hp.get('refresh_token');
+      if (at) {
+        await sb.auth.setSession({ access_token: at, refresh_token: rt });
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+    const { data } = await sb.auth.getSession();
+    clearTimeout(fallback);
+    if (data && data.session) {
+      currentUser = data.session.user;
+      await loadData();
+      showScreen('app');
+      buildGallery();
+    } else {
+      showScreen('auth');
+    }
+  } catch(e) {
+    clearTimeout(fallback);
     showScreen('auth');
   }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  showScreen('loading');
+  initApp();
 });
 
 sb.auth.onAuthStateChange(async (event, session) => {
