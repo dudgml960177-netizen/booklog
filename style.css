@@ -22,8 +22,6 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx1
 /* ── 화면 전환 ── */
 .screen{display:none;height:100%;flex-direction:column;}
 .screen.active{display:flex;}
-#screen-app{display:none;flex-direction:column;height:100%;}
-#screen-app.active{display:flex;}
 
 /* ── 로딩 ── */
 .loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;background:var(--bg);}
@@ -55,12 +53,12 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx1
 
 /* ── 탭 ── */
 .tabs{display:flex;border-bottom:1px solid var(--border2);background:var(--card);position:sticky;top:53px;z-index:99;overflow-x:auto;justify-content:center;}
-.tab{padding:.4rem .85rem;font-size:.65rem;color:var(--tx3);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.03em;transition:all .15s;font-family:var(--ff);white-space:nowrap;flex-shrink:0;}
+.tab{padding:.4rem .95rem;font-size:.75rem;color:var(--tx3);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.03em;transition:all .15s;font-family:var(--ff);white-space:nowrap;flex-shrink:0;}
 .tab.on{color:var(--tx1);border-bottom-color:var(--acc);font-weight:600;}
 .tab:hover:not(.on){color:var(--tx2);}
 
 /* ── 메인 콘텐츠 ── */
-.app-main{flex:1;overflow-y:auto;padding:1.5rem 2rem;}.main-inner{max-width:900px;margin:0 auto;}
+.app-main{flex:1;overflow-y:auto;padding:1.5rem;}.main-inner{max-width:860px;margin:0 auto;padding:0 1rem;}
 .panel{display:none!important;}.panel.on{display:block!important;}
 
 /* ── 공통 카드 ── */
@@ -132,7 +130,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx1
 
 /* ── 통계 ── */
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem;margin-bottom:.9rem;}
-@media(min-width:600px){.stat-grid{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:500px){.stat-grid{grid-template-columns:repeat(4,1fr);}}
 .scard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem .9rem;}
 .scard-n{font-family:var(--fs);font-size:1.35rem;color:var(--tx1);line-height:1;margin-bottom:.18rem;}
 .scard-l{font-size:.68rem;color:var(--tx3);}

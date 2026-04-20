@@ -90,12 +90,14 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // 모든 screen 숨기기
+  ['loading','auth','app'].forEach(n => {
+    const el = document.getElementById('screen-' + n);
+    if (el) el.style.display = 'none';
+  });
+  // 해당 screen 보이기
   const el = document.getElementById('screen-' + name);
-  if (el) el.classList.add('active');
-  if (name === 'app') {
-    document.getElementById('screen-app').classList.add('active');
-  }
+  if (el) el.style.display = 'flex';
 }
 
 // ── 데이터 로드 ───────────────────────────
@@ -321,10 +323,19 @@ function buildStats() {
   const total = done.length;
   const avg = total > 0 ? (done.reduce((a,b) => a+(b.rating||0), 0) / total).toFixed(1) : '—';
   const years = new Set(done.map(b => b.date_finish?.slice(0,4)).filter(Boolean));
+  const totalPages = done.reduce((a,b) => a+(b.pages||0), 0);
+  const thisMonth  = done.filter(b => b.date_finish && b.date_finish.startsWith(new Date().toISOString().slice(0,7)));
+  const thisYear   = done.filter(b => b.date_finish && b.date_finish.startsWith(new Date().getFullYear()+''));
+  const monthPages = thisMonth.reduce((a,b) => a+(b.pages||0), 0);
+  const yearPages  = thisYear.reduce((a,b) => a+(b.pages||0), 0);
   [{n:total, l:'누적 완독', sub:'전체 기간'},
    {n:avg,   l:'평균 평점', sub:avg+' / 5.0'},
    {n:years.size+'년', l:'독서 기록', sub:years.size?[...years].sort()[0]+'–현재':'—'},
-   {n:allQuotes.length, l:'수집한 문장', sub:'인상 깊은 구절'}]
+   {n:allQuotes.length, l:'수집한 문장', sub:'인상 깊은 구절'},
+   {n:totalPages.toLocaleString()+'p', l:'누적 페이지', sub:'전체 기간'},
+   {n:yearPages.toLocaleString()+'p', l:'올해 페이지', sub:new Date().getFullYear()+'년'},
+   {n:monthPages.toLocaleString()+'p', l:'이번달 페이지', sub:new Date().toISOString().slice(0,7)},
+   {n:done.length>0?Math.round(totalPages/done.length)+'p':'—', l:'권당 평균', sub:'페이지 수'}]
   .forEach(it => {
     const el = document.createElement('div'); el.className='scard';
     el.innerHTML = `<div class="scard-n">${it.n}</div><div class="scard-l">${it.l}</div><div class="scard-sub">${it.sub}</div>`;
@@ -469,6 +480,7 @@ function openAddBook() {
   document.getElementById('book-start').value = '';
   document.getElementById('book-finish').value = new Date().toISOString().slice(0,10);
   document.getElementById('book-reread').checked = false;
+  document.getElementById('book-pages').value = '';
   document.getElementById('quotes-list').innerHTML = '';
   updateStars(0);
   document.querySelectorAll('.status-btn').forEach(b => b.classList.toggle('on', b.textContent==='완독'));
@@ -564,11 +576,13 @@ function addQuoteField(text='', page='', tag='') {
 // ── 책 저장 ───────────────────────────────
 async function saveBook() {
   if (!selectedBook && !editingBookId) { alert('책을 검색해서 선택해주세요.'); return; }
-  const genre = document.getElementById('book-genre').value;
-  const review = document.getElementById('book-review').value.trim();
+
+  const genre     = document.getElementById('book-genre').value;
+  const review    = document.getElementById('book-review').value.trim();
   const dateStart = document.getElementById('book-start').value;
-  const dateFinish = document.getElementById('book-finish').value;
-  const reread = document.getElementById('book-reread').checked;
+  const dateFinish= document.getElementById('book-finish').value;
+  const reread    = document.getElementById('book-reread').checked;
+  const pages     = parseInt(document.getElementById('book-pages').value) || null;
 
   const quoteFields = document.querySelectorAll('.quote-field');
   const newQuotes = [...quoteFields].map(f => ({
@@ -577,37 +591,51 @@ async function saveBook() {
     page: f.querySelector('[data-qpage]').value.trim(),
   })).filter(q => q.text);
 
+  const existing = editingBookId ? allBooks.find(b => b.id === editingBookId) : null;
   const bookData = {
     user_id:     currentUser.id,
-    title:       selectedBook?.title || allBooks.find(b=>b.id===editingBookId)?.title,
-    author:      selectedBook?.author || allBooks.find(b=>b.id===editingBookId)?.author,
-    publisher:   selectedBook?.publisher || allBooks.find(b=>b.id===editingBookId)?.publisher,
-    cover:       selectedBook?.cover || allBooks.find(b=>b.id===editingBookId)?.cover,
-    description: selectedBook?.description || allBooks.find(b=>b.id===editingBookId)?.description,
-    isbn:        selectedBook?.isbn || allBooks.find(b=>b.id===editingBookId)?.isbn,
+    title:       selectedBook?.title       || existing?.title       || '',
+    author:      selectedBook?.author      || existing?.author      || '',
+    publisher:   selectedBook?.publisher   || existing?.publisher   || '',
+    cover:       selectedBook?.cover       || existing?.cover       || '',
+    description: selectedBook?.description || existing?.description || '',
+    isbn:        selectedBook?.isbn        || existing?.isbn        || '',
     genre:       genre ? [genre] : [],
     rating:      curRating || null,
     status:      curStatus,
-    date_start:  dateStart || null,
+    date_start:  dateStart  || null,
     date_finish: dateFinish || null,
     review,
     reread,
+    pages,
   };
 
-  let bookId = editingBookId;
-  if (editingBookId) {
-    await sb.from('books').update(bookData).eq('id', editingBookId);
-    await sb.from('quotes').delete().eq('book_id', editingBookId);
-  } else {
-    const { data } = await sb.from('books').insert(bookData).select().single();
-    bookId = data?.id;
-  }
+  try {
+    let bookId = editingBookId;
+    if (editingBookId) {
+      const { error } = await sb.from('books').update(bookData).eq('id', editingBookId);
+      if (error) throw error;
+      await sb.from('quotes').delete().eq('book_id', editingBookId);
+    } else {
+      const { data, error } = await sb.from('books').insert(bookData).select().single();
+      if (error) throw error;
+      bookId = data?.id;
+    }
 
-  if (bookId && newQuotes.length) {
-    await sb.from('quotes').insert(newQuotes.map(q => ({ ...q, user_id: currentUser.id, book_id: bookId })));
-  }
+    if (bookId && newQuotes.length) {
+      const { error } = await sb.from('quotes').insert(
+        newQuotes.map(q => ({ ...q, user_id: currentUser.id, book_id: bookId }))
+      );
+      if (error) console.warn('quotes insert error:', error);
+    }
 
-  closeModal('modal-book');
+    closeModal('modal-book');
+    await loadData();
+    buildGallery();
+  } catch(e) {
+    console.error('saveBook error:', e);
+    alert('저장 중 오류가 발생했어요: ' + (e.message || JSON.stringify(e)));
+  }
   await loadData();
   buildGallery();
 }
@@ -681,6 +709,7 @@ function editBook() {
   document.getElementById('book-start').value  = b.date_start  || '';
   document.getElementById('book-finish').value = b.date_finish || '';
   document.getElementById('book-reread').checked = b.reread || false;
+  document.getElementById('book-pages').value = b.pages || '';
 
   const list = document.getElementById('quotes-list'); list.innerHTML = '';
   allQuotes.filter(q => q.book_id === b.id).forEach(q => addQuoteField(q.text, q.page, q.tag));
@@ -689,13 +718,21 @@ function editBook() {
 
 // ── 프로필 ────────────────────────────────
 async function openProfile() {
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
-  const name = profile?.display_name || profile?.username || '독서가';
-  document.getElementById('profile-avatar').textContent = name.slice(0,1).toUpperCase();
-  document.getElementById('profile-name').textContent = name;
+  // 먼저 모달 열고 이메일로 임시 표시
+  const tempName = currentUser.email?.split('@')[0] || '독서가';
+  document.getElementById('profile-avatar').textContent = tempName.slice(0,1).toUpperCase();
+  document.getElementById('profile-name').textContent = tempName;
   document.getElementById('profile-email').textContent = currentUser.email;
-  document.getElementById('profile-display-name').value = name;
+  document.getElementById('profile-display-name').value = tempName;
   openModal('modal-profile');
+  // 백그라운드에서 실제 프로필 불러오기
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (profile) {
+    const name = profile.display_name || profile.username || tempName;
+    document.getElementById('profile-avatar').textContent = name.slice(0,1).toUpperCase();
+    document.getElementById('profile-name').textContent = name;
+    document.getElementById('profile-display-name').value = name;
+  }
 }
 
 async function saveProfile() {
