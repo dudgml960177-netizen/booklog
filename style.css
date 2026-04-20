@@ -22,6 +22,7 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx1
 /* ── 화면 전환 ── */
 .screen{display:none;height:100%;flex-direction:column;}
 .screen.active{display:flex;}
+#screen-loading,#screen-auth,#screen-app{height:100%;}
 
 /* ── 로딩 ── */
 .loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:.8rem;background:var(--bg);}

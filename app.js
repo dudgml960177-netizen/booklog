@@ -39,65 +39,64 @@ const GCOLS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 
 // ── 초기화 ────────────────────────────────
-async function initApp() {
-  const fallback = setTimeout(() => {
-    if (document.getElementById('screen-loading').classList.contains('active')) {
-      showScreen('auth');
-    }
-  }, 2000);
-  try {
-    if (window.location.hash.includes('access_token')) {
-      const hp = new URLSearchParams(window.location.hash.substring(1));
-      const at = hp.get('access_token'), rt = hp.get('refresh_token');
-      if (at) {
-        await sb.auth.setSession({ access_token: at, refresh_token: rt });
-        window.history.replaceState(null, '', window.location.pathname);
-      }
-    }
-    const { data } = await sb.auth.getSession();
-    clearTimeout(fallback);
-    if (data && data.session) {
-      currentUser = data.session.user;
+// 앱 시작 즉시 로딩 화면 표시
+document.addEventListener('DOMContentLoaded', () => {
+  showScreen('loading');
+});
+
+// Supabase 인증 상태 변화 감지 — 이게 핵심
+// 라이브러리 로드 완료 후 자동으로 현재 세션 확인해서 이벤트 발생
+sb.auth.onAuthStateChange(async (event, session) => {
+  console.log('Auth event:', event, session ? 'has session' : 'no session');
+
+  if (event === 'INITIAL_SESSION') {
+    // 앱 시작시 세션 확인 완료
+    if (session) {
+      currentUser = session.user;
       await loadData();
       showScreen('app');
       buildGallery();
     } else {
       showScreen('auth');
     }
-  } catch(e) {
-    clearTimeout(fallback);
-    showScreen('auth');
+    return;
   }
-}
 
-window.addEventListener('DOMContentLoaded', () => {
-  showScreen('loading');
-  initApp();
-});
-
-sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session) {
+  if (event === 'SIGNED_IN') {
     currentUser = session.user;
     await loadData();
     showScreen('app');
     buildGallery();
+    return;
   }
+
   if (event === 'SIGNED_OUT') {
     currentUser = null;
     allBooks = []; allQuotes = [];
     showScreen('auth');
+    return;
+  }
+
+  if (event === 'TOKEN_REFRESHED') {
+    currentUser = session.user;
+    return;
   }
 });
 
 function showScreen(name) {
-  // 모든 screen 숨기기
   ['loading','auth','app'].forEach(n => {
     const el = document.getElementById('screen-' + n);
-    if (el) el.style.display = 'none';
+    if (!el) return;
+    el.style.display = 'none';
+    el.style.flexDirection = 'column';
+    el.style.height = '100%';
   });
-  // 해당 screen 보이기
   const el = document.getElementById('screen-' + name);
-  if (el) el.style.display = 'flex';
+  if (el) {
+    el.style.display = 'flex';
+    el.style.flexDirection = 'column';
+    el.style.height = '100%';
+  }
 }
 
 // ── 데이터 로드 ───────────────────────────

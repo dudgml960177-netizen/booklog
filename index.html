@@ -12,7 +12,7 @@
 <body>
 
 <!-- ── 로딩 화면 ── -->
-<div id="screen-loading" class="screen active">
+<div id="screen-loading" style="display:flex;flex-direction:column;height:100%;">
   <div class="loading-wrap">
     <div class="loading-logo">북로그</div>
     <div class="loading-sub">나만의 독서 기록</div>
@@ -21,7 +21,7 @@
 </div>
 
 <!-- ── 로그인 화면 ── -->
-<div id="screen-auth" class="screen">
+<div id="screen-auth" style="display:none;flex-direction:column;height:100%;">
   <div class="auth-wrap">
     <div class="auth-logo">북로그</div>
     <div class="auth-tagline">읽은 것들이 쌓여 나를 만든다</div>
@@ -47,7 +47,7 @@
 </div>
 
 <!-- ── 메인 앱 화면 ── -->
-<div id="screen-app" class="screen">
+<div id="screen-app" style="display:none;flex-direction:column;height:100%;">
 
   <!-- 상단 헤더 -->
   <header class="app-header">
@@ -299,7 +299,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
