@@ -1,6 +1,71 @@
 // ═══════════════════════════════════════════
 // 북로그 — 메인 앱 로직 v2
 // ═══════════════════════════════════════════
+// ── 설정 (이 부분은 건드리지 마세요) ──────────────────
+const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── 화면 전환 함수 (가장 먼저 정의되어야 함) ─────────────
+function showScreen(name) {
+  const screens = ['loading', 'auth', 'app'];
+  screens.forEach(n => {
+    const el = document.getElementById('screen-' + n);
+    if (el) el.style.display = 'none';
+  });
+  const target = document.getElementById('screen-' + name);
+  if (target) {
+    target.style.display = 'flex';
+    target.style.flexDirection = 'column';
+  }
+}
+
+// ── 초기화 함수 (무조건 3초 뒤에 로딩 종료) ──────────────
+async function init() {
+  showScreen('loading');
+  
+  // [핵심] 3초 타이머: 서버가 대답 안 해도 무조건 로그인창으로 탈출!
+  const forceExit = setTimeout(() => {
+    console.log("서버 응답 지연으로 강제 전환합니다.");
+    showScreen('auth');
+  }, 3000);
+
+  try {
+    const { data } = await sb.auth.getSession();
+    clearTimeout(forceExit); // 응답이 오면 타이머 취소
+
+    if (data?.session) {
+      currentUser = data.session.user;
+      await loadData();
+      showScreen('app');
+      if (typeof buildGallery === 'function') buildGallery();
+    } else {
+      showScreen('auth');
+    }
+  } catch (e) {
+    clearTimeout(forceExit);
+    console.error("오류 발생:", e);
+    showScreen('auth');
+  }
+}
+
+// ── 데이터 로드 함수 (안전 버전) ──────────────────────
+async function loadData() {
+  try {
+    if (!currentUser) return;
+    const [booksRes, quotesRes] = await Promise.all([
+      sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+      sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+    ]);
+    allBooks = booksRes.data || [];
+    allQuotes = quotesRes.data || [];
+  } catch (err) {
+    allBooks = [];
+    allQuotes = [];
+  }
+}
 
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
