@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════
-// 북로그 — 메인 앱 로직
+// 북로그 — 메인 앱 로직 v2
 // ═══════════════════════════════════════════
 
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
@@ -10,14 +10,14 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── 상태 ──────────────────────────────────
-let currentUser   = null;`
+let currentUser   = null;
 let allBooks      = [];
 let allQuotes     = [];
 let curFilter     = '전체';
 let curTagQ       = '전체';
-let curBookId     = null;   // 수정/삭제용
+let curBookId     = null;
 let editingBookId = null;
-let selectedBook  = null;   // 검색에서 선택된 책
+let selectedBook  = null;
 let curRating     = 0;
 let curStatus     = '완독';
 let calY          = new Date().getFullYear();
@@ -26,6 +26,12 @@ let monthChart    = null;
 let donutChart    = null;
 let curYM         = 'all';
 let curYR         = 'all';
+
+// 타이머 상태
+let timerInterval = null;
+let timerSeconds  = 0;
+let timerRunning  = false;
+let timerBookId   = null;
 
 const YC = {
   2022:{line:'#7a9e7e',rgb:'122,158,126'},
@@ -39,11 +45,22 @@ const GCOLS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 
 // ── 초기화 ────────────────────────────────
+function showScreen(name) {
+  ['loading','auth','app'].forEach(n => {
+    const el = document.getElementById('screen-' + n);
+    if (!el) return;
+    el.style.display = 'none';
+  });
+  const el = document.getElementById('screen-' + name);
+  if (el) el.style.display = (name === 'loading') ? 'flex' : 'flex';
+  if (el) el.style.flexDirection = 'column';
+}
+
 async function init() {
   showScreen('loading');
   try {
-    const { data, error } = await sb.auth.getSession();
-    if (data?.session) {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session) {
       currentUser = data.session.user;
       await loadData();
       showScreen('app');
@@ -56,7 +73,6 @@ async function init() {
   }
 }
 
-// 페이지 로드 즉시 실행
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
@@ -69,35 +85,16 @@ sb.auth.onAuthStateChange(async (event, session) => {
     await loadData();
     showScreen('app');
     buildGallery();
-    return;
   }
   if (event === 'SIGNED_OUT') {
     currentUser = null;
     allBooks = []; allQuotes = [];
     showScreen('auth');
-    return;
   }
   if (event === 'TOKEN_REFRESHED' && session) {
     currentUser = session.user;
-    return;
   }
 });
-
-function showScreen(name) {
-  ['loading','auth','app'].forEach(n => {
-    const el = document.getElementById('screen-' + n);
-    if (!el) return;
-    el.style.display = 'none';
-    el.style.flexDirection = 'column';
-    el.style.height = '100%';
-  });
-  const el = document.getElementById('screen-' + name);
-  if (el) {
-    el.style.display = 'flex';
-    el.style.flexDirection = 'column';
-    el.style.height = '100%';
-  }
-}
 
 // ── 데이터 로드 ───────────────────────────
 async function loadData() {
@@ -162,6 +159,7 @@ function sw(name, btn) {
   if (name === 'table')   buildTable();
   if (name === 'quotes')  buildQuotes();
   if (name === 'cal')     renderCal();
+  if (name === 'timer')   buildTimer();
   if (name === 'graph') {
     buildStats(); buildMilestone();
     document.querySelectorAll('.gst').forEach((t,i) => t.classList.toggle('on', i===0));
@@ -179,7 +177,7 @@ function filterStatus(status, btn) {
 
 function buildGallery() {
   const g = document.getElementById('gal-grid'); g.innerHTML = '';
-  const list = curFilter === '전체' ? allBooks : allBooks.filter(b => b.status === curFilter);
+  let list = curFilter === '전체' ? allBooks : allBooks.filter(b => b.status === curFilter);
   if (!list.length) {
     g.innerHTML = '<div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>';
     return;
@@ -188,13 +186,13 @@ function buildGallery() {
     const el = document.createElement('div'); el.className = 'gi';
     el.onclick = () => openDetail(b.id);
     const coverHTML = b.cover
-      ? `<div class="gi-cover"><img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;border-radius:3px;"></div>`
-      : `<div class="gi-cover">${b.title}</div>`;
-    el.innerHTML = `${coverHTML}
+      ? `<img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;border-radius:3px;">`
+      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:rgba(255,255,255,.8);text-align:center;padding:.2rem;font-style:italic;line-height:1.4;">${b.title}</div>`;
+    el.innerHTML = `<div class="gi-cover">${coverHTML}</div>
       <div class="gi-title">${b.title}</div>
       <div class="gi-author">${b.author || ''}</div>
       <div class="gi-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
-      <div class="gi-status">${b.status||''}</div>`;
+      <span class="gi-status">${b.status||''}</span>`;
     g.appendChild(el);
   });
 }
@@ -257,6 +255,76 @@ function genreColor(genre) {
   return map[g] || '#b07030';
 }
 
+// ── 타이머 ────────────────────────────────
+function buildTimer() {
+  const el = document.getElementById('timer-book-select');
+  if (!el) return;
+  el.innerHTML = '<option value="">책 선택...</option>';
+  allBooks.filter(b => b.status === '읽는중').forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.id; opt.textContent = b.title;
+    el.appendChild(opt);
+  });
+  updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+  const h = Math.floor(timerSeconds / 3600);
+  const m = Math.floor((timerSeconds % 3600) / 60);
+  const s = timerSeconds % 60;
+  const el = document.getElementById('timer-display');
+  if (el) el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const btn = document.getElementById('timer-btn');
+  if (btn) btn.textContent = timerRunning ? '⏸ 일시정지' : (timerSeconds > 0 ? '▶ 계속' : '▶ 시작');
+}
+
+function toggleTimer() {
+  const bookSel = document.getElementById('timer-book-select');
+  if (!timerRunning && bookSel && !bookSel.value) {
+    alert('먼저 읽고 있는 책을 선택해주세요.');
+    return;
+  }
+  if (timerRunning) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+  } else {
+    timerBookId = bookSel?.value || null;
+    timerRunning = true;
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      updateTimerDisplay();
+    }, 1000);
+  }
+  updateTimerDisplay();
+}
+
+function resetTimer() {
+  if (!confirm('타이머를 초기화할까요?')) return;
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSeconds = 0;
+  updateTimerDisplay();
+}
+
+async function saveTimer() {
+  if (timerSeconds < 60) { alert('최소 1분 이상 읽어야 저장할 수 있어요.'); return; }
+  const bookSel = document.getElementById('timer-book-select');
+  const bookId = bookSel?.value || timerBookId;
+  if (!bookId) { alert('책을 선택해주세요.'); return; }
+  const book = allBooks.find(b => b.id === bookId);
+  const today = new Date().toISOString().slice(0,10);
+  const mins = Math.round(timerSeconds / 60);
+  const curReadingTime = book?.reading_time || 0;
+  await sb.from('books').update({ reading_time: curReadingTime + mins, last_read: today }).eq('id', bookId);
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSeconds = 0;
+  await loadData();
+  updateTimerDisplay();
+  buildTimer();
+  alert(`${mins}분 저장됐어요!`);
+}
+
 // ── 달력 ──────────────────────────────────
 function moveCal(dir) {
   calM += dir;
@@ -274,7 +342,6 @@ function renderCal() {
   const days  = new Date(calY, calM+1, 0).getDate();
   const prev  = new Date(calY, calM, 0).getDate();
   const today = new Date();
-
   for (let i = 0; i < first; i++) {
     const d = document.createElement('div'); d.className='day other'; d.textContent=prev-first+1+i; grid.appendChild(d);
   }
@@ -299,17 +366,16 @@ function renderCal() {
   }
   const rem = 42-first-days;
   for (let i=1;i<=rem;i++){const d=document.createElement('div');d.className='day other';d.textContent=i;grid.appendChild(d);}
-
   const list = document.getElementById('cal-list'); list.innerHTML = '';
   const mk = calY+'-'+String(calM+1).padStart(2,'0');
   const mb = allBooks.filter(b => b.date_finish && b.date_finish.startsWith(mk) && b.status==='완독');
   if (!mb.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:.5rem 0;font-size:.72rem;">이 달에 완독한 책이 없습니다.</div>';
+    list.innerHTML = '<div style="font-size:.72rem;color:var(--tx3);padding:.25rem 0;">이 달에 완독한 책이 없습니다.</div>';
   } else {
     mb.forEach(b => {
       const r = document.createElement('div'); r.className='cli';
       r.onclick = () => openDetail(b.id);
-      r.innerHTML = `<span class="cldot"></span><span>${b.title}</span><span class="sl" style="margin-left:auto;color:var(--tx3);font-size:.65rem;">${b.date_finish}</span>`;
+      r.innerHTML = `<span class="cldot"></span><span style="flex:1;">${b.title}</span><span style="color:var(--tx3);font-size:.65rem;">${b.date_finish}</span>`;
       list.appendChild(r);
     });
   }
@@ -323,19 +389,38 @@ function buildStats() {
   const avg = total > 0 ? (done.reduce((a,b) => a+(b.rating||0), 0) / total).toFixed(1) : '—';
   const years = new Set(done.map(b => b.date_finish?.slice(0,4)).filter(Boolean));
   const totalPages = done.reduce((a,b) => a+(b.pages||0), 0);
-  const thisMonth  = done.filter(b => b.date_finish && b.date_finish.startsWith(new Date().toISOString().slice(0,7)));
-  const thisYear   = done.filter(b => b.date_finish && b.date_finish.startsWith(new Date().getFullYear()+''));
+  const totalMins  = allBooks.reduce((a,b) => a+(b.reading_time||0), 0);
+  const thisMonth  = done.filter(b => b.date_finish?.startsWith(new Date().toISOString().slice(0,7)));
+  const thisYear   = done.filter(b => b.date_finish?.startsWith(String(new Date().getFullYear())));
   const monthPages = thisMonth.reduce((a,b) => a+(b.pages||0), 0);
   const yearPages  = thisYear.reduce((a,b) => a+(b.pages||0), 0);
-  [{n:total, l:'누적 완독', sub:'전체 기간'},
-   {n:avg,   l:'평균 평점', sub:avg+' / 5.0'},
-   {n:years.size+'년', l:'독서 기록', sub:years.size?[...years].sort()[0]+'–현재':'—'},
-   {n:allQuotes.length, l:'수집한 문장', sub:'인상 깊은 구절'},
-   {n:totalPages.toLocaleString()+'p', l:'누적 페이지', sub:'전체 기간'},
-   {n:yearPages.toLocaleString()+'p', l:'올해 페이지', sub:new Date().getFullYear()+'년'},
-   {n:monthPages.toLocaleString()+'p', l:'이번달 페이지', sub:new Date().toISOString().slice(0,7)},
-   {n:done.length>0?Math.round(totalPages/done.length)+'p':'—', l:'권당 평균', sub:'페이지 수'}]
-  .forEach(it => {
+
+  // 좋아하는 작가
+  const authorMap = {};
+  done.forEach(b => { if(b.author) authorMap[b.author] = (authorMap[b.author]||0)+1; });
+  const topAuthor = Object.entries(authorMap).sort((a,b)=>b[1]-a[1])[0];
+
+  // 좋아하는 출판사
+  const pubMap = {};
+  done.forEach(b => { if(b.publisher) pubMap[b.publisher] = (pubMap[b.publisher]||0)+1; });
+  const topPub = Object.entries(pubMap).sort((a,b)=>b[1]-a[1])[0];
+
+  const hrs = Math.floor(totalMins/60);
+  const items = [
+    {n:total,          l:'누적 완독',      sub:'전체 기간'},
+    {n:avg,            l:'평균 평점',      sub:avg+' / 5.0'},
+    {n:years.size+'년',l:'독서 기록',      sub:years.size?[...years].sort()[0]+'–현재':'—'},
+    {n:allQuotes.length,l:'수집한 문장',   sub:'인상 깊은 구절'},
+    {n:totalPages.toLocaleString()+'p', l:'누적 페이지', sub:'전체 기간'},
+    {n:yearPages.toLocaleString()+'p',  l:'올해 페이지', sub:new Date().getFullYear()+'년'},
+    {n:monthPages.toLocaleString()+'p', l:'이번달 페이지',sub:new Date().toISOString().slice(0,7)},
+    {n:hrs+'h',        l:'총 독서 시간',   sub:totalMins+'분'},
+    {n:topAuthor?topAuthor[0]:'—', l:'최애 작가', sub:topAuthor?topAuthor[1]+'권':''},
+    {n:topPub?topPub[0]:'—',       l:'최애 출판사',sub:topPub?topPub[1]+'권':''},
+    {n:done.length>0?Math.round(totalPages/done.length)+'p':'—', l:'권당 평균', sub:'페이지'},
+    {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권'},
+  ];
+  items.forEach(it => {
     const el = document.createElement('div'); el.className='scard';
     el.innerHTML = `<div class="scard-n">${it.n}</div><div class="scard-l">${it.l}</div><div class="scard-sub">${it.sub}</div>`;
     sg.appendChild(el);
@@ -390,8 +475,7 @@ function buildMonthly() {
     monthChart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:curYM+'년',data:vals,borderColor:c.line,borderWidth:2,pointBackgroundColor:c.line,pointBorderColor:'#faf6ef',pointBorderWidth:1.5,pointRadius:3.5,pointHoverRadius:6,fill:true,backgroundColor:(ct)=>{const g=ct.chart.ctx.createLinearGradient(0,0,0,130);g.addColorStop(0,`rgba(${c.rgb},0.28)`);g.addColorStop(1,`rgba(${c.rgb},0.02)`);return g;},tension:0.42}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#faf6ef',borderColor:c.line,borderWidth:1,titleColor:'#2e1f0e',bodyColor:'#5c3d1e',titleFont:{family:'Pretendard',size:11},bodyFont:{family:'Pretendard',size:11},callbacks:{label:ct=>' '+ct.parsed.y+'권'}}},scales:{x:{grid:{display:false},ticks:{font:{family:'Pretendard',size:10},color:'#a08c72'}},y:{grid:{color:'rgba(207,195,172,0.32)'},border:{dash:[3,3]},ticks:{font:{family:'Pretendard',size:10},color:'#a08c72',stepSize:1},min:0}}}});
   }
   const filtered=curYM==='all'?done:done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM);
-  const total=filtered.length;
-  const cnt=Array(12).fill(0);filtered.forEach(b=>cnt[parseInt(b.date_finish.slice(5,7))-1]++);
+  const total=filtered.length;const cnt=Array(12).fill(0);filtered.forEach(b=>cnt[parseInt(b.date_finish.slice(5,7))-1]++);
   const mx=Math.max(...cnt);const bestM=mx===0?'-':(cnt.indexOf(mx)+1)+'월 ('+mx+'권)';
   const yrs=new Set(done.map(b=>b.date_finish.slice(0,4))).size||1;
   document.getElementById('monthly-stat').innerHTML=`<div class="si"><span class="sn">${total}</span><span class="sl">${curYM==='all'?'누적 완독':curYM+'년 완독'}</span></div><div class="si"><span class="sn">${curYM==='all'?Math.round(total/yrs*10)/10:Math.round(total/12*10)/10}</span><span class="sl">${curYM==='all'?'연평균':'월평균'}</span></div><div class="si"><span class="sn">${bestM}</span><span class="sl">최다 독서월</span></div>`;
@@ -453,12 +537,12 @@ function buildMilestone() {
   const total=done.length;
   const years=new Set(done.map(b=>b.date_finish?.slice(0,4)).filter(Boolean));
   const yrs=years.size||1;
-  const firstYr=[...years].sort()[0]||new Date().getFullYear();
+  const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
   const items=[
     {n:total,l:'총 완독 권수',prog:Math.min(total/200,1),target:'목표 200권'},
     {n:yrs+'년',l:'독서 기록 기간',prog:Math.min(yrs/10,1),target:'10년 독서가'},
-    {n:years.size+'개년',l:'활동 연도',prog:Math.min(years.size/10,1),target:'10개년 기록'},
     {n:Math.round(total/yrs*10)/10+'권',l:'연평균 독서량',prog:Math.min(total/yrs/20,1),target:'연 20권 목표'},
+    {n:Math.floor(totalMins/60)+'h',l:'총 독서 시간',prog:Math.min(totalMins/60/500,1),target:'500시간 목표'},
     {n:new Set(done.map(b=>b.date_finish?.slice(0,7)).filter(Boolean)).size+'개월',l:'독서한 달 수',prog:0,target:''},
     {n:done.filter(b=>b.rating>=4).length+'권',l:'★★★★ 이상',prog:Math.min(done.filter(b=>b.rating>=4).length/100,1),target:'명작 100권'},
   ];
@@ -480,13 +564,14 @@ function openAddBook() {
   document.getElementById('book-finish').value = new Date().toISOString().slice(0,10);
   document.getElementById('book-reread').checked = false;
   document.getElementById('book-pages').value = '';
+  document.getElementById('book-source').value = '';
   document.getElementById('quotes-list').innerHTML = '';
   updateStars(0);
   document.querySelectorAll('.status-btn').forEach(b => b.classList.toggle('on', b.textContent==='완독'));
   openModal('modal-book');
 }
 
-// ── 책 검색 (네이버 API 프록시) ───────────
+// ── 책 검색 ───────────────────────────────
 async function searchBook() {
   const q = document.getElementById('book-search-input').value.trim();
   if (!q) return;
@@ -546,22 +631,18 @@ function changeBook() {
   document.getElementById('book-search-input').value = '';
 }
 
-// ── 별점 ──────────────────────────────────
 function setStar(n) { curRating = n; updateStars(n); }
 function updateStars(n) {
   document.querySelectorAll('.star').forEach((s,i) => s.classList.toggle('on', i < n));
 }
 
-// ── 상태 ──────────────────────────────────
 function setStatus(s, btn) {
   curStatus = s;
   document.querySelectorAll('.status-btn').forEach(b => b.classList.toggle('on', b === btn));
 }
 
-// ── 인용구 필드 ───────────────────────────
 function addQuoteField(text='', page='', tag='') {
   const list = document.getElementById('quotes-list');
-  const idx = list.children.length;
   const el = document.createElement('div'); el.className='quote-field';
   el.innerHTML = `<button class="quote-remove" onclick="this.parentElement.remove()">✕</button>
     <textarea class="form-input" placeholder="인상 깊은 문장을 입력하세요..." rows="2" data-qtext>${text}</textarea>
@@ -575,21 +656,19 @@ function addQuoteField(text='', page='', tag='') {
 // ── 책 저장 ───────────────────────────────
 async function saveBook() {
   if (!selectedBook && !editingBookId) { alert('책을 검색해서 선택해주세요.'); return; }
-
   const genre     = document.getElementById('book-genre').value;
   const review    = document.getElementById('book-review').value.trim();
   const dateStart = document.getElementById('book-start').value;
   const dateFinish= document.getElementById('book-finish').value;
   const reread    = document.getElementById('book-reread').checked;
   const pages     = parseInt(document.getElementById('book-pages').value) || null;
-
+  const source    = document.getElementById('book-source').value;
   const quoteFields = document.querySelectorAll('.quote-field');
   const newQuotes = [...quoteFields].map(f => ({
     text: f.querySelector('[data-qtext]').value.trim(),
     tag:  f.querySelector('[data-qtag]').value.trim(),
     page: f.querySelector('[data-qpage]').value.trim(),
   })).filter(q => q.text);
-
   const existing = editingBookId ? allBooks.find(b => b.id === editingBookId) : null;
   const bookData = {
     user_id:     currentUser.id,
@@ -604,11 +683,8 @@ async function saveBook() {
     status:      curStatus,
     date_start:  dateStart  || null,
     date_finish: dateFinish || null,
-    review,
-    reread,
-    pages,
+    review, reread, pages, source: source || null,
   };
-
   try {
     let bookId = editingBookId;
     if (editingBookId) {
@@ -620,23 +696,15 @@ async function saveBook() {
       if (error) throw error;
       bookId = data?.id;
     }
-
     if (bookId && newQuotes.length) {
-      const { error } = await sb.from('quotes').insert(
-        newQuotes.map(q => ({ ...q, user_id: currentUser.id, book_id: bookId }))
-      );
-      if (error) console.warn('quotes insert error:', error);
+      await sb.from('quotes').insert(newQuotes.map(q => ({ ...q, user_id: currentUser.id, book_id: bookId })));
     }
-
     closeModal('modal-book');
     await loadData();
     buildGallery();
   } catch(e) {
-    console.error('saveBook error:', e);
-    alert('저장 중 오류가 발생했어요: ' + (e.message || JSON.stringify(e)));
+    alert('저장 중 오류: ' + (e.message || JSON.stringify(e)));
   }
-  await loadData();
-  buildGallery();
 }
 
 // ── 책 상세 ───────────────────────────────
@@ -647,11 +715,30 @@ function openDetail(bookId) {
   document.getElementById('detail-title').textContent = b.title;
   const quotes = allQuotes.filter(q => q.book_id === bookId);
   const genre = Array.isArray(b.genre) ? b.genre.join(', ') : (b.genre || '');
-  const coverHTML = b.cover
-    ? `<img class="detail-cover" src="${b.cover}" alt="${b.title}">`
-    : `<div class="detail-cover-ph">${b.title}</div>`;
+  const coverHTML = b.cover ? `<img class="detail-cover" src="${b.cover}" alt="${b.title}">` : `<div class="detail-cover-ph">${b.title}</div>`;
+
+  // 줄거리 더보기 처리
+  const MAX_DESC = 150;
+  let descHTML = '';
+  if (b.description) {
+    if (b.description.length > MAX_DESC) {
+      descHTML = `<div class="detail-sec">줄거리</div>
+        <div class="detail-body">
+          <span class="desc-short">${b.description.slice(0, MAX_DESC)}...</span>
+          <span class="desc-full" style="display:none;">${b.description}</span>
+          <span class="desc-toggle" onclick="toggleDesc(this)">더 보기</span>
+        </div><div class="detail-divhr"></div>`;
+    } else {
+      descHTML = `<div class="detail-sec">줄거리</div><div class="detail-body">${b.description}</div><div class="detail-divhr"></div>`;
+    }
+  }
+
+  const readingTime = b.reading_time ? `<span class="detail-chip">📖 ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>` : '';
+  const sourceTag = b.source ? `<span class="detail-chip">${b.source}</span>` : '';
+  const pagesTag = b.pages ? `<span class="detail-chip">${b.pages}p</span>` : '';
+
   let html = `<div class="detail-head">${coverHTML}
-    <div style="flex:1;">
+    <div style="flex:1;min-width:0;">
       <div class="detail-title">${b.title}</div>
       <div class="detail-sub">${b.author||''}${b.publisher?' · '+b.publisher:''}</div>
       <div class="detail-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
@@ -659,16 +746,13 @@ function openDetail(bookId) {
         ${genre?`<span class="detail-chip">${genre}</span>`:''}
         ${b.status?`<span class="detail-chip">${b.status}</span>`:''}
         ${b.date_finish?`<span class="detail-chip">${b.date_finish}</span>`:''}
+        ${pagesTag}${readingTime}${sourceTag}
         ${b.reread?`<span class="detail-chip">다시 읽고 싶음</span>`:''}
       </div>
     </div>
   </div>`;
-  if (b.description) {
-    html += `<div class="detail-sec">줄거리</div><div class="detail-body">${b.description}</div><div class="detail-divhr"></div>`;
-  }
-  if (b.review) {
-    html += `<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
-  }
+  html += descHTML;
+  if (b.review) html += `<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
   if (quotes.length) {
     html += `<div class="detail-divhr"></div><div class="detail-sec">인상 깊은 문장</div>`;
     quotes.forEach(q => {
@@ -677,6 +761,21 @@ function openDetail(bookId) {
   }
   document.getElementById('detail-body').innerHTML = html;
   openModal('modal-detail');
+}
+
+function toggleDesc(el) {
+  const parent = el.parentElement;
+  const short = parent.querySelector('.desc-short');
+  const full  = parent.querySelector('.desc-full');
+  if (full.style.display === 'none') {
+    short.style.display = 'none';
+    full.style.display  = '';
+    el.textContent = '접기';
+  } else {
+    short.style.display = '';
+    full.style.display  = 'none';
+    el.textContent = '더 보기';
+  }
 }
 
 async function deleteBook() {
@@ -695,12 +794,10 @@ function editBook() {
   editingBookId = curBookId;
   selectedBook = { title:b.title, author:b.author, publisher:b.publisher, cover:b.cover, description:b.description, isbn:b.isbn };
   closeModal('modal-detail');
-
   document.getElementById('modal-book-title').textContent = '책 수정';
   document.getElementById('search-section').style.display = 'none';
   selectBook(selectedBook);
-  curRating = b.rating || 0;
-  curStatus = b.status || '완독';
+  curRating = b.rating || 0; curStatus = b.status || '완독';
   updateStars(curRating);
   document.querySelectorAll('.status-btn').forEach(btn => btn.classList.toggle('on', btn.textContent===curStatus));
   document.getElementById('book-genre').value = Array.isArray(b.genre) ? b.genre[0] : (b.genre||'');
@@ -709,7 +806,7 @@ function editBook() {
   document.getElementById('book-finish').value = b.date_finish || '';
   document.getElementById('book-reread').checked = b.reread || false;
   document.getElementById('book-pages').value = b.pages || '';
-
+  document.getElementById('book-source').value = b.source || '';
   const list = document.getElementById('quotes-list'); list.innerHTML = '';
   allQuotes.filter(q => q.book_id === b.id).forEach(q => addQuoteField(q.text, q.page, q.tag));
   openModal('modal-book');
@@ -717,14 +814,12 @@ function editBook() {
 
 // ── 프로필 ────────────────────────────────
 async function openProfile() {
-  // 먼저 모달 열고 이메일로 임시 표시
   const tempName = currentUser.email?.split('@')[0] || '독서가';
   document.getElementById('profile-avatar').textContent = tempName.slice(0,1).toUpperCase();
   document.getElementById('profile-name').textContent = tempName;
   document.getElementById('profile-email').textContent = currentUser.email;
   document.getElementById('profile-display-name').value = tempName;
   openModal('modal-profile');
-  // 백그라운드에서 실제 프로필 불러오기
   const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
   if (profile) {
     const name = profile.display_name || profile.username || tempName;
@@ -741,7 +836,6 @@ async function saveProfile() {
   closeModal('modal-profile');
 }
 
-// ── 모달 유틸 ─────────────────────────────
 function openModal(id) { document.getElementById(id).style.display='flex'; }
 function closeModal(id) { document.getElementById(id).style.display='none'; }
 
