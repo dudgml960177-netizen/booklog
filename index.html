@@ -11,12 +11,14 @@
 </head>
 <body>
 
-<div id="screen-loading" style="display:flex;flex-direction:column;height:100%;align-items:center;justify-content:center;background:#f2ece0;">
+<!-- 로딩 -->
+<div id="screen-loading" style="display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center;background:#f2ece0;">
   <div class="loading-logo">북로그</div>
   <div class="loading-sub">나만의 독서 기록</div>
   <div class="loading-spinner"></div>
 </div>
 
+<!-- 로그인 -->
 <div id="screen-auth" style="display:none;flex-direction:column;min-height:100vh;background:#f2ece0;">
   <div class="auth-wrap">
     <div class="auth-logo">북로그</div>
@@ -42,51 +44,56 @@
   </div>
 </div>
 
+<!-- 메인 앱 -->
 <div id="screen-app" style="display:none;flex-direction:column;height:100vh;overflow:hidden;">
   <header class="app-header">
     <div class="header-inner">
       <div class="header-logo">북로그</div>
       <div class="header-actions">
-        <button class="header-btn" onclick="openAddBook()">＋</button>
-        <button class="header-btn" onclick="openProfile()">☰</button>
+        <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
+        <button class="header-btn" onclick="openProfile()" title="프로필">☰</button>
       </div>
     </div>
   </header>
 
   <div class="tabs-wrap">
     <div class="tabs">
-      <button class="tab on"  onclick="sw('gallery',this)">🖼 갤러리</button>
-      <button class="tab"     onclick="sw('table',this)">📋 테이블</button>
-      <button class="tab"     onclick="sw('quotes',this)">✍️ 문장</button>
-      <button class="tab"     onclick="sw('cal',this)">📅 달력</button>
-      <button class="tab"     onclick="sw('timer',this)">⏱ 타이머</button>
-      <button class="tab"     onclick="sw('graph',this)">📊 통계</button>
+      <button class="tab on" onclick="sw('books',this)">📚 서재</button>
+      <button class="tab" onclick="sw('quotes',this)">✍️ 문장</button>
+      <button class="tab" onclick="sw('cal',this)">📅 달력</button>
+      <button class="tab" onclick="sw('timer',this)">⏱ 타이머</button>
+      <button class="tab" onclick="sw('graph',this)">📊 통계</button>
     </div>
   </div>
 
   <main class="app-main">
     <div class="main-inner">
 
-      <!-- 갤러리 -->
-      <div class="panel on" id="p-gallery">
-        <div class="filter-row">
-          <button class="filter-btn on" onclick="filterStatus('전체',this)">전체</button>
-          <button class="filter-btn" onclick="filterStatus('완독',this)">완독</button>
-          <button class="filter-btn" onclick="filterStatus('읽는중',this)">읽는중</button>
-          <button class="filter-btn" onclick="filterStatus('읽고싶음',this)">읽고싶음</button>
+      <!-- 서재 (갤러리+테이블 통합) -->
+      <div class="panel on" id="p-books">
+        <div class="books-toolbar">
+          <div class="filter-row">
+            <button class="filter-btn on" onclick="filterStatus('전체',this)">전체</button>
+            <button class="filter-btn" onclick="filterStatus('완독',this)">완독</button>
+            <button class="filter-btn" onclick="filterStatus('읽는중',this)">읽는중</button>
+            <button class="filter-btn" onclick="filterStatus('읽고싶음',this)">읽고싶음</button>
+            <button class="filter-btn" onclick="filterStatus('중단',this)">중단</button>
+          </div>
+          <div class="toolbar-right">
+            <button class="view-btn on" id="view-gallery-btn" onclick="setView('gallery')" title="갤러리">⊞</button>
+            <button class="view-btn" id="view-list-btn" onclick="setView('list')" title="목록">≡</button>
+            <button class="cat-btn" onclick="openCategories()" title="카테고리">🗂</button>
+          </div>
         </div>
-        <div class="gallery" id="gal-grid">
-          <div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>
+        <!-- 갤러리 뷰 -->
+        <div id="view-gallery">
+          <div class="gallery" id="gal-grid">
+            <div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>
+          </div>
         </div>
-      </div>
-
-      <!-- 테이블 -->
-      <div class="panel" id="p-table">
-        <div class="table-wrap">
-          <table class="tbl">
-            <thead><tr><th>제목</th><th>저자</th><th>장르</th><th>평점</th><th>상태</th><th>완독일</th></tr></thead>
-            <tbody id="tbl-body"></tbody>
-          </table>
+        <!-- 리스트 뷰 -->
+        <div id="view-list" style="display:none;">
+          <div class="book-list" id="book-list-items"></div>
         </div>
       </div>
 
@@ -116,35 +123,73 @@
 
       <!-- 타이머 -->
       <div class="panel" id="p-timer">
-        <div class="card" style="text-align:center;padding:2rem 1.5rem;">
-          <div class="sec" style="margin-bottom:1.2rem;">독서 타이머</div>
-          <select id="timer-book-select" class="form-input" style="max-width:280px;margin:0 auto .8rem;display:block;">
-            <option value="">읽는 중인 책 선택...</option>
-          </select>
-          <div id="timer-display" style="font-family:'DM Serif Display',serif;font-size:3.5rem;color:#2e1f0e;line-height:1;margin:1.2rem 0;letter-spacing:.05em;">00:00:00</div>
-          <div style="font-size:.72rem;color:#a08c72;margin-bottom:1.5rem;">오늘 독서 시간</div>
-          <div style="display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap;">
-            <button id="timer-btn" class="auth-btn" style="max-width:140px;" onclick="toggleTimer()">▶ 시작</button>
-            <button class="btn-cancel" style="max-width:100px;" onclick="resetTimer()">초기화</button>
-            <button class="btn-save" style="max-width:120px;" onclick="saveTimer()">저장</button>
+        <div class="card" style="margin-bottom:.8rem;">
+          <div class="timer-top">
+            <div>
+              <div class="sec" style="margin-bottom:.5rem;">독서 타이머</div>
+              <select id="timer-book-select" class="form-input" style="max-width:240px;">
+                <option value="">읽는 중인 책 선택...</option>
+              </select>
+            </div>
+            <div class="timer-clock-wrap">
+              <div id="timer-display" class="timer-display">00:00:00</div>
+              <div class="timer-btns">
+                <button class="tbtn" id="timer-btn" onclick="toggleTimer()">▶ 시작</button>
+                <button class="tbtn tbtn-sec" onclick="resetTimer()">↺ 초기화</button>
+                <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
+              </div>
+            </div>
           </div>
-          <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #ddd0b8;">
-            <div class="sec" style="text-align:left;margin-bottom:.8rem;">누적 독서 시간</div>
-            <div id="timer-book-list" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+        </div>
+        <div class="card">
+          <div class="row-hd" style="margin-bottom:.6rem;">
+            <div class="sec" style="margin:0;">월별 독서 시간 트래커</div>
+            <div style="display:flex;gap:.3rem;align-items:center;">
+              <button class="cal-nav" onclick="moveTimerMonth(-1)">◀</button>
+              <span id="timer-month-label" style="font-size:.75rem;color:var(--tx2);font-weight:600;"></span>
+              <button class="cal-nav" onclick="moveTimerMonth(1)">▶</button>
+            </div>
+          </div>
+          <div id="timer-tracker-grid" class="tracker-grid"></div>
+          <div class="tracker-legend">
+            <span style="font-size:.62rem;color:var(--tx3);">적음</span>
+            <div class="tracker-legend-cells">
+              <div class="tracker-cell" style="background:#f0e6cc;"></div>
+              <div class="tracker-cell" style="background:#d4a870;"></div>
+              <div class="tracker-cell" style="background:#b07030;"></div>
+              <div class="tracker-cell" style="background:#7a3e18;"></div>
+              <div class="tracker-cell" style="background:#4a2008;"></div>
+            </div>
+            <span style="font-size:.62rem;color:var(--tx3);">많음</span>
+          </div>
+          <div style="margin-top:.8rem;border-top:1px solid var(--border);padding-top:.7rem;">
+            <div class="sec" style="margin-bottom:.5rem;">책별 누적 독서 시간</div>
+            <div id="timer-book-list"></div>
           </div>
         </div>
       </div>
 
       <!-- 통계 -->
       <div class="panel" id="p-graph">
+        <!-- 목표 설정 -->
+        <div class="card goal-card" style="margin-bottom:.8rem;">
+          <div class="row-hd" style="margin-bottom:.7rem;">
+            <div class="sec" style="margin:0;">📌 독서 목표</div>
+            <button class="add-quote-btn" onclick="openGoalModal()">목표 설정</button>
+          </div>
+          <div id="goal-display"></div>
+        </div>
+        <!-- 핵심 통계 -->
         <div class="stat-grid" id="stat-grid"></div>
-        <div class="card">
+        <div class="card" style="margin-bottom:.8rem;">
           <div class="row-hd">
             <div class="sec" style="margin:0;">독서 통계</div>
             <div class="gtabs">
               <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
-              <button class="gst"    onclick="showGraph('genre',this)">장르별</button>
-              <button class="gst"    onclick="showGraph('rating',this)">평점별</button>
+              <button class="gst" onclick="showGraph('genre',this)">장르별</button>
+              <button class="gst" onclick="showGraph('rating',this)">평점별</button>
+              <button class="gst" onclick="showGraph('author',this)">작가별</button>
+              <button class="gst" onclick="showGraph('pages',this)">페이지</button>
             </div>
           </div>
           <div id="g-monthly">
@@ -160,10 +205,17 @@
             <div class="yr-row" id="yr-row-r"></div>
             <div class="rating-layout" id="rating-layout"></div>
           </div>
-          <div class="ms-wrap">
-            <div class="ms-title">평생 독서 기록</div>
-            <div class="ms-grid" id="ms-grid"></div>
+          <div id="g-author" style="display:none;">
+            <div id="author-chart-wrap"></div>
           </div>
+          <div id="g-pages" style="display:none;">
+            <canvas id="chart-pages" height="150"></canvas>
+            <div class="stat-row" id="pages-stat"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ms-title">평생 독서 기록</div>
+          <div class="ms-grid" id="ms-grid"></div>
         </div>
       </div>
 
@@ -249,6 +301,12 @@
           </select>
         </div>
         <div class="form-group">
+          <label class="form-label">카테고리 (폴더)</label>
+          <select id="book-category" class="form-input">
+            <option value="">선택 안함</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">감상</label>
           <textarea id="book-review" class="form-textarea" placeholder="이 책을 읽고 느낀 점을 자유롭게 적어보세요..." rows="4"></textarea>
         </div>
@@ -311,8 +369,57 @@
   </div>
 </div>
 
+<!-- 카테고리 모달 -->
+<div id="modal-cat" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📁 카테고리 관리</div>
+      <button class="modal-close" onclick="closeModal('modal-cat')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+        <input type="text" id="new-cat-input" class="form-input" placeholder="새 카테고리 이름..." style="flex:1;">
+        <button class="search-btn" onclick="addCategory()">추가</button>
+      </div>
+      <div id="cat-list"></div>
+      <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.8rem;">
+        <div class="form-label" style="margin-bottom:.5rem;">카테고리별 보기</div>
+        <div id="cat-filter-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 목표 설정 모달 -->
+<div id="modal-goal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📌 독서 목표 설정</div>
+      <button class="modal-close" onclick="closeModal('modal-goal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">올해 목표 권수</label>
+        <input type="number" id="goal-books" class="form-input" placeholder="예: 12" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">월 목표 독서 시간 (분)</label>
+        <input type="number" id="goal-minutes" class="form-input" placeholder="예: 600" min="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">목표 누적 페이지</label>
+        <input type="number" id="goal-pages" class="form-input" placeholder="예: 5000" min="1">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-goal')">취소</button>
+        <button class="btn-save" onclick="saveGoal()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=9999"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
