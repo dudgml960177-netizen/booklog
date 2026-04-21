@@ -292,8 +292,8 @@ function buildTrackerGrid() {
   const grid=document.getElementById('timer-tracker-grid'); if(!grid) return;
   grid.innerHTML='';
   const daysInMonth=new Date(timerTrackY,timerTrackM+1,0).getDate();
+  const firstDay=new Date(timerTrackY,timerTrackM,1).getDay();
   const mk=timerTrackY+'-'+String(timerTrackM+1).padStart(2,'0');
-  // 책별 일별 독서 시간 집계 (last_read 기준)
   const dayMap={};
   allBooks.forEach(b=>{
     if(b.last_read&&b.last_read.startsWith(mk)&&b.reading_time){
@@ -302,23 +302,29 @@ function buildTrackerGrid() {
     }
   });
   const maxMins=Math.max(1,...Object.values(dayMap));
+  ['일','월','화','수','목','금','토'].forEach(d=>{
+    const h=document.createElement('div');
+    h.style.cssText='font-size:.5rem;color:var(--tx3);text-align:center;padding-bottom:2px;font-weight:600;';
+    h.textContent=d; grid.appendChild(h);
+  });
+  for(let i=0;i<firstDay;i++){const e=document.createElement('div');grid.appendChild(e);}
   for(let d=1;d<=daysInMonth;d++){
     const ds=String(d).padStart(2,'0');
     const mins=dayMap[ds]||0;
-    const intensity=mins===0?0:Math.ceil((mins/maxMins)*4);
+    const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
     const cell=document.createElement('div');
-    cell.className='tracker-cell';
-    cell.style.background=TRACKER_COLORS[intensity];
-    cell.title=`${timerTrackM+1}월 ${d}일: ${mins}분`;
+    cell.style.cssText='aspect-ratio:1;border-radius:2px;background:'+TRACKER_COLORS[intensity]+';display:flex;align-items:center;justify-content:center;cursor:default;position:relative;transition:transform .1s;';
+    cell.title=(timerTrackM+1)+'/'+d+': '+(mins?mins+'분':'없음');
+    const num=document.createElement('span');
+    num.style.cssText='font-size:.48rem;line-height:1;color:'+(intensity>=2?'rgba(255,255,255,.9)':'#a08c72')+';';
+    num.textContent=d; cell.appendChild(num);
+    cell.onmouseenter=()=>cell.style.transform='scale(1.25)';
+    cell.onmouseleave=()=>cell.style.transform='scale(1)';
     grid.appendChild(cell);
   }
-  // 남는 칸 채우기
-  const rem=(7-daysInMonth%7)%7;
-  for(let i=0;i<rem;i++){const cell=document.createElement('div');cell.className='tracker-cell';cell.style.background='transparent';grid.appendChild(cell);}
-  // 이달 총합
   const totalMins=Object.values(dayMap).reduce((a,b)=>a+b,0);
   const monthLabel=document.getElementById('timer-month-label');
-  if(monthLabel) monthLabel.textContent=`${timerTrackY}년 ${timerTrackM+1}월 — 총 ${Math.floor(totalMins/60)}h ${totalMins%60}m`;
+  if(monthLabel) monthLabel.textContent=timerTrackY+'년 '+(timerTrackM+1)+'월 — 총 '+Math.floor(totalMins/60)+'h '+totalMins%60+'m';
 }
 function buildTimerBookList() {
   const wrap=document.getElementById('timer-book-list'); if(!wrap) return;
@@ -452,22 +458,92 @@ function buildRating() {
   sumEl.appendChild(distEl);layout.appendChild(sumEl);
 }
 
+let authorExpanded=false, pubExpanded=false;
 function buildAuthorChart() {
-  const wrap=document.getElementById('author-chart-wrap');wrap.innerHTML='';
-  const done=allBooks.filter(b=>b.status==='완독'&&b.author);
-  const authorMap={};done.forEach(b=>{authorMap[b.author]=(authorMap[b.author]||0)+1;});
-  const sorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  if(!sorted.length){wrap.innerHTML='<div class="empty-state" style="padding:1rem;">완독한 책이 없어요.</div>';return;}
-  const maxV=sorted[0][1];
-  sorted.forEach(([name,cnt])=>{
-    const pct=Math.round(cnt/maxV*100);
-    const row=document.createElement('div');row.className='author-bar-row';
-    row.innerHTML=`<span class="author-name" title="${name}">${name}</span>
-      <div class="author-bar-outer"><div class="author-bar-fill" style="width:${pct}%;background:${pct===100?'#7a3e18':'#b07030'}"><span class="author-bar-val">${cnt}권</span></div></div>`;
-    wrap.appendChild(row);
+  const wrap=document.getElementById('author-chart-wrap'); wrap.innerHTML='';
+  const done=allBooks.filter(b=>b.status==='완독');
+  const authorMap={}, pubMap={};
+  done.forEach(b=>{
+    if(b.author) authorMap[b.author]=(authorMap[b.author]||0)+1;
+    if(b.publisher) pubMap[b.publisher]=(pubMap[b.publisher]||0)+1;
   });
-}
+  const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]);
+  const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]);
+  if(!aSorted.length){wrap.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독한 책이 없어요.</div>';return;}
 
+  // ─ 명예의 전당
+  const hallEl=document.createElement('div');
+  hallEl.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem;';
+  const topA=aSorted[0], topP=pSorted[0];
+  hallEl.innerHTML=`
+    <div style="background:#ede4d0;border:1px solid var(--border2);border-radius:6px;padding:.65rem .8rem;text-align:center;">
+      <div style="font-size:.6rem;color:var(--tx3);margin-bottom:.25rem;">👑 최애 작가</div>
+      <div style="font-family:var(--fs);font-size:.95rem;color:var(--tx1);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topA[0]}">${topA[0]}</div>
+      <div style="font-size:.65rem;color:var(--acc);margin-top:.15rem;">${topA[1]}권 완독</div>
+    </div>
+    <div style="background:#ede4d0;border:1px solid var(--border2);border-radius:6px;padding:.65rem .8rem;text-align:center;">
+      <div style="font-size:.6rem;color:var(--tx3);margin-bottom:.25rem;">📚 최애 출판사</div>
+      <div style="font-family:var(--fs);font-size:.95rem;color:var(--tx1);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topP?topP[0]:'—'}">${topP?topP[0]:'—'}</div>
+      <div style="font-size:.65rem;color:var(--acc);margin-top:.15rem;">${topP?topP[1]+'권 완독':''}</div>
+    </div>`;
+  wrap.appendChild(hallEl);
+
+  // ─ 작가별 가로 바
+  const sec1=document.createElement('div');sec1.style.marginBottom='.9rem';
+  const h1=document.createElement('div');h1.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h1.textContent='작가별 독서';sec1.appendChild(h1);
+  const aList=authorExpanded?aSorted:aSorted.slice(0,5);
+  const maxA=aSorted[0][1];
+  const MEDAL=['🥇','🥈','🥉'];
+  aList.forEach(([name,cnt],i)=>{
+    const pct=Math.round(cnt/maxA*100);
+    const bg=i===0?'#7a3e18':i===1?'#b07030':i===2?'#c4714a':'#c8a87a';
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;';
+    row.innerHTML=`<span style="font-size:.64rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${MEDAL[i]||''} ${name}</span>
+      <div style="flex:1;height:14px;background:#ede4d0;border-radius:3px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${bg};border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">
+          ${pct>18?`<span style="font-size:.55rem;font-weight:600;color:#fff;">${cnt}권</span>`:''}
+        </div>
+      </div>
+      ${pct<=18?`<span style="font-size:.6rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
+    sec1.appendChild(row);
+  });
+  if(aSorted.length>5){
+    const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.marginTop='.2rem';
+    btn.textContent=authorExpanded?'접기 ▲':`+${aSorted.length-5}명 더 보기`;
+    btn.onclick=()=>{authorExpanded=!authorExpanded;buildAuthorChart();};
+    sec1.appendChild(btn);
+  }
+  wrap.appendChild(sec1);
+
+  // ─ 출판사별 가로 바
+  if(!pSorted.length) return;
+  const sec2=document.createElement('div');
+  const h2=document.createElement('div');h2.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h2.textContent='출판사별 독서';sec2.appendChild(h2);
+  const pList=pubExpanded?pSorted:pSorted.slice(0,5);
+  const maxP=pSorted[0][1];
+  const PCOLS=['#5a8a8a','#7a9e7e','#8a8aaa','#c8a87a','#9a7090'];
+  pList.forEach(([name,cnt],i)=>{
+    const pct=Math.round(cnt/maxP*100);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;';
+    row.innerHTML=`<span style="font-size:.64rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</span>
+      <div style="flex:1;height:14px;background:#ede4d0;border-radius:3px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${PCOLS[i%5]};border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">
+          ${pct>18?`<span style="font-size:.55rem;font-weight:600;color:#fff;">${cnt}권</span>`:''}
+        </div>
+      </div>
+      ${pct<=18?`<span style="font-size:.6rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
+    sec2.appendChild(row);
+  });
+  if(pSorted.length>5){
+    const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.marginTop='.2rem';
+    btn.textContent=pubExpanded?'접기 ▲':`+${pSorted.length-5}개 더 보기`;
+    btn.onclick=()=>{pubExpanded=!pubExpanded;buildAuthorChart();};
+    sec2.appendChild(btn);
+  }
+  wrap.appendChild(sec2);
+}
 function buildPagesChart() {
   if(pagesChart){pagesChart.destroy();pagesChart=null;}
   const done=allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
@@ -717,32 +793,45 @@ function toggleDesc(el) {
   else{short.style.display='';full.style.display='none';el.textContent='더 보기';}
 }
 async function deleteBook() {
-  if(!curBookId||!confirm('이 책 기록을 삭제할까요?'))return;
-  await sb.from('quotes').delete().eq('book_id',curBookId);
-  await sb.from('books').delete().eq('id',curBookId);
-  closeModal('modal-detail');await loadData();buildBooks();
+  const id = curBookId;
+  if(!id){alert('삭제할 책을 찾을 수 없어요.');return;}
+  if(!confirm('이 책 기록을 삭제할까요?'))return;
+  try{
+    await sb.from('quotes').delete().eq('book_id',id);
+    const{error}=await sb.from('books').delete().eq('id',id);
+    if(error)throw error;
+    curBookId=null;
+    closeModal('modal-detail');
+    await loadData();buildBooks();
+  }catch(e){alert('삭제 오류: '+(e.message||'알 수 없는 오류'));}
 }
 function editBook() {
-  const b=allBooks.find(b=>b.id===curBookId);if(!b)return;
-  editingBookId=curBookId;selectedBook={title:b.title,author:b.author,publisher:b.publisher,cover:b.cover,description:b.description,isbn:b.isbn};
+  const id = curBookId;
+  const b = allBooks.find(b=>b.id===id);
+  if(!b){alert('수정할 책을 찾을 수 없어요.');return;}
+  editingBookId = id;
+  selectedBook = {title:b.title,author:b.author,publisher:b.publisher,cover:b.cover,description:b.description,isbn:b.isbn};
   closeModal('modal-detail');
-  document.getElementById('modal-book-title').textContent='책 수정';
-  document.getElementById('search-section').style.display='none';
-  selectBook(selectedBook);
-  curRating=b.rating||0;curStatus=b.status||'완독';updateStars(curRating);
-  document.querySelectorAll('.status-btn').forEach(btn=>btn.classList.toggle('on',btn.textContent===curStatus));
-  document.getElementById('book-genre').value=Array.isArray(b.genre)?b.genre[0]:(b.genre||'');
-  document.getElementById('book-review').value=b.review||'';
-  document.getElementById('book-start').value=b.date_start||'';
-  document.getElementById('book-finish').value=b.date_finish||'';
-  document.getElementById('book-reread').checked=b.reread||false;
-  document.getElementById('book-pages').value=b.pages||'';
-  document.getElementById('book-source').value=b.source||'';
-  updateBookCategorySelect();
-  document.getElementById('book-category').value=b.category||'';
-  const list=document.getElementById('quotes-list');list.innerHTML='';
-  allQuotes.filter(q=>q.book_id===b.id).forEach(q=>addQuoteField(q.text,q.page,q.tag));
-  openModal('modal-book');
+  setTimeout(()=>{
+    document.getElementById('modal-book-title').textContent='책 수정';
+    document.getElementById('search-section').style.display='none';
+    document.getElementById('book-form').style.display='';
+    selectBook(selectedBook);
+    curRating=b.rating||0; curStatus=b.status||'완독'; updateStars(curRating);
+    document.querySelectorAll('.status-btn').forEach(btn=>btn.classList.toggle('on',btn.textContent===curStatus));
+    document.getElementById('book-genre').value=Array.isArray(b.genre)?b.genre[0]:(b.genre||'');
+    document.getElementById('book-review').value=b.review||'';
+    document.getElementById('book-start').value=b.date_start||'';
+    document.getElementById('book-finish').value=b.date_finish||'';
+    document.getElementById('book-reread').checked=b.reread||false;
+    document.getElementById('book-pages').value=b.pages||'';
+    document.getElementById('book-source').value=b.source||'';
+    updateBookCategorySelect();
+    document.getElementById('book-category').value=b.category||'';
+    const list=document.getElementById('quotes-list'); list.innerHTML='';
+    allQuotes.filter(q=>q.book_id===b.id).forEach(q=>addQuoteField(q.text,q.page,q.tag));
+    openModal('modal-book');
+  },150);
 }
 
 // ── 프로필
