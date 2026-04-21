@@ -16,7 +16,7 @@ let calY = new Date().getFullYear(), calM = new Date().getMonth();
 let monthChart = null, donutChart = null, pagesChart = null;
 let curYM = 'all', curYR = 'all';
 let timerInterval = null, timerSeconds = 0, timerRunning = false, timerBookId = null;
-let timerTrackY = new Date().getFullYear(), timerTrackM = new Date().getMonth(), timerPeriod = 1;
+let timerTrackY = new Date().getFullYear(), timerTrackM = new Date().getMonth(), timerPeriod = 'month';
 let goals = { books: 0, minutes: 0, pages: 0 };
 
 const YC = {
@@ -326,7 +326,7 @@ function buildTimer() {
 }
 function updateTrackerPeriodBtns() {
   document.querySelectorAll('.tracker-period-btn').forEach(b=>{
-    b.classList.toggle('on', parseInt(b.dataset.period)===timerPeriod);
+    b.classList.toggle('on', b.dataset.period===timerPeriod);
   });
 }
 function updateTimerDisplay() {
@@ -368,116 +368,145 @@ function moveTimerMonth(dir) {
 }
 function setTimerPeriod(p) {
   timerPeriod=p;
-  updateTrackerPeriodBtns();
+  document.querySelectorAll('.tracker-period-btn').forEach(b=>b.classList.toggle('on',b.dataset.period===p));
   buildTrackerGrid();
 }
 function buildTrackerGrid() {
-  const wrap = document.getElementById('timer-tracker-grid'); if(!wrap) return;
+  const wrap = document.getElementById('timer-tracker-grid');
+  if(!wrap) return;
   wrap.innerHTML = '';
+  wrap.style.cssText = '';
 
-  // dayMap: 날짜별 독서 분 집계
+  // dayMap
   const dayMap = {};
   allBooks.forEach(b => {
     if(!b.last_read || !b.reading_time) return;
     dayMap[b.last_read] = (dayMap[b.last_read]||0) + b.reading_time;
   });
-
-  // 기간 결정
-  const end = new Date(timerTrackY, timerTrackM, new Date(timerTrackY,timerTrackM+1,0).getDate());
-  const start = new Date(end);
-  start.setMonth(start.getMonth() - (timerPeriod - 1));
-  start.setDate(1);
-
-  // 레이블 업데이트
-  const labelEl = document.getElementById('timer-month-label');
-  if(labelEl) {
-    const fmt = d => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
-    labelEl.textContent = timerPeriod === 1
-      ? `${timerTrackY}년 ${timerTrackM+1}월`
-      : `${fmt(start)} – ${fmt(end)}`;
-  }
-
-  // 최대값
   const allVals = Object.values(dayMap);
   const maxMins = allVals.length ? Math.max(...allVals) : 1;
+  const fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-  // 주 단위로 열 생성 (GitHub 잔디 스타일)
-  // start를 일요일로 조정
-  const startSun = new Date(start);
-  startSun.setDate(startSun.getDate() - startSun.getDay());
-
-  const weeks = [];
-  let cur = new Date(startSun);
-  while(cur <= end) {
-    const week = [];
-    for(let i = 0; i < 7; i++) {
-      week.push(new Date(cur));
-      cur.setDate(cur.getDate() + 1);
-    }
-    weeks.push(week);
-  }
-
-  // 컨테이너: flex row (주별 열)
-  wrap.style.cssText = 'display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;';
-
-  // 요일 레이블 열
-  const dowCol = document.createElement('div');
-  dowCol.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding-top:16px;';
-  ['','월','','수','','금',''].forEach(d => {
-    const h = document.createElement('div');
-    h.style.cssText = 'height:10px;font-size:.44rem;color:var(--tx3);display:flex;align-items:center;line-height:1;';
-    h.textContent = d;
-    dowCol.appendChild(h);
-  });
-  wrap.appendChild(dowCol);
-
-  // 주별 열
-  let prevMonth = -1;
-  weeks.forEach((week, wi) => {
-    const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex-shrink:0;';
-
-    // 월 레이블
-    const firstDay = week.find(d => d.getDate() === 1 || wi === 0);
-    const monthLabel = document.createElement('div');
-    monthLabel.style.cssText = 'height:14px;font-size:.45rem;color:var(--tx3);white-space:nowrap;';
-    const wMonth = week[0].getMonth();
-    if(firstDay && wMonth !== prevMonth) {
-      const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-      monthLabel.textContent = MN[wMonth];
-      prevMonth = wMonth;
-    }
-    col.appendChild(monthLabel);
-
-    // 7개 셀
-    week.forEach(day => {
-      const key = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
-      const inRange = day >= start && day <= end;
-      const mins = inRange ? (dayMap[key]||0) : 0;
-      const intensity = !inRange ? 0 : mins === 0 ? 0 : Math.min(4, Math.ceil((mins/maxMins)*4));
-
-      const cell = document.createElement('div');
-      cell.style.cssText = `width:10px;height:10px;border-radius:2px;background:${inRange ? TRACKER_COLORS[intensity] : 'transparent'};flex-shrink:0;cursor:default;transition:transform .1s;`;
-      if(inRange) {
-        cell.title = `${day.getMonth()+1}/${day.getDate()}: ${mins ? mins+'분' : '없음'}`;
-        cell.onmouseenter = () => { cell.style.transform='scale(1.4)'; cell.style.zIndex='2'; };
-        cell.onmouseleave = () => { cell.style.transform='scale(1)'; cell.style.zIndex=''; };
-      }
-      col.appendChild(cell);
+  if(timerPeriod === 'week') {
+    // ── 주간: 최근 7일 달력형 (가로 7칸)
+    const today = new Date();
+    const days = Array.from({length:7}, (_,i) => {
+      const d = new Date(today); d.setDate(d.getDate()-6+i); return d;
     });
-    wrap.appendChild(col);
-  });
+    const DOW = ['일','월','화','수','목','금','토'];
+    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;';
+    // 요일 헤더
+    days.forEach(d => {
+      const h = document.createElement('div');
+      h.style.cssText = 'font-size:.6rem;color:var(--tx3);text-align:center;padding:.15rem 0;font-weight:600;';
+      h.textContent = DOW[d.getDay()]; wrap.appendChild(h);
+    });
+    // 날짜 셀
+    days.forEach(d => {
+      const key = fmtKey(d);
+      const mins = dayMap[key]||0;
+      const intensity = mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+      const isToday = fmtKey(d)===fmtKey(new Date());
+      const cell = document.createElement('div');
+      cell.style.cssText = `aspect-ratio:1;border-radius:6px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.06)'};`;
+      cell.title = `${d.getMonth()+1}/${d.getDate()}: ${mins?mins+'분':'없음'}`;
+      cell.innerHTML = `<span style="font-size:.62rem;font-weight:600;color:${intensity>=2?'#fff':'var(--tx2)'};">${d.getDate()}</span>
+        ${mins?`<span style="font-size:.52rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins}m</span>`:''}`;
+      wrap.appendChild(cell);
+    });
+    // 총합
+    const total = days.reduce((a,d)=>a+(dayMap[fmtKey(d)]||0),0);
+    const lbl = document.getElementById('timer-month-label');
+    if(lbl) lbl.textContent = `이번 주 — ${Math.floor(total/60)}h ${total%60}m`;
+    const sum = document.getElementById('tracker-summary');
+    if(sum) sum.textContent = '';
 
-  // 요약
-  let periodTotal = 0;
-  const cur2 = new Date(start);
-  while(cur2 <= end) {
-    const k = `${cur2.getFullYear()}-${String(cur2.getMonth()+1).padStart(2,'0')}-${String(cur2.getDate()).padStart(2,'0')}`;
-    periodTotal += dayMap[k]||0;
-    cur2.setDate(cur2.getDate()+1);
+  } else if(timerPeriod === 'month') {
+    // ── 월간: 달력 형태 (7열 그리드)
+    const y = timerTrackY, m = timerTrackM;
+    const daysInMonth = new Date(y,m+1,0).getDate();
+    const firstDay = new Date(y,m,1).getDay();
+    const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    const lbl = document.getElementById('timer-month-label');
+    if(lbl) lbl.textContent = `${y}년 ${MN[m]}`;
+
+    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:3px;';
+    const DOW2=['일','월','화','수','목','금','토'];
+    DOW2.forEach(d=>{
+      const h=document.createElement('div');
+      h.style.cssText='font-size:.6rem;color:var(--tx3);text-align:center;padding:.12rem 0;font-weight:600;';
+      h.textContent=d; wrap.appendChild(h);
+    });
+    // 앞 빈칸
+    for(let i=0;i<firstDay;i++){
+      const e=document.createElement('div');
+      e.style.cssText='aspect-ratio:1;border-radius:5px;background:#f5f0e8;opacity:.3;';
+      wrap.appendChild(e);
+    }
+    // 날짜 셀
+    const today2 = fmtKey(new Date());
+    for(let d=1;d<=daysInMonth;d++){
+      const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const mins=dayMap[key]||0;
+      const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+      const isToday=key===today2;
+      const cell=document.createElement('div');
+      cell.style.cssText=`aspect-ratio:1;border-radius:5px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.05)'};cursor:default;transition:transform .12s;`;
+      cell.title=`${m+1}월 ${d}일: ${mins?mins+'분':'없음'}`;
+      cell.innerHTML=`<span style="font-size:.58rem;font-weight:${isToday?700:500};color:${intensity>=2?'#fff':'var(--tx2)'};">${d}</span>
+        ${mins?`<span style="font-size:.48rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins<60?mins+'m':Math.floor(mins/60)+'h'}</span>`:''}`;
+      cell.onmouseenter=()=>cell.style.transform='scale(1.08)';
+      cell.onmouseleave=()=>cell.style.transform='scale(1)';
+      wrap.appendChild(cell);
+    }
+    const total = Object.entries(dayMap)
+      .filter(([k])=>k.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
+      .reduce((a,[,v])=>a+v,0);
+    const sum=document.getElementById('tracker-summary');
+    if(sum) sum.textContent=`이달 ${Math.floor(total/60)}h ${total%60}m`;
+
+  } else {
+    // ── 연간: 12달 x 간소 그리드
+    const y = timerTrackY;
+    const lbl = document.getElementById('timer-month-label');
+    if(lbl) lbl.textContent = `${y}년`;
+    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:5px;';
+    const MN2=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    const today3 = new Date();
+    for(let mo=0;mo<12;mo++){
+      const card=document.createElement('div');
+      card.style.cssText='background:#faf6ef;border:1px solid var(--border);border-radius:6px;padding:.4rem .45rem;';
+      const days=new Date(y,mo+1,0).getDate();
+      const fd=new Date(y,mo,1).getDay();
+      const moTotal=Object.entries(dayMap)
+        .filter(([k])=>k.startsWith(`${y}-${String(mo+1).padStart(2,'0')}`))
+        .reduce((a,[,v])=>a+v,0);
+      const moLabel=document.createElement('div');
+      moLabel.style.cssText='font-size:.58rem;font-weight:600;color:var(--tx2);margin-bottom:3px;display:flex;justify-content:space-between;';
+      moLabel.innerHTML=`<span>${MN2[mo]}</span>${moTotal?`<span style="color:var(--acc);font-size:.52rem;">${Math.floor(moTotal/60)}h${moTotal%60}m</span>`:''}`;
+      card.appendChild(moLabel);
+      const miniGrid=document.createElement('div');
+      miniGrid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:1px;';
+      for(let i=0;i<fd;i++){const e=document.createElement('div');e.style.cssText='aspect-ratio:1;';miniGrid.appendChild(e);}
+      for(let d=1;d<=days;d++){
+        const key=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const mins=dayMap[key]||0;
+        const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+        const isT=(today3.getFullYear()===y&&today3.getMonth()===mo&&today3.getDate()===d);
+        const cell=document.createElement('div');
+        cell.style.cssText=`aspect-ratio:1;border-radius:1px;background:${TRACKER_COLORS[intensity]};${isT?'outline:1.5px solid var(--acc);':''}`;
+        cell.title=`${mo+1}/${d}: ${mins?mins+'분':'없음'}`;
+        miniGrid.appendChild(cell);
+      }
+      card.appendChild(miniGrid);
+      wrap.appendChild(card);
+    }
+    const yearTotal=Object.entries(dayMap)
+      .filter(([k])=>k.startsWith(String(y)))
+      .reduce((a,[,v])=>a+v,0);
+    const sum=document.getElementById('tracker-summary');
+    if(sum) sum.textContent=`연간 ${Math.floor(yearTotal/60)}h ${yearTotal%60}m`;
   }
-  const summaryEl = document.getElementById('tracker-summary');
-  if(summaryEl) summaryEl.textContent = `총 ${Math.floor(periodTotal/60)}h ${periodTotal%60}m`;
 }
 function buildTimerBookList() {
   const wrap=document.getElementById('timer-book-list'); if(!wrap) return;
@@ -974,11 +1003,13 @@ function selectBook(book) {
   document.getElementById('search-section').style.display='none';
   document.getElementById('book-form').style.display='';
   const coverHTML=book.cover?`<img class="selected-cover" src="${book.cover}" alt="${book.title}">`:`<div class="selected-cover" style="background:linear-gradient(150deg,#a07040,#5c3010);"></div>`;
-  document.getElementById('selected-book-info').innerHTML=`${coverHTML}<div class="selected-info"><div class="selected-title">${book.title}</div><div class="selected-author">${book.author}</div><div class="selected-desc">${book.description||''}</div><span class="selected-change" onclick="changeBook()">다른 책 선택</span></div>`;
-  // 네이버 API에서 페이지 수 자동 채우기
-  if(book.pages) {
-    const pagesEl = document.getElementById('book-pages');
-    if(pagesEl && !pagesEl.value) pagesEl.value = book.pages;
+  const pagesInfo = book.pages ? `<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${book.pages}p</span>` : '';
+  document.getElementById('selected-book-info').innerHTML=`${coverHTML}<div class="selected-info"><div class="selected-title">${book.title}${pagesInfo}</div><div class="selected-author">${book.author}</div><div class="selected-desc">${book.description||''}</div><span class="selected-change" onclick="changeBook()">다른 책 선택</span></div>`;
+  // 페이지 수 무조건 채우기 (있으면)
+  const pagesEl = document.getElementById('book-pages');
+  if(pagesEl) {
+    if(book.pages) { pagesEl.value = book.pages; }
+    else { pagesEl.value = ''; }
   }
 }
 function changeBook() {
