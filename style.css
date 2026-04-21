@@ -123,11 +123,13 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .tbtn-save{background:#7a9e7e;color:#fff;}
 .tbtn-save:hover{background:#5a7e5e;}
 /* 트래커 그리드 */
-.tracker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:.35rem;}
-.tracker-grid.multi{display:flex;gap:6px;overflow-x:auto;}
-.tracker-legend{display:flex;align-items:center;gap:.35rem;margin-top:.2rem;}
+.tracker-grid{overflow-x:auto;padding-bottom:3px;margin-bottom:.35rem;scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+.tracker-grid::-webkit-scrollbar{height:3px;}
+.tracker-grid::-webkit-scrollbar-track{background:transparent;}
+.tracker-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.tracker-legend{display:flex;align-items:center;gap:.35rem;margin-top:.3rem;}
 .tracker-legend-cells{display:flex;gap:2px;}
-.tracker-period-btn{font-size:.62rem;padding:.16rem .5rem;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;}
+.tracker-period-btn{font-size:.62rem;padding:.16rem .52rem;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;}
 .tracker-period-btn.on{background:var(--acc);color:#fff;border-color:var(--acc);}
 /* 타이머 책 목록 */
 .timer-book-item{display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-bottom:1px solid #ede4d0;font-size:.75rem;}

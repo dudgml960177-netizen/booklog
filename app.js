@@ -186,21 +186,49 @@ function buildList(list) {
 }
 
 // ── 문장 수집
+let quoteSearchQ = '';
 function buildQuotes() {
+  const filterEl = document.getElementById('q-filter'); filterEl.innerHTML = '';
+  const searchWrap = document.createElement('div');
+  searchWrap.style.cssText = 'position:relative;margin-bottom:.7rem;';
+  searchWrap.innerHTML = `<span style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--tx3);">🔍</span>
+    <input id="quote-search-input" type="text" class="search-input" placeholder="책 제목 또는 작가 이름으로 검색..."
+      style="padding-left:2rem;font-size:.78rem;width:100%;" value="${quoteSearchQ}">`;
+  filterEl.appendChild(searchWrap);
+  const inp = document.getElementById('quote-search-input');
+  inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
+  renderQuotes();
+}
+function renderQuotes() {
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
-  const filter = document.getElementById('q-filter'); filter.innerHTML = '';
   if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.</div>'; return; }
-  feed.innerHTML = '';
-  allQuotes.forEach(q => {
-    const book = allBooks.find(b=>b.id===q.book_id);
+  const q = quoteSearchQ.trim().toLowerCase();
+  const list = q ? allQuotes.filter(qt => {
+    const book = allBooks.find(b=>b.id===qt.book_id);
+    return (book?.title||'').toLowerCase().includes(q) ||
+           (book?.author||'').toLowerCase().includes(q) ||
+           qt.text.toLowerCase().includes(q);
+  }) : allQuotes;
+  if (!list.length) {
+    feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`;
+    return;
+  }
+  list.forEach(qt => {
+    const book = allBooks.find(b=>b.id===qt.book_id);
     const color = book ? genreColor(book.genre) : '#b07030';
     const el = document.createElement('div'); el.className='qcard';
+    let text = qt.text;
+    if(q) {
+      const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
+    }
     el.innerHTML = `<div class="qcard-bar" style="background:${color}"></div>
-      <div class="qcard-text">${q.text}</div>
+      <div class="qcard-text">${text}</div>
       <div class="qcard-meta">
         <span class="qcard-book">${book?.title||''}</span>
-        ${q.page?`<span class="qcard-page">p.${q.page}</span>`:''}
-        ${q.tag?`<span class="qcard-comment">${q.tag}</span>`:''}
+        ${book?.author?`<span class="qcard-page">${book.author}</span>`:''}
+        ${qt.page?`<span class="qcard-page">p.${qt.page}</span>`:''}
+        ${qt.tag?`<span class="qcard-comment">${qt.tag}</span>`:''}
       </div>`;
     feed.appendChild(el);
   });
@@ -298,99 +326,112 @@ function setTimerPeriod(p) {
   buildTrackerGrid();
 }
 function buildTrackerGrid() {
-  const grid=document.getElementById('timer-tracker-grid'); if(!grid) return;
-  grid.innerHTML='';
-  grid.style.display = timerPeriod===1 ? 'grid' : 'flex';
-  grid.style.flexWrap = 'wrap';
-  grid.style.gap = timerPeriod===1 ? '2px' : '6px';
+  const wrap = document.getElementById('timer-tracker-grid'); if(!wrap) return;
+  wrap.innerHTML = '';
 
-  // 기간 계산
-  const endY=timerTrackY, endM=timerTrackM;
-  let months=[];
-  for(let i=timerPeriod-1;i>=0;i--){
-    let y=endY, m=endM-i;
-    while(m<0){m+=12;y--;}
-    months.push({y,m});
-  }
-
-  // 전체 dayMap 생성
-  const dayMap={};
-  allBooks.forEach(b=>{
-    if(!b.last_read||!b.reading_time)return;
-    dayMap[b.last_read]=(dayMap[b.last_read]||0)+b.reading_time;
+  // dayMap: 날짜별 독서 분 집계
+  const dayMap = {};
+  allBooks.forEach(b => {
+    if(!b.last_read || !b.reading_time) return;
+    dayMap[b.last_read] = (dayMap[b.last_read]||0) + b.reading_time;
   });
-  const allVals=Object.values(dayMap);
-  const maxMins=allVals.length?Math.max(...allVals):1;
 
-  // 레이블
-  const labelEl=document.getElementById('timer-month-label');
-  if(labelEl){
-    const s=months[0], e=months[months.length-1];
-    labelEl.textContent=timerPeriod===1
-      ? `${e.y}년 ${e.m+1}월`
-      : `${s.y}.${String(s.m+1).padStart(2,'0')} – ${e.y}.${String(e.m+1).padStart(2,'0')}`;
+  // 기간 결정
+  const end = new Date(timerTrackY, timerTrackM, new Date(timerTrackY,timerTrackM+1,0).getDate());
+  const start = new Date(end);
+  start.setMonth(start.getMonth() - (timerPeriod - 1));
+  start.setDate(1);
+
+  // 레이블 업데이트
+  const labelEl = document.getElementById('timer-month-label');
+  if(labelEl) {
+    const fmt = d => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    labelEl.textContent = timerPeriod === 1
+      ? `${timerTrackY}년 ${timerTrackM+1}월`
+      : `${fmt(start)} – ${fmt(end)}`;
   }
 
-  if(timerPeriod===1){
-    // 1개월: 요일헤더 + 날짜셀
-    const {y,m}=months[0];
-    const daysInMonth=new Date(y,m+1,0).getDate();
-    const firstDay=new Date(y,m,1).getDay();
-    ['일','월','화','수','목','금','토'].forEach(d=>{
-      const h=document.createElement('div');
-      h.style.cssText='font-size:.48rem;color:var(--tx3);text-align:center;padding-bottom:1px;font-weight:600;';
-      h.textContent=d; grid.appendChild(h);
-    });
-    for(let i=0;i<firstDay;i++){grid.appendChild(document.createElement('div'));}
-    for(let d=1;d<=daysInMonth;d++){
-      const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-      const mins=dayMap[key]||0;
-      const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
-      const cell=document.createElement('div');
-      cell.style.cssText='aspect-ratio:1;border-radius:2px;background:'+TRACKER_COLORS[intensity]+';display:flex;align-items:center;justify-content:center;';
-      cell.title=`${m+1}/${d}: ${mins?mins+'분':'없음'}`;
-      const num=document.createElement('span');
-      num.style.cssText='font-size:.42rem;color:'+(intensity>=2?'rgba(255,255,255,.85)':'#b8a890')+';';
-      num.textContent=d; cell.appendChild(num);
-      grid.appendChild(cell);
+  // 최대값
+  const allVals = Object.values(dayMap);
+  const maxMins = allVals.length ? Math.max(...allVals) : 1;
+
+  // 주 단위로 열 생성 (GitHub 잔디 스타일)
+  // start를 일요일로 조정
+  const startSun = new Date(start);
+  startSun.setDate(startSun.getDate() - startSun.getDay());
+
+  const weeks = [];
+  let cur = new Date(startSun);
+  while(cur <= end) {
+    const week = [];
+    for(let i = 0; i < 7; i++) {
+      week.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
     }
-  } else {
-    // 3/6/12개월: 월별 컬럼으로 표시
-    const totalDays=months.reduce((a,{y,m})=>a+new Date(y,m+1,0).getDate(),0);
-    months.forEach(({y,m})=>{
-      const daysInMonth=new Date(y,m+1,0).getDate();
-      const col=document.createElement('div');
-      col.style.cssText='display:flex;flex-direction:column;gap:1px;';
-      const mlabel=document.createElement('div');
-      mlabel.style.cssText='font-size:.46rem;color:var(--tx3);text-align:center;margin-bottom:2px;font-weight:600;';
-      mlabel.textContent=(m+1)+'월';
-      col.appendChild(mlabel);
-      const cellWrap=document.createElement('div');
-      cellWrap.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:1px;';
-      const firstDay=new Date(y,m,1).getDay();
-      for(let i=0;i<firstDay;i++){cellWrap.appendChild(document.createElement('div'));}
-      for(let d=1;d<=daysInMonth;d++){
-        const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-        const mins=dayMap[key]||0;
-        const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
-        const cell=document.createElement('div');
-        cell.style.cssText='aspect-ratio:1;border-radius:1px;background:'+TRACKER_COLORS[intensity]+';';
-        cell.title=`${m+1}/${d}: ${mins?mins+'분':'없음'}`;
-        cellWrap.appendChild(cell);
-      }
-      col.appendChild(cellWrap);
-      grid.appendChild(col);
-    });
+    weeks.push(week);
   }
 
-  // 이 기간 총합
-  let periodTotal=0;
-  months.forEach(({y,m})=>{
-    const mk=y+'-'+String(m+1).padStart(2,'0');
-    Object.entries(dayMap).forEach(([k,v])=>{if(k.startsWith(mk))periodTotal+=v;});
+  // 컨테이너: flex row (주별 열)
+  wrap.style.cssText = 'display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;';
+
+  // 요일 레이블 열
+  const dowCol = document.createElement('div');
+  dowCol.style.cssText = 'display:flex;flex-direction:column;gap:2px;padding-top:16px;';
+  ['','월','','수','','금',''].forEach(d => {
+    const h = document.createElement('div');
+    h.style.cssText = 'height:10px;font-size:.44rem;color:var(--tx3);display:flex;align-items:center;line-height:1;';
+    h.textContent = d;
+    dowCol.appendChild(h);
   });
-  const summaryEl=document.getElementById('tracker-summary');
-  if(summaryEl) summaryEl.textContent=`이 기간 총 ${Math.floor(periodTotal/60)}h ${periodTotal%60}m`;
+  wrap.appendChild(dowCol);
+
+  // 주별 열
+  let prevMonth = -1;
+  weeks.forEach((week, wi) => {
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex-shrink:0;';
+
+    // 월 레이블
+    const firstDay = week.find(d => d.getDate() === 1 || wi === 0);
+    const monthLabel = document.createElement('div');
+    monthLabel.style.cssText = 'height:14px;font-size:.45rem;color:var(--tx3);white-space:nowrap;';
+    const wMonth = week[0].getMonth();
+    if(firstDay && wMonth !== prevMonth) {
+      const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+      monthLabel.textContent = MN[wMonth];
+      prevMonth = wMonth;
+    }
+    col.appendChild(monthLabel);
+
+    // 7개 셀
+    week.forEach(day => {
+      const key = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
+      const inRange = day >= start && day <= end;
+      const mins = inRange ? (dayMap[key]||0) : 0;
+      const intensity = !inRange ? 0 : mins === 0 ? 0 : Math.min(4, Math.ceil((mins/maxMins)*4));
+
+      const cell = document.createElement('div');
+      cell.style.cssText = `width:10px;height:10px;border-radius:2px;background:${inRange ? TRACKER_COLORS[intensity] : 'transparent'};flex-shrink:0;cursor:default;transition:transform .1s;`;
+      if(inRange) {
+        cell.title = `${day.getMonth()+1}/${day.getDate()}: ${mins ? mins+'분' : '없음'}`;
+        cell.onmouseenter = () => { cell.style.transform='scale(1.4)'; cell.style.zIndex='2'; };
+        cell.onmouseleave = () => { cell.style.transform='scale(1)'; cell.style.zIndex=''; };
+      }
+      col.appendChild(cell);
+    });
+    wrap.appendChild(col);
+  });
+
+  // 요약
+  let periodTotal = 0;
+  const cur2 = new Date(start);
+  while(cur2 <= end) {
+    const k = `${cur2.getFullYear()}-${String(cur2.getMonth()+1).padStart(2,'0')}-${String(cur2.getDate()).padStart(2,'0')}`;
+    periodTotal += dayMap[k]||0;
+    cur2.setDate(cur2.getDate()+1);
+  }
+  const summaryEl = document.getElementById('tracker-summary');
+  if(summaryEl) summaryEl.textContent = `총 ${Math.floor(periodTotal/60)}h ${periodTotal%60}m`;
 }
 function buildTimerBookList() {
   const wrap=document.getElementById('timer-book-list'); if(!wrap) return;
@@ -626,18 +667,109 @@ function buildAuthorChart() {
   }
   wrap.appendChild(sec2);
 }
+let curPY = 'all';
 function buildPagesChart() {
   if(pagesChart){pagesChart.destroy();pagesChart=null;}
-  const done=allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
-  const years=[...new Set(done.map(b=>b.date_finish.slice(0,4)))].sort();
-  const labels=years;
-  const vals=years.map(y=>done.filter(b=>b.date_finish.startsWith(y)).reduce((a,b)=>a+(b.pages||0),0));
-  const ctx=document.getElementById('chart-pages').getContext('2d');
-  pagesChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'페이지',data:vals,backgroundColor:'rgba(176,112,48,0.75)',borderColor:'#b07030',borderWidth:1,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#faf6ef',borderColor:'#cfc3ac',borderWidth:1,titleColor:'#2e1f0e',bodyColor:'#5c3d1e',callbacks:{label:c=>' '+c.parsed.y.toLocaleString()+'p'}}},scales:{x:{grid:{display:false},ticks:{font:{family:'Pretendard',size:10},color:'#a08c72'}},y:{grid:{color:'rgba(207,195,172,0.32)'},border:{dash:[3,3]},ticks:{font:{family:'Pretendard',size:10},color:'#a08c72'}}}}});
-  const totalP=vals.reduce((a,b)=>a+b,0);
-  document.getElementById('pages-stat').innerHTML=`<div class="si"><span class="sn">${totalP.toLocaleString()}p</span><span class="sl">누적 페이지</span></div><div class="si"><span class="sn">${vals.length>0?Math.round(totalP/vals.length).toLocaleString()+'p':'—'}</span><span class="sl">연평균</span></div>`;
-}
+  const done = allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
+  if(!done.length){
+    document.getElementById('pages-stat').innerHTML='<div style="font-size:.75rem;color:var(--tx3);">완독된 책의 페이지 정보가 없어요.</div>';
+    return;
+  }
 
+  // 연도 버튼
+  const yrRow = document.getElementById('yr-row-pages');
+  if(yrRow) {
+    yrRow.innerHTML = '';
+    const YEARS = [...new Set(done.map(b=>parseInt(b.date_finish.slice(0,4))))].sort();
+    const allBtn = document.createElement('button');
+    allBtn.className='yr-btn'+(curPY==='all'?' on':'');
+    allBtn.textContent='전체'; allBtn.style.cssText=curPY==='all'?'background:var(--acc2);color:#fff;border-color:transparent;':'color:var(--tx3);';
+    allBtn.onclick=()=>{curPY='all';buildPagesChart();};
+    yrRow.appendChild(allBtn);
+    YEARS.forEach(y=>{
+      const btn=document.createElement('button');btn.className='yr-btn'+(curPY===y?' on':'');
+      btn.textContent=y+'년';
+      const c=YC[y]||{line:'#b07030'};
+      btn.style.cssText=curPY===y?`background:${c.line};color:#fff;border-color:transparent;`:`color:${c.line};border-color:${c.line};`;
+      btn.onclick=()=>{curPY=y;buildPagesChart();};
+      yrRow.appendChild(btn);
+    });
+  }
+
+  const ctx = document.getElementById('chart-pages').getContext('2d');
+  let labels, vals, bookCounts;
+
+  if(curPY === 'all') {
+    // 연도별
+    const YEARS = [...new Set(done.map(b=>b.date_finish.slice(0,4)))].sort();
+    labels = YEARS.map(y=>y+'년');
+    vals = YEARS.map(y=>done.filter(b=>b.date_finish.startsWith(y)).reduce((a,b)=>a+(b.pages||0),0));
+    bookCounts = YEARS.map(y=>done.filter(b=>b.date_finish.startsWith(y)).length);
+  } else {
+    // 선택 연도의 월별
+    const yr = String(curPY);
+    labels = ['1','2','3','4','5','6','7','8','9','10','11','12'].map(m=>m+'월');
+    vals = Array.from({length:12},(_,i)=>{
+      const mk = yr+'-'+String(i+1).padStart(2,'0');
+      return done.filter(b=>b.date_finish.startsWith(mk)).reduce((a,b)=>a+(b.pages||0),0);
+    });
+    bookCounts = Array.from({length:12},(_,i)=>{
+      const mk = yr+'-'+String(i+1).padStart(2,'0');
+      return done.filter(b=>b.date_finish.startsWith(mk)).length;
+    });
+  }
+
+  const maxV = Math.max(...vals, 1);
+  pagesChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '페이지',
+        data: vals,
+        backgroundColor: vals.map(v => {
+          const ratio = v/maxV;
+          return ratio > 0.7 ? 'rgba(122,62,24,.85)' : ratio > 0.4 ? 'rgba(176,112,48,.8)' : ratio > 0 ? 'rgba(196,168,122,.75)' : 'rgba(237,228,208,.5)';
+        }),
+        borderColor: 'transparent',
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#faf6ef', borderColor: '#cfc3ac', borderWidth: 1,
+          titleColor: '#2e1f0e', bodyColor: '#5c3d1e',
+          titleFont: {family:'Pretendard',size:11}, bodyFont: {family:'Pretendard',size:11},
+          callbacks: {
+            label: c => ` ${c.parsed.y.toLocaleString()}p`,
+            afterLabel: (c) => bookCounts[c.dataIndex] ? ` (${bookCounts[c.dataIndex]}권)` : '',
+          }
+        }
+      },
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{family:'Pretendard',size:10},color:'#a08c72'} },
+        y: {
+          grid: {color:'rgba(207,195,172,0.3)'}, border:{dash:[3,3]},
+          ticks: {font:{family:'Pretendard',size:10},color:'#a08c72',callback:v=>v>=1000?(v/1000).toFixed(1)+'k':v},
+          min: 0
+        }
+      }
+    }
+  });
+
+  const totalP = vals.reduce((a,b)=>a+b,0);
+  const totalB = bookCounts.reduce((a,b)=>a+b,0);
+  const avgP = totalB > 0 ? Math.round(totalP/totalB) : 0;
+  const bestIdx = vals.indexOf(Math.max(...vals));
+  document.getElementById('pages-stat').innerHTML =
+    `<div class="si"><span class="sn">${totalP.toLocaleString()}p</span><span class="sl">${curPY==='all'?'누적 페이지':'이 해 페이지'}</span></div>
+     <div class="si"><span class="sn">${avgP.toLocaleString()}p</span><span class="sl">권당 평균</span></div>
+     <div class="si"><span class="sn">${labels[bestIdx]||'—'}</span><span class="sl">최다 독서 기간</span></div>`;
+}
 function buildMilestone() {
   const done=allBooks.filter(b=>b.status==='완독');
   const total=done.length,years=new Set(done.map(b=>b.date_finish?.slice(0,4)).filter(Boolean));
@@ -777,7 +909,8 @@ async function searchBook() {
       const el=document.createElement('div');el.className='search-item';
       const cover=item.image||'',title=item.title.replace(/<[^>]+>/g,''),author=item.author.replace(/<[^>]+>/g,''),publisher=item.publisher||'',desc=item.description.replace(/<[^>]+>/g,'');
       el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="${title}">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div></div>`;
-      el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn:item.isbn});
+      const pages=parseInt(item.itemPage||item.description?.match(/\d+p/)?.[0])||null;
+      el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn:item.isbn,pages});
       res.appendChild(el);
     });
   } catch(e){res.innerHTML='<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';}
@@ -788,6 +921,11 @@ function selectBook(book) {
   document.getElementById('book-form').style.display='';
   const coverHTML=book.cover?`<img class="selected-cover" src="${book.cover}" alt="${book.title}">`:`<div class="selected-cover" style="background:linear-gradient(150deg,#a07040,#5c3010);"></div>`;
   document.getElementById('selected-book-info').innerHTML=`${coverHTML}<div class="selected-info"><div class="selected-title">${book.title}</div><div class="selected-author">${book.author}</div><div class="selected-desc">${book.description||''}</div><span class="selected-change" onclick="changeBook()">다른 책 선택</span></div>`;
+  // 네이버 API에서 페이지 수 자동 채우기
+  if(book.pages) {
+    const pagesEl = document.getElementById('book-pages');
+    if(pagesEl && !pagesEl.value) pagesEl.value = book.pages;
+  }
 }
 function changeBook() {
   selectedBook=null;document.getElementById('search-section').style.display='';
