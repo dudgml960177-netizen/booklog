@@ -308,3 +308,22 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
   .timer-top{flex-direction:column;}
   .timer-clock-wrap{align-items:flex-start;}
 }
+
+/* ── 기록 탭 (달력 + 타이머 통합) ── */
+.record-top{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.7rem;}
+@media(max-width:560px){.record-top{grid-template-columns:1fr;}}
+.record-cal-card{padding:.75rem;}
+.record-timer-card{padding:.85rem;}
+
+/* 달력 컴팩트 */
+.record-cal-card .cal-hd{margin-bottom:.45rem;}
+.record-cal-card .cal-ttl{font-size:.88rem;}
+.record-cal-card .dow{font-size:.55rem;padding:.08rem 0;}
+.record-cal-card .day{font-size:.6rem;}
+.record-cal-card .cal-list{margin-top:.5rem;padding-top:.45rem;}
+.record-cal-card .cal-list-ttl{font-size:.65rem;margin-bottom:.3rem;}
+.record-cal-card .cli{font-size:.65rem;padding:.18rem 0;}
+
+/* 타이머 컴팩트 */
+.record-timer-card .timer-display{font-size:1.9rem;text-align:center;}
+.record-timer-card .timer-btns{justify-content:center;gap:.4rem;}

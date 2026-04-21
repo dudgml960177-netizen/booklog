@@ -116,8 +116,7 @@ function sw(name, btn) {
   document.getElementById('p-'+name).classList.add('on');
   if (name==='books')  buildBooks();
   if (name==='quotes') buildQuotes();
-  if (name==='cal')    renderCal();
-  if (name==='timer')  buildTimer();
+  if (name==='record') { renderCal(); buildTimer(); }
   if (name==='graph')  { buildStats(); buildMilestone(); buildGoalDisplay(); document.querySelectorAll('.gst').forEach((t,i)=>t.classList.toggle('on',i===0)); showGraph('monthly'); }
 }
 
@@ -148,11 +147,50 @@ function buildBooks() {
   if (curView==='gallery') buildGallery(list);
   else buildList(list);
 }
+// ── 일괄 삭제
+let selectMode = false, selectedIds = new Set();
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  selectedIds.clear();
+  const btn = document.getElementById('select-mode-btn');
+  const delBtn = document.getElementById('bulk-delete-btn');
+  if(btn) btn.textContent = selectMode ? '✕ 취소' : '☑ 선택';
+  if(delBtn) delBtn.style.display = selectMode ? '' : 'none';
+  buildBooks();
+}
+async function bulkDelete() {
+  if(!selectedIds.size){alert('삭제할 책을 선택해주세요.');return;}
+  if(!confirm(`선택한 ${selectedIds.size}권을 삭제할까요?`))return;
+  try {
+    for(const id of selectedIds){
+      await sb.from('quotes').delete().eq('book_id',id);
+      await sb.from('books').delete().eq('id',id);
+    }
+    selectedIds.clear(); selectMode=false;
+    const btn=document.getElementById('select-mode-btn');
+    const delBtn=document.getElementById('bulk-delete-btn');
+    if(btn)btn.textContent='☑ 선택';
+    if(delBtn)delBtn.style.display='none';
+    await loadData(); buildBooks();
+  }catch(e){alert('삭제 오류: '+(e.message||'알 수 없는 오류'));}
+}
+
 function buildGallery(list) {
   const g = document.getElementById('gal-grid'); g.innerHTML = '';
   if (!list.length) { g.innerHTML='<div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>'; return; }
   list.forEach(b => {
-    const el = document.createElement('div'); el.className='gi'; el.onclick=()=>openDetail(b.id);
+    const el = document.createElement('div'); el.className='gi';
+    if(selectMode) {
+      const chk = selectedIds.has(b.id);
+      el.style.outline = chk ? '2px solid var(--acc)' : '';
+      el.style.opacity = chk ? '1' : '.85';
+      el.onclick = () => {
+        if(selectedIds.has(b.id)) selectedIds.delete(b.id); else selectedIds.add(b.id);
+        buildBooks();
+      };
+    } else {
+      el.onclick = ()=>openDetail(b.id);
+    }
     const img = b.cover ? `<img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;display:block;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.48rem;color:rgba(255,255,255,.8);text-align:center;padding:.2rem;font-style:italic;line-height:1.3;">${b.title}</div>`;
     el.innerHTML = `<div class="gi-cover">${img}</div>
       <div class="gi-title">${b.title}</div>
@@ -166,7 +204,15 @@ function buildList(list) {
   const g = document.getElementById('book-list-items'); g.innerHTML = '';
   if (!list.length) { g.innerHTML='<div class="empty-state">아직 기록된 책이 없어요.</div>'; return; }
   list.forEach(b => {
-    const el = document.createElement('div'); el.className='book-list-item'; el.onclick=()=>openDetail(b.id);
+    const el = document.createElement('div'); el.className='book-list-item';
+    if(selectMode) {
+      const chk = selectedIds.has(b.id);
+      el.style.outline = chk ? '2px solid var(--acc)' : '';
+      el.style.background = chk ? '#ede4d0' : '';
+      el.onclick = () => { if(selectedIds.has(b.id)) selectedIds.delete(b.id); else selectedIds.add(b.id); buildBooks(); };
+    } else {
+      el.onclick = ()=>openDetail(b.id);
+    }
     const coverEl = b.cover ? `<img class="bli-cover" src="${b.cover}" alt="${b.title}">` : `<div class="bli-cover"></div>`;
     el.innerHTML = `${coverEl}
       <div class="bli-info">
@@ -908,8 +954,16 @@ async function searchBook() {
     data.items.forEach(item=>{
       const el=document.createElement('div');el.className='search-item';
       const cover=item.image||'',title=item.title.replace(/<[^>]+>/g,''),author=item.author.replace(/<[^>]+>/g,''),publisher=item.publisher||'',desc=item.description.replace(/<[^>]+>/g,'');
-      el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="${title}">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div></div>`;
-      const pages=parseInt(item.itemPage||item.description?.match(/\d+p/)?.[0])||null;
+      // 페이지 수: itemPage(네이버 상세검색), description 파싱, sub 필드 등 다양한 곳 시도
+      let pages = null;
+      if(item.itemPage && parseInt(item.itemPage)) pages = parseInt(item.itemPage);
+      else if(item.sub_info?.itemPage) pages = parseInt(item.sub_info.itemPage);
+      else {
+        const pageMatch = (item.description||'').match(/(\d{2,4})\s*p/i) || (item.description||'').match(/(\d{2,4})쪽/);
+        if(pageMatch) pages = parseInt(pageMatch[1]);
+      }
+      const pagesLabel = pages ? `<div style="font-size:.62rem;color:var(--acc);">${pages}p</div>` : '';
+      el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="${title}">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div>${pagesLabel}</div>`;
       el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn:item.isbn,pages});
       res.appendChild(el);
     });
