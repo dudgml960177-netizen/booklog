@@ -123,19 +123,22 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .tbtn-save{background:#7a9e7e;color:#fff;}
 .tbtn-save:hover{background:#5a7e5e;}
 /* 트래커 그리드 */
-.tracker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:.4rem;}
-.tracker-legend{display:flex;align-items:center;gap:.4rem;margin-top:.25rem;}
+.tracker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:.35rem;}
+.tracker-grid.multi{display:flex;gap:6px;overflow-x:auto;}
+.tracker-legend{display:flex;align-items:center;gap:.35rem;margin-top:.2rem;}
 .tracker-legend-cells{display:flex;gap:2px;}
-.tracker-legend-cells>div{width:10px;height:10px;border-radius:2px;}
+.tracker-period-btn{font-size:.62rem;padding:.16rem .5rem;border:1px solid var(--border2);border-radius:10px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;}
+.tracker-period-btn.on{background:var(--acc);color:#fff;border-color:var(--acc);}
 /* 타이머 책 목록 */
 .timer-book-item{display:flex;align-items:center;gap:.6rem;padding:.35rem 0;border-bottom:1px solid #ede4d0;font-size:.75rem;}
 .timer-book-bar{flex:1;height:6px;background:#ede4d0;border-radius:3px;overflow:hidden;}
 .timer-book-bar-fill{height:100%;border-radius:3px;background:var(--acc);}
 /* 통계 */
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.55rem;margin-bottom:.8rem;}
-@media(min-width:500px){.stat-grid{grid-template-columns:repeat(4,1fr);}}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:.8rem;}
+@media(min-width:600px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:800px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
 .scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.65rem .8rem;}
-.scard-n{font-family:var(--fs);font-size:1.2rem;color:var(--tx1);line-height:1;margin-bottom:.12rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.scard-n{font-family:var(--fs);font-size:1.1rem;color:var(--tx1);line-height:1.1;margin-bottom:.12rem;word-break:break-word;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 .scard-l{font-size:.65rem;color:var(--tx3);}
 .scard-sub{font-size:.6rem;color:var(--acc);font-weight:500;margin-top:.05rem;}
 .gtabs{display:flex;gap:.25rem;flex-wrap:wrap;}

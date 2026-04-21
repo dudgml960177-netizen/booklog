@@ -142,25 +142,32 @@
           </div>
         </div>
         <div class="card">
-          <div class="row-hd" style="margin-bottom:.6rem;">
-            <div class="sec" style="margin:0;">월별 독서 시간 트래커</div>
-            <div style="display:flex;gap:.3rem;align-items:center;">
+          <div class="row-hd" style="margin-bottom:.5rem;">
+            <div class="sec" style="margin:0;">독서 시간 트래커</div>
+            <div style="display:flex;gap:.25rem;align-items:center;">
               <button class="cal-nav" onclick="moveTimerMonth(-1)">◀</button>
-              <span id="timer-month-label" style="font-size:.75rem;color:var(--tx2);font-weight:600;"></span>
+              <span id="timer-month-label" style="font-size:.7rem;color:var(--tx2);font-weight:600;min-width:120px;text-align:center;"></span>
               <button class="cal-nav" onclick="moveTimerMonth(1)">▶</button>
             </div>
           </div>
+          <div style="display:flex;gap:.3rem;margin-bottom:.55rem;flex-wrap:wrap;">
+            <button class="tracker-period-btn on" data-period="1" onclick="setTimerPeriod(1)">1개월</button>
+            <button class="tracker-period-btn" data-period="3" onclick="setTimerPeriod(3)">3개월</button>
+            <button class="tracker-period-btn" data-period="6" onclick="setTimerPeriod(6)">6개월</button>
+            <button class="tracker-period-btn" data-period="12" onclick="setTimerPeriod(12)">1년</button>
+            <span id="tracker-summary" style="font-size:.65rem;color:var(--tx3);margin-left:auto;align-self:center;"></span>
+          </div>
           <div id="timer-tracker-grid" class="tracker-grid"></div>
           <div class="tracker-legend">
-            <span style="font-size:.62rem;color:var(--tx3);">적음</span>
+            <span style="font-size:.58rem;color:var(--tx3);">적음</span>
             <div class="tracker-legend-cells">
-              <div class="tracker-cell" style="background:#f0e6cc;"></div>
-              <div class="tracker-cell" style="background:#d4a870;"></div>
-              <div class="tracker-cell" style="background:#b07030;"></div>
-              <div class="tracker-cell" style="background:#7a3e18;"></div>
-              <div class="tracker-cell" style="background:#4a2008;"></div>
+              <div style="width:10px;height:10px;border-radius:2px;background:#f0e6cc;"></div>
+              <div style="width:10px;height:10px;border-radius:2px;background:#d4a870;"></div>
+              <div style="width:10px;height:10px;border-radius:2px;background:#b07030;"></div>
+              <div style="width:10px;height:10px;border-radius:2px;background:#7a3e18;"></div>
+              <div style="width:10px;height:10px;border-radius:2px;background:#4a2008;"></div>
             </div>
-            <span style="font-size:.62rem;color:var(--tx3);">많음</span>
+            <span style="font-size:.58rem;color:var(--tx3);">많음</span>
           </div>
           <div style="margin-top:.8rem;border-top:1px solid var(--border);padding-top:.7rem;">
             <div class="sec" style="margin-bottom:.5rem;">책별 누적 독서 시간</div>

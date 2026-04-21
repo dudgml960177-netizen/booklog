@@ -16,7 +16,7 @@ let calY = new Date().getFullYear(), calM = new Date().getMonth();
 let monthChart = null, donutChart = null, pagesChart = null;
 let curYM = 'all', curYR = 'all';
 let timerInterval = null, timerSeconds = 0, timerRunning = false, timerBookId = null;
-let timerTrackY = new Date().getFullYear(), timerTrackM = new Date().getMonth();
+let timerTrackY = new Date().getFullYear(), timerTrackM = new Date().getMonth(), timerPeriod = 1;
 let goals = { books: 0, minutes: 0, pages: 0 };
 
 const YC = {
@@ -246,9 +246,14 @@ function buildTimer() {
   sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
   allBooks.filter(b=>b.status==='읽는중').forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
   updateTimerDisplay();
+  updateTrackerPeriodBtns();
   buildTrackerGrid();
   buildTimerBookList();
-  document.getElementById('timer-month-label').textContent = `${timerTrackY}년 ${timerTrackM+1}월`;
+}
+function updateTrackerPeriodBtns() {
+  document.querySelectorAll('.tracker-period-btn').forEach(b=>{
+    b.classList.toggle('on', parseInt(b.dataset.period)===timerPeriod);
+  });
 }
 function updateTimerDisplay() {
   const h=Math.floor(timerSeconds/3600), m=Math.floor((timerSeconds%3600)/60), s=timerSeconds%60;
@@ -285,46 +290,107 @@ function moveTimerMonth(dir) {
   timerTrackM+=dir;
   if(timerTrackM>11){timerTrackM=0;timerTrackY++;}
   if(timerTrackM<0){timerTrackM=11;timerTrackY--;}
-  document.getElementById('timer-month-label').textContent=`${timerTrackY}년 ${timerTrackM+1}월`;
+  buildTrackerGrid();
+}
+function setTimerPeriod(p) {
+  timerPeriod=p;
+  updateTrackerPeriodBtns();
   buildTrackerGrid();
 }
 function buildTrackerGrid() {
   const grid=document.getElementById('timer-tracker-grid'); if(!grid) return;
   grid.innerHTML='';
-  const daysInMonth=new Date(timerTrackY,timerTrackM+1,0).getDate();
-  const firstDay=new Date(timerTrackY,timerTrackM,1).getDay();
-  const mk=timerTrackY+'-'+String(timerTrackM+1).padStart(2,'0');
+  grid.style.display = timerPeriod===1 ? 'grid' : 'flex';
+  grid.style.flexWrap = 'wrap';
+  grid.style.gap = timerPeriod===1 ? '2px' : '6px';
+
+  // 기간 계산
+  const endY=timerTrackY, endM=timerTrackM;
+  let months=[];
+  for(let i=timerPeriod-1;i>=0;i--){
+    let y=endY, m=endM-i;
+    while(m<0){m+=12;y--;}
+    months.push({y,m});
+  }
+
+  // 전체 dayMap 생성
   const dayMap={};
   allBooks.forEach(b=>{
-    if(b.last_read&&b.last_read.startsWith(mk)&&b.reading_time){
-      const day=b.last_read.slice(8,10);
-      dayMap[day]=(dayMap[day]||0)+(b.reading_time||0);
-    }
+    if(!b.last_read||!b.reading_time)return;
+    dayMap[b.last_read]=(dayMap[b.last_read]||0)+b.reading_time;
   });
-  const maxMins=Math.max(1,...Object.values(dayMap));
-  ['일','월','화','수','목','금','토'].forEach(d=>{
-    const h=document.createElement('div');
-    h.style.cssText='font-size:.5rem;color:var(--tx3);text-align:center;padding-bottom:2px;font-weight:600;';
-    h.textContent=d; grid.appendChild(h);
-  });
-  for(let i=0;i<firstDay;i++){const e=document.createElement('div');grid.appendChild(e);}
-  for(let d=1;d<=daysInMonth;d++){
-    const ds=String(d).padStart(2,'0');
-    const mins=dayMap[ds]||0;
-    const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
-    const cell=document.createElement('div');
-    cell.style.cssText='aspect-ratio:1;border-radius:2px;background:'+TRACKER_COLORS[intensity]+';display:flex;align-items:center;justify-content:center;cursor:default;position:relative;transition:transform .1s;';
-    cell.title=(timerTrackM+1)+'/'+d+': '+(mins?mins+'분':'없음');
-    const num=document.createElement('span');
-    num.style.cssText='font-size:.48rem;line-height:1;color:'+(intensity>=2?'rgba(255,255,255,.9)':'#a08c72')+';';
-    num.textContent=d; cell.appendChild(num);
-    cell.onmouseenter=()=>cell.style.transform='scale(1.25)';
-    cell.onmouseleave=()=>cell.style.transform='scale(1)';
-    grid.appendChild(cell);
+  const allVals=Object.values(dayMap);
+  const maxMins=allVals.length?Math.max(...allVals):1;
+
+  // 레이블
+  const labelEl=document.getElementById('timer-month-label');
+  if(labelEl){
+    const s=months[0], e=months[months.length-1];
+    labelEl.textContent=timerPeriod===1
+      ? `${e.y}년 ${e.m+1}월`
+      : `${s.y}.${String(s.m+1).padStart(2,'0')} – ${e.y}.${String(e.m+1).padStart(2,'0')}`;
   }
-  const totalMins=Object.values(dayMap).reduce((a,b)=>a+b,0);
-  const monthLabel=document.getElementById('timer-month-label');
-  if(monthLabel) monthLabel.textContent=timerTrackY+'년 '+(timerTrackM+1)+'월 — 총 '+Math.floor(totalMins/60)+'h '+totalMins%60+'m';
+
+  if(timerPeriod===1){
+    // 1개월: 요일헤더 + 날짜셀
+    const {y,m}=months[0];
+    const daysInMonth=new Date(y,m+1,0).getDate();
+    const firstDay=new Date(y,m,1).getDay();
+    ['일','월','화','수','목','금','토'].forEach(d=>{
+      const h=document.createElement('div');
+      h.style.cssText='font-size:.48rem;color:var(--tx3);text-align:center;padding-bottom:1px;font-weight:600;';
+      h.textContent=d; grid.appendChild(h);
+    });
+    for(let i=0;i<firstDay;i++){grid.appendChild(document.createElement('div'));}
+    for(let d=1;d<=daysInMonth;d++){
+      const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const mins=dayMap[key]||0;
+      const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+      const cell=document.createElement('div');
+      cell.style.cssText='aspect-ratio:1;border-radius:2px;background:'+TRACKER_COLORS[intensity]+';display:flex;align-items:center;justify-content:center;';
+      cell.title=`${m+1}/${d}: ${mins?mins+'분':'없음'}`;
+      const num=document.createElement('span');
+      num.style.cssText='font-size:.42rem;color:'+(intensity>=2?'rgba(255,255,255,.85)':'#b8a890')+';';
+      num.textContent=d; cell.appendChild(num);
+      grid.appendChild(cell);
+    }
+  } else {
+    // 3/6/12개월: 월별 컬럼으로 표시
+    const totalDays=months.reduce((a,{y,m})=>a+new Date(y,m+1,0).getDate(),0);
+    months.forEach(({y,m})=>{
+      const daysInMonth=new Date(y,m+1,0).getDate();
+      const col=document.createElement('div');
+      col.style.cssText='display:flex;flex-direction:column;gap:1px;';
+      const mlabel=document.createElement('div');
+      mlabel.style.cssText='font-size:.46rem;color:var(--tx3);text-align:center;margin-bottom:2px;font-weight:600;';
+      mlabel.textContent=(m+1)+'월';
+      col.appendChild(mlabel);
+      const cellWrap=document.createElement('div');
+      cellWrap.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:1px;';
+      const firstDay=new Date(y,m,1).getDay();
+      for(let i=0;i<firstDay;i++){cellWrap.appendChild(document.createElement('div'));}
+      for(let d=1;d<=daysInMonth;d++){
+        const key=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+        const mins=dayMap[key]||0;
+        const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+        const cell=document.createElement('div');
+        cell.style.cssText='aspect-ratio:1;border-radius:1px;background:'+TRACKER_COLORS[intensity]+';';
+        cell.title=`${m+1}/${d}: ${mins?mins+'분':'없음'}`;
+        cellWrap.appendChild(cell);
+      }
+      col.appendChild(cellWrap);
+      grid.appendChild(col);
+    });
+  }
+
+  // 이 기간 총합
+  let periodTotal=0;
+  months.forEach(({y,m})=>{
+    const mk=y+'-'+String(m+1).padStart(2,'0');
+    Object.entries(dayMap).forEach(([k,v])=>{if(k.startsWith(mk))periodTotal+=v;});
+  });
+  const summaryEl=document.getElementById('tracker-summary');
+  if(summaryEl) summaryEl.textContent=`이 기간 총 ${Math.floor(periodTotal/60)}h ${periodTotal%60}m`;
 }
 function buildTimerBookList() {
   const wrap=document.getElementById('timer-book-list'); if(!wrap) return;
@@ -352,15 +418,31 @@ function buildStats() {
   const years=new Set(done.map(b=>b.date_finish?.slice(0,4)).filter(Boolean));
   const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
   const thisYear=done.filter(b=>b.date_finish?.startsWith(String(new Date().getFullYear())));
+  // 완독된 책만 누적 페이지
+  const totalPages=done.reduce((a,b)=>a+(b.pages||0),0);
+  // 최애 작가/출판사
+  const aMap={},pMap={};
+  done.forEach(b=>{if(b.author)aMap[b.author]=(aMap[b.author]||0)+1;if(b.publisher)pMap[b.publisher]=(pMap[b.publisher]||0)+1;});
+  const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1])[0];
+  const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1])[0];
   const items=[
-    {n:total,        l:'누적 완독',   sub:years.size?[...years].sort()[0]+'–현재':'전체'},
-    {n:avg,          l:'평균 평점',   sub:avg+' / 5.0'},
+    {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체'},
+    {n:avg,   l:'평균 평점', sub:avg+' / 5.0'},
     {n:Math.floor(totalMins/60)+'h', l:'총 독서 시간', sub:totalMins+'분'},
     {n:thisYear.length, l:'올해 완독', sub:new Date().getFullYear()+'년'},
     {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권'},
     {n:allQuotes.length, l:'수집 문장', sub:'인상 깊은 구절'},
+    {n:topA?topA[0]:'—', l:'👑 최애 작가', sub:topA?topA[1]+'권':''},
+    {n:topP?topP[0]:'—', l:'📚 최애 출판사', sub:topP?topP[1]+'권':''},
+    {n:totalPages>0?totalPages.toLocaleString()+'p':'—', l:'누적 페이지', sub:'완독 기준'},
   ];
-  items.forEach(it=>{const el=document.createElement('div');el.className='scard';el.innerHTML=`<div class="scard-n">${it.n}</div><div class="scard-l">${it.l}</div><div class="scard-sub">${it.sub}</div>`;sg.appendChild(el);});
+  items.forEach(it=>{
+    const el=document.createElement('div'); el.className='scard';
+    // 작가/출판사는 긴 이름 대비 작은 폰트
+    const nStyle=(it.l.includes('작가')||it.l.includes('출판사'))?' style="font-size:.75rem;"':'';
+    el.innerHTML=`<div class="scard-n"${nStyle}>${it.n}</div><div class="scard-l">${it.l}</div><div class="scard-sub">${it.sub}</div>`;
+    sg.appendChild(el);
+  });
 }
 
 function showGraph(name, btn) {
