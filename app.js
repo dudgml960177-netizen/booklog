@@ -1,3 +1,13 @@
+
+// 전역 에러 핸들러 - JS 에러가 버튼을 막지 않게
+window.addEventListener('unhandledrejection', e => {
+  console.warn('Unhandled promise rejection:', e.reason);
+  e.preventDefault(); // 에러가 전파되어 앱을 막지 않도록
+});
+window.onerror = (msg, src, line) => {
+  console.warn('Global error:', msg, src, line);
+  return true; // 에러 전파 차단
+};
 // ═══════════════════════════════════════════
 // 북로그 v3
 // ═══════════════════════════════════════════
@@ -120,7 +130,8 @@ sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN') {
     currentUser = session.user;
     await loadData(); loadGoals(); loadUserRole();
-    showScreen('app'); buildBooks(); loadNotifications();
+    showScreen('app'); buildBooks();
+    setTimeout(loadNotifications, 500); // 화면 로드 후 알림 로드
   }
   if (event === 'SIGNED_OUT') { currentUser=null; allBooks=[]; allQuotes=[]; showScreen('auth'); }
   if (event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
@@ -1396,8 +1407,11 @@ async function banUser(userId, ban) {
 
 // 게시판 안전 새로고침 (패널 활성 여부 체크)
 function safeBoardRefresh() {
-  const list = document.getElementById('board-list');
-  if(list) renderBoardList();
+  try {
+    const list = document.getElementById('board-list');
+    const pg = document.getElementById('board-pagination');
+    if(list && pg) renderBoardList();
+  } catch(e) { console.warn('board refresh error:', e); }
 }
 
 async function loadNotifications() {
@@ -1740,7 +1754,7 @@ async function buildBoard() {
   if(curUserRole === 'user') await loadUserRole();
   // 공지 표시
   const nWrap = document.getElementById('board-notice-wrap');
-  if(!nWrap) { await renderBoardList(); return; } // 공지 없이 목록만
+  if(!nWrap) return; // 게시판 패널이 없으면 완전히 중단
   const { data: notices } = await sb.from('posts')
     .select('*').eq('is_notice', true).order('created_at', {ascending:false});
   nWrap.innerHTML = '';
@@ -1760,6 +1774,7 @@ async function buildBoard() {
 
 async function renderBoardList() {
   const list = document.getElementById('board-list');
+  if(!list) return; // 패널 없으면 중단
   list.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.8rem;text-align:center;">불러오는 중...</div>';
   let query = sb.from('posts').select('*', {count:'exact'})
     .eq('is_notice', false).order('created_at', {ascending:false});
@@ -1795,7 +1810,9 @@ async function renderBoardList() {
   }
   // 페이지네이션
   const totalPages = Math.ceil((count||0)/BOARD_PER_PAGE);
-  const pg = document.getElementById('board-pagination'); pg.innerHTML = '';
+  const pg = document.getElementById('board-pagination');
+  if(!pg) return;
+  pg.innerHTML = '';
   if(totalPages > 1) {
     for(let i=1;i<=totalPages;i++){
       const btn=document.createElement('button');
