@@ -118,34 +118,24 @@ async function startApp(user) {
   if(_appInitialized) return;
   _appInitialized = true;
   currentUser = user;
-  await loadData();
+  try {
+    await loadData();
+  } catch(e) {
+    console.warn('loadData error:', e);
+    // loadData 실패해도 앱은 시작
+  }
   loadGoals();
   loadUserRole();
   showScreen('app');
   buildBooks();
-  setTimeout(loadNotifications, 300);
-}
-
-function getStoredSession() {
-  // localStorage에서 Supabase 세션을 직접 읽어 즉시 반환 (네트워크 없음)
-  try {
-    const raw = localStorage.getItem('booklog-auth');
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    const session = parsed?.currentSession || parsed?.session || parsed;
-    if(!session?.access_token || !session?.user) return null;
-    // 만료 확인 (expires_at은 Unix timestamp)
-    const expiresAt = session.expires_at || 0;
-    if(expiresAt && expiresAt < Math.floor(Date.now()/1000) + 60) return null; // 60초 여유
-    return session;
-  } catch(e) { return null; }
+  setTimeout(loadNotifications, 500);
 }
 
 async function init() {
   initFontSize();
   cleanupLocalStorage();
 
-  // 비밀번호 재설정 토큰 처리 (URL 해시)
+  // 비밀번호 재설정 토큰 처리
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
     showScreen('loading');
@@ -156,8 +146,7 @@ async function init() {
       if(accessToken) {
         await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken||'' });
         window.history.replaceState(null, '', window.location.pathname);
-        showScreen('auth');
-        authSwitch('newpw', null);
+        showScreen('auth'); authSwitch('newpw', null);
         showAuthError('새 비밀번호를 입력해주세요.', true);
         return;
       }
@@ -165,29 +154,13 @@ async function init() {
     showScreen('auth'); loadSavedEmail(); return;
   }
 
-  // ① localStorage에서 즉시 세션 확인 (네트워크 없음 → 즉시)
-  const stored = getStoredSession();
-  if(stored) {
-    // 저장된 세션으로 바로 앱 시작
-    showScreen('loading');
-    await startApp(stored.user);
-    // 백그라운드에서 세션 갱신 (만료 대비)
-    sb.auth.getSession().then(({ data }) => {
-      if(data?.session?.user) currentUser = data.session.user;
-    }).catch(() => {});
-    return;
-  }
-
-  // ② 세션 없음 → 로그인 화면 즉시 표시
+  // 로그인 화면 먼저 즉시 표시 (스피너 없음)
   showScreen('auth');
   loadSavedEmail();
 
-  // 백그라운드에서 서버 세션 확인 (혹시 localStorage 미스 대비)
-  sb.auth.getSession().then(async ({ data }) => {
-    if(data?.session?.user && !_appInitialized) {
-      await startApp(data.session.user);
-    }
-  }).catch(() => {});
+  // 백그라운드에서 세션 확인 → 세션 있으면 자동으로 앱 전환
+  // onAuthStateChange가 세션 복원 시 SIGNED_IN 이벤트를 발생시킴
+  // 별도로 getSession 호출 불필요 — Supabase가 자동 처리
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -201,14 +174,18 @@ sb.auth.onAuthStateChange(async (event, session) => {
   if(event === 'SIGNED_OUT') {
     _appInitialized = false;
     currentUser = null; allBooks = []; allQuotes = [];
-    showScreen('auth');
-    loadSavedEmail();
+    showScreen('auth'); loadSavedEmail();
   }
   if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
   if(event === 'PASSWORD_RECOVERY') {
-    showScreen('auth');
-    authSwitch('newpw', null);
+    showScreen('auth'); authSwitch('newpw', null);
     showAuthError('새 비밀번호를 입력해주세요.', true);
+  }
+  if(event === 'INITIAL_SESSION') {
+    // 앱 첫 로드 시 저장된 세션 복원
+    if(session?.user && !_appInitialized) {
+      await startApp(session.user);
+    }
   }
 });
 
