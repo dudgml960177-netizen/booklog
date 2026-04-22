@@ -1880,28 +1880,47 @@ async function buildBoard() {
 
 async function renderBoardList() {
   const list = document.getElementById('board-list');
-  if(!list) return; // 패널 없으면 중단
+  if(!list) return;
   list.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.8rem;text-align:center;">불러오는 중...</div>';
-  let query = sb.from('posts').select('*', {count:'exact'})
-    .eq('is_notice', false).order('created_at', {ascending:false});
+
+  const searchQ = (document.getElementById('board-search')?.value||'').trim();
+  const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'};
+
+  // 공지 필터
+  if(boardFilter === 'notice') {
+    let q = sb.from('posts').select('*',{count:'exact'}).eq('is_notice',true).order('created_at',{ascending:false});
+    if(searchQ) q = q.ilike('title', `%${searchQ}%`);
+    const { data: posts, count } = await q;
+    renderPostItems(list, posts||[], count||0, catLabel);
+    return;
+  }
+
+  // 일반 목록 (전체/카테고리 + 검색)
+  let query = sb.from('posts').select('*',{count:'exact'})
+    .eq('is_notice', false).order('created_at',{ascending:false});
   if(boardFilter !== 'all') query = query.eq('category', boardFilter);
+  if(searchQ) query = query.ilike('title', `%${searchQ}%`);
   const from = (boardPage-1)*BOARD_PER_PAGE, to = from+BOARD_PER_PAGE-1;
   query = query.range(from, to);
   const { data: posts, count } = await query;
+  renderPostItems(list, posts||[], count||0, catLabel);
+}
 
+function renderPostItems(list, posts, count, catLabel) {
   list.innerHTML = '';
-  if(!posts?.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:2rem;">아직 게시글이 없어요. 첫 글을 남겨보세요!</div>';
+  if(!posts.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:2rem;">게시글이 없어요.</div>';
   } else {
     posts.forEach(p => {
       const el = document.createElement('div');
-      el.className = 'board-item';
+      el.className = 'board-item' + (p.is_notice ? ' post-notice' : '');
       el.onclick = () => openPostDetail(p.id);
-      const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[p.category]||'';
       const isBlind = p.is_hidden;
+      const cat = catLabel[p.category]||'';
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.22rem;flex-wrap:wrap;">
-          ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
+          ${p.is_notice?'<span class="post-badge-notice">📌 공지</span>':''}
+          ${cat?`<span class="board-cat">${cat}</span>`:''}
           <span class="board-title" style="${isBlind?'color:var(--tx3);font-style:italic;':''}">
             ${isBlind?'🚫 신고 게시글로 분류되었습니다.':p.title}
           </span>
@@ -1914,12 +1933,12 @@ async function renderBoardList() {
       list.appendChild(el);
     });
   }
-  // 페이지네이션
-  const totalPages = Math.ceil((count||0)/BOARD_PER_PAGE);
+  // 페이지네이션 (공지 필터 시 숨김)
   const pg = document.getElementById('board-pagination');
   if(!pg) return;
   pg.innerHTML = '';
-  if(totalPages > 1) {
+  if(boardFilter !== 'notice' && count > BOARD_PER_PAGE) {
+    const totalPages = Math.ceil(count/BOARD_PER_PAGE);
     for(let i=1;i<=totalPages;i++){
       const btn=document.createElement('button');
       btn.className='yr-btn'+(i===boardPage?' on':'');
