@@ -5,7 +5,15 @@ const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+// 싱글턴 보장 - 중복 인스턴스 방지
+if(window.__sb) { console.warn('sb already exists, reusing'); }
+const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    storageKey: 'booklog-auth',
+    storage: window.localStorage,
+  }
+}));
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
@@ -1327,52 +1335,85 @@ async function submitReport() {
 }
 
 // 관리자: 게시글 블라인드
-async function toggleBlindPost(postId, hide) {
+async function toggleBlindPost(postId, authorId, hide) {
   await sb.from('posts').update({is_hidden:hide}).eq('id',postId);
+  // 작성자에게 알림
+  if(authorId) {
+    await sb.from('notifications').insert({
+      user_id:authorId, type:'blind',
+      message: hide ? '🚫 회원님의 게시글이 관리자에 의해 블라인드 처리되었습니다.' : '✅ 회원님의 게시글 블라인드가 해제되었습니다.',
+      is_read:false, created_at:new Date().toISOString()
+    });
+  }
   closeModal('modal-post-detail');
-  buildBoard();
+  await buildBoard();
 }
 
-// 관리자: 사용자 제한
+// 관리자: 사용자 제한/해제
 async function banUser(userId, ban) {
   await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+  // 사용자에게 알림
+  await sb.from('notifications').insert({
+    user_id:userId, type:'ban',
+    message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
+    is_read:false, created_at:new Date().toISOString()
+  });
   alert(ban?'사용자를 제한했어요.':'제한을 해제했어요.');
-  buildBoard();
+  await buildBoard();
 }
 
 async function loadNotifications() {
   if(!currentUser) return;
-  // 내 알림 + 전체 공지 알림 함께 로드
   const [{ data: myNotifs }, { data: broadcasts }] = await Promise.all([
-    sb.from('notifications').select('*').eq('user_id', currentUser.id).eq('is_read', false).order('created_at', {ascending:false}),
-    sb.from('notifications').select('*').eq('type', 'admin_broadcast').eq('target_type', 'all').order('created_at', {ascending:false}).limit(5)
+    sb.from('notifications').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(50),
+    sb.from('notifications').select('*').eq('type', 'admin_broadcast').order('created_at', {ascending:false}).limit(5)
   ]);
   const data = [...(myNotifs||[]), ...(broadcasts||[]).filter(b => b.sender_id !== currentUser.id)];
-  const count = data?.length || 0;
+  const unread = data.filter(n=>!n.is_read).length;
   const badge = document.getElementById('notif-badge');
   if(badge) {
-    badge.textContent = count;
-    badge.style.cssText = count > 0
+    badge.textContent = unread;
+    badge.style.cssText = unread > 0
       ? 'display:flex;position:absolute;top:-2px;right:-2px;background:#c0392b;color:#fff;font-size:.45rem;border-radius:50%;width:14px;height:14px;align-items:center;justify-content:center;font-weight:700;'
       : 'display:none;';
   }
-  // 관리자 쪽지 버튼 표시
   const adminBar = document.getElementById('notif-admin-bar');
   if(adminBar) adminBar.style.display = curUserRole==='admin' ? '' : 'none';
   const list = document.getElementById('notif-list');
   if(list) {
-    list.innerHTML = (data||[]).map(n => `
-      <div style="padding:.6rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;cursor:pointer;" onclick="markNotifRead('${n.id}','${n.post_id||''}')">
-        <div style="color:var(--tx1);margin-bottom:.2rem;">${n.message}</div>
-        <div style="color:var(--tx3);font-size:.65rem;">${n.created_at?.slice(0,16).replace('T',' ')}</div>
-      </div>`).join('') || '<div style="padding:.8rem;font-size:.75rem;color:var(--tx3);text-align:center;">새 알림이 없어요.</div>';
+    if(!data?.length) {
+      list.innerHTML = '<div style="padding:.8rem;font-size:.75rem;color:var(--tx3);text-align:center;">알림이 없어요.</div>';
+    } else {
+      list.innerHTML = data.map(n => `
+        <div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
+          <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}','${n.post_id||''}')">
+            <div style="color:var(--tx1);margin-bottom:.15rem;">${n.message}</div>
+            <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
+          </div>
+          <button onclick="deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
+        </div>`).join('');
+    }
   }
 }
 
-async function markNotifRead(notifId, postId) {
+async function goToNotif(notifId, postId) {
   await sb.from('notifications').update({is_read:true}).eq('id', notifId);
-  closeModal('modal-notif');
-  if(postId) { await sw('board', document.querySelector('.tab:nth-child(4)')); openPostDetail(postId); }
+  if(postId && postId !== 'undefined') {
+    closeModal('modal-notif');
+    const boardTab = document.querySelector('.tab[onclick*="board"]');
+    if(boardTab) {
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+      boardTab.classList.add('on');
+      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+      document.getElementById('p-board')?.classList.add('on');
+      await buildBoard();
+    }
+    await openPostDetail(postId);
+  }
+  loadNotifications();
+}
+async function deleteNotif(notifId) {
+  await sb.from('notifications').delete().eq('id', notifId);
   loadNotifications();
 }
 
@@ -1418,7 +1459,7 @@ async function searchDmUser() {
   const q = document.getElementById('dm-search-input')?.value.trim().toLowerCase();
   if(!q) { document.getElementById('dm-user-list').innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">닉네임을 입력해주세요.</div>'; return; }
   // 현재 로그인한 사용자 프로필을 기준으로 검색 (RLS 우회)
-  const { data } = await sb.from('profiles').select('id,display_name,username,role').ilike('display_name', `%${q}%`);
+  const { data } = await sb.from('profiles').select('id,display_name,username,role').or(`display_name.ilike.%${q}%,username.ilike.%${q}%`);
   const filtered = (data||[]).filter(u=>u.id!==currentUser.id);
   const list = document.getElementById('dm-user-list'); list.innerHTML='';
   filtered.slice(0,10).forEach(u => {
@@ -1640,70 +1681,87 @@ async function openPostDetail(postId) {
   const isMine = post.user_id === currentUser.id;
   const isAdmin = curUserRole === 'admin';
 
-  document.getElementById('post-detail-title').textContent = post.title;
+  // 댓글 작성자 번호 매핑 (익명 → 산책자1,2,3...)
+  const authorMap = {};
+  let authorCount = 0;
+  (comms||[]).forEach(c => {
+    if(!authorMap[c.user_id]) {
+      if(c.user_id === post.user_id) authorMap[c.user_id] = '__author__';
+      else { authorCount++; authorMap[c.user_id] = `산책자${authorCount}`; }
+    }
+  });
+  function getCommentAuthor(userId) {
+    if(userId === post.user_id) return '<span style="color:#2e7d32;font-weight:700;font-size:.65rem;">[작성자]</span>';
+    return `<span style="font-size:.65rem;color:var(--tx3);">${authorMap[userId]||'산책자'}</span>`;
+  }
+
+  const detailBody = document.getElementById('post-detail-body');
+  if(!detailBody) { openModal('modal-post-detail'); return; }
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[post.category]||'';
-  document.getElementById('post-detail-body').innerHTML = `
+
+  // 좋아요 중복 방지 - localStorage 기반
+  const likedKey = `liked_${currentUser.id}_${postId}`;
+  const alreadyLiked = localStorage.getItem(likedKey);
+
+  const commentsHtml = (comms||[]).filter(c=>!c.parent_id).map(c => {
+    const replies = (comms||[]).filter(r=>r.parent_id===c.id);
+    const canDelete = c.user_id===currentUser.id || isAdmin;
+    const replyHtml = replies.map(r => {
+      const rCanDelete = r.user_id===currentUser.id || isAdmin;
+      return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
+        <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${r.created_at?.slice(0,10)}</div>
+        <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;">${r.content}</div>
+        ${rCanDelete?`<button onclick="deleteComment('${r.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;margin-top:.1rem;">삭제</button>`:''}
+      </div>`;
+    }).join('');
+    return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
+      <div style="display:flex;align-items:flex-start;gap:.5rem;">
+        <div style="flex:1;">
+          <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${c.created_at?.slice(0,10)}</div>
+          <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
+        </div>
+        <div style="display:flex;gap:.3rem;flex-shrink:0;">
+          <button onclick="showReplyInput('${c.id}')" style="font-size:.6rem;color:var(--acc);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;background:none;cursor:pointer;">답글</button>
+          ${canDelete?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;">삭제</button>`:''}
+        </div>
+      </div>
+      ${replyHtml}
+      <div id="reply-box-${c.id}" style="display:none;margin-top:.4rem;margin-left:1rem;">
+        <div style="display:flex;gap:.3rem;">
+          <input type="text" placeholder="답글 입력..." style="flex:1;padding:.3rem .6rem;border:1px solid var(--border2);border-radius:4px;font-size:.75rem;font-family:var(--ff);" id="reply-input-${c.id}">
+          <button onclick="submitReply('${postId}','${c.id}')" class="btn-save" style="padding:.3rem .6rem;font-size:.72rem;">등록</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  detailBody.innerHTML = `
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap;">
       ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
       ${post.is_notice?'<span style="background:#e0a020;color:#fff;font-size:.63rem;border-radius:3px;padding:1px 6px;">공지</span>':''}
-      <span class="board-meta">${post.is_anonymous?'익명':post.user_id?.slice(0,8)}</span>
+      <span class="board-meta">산책자</span>
       <span class="board-meta">${post.created_at?.slice(0,10)}</span>
     </div>
-    <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':' var(--tx1)'};white-space:pre-wrap;border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;font-style:${post.is_hidden?'italic':'normal'};">
+    <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':'var(--tx1)'};border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;font-style:${post.is_hidden?'italic':'normal'};">
       ${post.is_hidden?'🚫 이 게시글은 신고 게시글로 분류되었습니다.':post.content}
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
-      <button onclick="likePost('${postId}')" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:none;cursor:pointer;color:var(--tx2);">❤️ ${post.likes||0}</button>
+      <button onclick="likePost('${postId}')" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);">
+        ❤️ ${post.likes||0}${alreadyLiked?' ✓':''}
+      </button>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:.75rem;">
-      <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.55rem;">댓글 ${comms?.length||0}개</div>
-      <div id="comment-list">
-        ${(comms||[]).filter(c=>!c.parent_id).map(c=>{
-          const isAuthor = c.user_id === post.user_id;
-          const authorLabel = isAuthor
-            ? '<span style="color:#2e7d32;font-weight:700;font-size:.65rem;">[작성자]</span> '
-            : '<span style="font-size:.65rem;color:var(--tx3);">산책자</span> ';
-          const replies = (comms||[]).filter(r=>r.parent_id===c.id);
-          const replyHtml = replies.map(r=>{
-            const rIsAuthor = r.user_id===post.user_id;
-            return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
-              <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${rIsAuthor?'<span style="color:#2e7d32;font-weight:700;">[작성자]</span> ':''}산책자 · ${r.created_at?.slice(0,10)}</div>
-              <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;">${r.content}</div>
-            </div>`;
-          }).join('');
-          return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
-            <div style="display:flex;align-items:flex-start;gap:.5rem;">
-              <div style="flex:1;">
-                <div style="font-size:.68rem;margin-bottom:.18rem;">${authorLabel}· ${c.created_at?.slice(0,10)}</div>
-                <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
-              </div>
-              <div style="display:flex;gap:.3rem;flex-shrink:0;">
-                <button onclick="showReplyInput('${c.id}')" style="font-size:.6rem;color:var(--acc);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;background:none;cursor:pointer;">답글</button>
-                ${c.user_id===currentUser.id||isAdmin?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;">삭제</button>`:''}
-              </div>
-            </div>
-            ${replyHtml}
-            <div id="reply-box-${c.id}" style="display:none;margin-top:.4rem;margin-left:1rem;">
-              <div style="display:flex;gap:.3rem;">
-                <input type="text" placeholder="답글 입력..." style="flex:1;padding:.3rem .6rem;border:1px solid var(--border2);border-radius:4px;font-size:.75rem;font-family:var(--ff);" id="reply-input-${c.id}">
-                <button onclick="submitReply('${postId}','${c.id}')" class="btn-save" style="padding:.3rem .6rem;font-size:.72rem;">등록</button>
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
+      <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.55rem;">댓글 ${(comms||[]).length}개</div>
+      <div id="comment-list">${commentsHtml}</div>
       <div style="display:flex;gap:.4rem;margin-top:.6rem;">
         <textarea id="new-comment" class="form-input" rows="2" placeholder="댓글을 입력해주세요..." style="flex:1;resize:none;font-size:.78rem;"></textarea>
-        <div style="display:flex;flex-direction:column;gap:.3rem;">
-          <label style="font-size:.62rem;color:var(--tx3);display:flex;align-items:center;gap:.2rem;cursor:pointer;"><input type="checkbox" id="comment-anon" checked style="width:11px;height:11px;"> 익명</label>
-          <button onclick="submitComment('${postId}')" class="btn-save" style="padding:.4rem .65rem;font-size:.72rem;">등록</button>
-        </div>
+        <button onclick="submitComment('${postId}')" class="btn-save" style="padding:.4rem .65rem;font-size:.72rem;align-self:flex-end;">등록</button>
       </div>
     </div>`;
 
   const footer = document.getElementById('post-detail-footer');
+  if(!footer) { openModal('modal-post-detail'); return; }
   footer.innerHTML = '';
-  // 신고 버튼 (본인 글 제외)
   if(!isMine) {
     const rpBtn=document.createElement('button');rpBtn.className='btn-cancel';rpBtn.textContent='🚨 신고';
     rpBtn.style.cssText='color:#c0392b;border-color:#e8b8a8;font-size:.75rem;';
@@ -1713,35 +1771,53 @@ async function openPostDetail(postId) {
   if(isAdmin) {
     const noticeBtn=document.createElement('button');noticeBtn.className='btn-cancel';
     noticeBtn.textContent=post.is_notice?'📌 공지 해제':'📌 공지 지정';
-    noticeBtn.onclick=async()=>{await sb.from('posts').update({is_notice:!post.is_notice}).eq('id',postId);closeModal('modal-post-detail');buildBoard();};
+    noticeBtn.onclick=async()=>{
+      await sb.from('posts').update({is_notice:!post.is_notice}).eq('id',postId);
+      closeModal('modal-post-detail'); await buildBoard();
+    };
     footer.appendChild(noticeBtn);
-    // 블라인드 버튼
     const blindBtn=document.createElement('button');blindBtn.className='btn-cancel';
     blindBtn.style.cssText='color:#c0392b;border-color:#e8b8a8;';
-    blindBtn.textContent=post.is_hidden?'🔓 블라인드 해제':'🚫 블라인드 처리';
-    blindBtn.onclick=()=>toggleBlindPost(postId,!post.is_hidden);
+    blindBtn.textContent=post.is_hidden?'🔓 블라인드 해제':'🚫 블라인드';
+    blindBtn.onclick=()=>toggleBlindPost(postId, post.user_id, !post.is_hidden);
     footer.appendChild(blindBtn);
-    // 사용자 제한 버튼
     const banBtn=document.createElement('button');banBtn.className='btn-cancel';
     banBtn.style.cssText='color:#8b0000;border-color:#f5c6cb;';
-    banBtn.textContent='⛔ 작성자 제한';
-    banBtn.onclick=()=>{if(confirm('이 글의 작성자를 제한할까요?'))banUser(post.user_id,true);};
+    // 작성자 제한 여부 확인은 async라 텍스트 고정
+    banBtn.textContent='⛔ 작성자 관리';
+    banBtn.onclick=()=>openBanModal(post.user_id);
     footer.appendChild(banBtn);
   }
   if(isMine||isAdmin) {
-    const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';editBtn.onclick=()=>{closeModal('modal-post-detail');openPostWrite(postId);};
-    const delBtn=document.createElement('button');delBtn.className='btn-cancel btn-delete';delBtn.textContent='삭제';delBtn.onclick=()=>deletePost(postId);
-    footer.appendChild(editBtn); footer.appendChild(delBtn);
+    const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';
+    editBtn.onclick=()=>{closeModal('modal-post-detail');openPostWrite(postId);};
+    const delBtn=document.createElement('button');delBtn.className='btn-cancel btn-delete';delBtn.textContent='삭제';
+    delBtn.onclick=()=>deletePost(postId);
+    footer.appendChild(editBtn);footer.appendChild(delBtn);
   }
-  const closeBtn=document.createElement('button');closeBtn.className='btn-save';closeBtn.textContent='닫기';closeBtn.onclick=()=>closeModal('modal-post-detail');
+  const closeBtn=document.createElement('button');closeBtn.className='btn-save';closeBtn.textContent='닫기';
+  closeBtn.onclick=()=>closeModal('modal-post-detail');
   footer.appendChild(closeBtn);
   openModal('modal-post-detail');
 }
 
+// 작성자 제한 관리 모달
+async function openBanModal(userId) {
+  const { data: profile } = await sb.from('profiles').select('display_name,username,is_banned').eq('id',userId).single();
+  const isBanned = profile?.is_banned;
+  const name = profile?.display_name || profile?.username || '산책자';
+  if(confirm(`${name}님 ${isBanned?'제한 해제':'제한'}할까요?`)) {
+    await banUser(userId, !isBanned);
+  }
+}
+
+
 async function likePost(postId) {
+  const likedKey = `liked_${currentUser.id}_${postId}`;
+  if(localStorage.getItem(likedKey)) { alert('이미 공감한 글이에요.'); return; }
   const { data:p } = await sb.from('posts').select('likes,user_id').eq('id',postId).single();
   await sb.from('posts').update({likes:(p?.likes||0)+1}).eq('id',postId);
-  // 작성자에게 좋아요 알림
+  localStorage.setItem(likedKey, '1');
   if(p?.user_id && p.user_id !== currentUser.id) {
     await sb.from('notifications').insert({
       user_id:p.user_id, type:'like',
@@ -1801,8 +1877,11 @@ async function deleteComment(commentId, postId) {
 
 async function deletePost(postId) {
   if(!confirm('게시글을 삭제할까요?'))return;
-  await sb.from('comments').delete().eq('post_id',postId);
-  await sb.from('posts').delete().eq('id',postId);
-  closeModal('modal-post-detail');
-  buildBoard();
+  try {
+    await sb.from('comments').delete().eq('post_id',postId);
+    const { error } = await sb.from('posts').delete().eq('id',postId);
+    if(error) throw error;
+    closeModal('modal-post-detail');
+    await buildBoard();
+  } catch(e) { alert('삭제 오류: '+(e.message||'권한이 없거나 알 수 없는 오류')); }
 }
