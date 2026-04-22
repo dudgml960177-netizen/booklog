@@ -78,7 +78,28 @@ function cleanupLocalStorage() {
   } catch(e) { console.warn('localStorage cleanup error:', e); }
 }
 
+
+// ── 폰트 크기 설정
+function applyFontSize(size) {
+  const root = document.documentElement;
+  // 기본 폰트 크기를 비율로 조절 (rem 기반)
+  const ratio = parseInt(size) / 100;
+  root.style.setProperty('--font-scale', ratio);
+  // html font-size 조절 (rem 기준)
+  const base = Math.round(16 * ratio);
+  root.style.fontSize = base + 'px';
+  localStorage.setItem('bl_font_size', size);
+  const label = document.getElementById('font-size-label');
+  if(label) label.textContent = size + '%';
+}
+
+function initFontSize() {
+  const saved = localStorage.getItem('bl_font_size') || '100';
+  applyFontSize(saved);
+}
+
 async function init() {
+  initFontSize();
   cleanupLocalStorage();
   showScreen('loading');
 
@@ -223,7 +244,19 @@ async function doSignup() {
   }
   showAuthError('가입 완료! 이메일 인증 후 로그인해주세요.', true);
 }
-async function doLogout() { await sb.auth.signOut(); closeModal('modal-profile'); }
+async function doLogout() {
+  try {
+    closeModal('modal-profile');
+    await sb.auth.signOut();
+    currentUser = null; allBooks = []; allQuotes = [];
+    showScreen('auth');
+  } catch(e) {
+    console.warn('logout error:', e);
+    // 강제 로그아웃
+    localStorage.removeItem('booklog-auth');
+    location.reload();
+  }
+}
 function showAuthError(msg, success=false) {
   const el = document.getElementById('auth-error');
   el.textContent = msg; el.style.display = '';
@@ -1300,6 +1333,12 @@ async function openProfile() {
   // 관리자 버튼 표시
   const adminBtn = document.getElementById('profile-admin-btn');
   if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
+  // 폰트 크기 슬라이더 현재값 반영
+  const savedSize = localStorage.getItem('bl_font_size') || '100';
+  const slider = document.getElementById('font-size-slider');
+  const label = document.getElementById('font-size-label');
+  if(slider) slider.value = savedSize;
+  if(label) label.textContent = savedSize + '%';
   const[{data:profile},{data:myCodes}]=await Promise.all([
     sb.from('profiles').select('*').eq('id',currentUser.id).single(),
     sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
@@ -1658,10 +1697,24 @@ async function openAdminPanel() {
 }
 
 async function loadAllMembers() {
-  const { data, error } = await sb.from('profiles').select('id,display_name,username,role,is_banned,created_at');
-  if(error) { console.error('members load error:', error); return; }
-  allMembers = data || [];
-  renderMemberList();
+  try {
+    const { data, error } = await sb.from('profiles')
+      .select('id,display_name,username,role,is_banned,created_at')
+      .order('created_at', {ascending:false});
+    if(error) {
+      console.error('members load error:', error);
+      const wrap = document.getElementById('admin-member-list');
+      if(wrap) wrap.innerHTML = `<div style="padding:.8rem;font-size:.75rem;color:#c0392b;">
+        회원 목록 로드 오류: ${error.message}<br>
+        <span style="font-size:.65rem;">Supabase RLS 정책을 확인해주세요 (profiles SELECT 허용 필요)</span>
+      </div>`;
+      return;
+    }
+    allMembers = data || [];
+    renderMemberList();
+  } catch(e) {
+    console.error('loadAllMembers exception:', e);
+  }
 }
 
 function renderMemberList(filter='') {
@@ -1700,14 +1753,19 @@ function renderMemberList(filter='') {
 }
 
 async function toggleMemberBan(userId, ban) {
-  const { error } = await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
-  if(error) { alert('처리 오류: '+error.message); return; }
-  await sb.from('notifications').insert({
-    user_id:userId, type:'ban',
-    message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
-    is_read:false, created_at:new Date().toISOString()
-  });
-  await loadAllMembers();
+  try {
+    const { error } = await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+    if(error) throw error;
+    await sb.from('notifications').insert({
+      user_id:userId, type:'ban',
+      message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
+      is_read:false, created_at:new Date().toISOString()
+    });
+    await loadAllMembers();
+  } catch(e) {
+    alert('처리 오류: '+(e.message||'RLS 정책 확인 필요'));
+    console.error('toggleMemberBan error:', e);
+  }
 }
 
 async function sendMsgToSelected() {

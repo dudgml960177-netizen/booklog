@@ -401,6 +401,19 @@
         <input type="text" id="profile-display-name" class="form-input">
       </div>
       <div id="profile-invite-codes" style="margin-bottom:.8rem;"></div>
+      <!-- 폰트 크기 설정 -->
+      <div style="margin-bottom:.75rem;padding:.6rem .8rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
+          <span style="font-size:.72rem;font-weight:600;color:var(--tx2);">🔤 글자 크기</span>
+          <span id="font-size-label" style="font-size:.72rem;color:var(--acc);font-weight:600;">100%</span>
+        </div>
+        <input type="range" id="font-size-slider" min="80" max="130" step="5" value="100"
+          oninput="applyFontSize(this.value)"
+          style="width:100%;accent-color:var(--acc);cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--tx3);margin-top:.15rem;">
+          <span>작게</span><span>기본(100%)</span><span>크게</span>
+        </div>
+      </div>
       <div id="profile-admin-btn" style="display:none;margin-bottom:.6rem;">
         <button class="btn-save" style="width:100%;background:var(--acc2);" onclick="closeModal('modal-profile');openAdminPanel()">⚙️ 관리자 패널</button>
       </div>
@@ -540,12 +553,7 @@
       <button class="modal-close" onclick="closeModal('modal-notif')">✕</button>
     </div>
     <div class="modal-body" style="padding:0;">
-      <div id="notif-admin-bar" style="display:none;padding:.6rem .9rem;border-bottom:1px solid var(--border);background:#fdf8f0;">
-        <div style="display:flex;gap:.4rem;">
-          <button class="add-quote-btn" onclick="openAdminMsgModal()" style="flex:1;text-align:center;">📢 전체 쪽지</button>
-          <button class="add-quote-btn" onclick="openDirectMsgModal()" style="flex:1;text-align:center;">📩 개인 쪽지</button>
-        </div>
-      </div>
+
       <div id="notif-list"></div>
     </div>
   </div>
@@ -704,6 +712,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=130"></script>
+<script src="app.js?v=140"></script>
 </body>
 </html>
