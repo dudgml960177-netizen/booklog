@@ -1286,6 +1286,9 @@ async function openProfile() {
   document.getElementById('profile-email').textContent=currentUser.email;
   document.getElementById('profile-display-name').value=tempName;
   openModal('modal-profile');
+  // 관리자 버튼 표시
+  const adminBtn = document.getElementById('profile-admin-btn');
+  if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
   const[{data:profile},{data:myCodes}]=await Promise.all([
     sb.from('profiles').select('*').eq('id',currentUser.id).single(),
     sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
@@ -1371,8 +1374,7 @@ async function toggleBlindPost(postId, authorId, hide) {
     }
     closeModal('modal-post-detail');
     alert(hide ? '블라인드 처리됐어요.' : '블라인드가 해제됐어요.');
-    // board 패널이 활성화된 경우에만 새로고침
-    if(document.getElementById('p-board')?.classList.contains('on')) await renderBoardList();
+    safeBoardRefresh();
   } catch(e) { alert('처리 오류: '+(e.message||JSON.stringify(e))); }
 }
 
@@ -1388,17 +1390,24 @@ async function banUser(userId, ban) {
     });
     closeModal('modal-post-detail');
     alert(ban ? '사용자를 제한했어요.' : '제한을 해제했어요.');
-    if(document.getElementById('p-board')?.classList.contains('on')) await renderBoardList();
+    safeBoardRefresh();
   } catch(e) { alert('처리 오류: '+(e.message||JSON.stringify(e))); }
+}
+
+// 게시판 안전 새로고침 (패널 활성 여부 체크)
+function safeBoardRefresh() {
+  const list = document.getElementById('board-list');
+  if(list) renderBoardList();
 }
 
 async function loadNotifications() {
   if(!currentUser) return;
+  // 내 가입일 (created_at) 기준 - 가입 전 broadcast는 안 보이게
+  const userCreatedAt = currentUser.created_at || new Date(0).toISOString();
   const [{ data: myNotifs }, { data: broadcasts }] = await Promise.all([
     sb.from('notifications').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(50),
-    sb.from('notifications').select('*').eq('type', 'admin_broadcast').eq('target_type','all').order('created_at', {ascending:false}).limit(10)
+    sb.from('notifications').select('*').eq('type', 'admin_broadcast').eq('target_type','all').gte('created_at', userCreatedAt).order('created_at', {ascending:false}).limit(10)
   ]);
-  // 내 알림 + broadcast (본인이 보낸 것 제외)
   const myIds = new Set((myNotifs||[]).map(n=>n.id));
   const data = [
     ...(myNotifs||[]),
@@ -1436,19 +1445,19 @@ async function loadNotifications() {
 
 async function goToNotif(notifId) {
   const n = window._notifCache?.[notifId];
+  if(!n) return;
   const detailEl = document.getElementById('notif-detail-body');
-  if(detailEl && n) {
-    const postId = n.post_id;
+  if(detailEl) {
+    const postId = n.post_id || null;
     detailEl.innerHTML = `
-      <div style="font-size:.85rem;line-height:1.9;color:var(--tx1);">${n.message||''}</div>
-      <div style="font-size:.65rem;color:var(--tx3);margin-top:.8rem;">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
-      ${postId?`<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
-        <button class="btn-save" style="width:100%;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
-      </div>`:''}`;
+      <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${n.message||''}</div>
+      <div style="font-size:.65rem;color:var(--tx3);">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
+      ${postId ? `<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
+        <button class="btn-save" style="width:100%;padding:.5rem;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
+      </div>` : ''}`;
     openModal('modal-notif-detail');
   }
-  await sb.from('notifications').update({is_read:true}).eq('id', notifId);
-  loadNotifications();
+  sb.from('notifications').update({is_read:true}).eq('id', notifId).then(()=>loadNotifications());
 }
 async function goToPost(postId) {
   closeModal('modal-notif-detail');
@@ -1488,6 +1497,25 @@ function openNotifModal() {
 
 
 // 관리자 전체 쪽지 발송
+async function sendBroadcastFromPanel() {
+  const msg = document.getElementById('admin-broadcast-input')?.value.trim();
+  if(!msg) { alert('내용을 입력해주세요.'); return; }
+  try {
+    const { error } = await sb.from('notifications').insert({
+      user_id: currentUser.id,
+      sender_id: currentUser.id,
+      type: 'admin_broadcast',
+      target_type: 'all',
+      message: `📢 관리자 공지: ${msg}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    document.getElementById('admin-broadcast-input').value = '';
+    alert('전체 공지를 발송했어요!');
+  } catch(e) { alert('발송 오류: '+e.message); }
+}
+
 async function sendAdminMessage() {
   const msg = document.getElementById('admin-msg-input')?.value.trim();
   if(!msg) { alert('메시지를 입력해주세요.'); return; }
@@ -1602,6 +1630,94 @@ function editorInsertImage() {
   }
 }
 
+
+// ══════════════════════════════════════
+// 관리자 회원 관리
+// ══════════════════════════════════════
+let allMembers = [], selectedMemberIds = new Set();
+
+async function openAdminPanel() {
+  if(curUserRole !== 'admin') return;
+  selectedMemberIds.clear();
+  await loadAllMembers();
+  openModal('modal-admin-panel');
+}
+
+async function loadAllMembers() {
+  const { data, error } = await sb.from('profiles').select('id,display_name,username,role,is_banned,created_at');
+  if(error) { console.error('members load error:', error); return; }
+  allMembers = data || [];
+  renderMemberList();
+}
+
+function renderMemberList(filter='') {
+  const wrap = document.getElementById('admin-member-list');
+  if(!wrap) return;
+  const q = filter.toLowerCase();
+  const list = q ? allMembers.filter(m=>(m.display_name||m.username||'').toLowerCase().includes(q)) : allMembers;
+  wrap.innerHTML = '';
+  if(!list.length) { wrap.innerHTML='<div style="padding:.8rem;font-size:.75rem;color:var(--tx3);">회원이 없어요.</div>'; return; }
+  list.forEach(m => {
+    const name = m.display_name || m.username || '이름없음';
+    const checked = selectedMemberIds.has(m.id);
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex;align-items:center;gap:.6rem;padding:.45rem .7rem;border-bottom:1px solid var(--border);background:${m.is_banned?'#fff5f5':checked?'#f0faf0':''};cursor:pointer;`;
+    row.onclick = () => {
+      if(selectedMemberIds.has(m.id)) selectedMemberIds.delete(m.id);
+      else selectedMemberIds.add(m.id);
+      renderMemberList(document.getElementById('admin-member-search')?.value||'');
+    };
+    row.innerHTML = `
+      <div style="width:16px;height:16px;border:2px solid ${checked?'var(--acc)':'var(--border2)'};border-radius:3px;background:${checked?'var(--acc)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        ${checked?'<span style="color:#fff;font-size:.6rem;">✓</span>':''}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.78rem;font-weight:600;color:${m.is_banned?'#c0392b':'var(--tx1)'};">${name} ${m.role==='admin'?'<span style="font-size:.6rem;color:var(--acc);background:#ede4d0;padding:1px 4px;border-radius:2px;">관리자</span>':''} ${m.is_banned?'<span style="font-size:.6rem;color:#c0392b;">⛔제한됨</span>':''}</div>
+        <div style="font-size:.62rem;color:var(--tx3);">${m.created_at?.slice(0,10)}</div>
+      </div>
+      <button onclick="event.stopPropagation();toggleMemberBan('${m.id}',${!m.is_banned})" style="font-size:.62rem;padding:2px 6px;border:1px solid ${m.is_banned?'#a8d8a8':'#f5c6cb'};border-radius:3px;background:none;cursor:pointer;color:${m.is_banned?'#2e7d32':'#c0392b'};">
+        ${m.is_banned?'해제':'제한'}
+      </button>`;
+    wrap.appendChild(row);
+  });
+  // 선택 인원 표시
+  const countEl = document.getElementById('admin-selected-count');
+  if(countEl) countEl.textContent = selectedMemberIds.size > 0 ? `${selectedMemberIds.size}명 선택됨` : '';
+}
+
+async function toggleMemberBan(userId, ban) {
+  const { error } = await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+  if(error) { alert('처리 오류: '+error.message); return; }
+  await sb.from('notifications').insert({
+    user_id:userId, type:'ban',
+    message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
+    is_read:false, created_at:new Date().toISOString()
+  });
+  await loadAllMembers();
+}
+
+async function sendMsgToSelected() {
+  if(selectedMemberIds.size === 0) { alert('받는 사람을 선택해주세요.'); return; }
+  const msg = document.getElementById('admin-bulk-msg')?.value.trim();
+  if(!msg) { alert('메시지를 입력해주세요.'); return; }
+  try {
+    const notifs = [...selectedMemberIds].map(uid => ({
+      user_id: uid,
+      sender_id: currentUser.id,
+      type: 'admin_dm',
+      message: `📩 관리자 쪽지: ${msg}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    }));
+    const { error } = await sb.from('notifications').insert(notifs);
+    if(error) throw error;
+    document.getElementById('admin-bulk-msg').value = '';
+    selectedMemberIds.clear();
+    renderMemberList();
+    alert(`${notifs.length}명에게 쪽지를 보냈어요.`);
+  } catch(e) { alert('전송 오류: '+e.message); }
+}
+
 // ── 모달 유틸
 function openModal(id){document.getElementById(id).style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
@@ -1623,10 +1739,10 @@ async function loadUserRole() {
 async function buildBoard() {
   if(curUserRole === 'user') await loadUserRole();
   // 공지 표시
+  const nWrap = document.getElementById('board-notice-wrap');
+  if(!nWrap) { await renderBoardList(); return; } // 공지 없이 목록만
   const { data: notices } = await sb.from('posts')
     .select('*').eq('is_notice', true).order('created_at', {ascending:false});
-  const nWrap = document.getElementById('board-notice-wrap');
-  if(!nWrap) return; // 패널이 없으면 중단
   nWrap.innerHTML = '';
   (notices||[]).forEach(n => {
     const el = document.createElement('div');
@@ -1964,13 +2080,12 @@ async function deleteComment(commentId, postId) {
 
 async function deletePost(postId) {
   if(!confirm('게시글을 삭제할까요?'))return;
-  // 먼저 모달 닫기 (DOM null 오류 방지)
   closeModal('modal-post-detail');
   try {
     await sb.from('comments').delete().eq('post_id',postId);
     await sb.from('reports').delete().eq('post_id',postId);
     const { error } = await sb.from('posts').delete().eq('id',postId);
     if(error) throw error;
-    await buildBoard();
-  } catch(e) { alert('삭제 오류: '+(e.message||'권한이 없거나 알 수 없는 오류')); }
+    safeBoardRefresh();
+  } catch(e) { console.error('delete error:', e); }
 }
