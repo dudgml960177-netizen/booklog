@@ -1395,9 +1395,12 @@ async function loadNotifications() {
   if(!currentUser) return;
   const [{ data: myNotifs }, { data: broadcasts }] = await Promise.all([
     sb.from('notifications').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(50),
-    sb.from('notifications').select('*').eq('type', 'admin_broadcast').order('created_at', {ascending:false}).limit(5)
+    sb.from('notifications').select('*').eq('type', 'admin_broadcast').is('user_id', null).order('created_at', {ascending:false}).limit(10)
   ]);
-  const data = [...(myNotifs||[]), ...(broadcasts||[]).filter(b => b.sender_id !== currentUser.id)];
+  const data = [
+    ...(myNotifs||[]),
+    ...(broadcasts||[]).filter(b => b.sender_id !== currentUser.id)
+  ].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   const unread = data.filter(n=>!n.is_read).length;
   const badge = document.getElementById('notif-badge');
   if(badge) {
@@ -1413,34 +1416,38 @@ async function loadNotifications() {
     if(!data?.length) {
       list.innerHTML = '<div style="padding:.8rem;font-size:.75rem;color:var(--tx3);text-align:center;">알림이 없어요.</div>';
     } else {
-      list.innerHTML = data.map(n => {
-        const msgEsc = (n.message||'').replace(/'/g,"&#39;").replace(/"/g,"&quot;");
-        const dateEsc = (n.created_at||'').replace(/'/g,"&#39;");
-        return `<div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
-          <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}','${n.post_id||''}','${msgEsc}','${dateEsc}')">
+      // 알림 데이터를 window에 캐시 (onclick에서 참조)
+      window._notifCache = {};
+      data.forEach(n => { window._notifCache[n.id] = n; });
+      list.innerHTML = data.map(n => `
+        <div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
+          <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}')">
             <div style="color:var(--tx1);margin-bottom:.15rem;">${n.message}</div>
             <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
           </div>
-          <button onclick="deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
-        </div>`;}).join('');
+          <button onclick="event.stopPropagation();deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
+        </div>`).join('');
     }
   }
 }
 
-async function goToNotif(notifId, postId, message, createdAt) {
-  // 알림 상세 모달 표시
+async function goToNotif(notifId) {
+  const n = window._notifCache?.[notifId];
   const detailEl = document.getElementById('notif-detail-body');
-  if(detailEl) {
+  if(detailEl && n) {
+    const postId = n.post_id;
     detailEl.innerHTML = `
-      <div style="font-size:.85rem;line-height:1.9;color:var(--tx1);white-space:pre-wrap;">${message||''}</div>
-      <div style="font-size:.65rem;color:var(--tx3);margin-top:.8rem;">${(createdAt||'').slice(0,16).replace('T',' ')}</div>
-      ${postId&&postId!=='undefined'?`<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;"><button class="btn-save" style="width:100%;" onclick="goToPost('${notifId}','${postId}')">게시글 보러가기 →</button></div>`:''}`;
+      <div style="font-size:.85rem;line-height:1.9;color:var(--tx1);">${n.message||''}</div>
+      <div style="font-size:.65rem;color:var(--tx3);margin-top:.8rem;">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
+      ${postId?`<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
+        <button class="btn-save" style="width:100%;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
+      </div>`:''}`;
     openModal('modal-notif-detail');
   }
   await sb.from('notifications').update({is_read:true}).eq('id', notifId);
   loadNotifications();
 }
-async function goToPost(notifId, postId) {
+async function goToPost(postId) {
   closeModal('modal-notif-detail');
   closeModal('modal-notif');
   const boardTab = document.querySelector('.tab[onclick*="board"]');
@@ -1448,10 +1455,11 @@ async function goToPost(notifId, postId) {
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     boardTab.classList.add('on');
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-    document.getElementById('p-board')?.classList.add('on');
+    const panel = document.getElementById('p-board');
+    if(panel) panel.classList.add('on');
     await buildBoard();
   }
-  await openPostDetail(postId);
+  if(postId) await openPostDetail(postId);
 }
 async function deleteNotif(notifId) {
   event?.stopPropagation();
@@ -1480,9 +1488,9 @@ async function sendAdminMessage() {
   const msg = document.getElementById('admin-msg-input')?.value.trim();
   if(!msg) { alert('메시지를 입력해주세요.'); return; }
   try {
-    // 전체 공지는 target_type='all'로 1개만 저장 (모든 사용자가 볼 수 있게)
-    await sb.from('notifications').insert({
-      user_id: currentUser.id, // 임시로 자신에게 저장 (broadcast용)
+    // user_id=null로 저장 → 모든 사용자가 loadNotifications에서 볼 수 있음
+    const { error } = await sb.from('notifications').insert({
+      user_id: null,
       sender_id: currentUser.id,
       type: 'admin_broadcast',
       target_type: 'all',
@@ -1490,6 +1498,7 @@ async function sendAdminMessage() {
       is_read: false,
       created_at: new Date().toISOString()
     });
+    if(error) throw error;
     document.getElementById('admin-msg-input').value = '';
     closeModal('modal-admin-msg');
     alert('전체 공지를 발송했어요!');
