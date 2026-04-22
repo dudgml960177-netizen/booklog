@@ -1342,8 +1342,12 @@ async function banUser(userId, ban) {
 
 async function loadNotifications() {
   if(!currentUser) return;
-  const { data } = await sb.from('notifications').select('*')
-    .eq('user_id', currentUser.id).eq('is_read', false).order('created_at', {ascending:false});
+  // 내 알림 + 전체 공지 알림 함께 로드
+  const [{ data: myNotifs }, { data: broadcasts }] = await Promise.all([
+    sb.from('notifications').select('*').eq('user_id', currentUser.id).eq('is_read', false).order('created_at', {ascending:false}),
+    sb.from('notifications').select('*').eq('type', 'admin_broadcast').eq('target_type', 'all').order('created_at', {ascending:false}).limit(5)
+  ]);
+  const data = [...(myNotifs||[]), ...(broadcasts||[]).filter(b => b.sender_id !== currentUser.id)];
   const count = data?.length || 0;
   const badge = document.getElementById('notif-badge');
   if(badge) {
@@ -1386,22 +1390,19 @@ async function sendAdminMessage() {
   const msg = document.getElementById('admin-msg-input')?.value.trim();
   if(!msg) { alert('메시지를 입력해주세요.'); return; }
   try {
-    const { data: users, error } = await sb.from('profiles').select('id');
-    if(error) throw error;
-    const targets = (users||[]).filter(u => u.id !== currentUser.id);
-    if(!targets.length) { alert('전송할 다른 사용자가 없어요.'); return; }
-    const notifs = targets.map(u => ({
-      user_id: u.id,
+    // 전체 공지는 target_type='all'로 1개만 저장 (모든 사용자가 볼 수 있게)
+    await sb.from('notifications').insert({
+      user_id: currentUser.id, // 임시로 자신에게 저장 (broadcast용)
       sender_id: currentUser.id,
-      type: 'admin_message',
-      message: `📢 관리자 메시지: ${msg}`,
+      type: 'admin_broadcast',
+      target_type: 'all',
+      message: `📢 관리자 공지: ${msg}`,
       is_read: false,
       created_at: new Date().toISOString()
-    }));
-    await sb.from('notifications').insert(notifs);
+    });
     document.getElementById('admin-msg-input').value = '';
     closeModal('modal-admin-msg');
-    alert(`${targets.length}명에게 메시지를 전송했어요.`);
+    alert('전체 공지를 발송했어요!');
   } catch(e) { alert('전송 오류: '+(e.message||'알 수 없는 오류')); }
 }
 
@@ -1415,8 +1416,10 @@ async function openDirectMsgModal() {
 }
 async function searchDmUser() {
   const q = document.getElementById('dm-search-input')?.value.trim().toLowerCase();
-  const { data } = await sb.from('profiles').select('id,display_name,username,role').neq('id',currentUser.id);
-  const filtered = q ? (data||[]).filter(u=>(u.display_name||u.username||'').toLowerCase().includes(q)) : (data||[]);
+  if(!q) { document.getElementById('dm-user-list').innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">닉네임을 입력해주세요.</div>'; return; }
+  // 현재 로그인한 사용자 프로필을 기준으로 검색 (RLS 우회)
+  const { data } = await sb.from('profiles').select('id,display_name,username,role').ilike('display_name', `%${q}%`);
+  const filtered = (data||[]).filter(u=>u.id!==currentUser.id);
   const list = document.getElementById('dm-user-list'); list.innerHTML='';
   filtered.slice(0,10).forEach(u => {
     const el=document.createElement('div');
@@ -1575,8 +1578,11 @@ function filterBoard(f, btn) {
 
 function openPostWrite(editId=null) {
   boardEditId = editId;
-  document.getElementById('post-write-title').textContent = editId ? '글 수정' : '글쓰기';
-  document.getElementById('post-title').value = '';
+  // post-write-title은 modal-post 안에 있음
+  const titleLabel = document.getElementById('post-write-title');
+  if(titleLabel) titleLabel.textContent = editId ? '글 수정' : '글쓰기';
+  const titleInput = document.getElementById('post-title');
+  if(titleInput) titleInput.value = '';
   const editor = document.getElementById('post-editor');
   if(editor) editor.innerHTML = '';
   const catSel = document.getElementById('post-category');
@@ -1588,7 +1594,7 @@ function openPostWrite(editId=null) {
   if(editId) {
     sb.from('posts').select('*').eq('id', editId).single().then(({data:p})=>{
       if(!p) return;
-      document.getElementById('post-title').value = p.title;
+      if(titleInput) titleInput.value = p.title;
       if(editor) editor.innerHTML = p.content || '';
       if(catSel) catSel.value = p.category||'free';
       if(noticeChk) noticeChk.checked = p.is_notice;
@@ -1599,13 +1605,15 @@ function openPostWrite(editId=null) {
 
 async function submitPost() {
   const titleEl = document.getElementById('post-title');
-  const editor  = document.getElementById('post-editor');
-  if(!titleEl || !editor) { alert('폼을 찾을 수 없어요.'); return; }
+  if(!titleEl) { alert('폼을 찾을 수 없어요.'); return; }
   const title = titleEl.value.trim();
-  const content = editor.innerHTML;
-  const textOnly = editor.innerText.trim();
   if(!title) { alert('제목을 입력해주세요.'); titleEl.focus(); return; }
-  if(!textOnly) { alert('내용을 입력해주세요.'); editor.focus(); return; }
+  // 에디터 또는 textarea 중 있는 것 사용
+  const editor  = document.getElementById('post-editor');
+  const textarea = document.getElementById('post-content');
+  const content = editor ? editor.innerHTML : (textarea?.value || '');
+  const textOnly = editor ? editor.innerText.trim() : (textarea?.value.trim() || '');
+  if(!textOnly) { alert('내용을 입력해주세요.'); (editor||textarea)?.focus(); return; }
   const cat = document.getElementById('post-category')?.value || 'free';
   const notice = curUserRole==='admin' && document.getElementById('post-is-notice')?.checked;
   const payload = {
