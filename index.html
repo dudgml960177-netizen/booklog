@@ -636,6 +636,7 @@
           <button class="search-btn" onclick="searchDmUser()">검색</button>
         </div>
         <div id="dm-user-list" style="margin-top:.4rem;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;max-height:160px;overflow-y:auto;"></div>
+        <div id="dm-receiver-label" style="font-size:.75rem;color:var(--acc);margin-top:.4rem;font-weight:600;"></div>
       </div>
       <div class="form-group">
         <label class="form-label">메시지 내용</label>
@@ -644,12 +645,24 @@
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-dm')">취소</button>
+      <button class="btn-save" onclick="sendDm()">발송</button>
     </div>
+  </div>
+</div>
+
+<!-- 알림 상세 모달 -->
+<div id="modal-notif-detail" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔔 알림 상세</div>
+      <button class="modal-close" onclick="closeModal('modal-notif-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="notif-detail-body"></div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=80"></script>
+<script src="app.js?v=90"></script>
 </body>
 </html>

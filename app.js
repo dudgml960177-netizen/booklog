@@ -12,8 +12,17 @@ const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY
     persistSession: true,
     storageKey: 'booklog-auth',
     storage: window.localStorage,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
   }
 }));
+// 30분마다 토큰 갱신 (세션 만료 방지)
+setInterval(async () => {
+  if(currentUser) {
+    const { error } = await sb.auth.refreshSession();
+    if(error) console.warn('token refresh failed:', error.message);
+  }
+}, 30 * 60 * 1000);
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
@@ -46,7 +55,21 @@ function showScreen(name) {
   if (el) { el.style.display = 'flex'; el.style.flexDirection = 'column'; }
 }
 
+
+// ── localStorage 정리 (좋아요 기록 오래된 것 제거)
+function cleanupLocalStorage() {
+  try {
+    const keys = Object.keys(localStorage);
+    const likedKeys = keys.filter(k => k.startsWith('liked_'));
+    // 좋아요 키가 200개 넘으면 절반 정리
+    if(likedKeys.length > 200) {
+      likedKeys.slice(0, 100).forEach(k => localStorage.removeItem(k));
+    }
+  } catch(e) { console.warn('localStorage cleanup error:', e); }
+}
+
 async function init() {
+  cleanupLocalStorage();
   showScreen('loading');
 
   // 비밀번호 재설정 토큰 처리 (#access_token 또는 type=recovery)
@@ -1336,30 +1359,36 @@ async function submitReport() {
 
 // 관리자: 게시글 블라인드
 async function toggleBlindPost(postId, authorId, hide) {
-  await sb.from('posts').update({is_hidden:hide}).eq('id',postId);
-  // 작성자에게 알림
-  if(authorId) {
-    await sb.from('notifications').insert({
-      user_id:authorId, type:'blind',
-      message: hide ? '🚫 회원님의 게시글이 관리자에 의해 블라인드 처리되었습니다.' : '✅ 회원님의 게시글 블라인드가 해제되었습니다.',
-      is_read:false, created_at:new Date().toISOString()
-    });
-  }
-  closeModal('modal-post-detail');
-  await buildBoard();
+  try {
+    const { error } = await sb.from('posts').update({is_hidden:hide}).eq('id',postId);
+    if(error) throw error;
+    if(authorId) {
+      await sb.from('notifications').insert({
+        user_id:authorId, type:'blind',
+        message: hide ? '🚫 회원님의 게시글이 관리자에 의해 블라인드 처리되었습니다.' : '✅ 회원님의 게시글 블라인드가 해제되었습니다.',
+        is_read:false, created_at:new Date().toISOString()
+      });
+    }
+    closeModal('modal-post-detail');
+    alert(hide ? '블라인드 처리됐어요.' : '블라인드가 해제됐어요.');
+    await buildBoard();
+  } catch(e) { alert('처리 오류: '+(e.message||'권한을 확인해주세요')); }
 }
 
 // 관리자: 사용자 제한/해제
 async function banUser(userId, ban) {
-  await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
-  // 사용자에게 알림
-  await sb.from('notifications').insert({
-    user_id:userId, type:'ban',
-    message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
-    is_read:false, created_at:new Date().toISOString()
-  });
-  alert(ban?'사용자를 제한했어요.':'제한을 해제했어요.');
-  await buildBoard();
+  try {
+    const { error } = await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+    if(error) throw error;
+    await sb.from('notifications').insert({
+      user_id:userId, type:'ban',
+      message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
+      is_read:false, created_at:new Date().toISOString()
+    });
+    alert(ban ? '사용자를 제한했어요.' : '제한을 해제했어요.');
+    closeModal('modal-post-detail');
+    await buildBoard();
+  } catch(e) { alert('처리 오류: '+(e.message||'권한을 확인해주세요')); }
 }
 
 async function loadNotifications() {
@@ -1384,37 +1413,57 @@ async function loadNotifications() {
     if(!data?.length) {
       list.innerHTML = '<div style="padding:.8rem;font-size:.75rem;color:var(--tx3);text-align:center;">알림이 없어요.</div>';
     } else {
-      list.innerHTML = data.map(n => `
-        <div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
-          <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}','${n.post_id||''}')">
+      list.innerHTML = data.map(n => {
+        const msgEsc = (n.message||'').replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+        const dateEsc = (n.created_at||'').replace(/'/g,"&#39;");
+        return `<div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
+          <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}','${n.post_id||''}','${msgEsc}','${dateEsc}')">
             <div style="color:var(--tx1);margin-bottom:.15rem;">${n.message}</div>
             <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
           </div>
           <button onclick="deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
-        </div>`).join('');
+        </div>`;}).join('');
     }
   }
 }
 
-async function goToNotif(notifId, postId) {
-  await sb.from('notifications').update({is_read:true}).eq('id', notifId);
-  if(postId && postId !== 'undefined') {
-    closeModal('modal-notif');
-    const boardTab = document.querySelector('.tab[onclick*="board"]');
-    if(boardTab) {
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-      boardTab.classList.add('on');
-      document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-      document.getElementById('p-board')?.classList.add('on');
-      await buildBoard();
-    }
-    await openPostDetail(postId);
+async function goToNotif(notifId, postId, message, createdAt) {
+  // 알림 상세 모달 표시
+  const detailEl = document.getElementById('notif-detail-body');
+  if(detailEl) {
+    detailEl.innerHTML = `
+      <div style="font-size:.85rem;line-height:1.9;color:var(--tx1);white-space:pre-wrap;">${message||''}</div>
+      <div style="font-size:.65rem;color:var(--tx3);margin-top:.8rem;">${(createdAt||'').slice(0,16).replace('T',' ')}</div>
+      ${postId&&postId!=='undefined'?`<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;"><button class="btn-save" style="width:100%;" onclick="goToPost('${notifId}','${postId}')">게시글 보러가기 →</button></div>`:''}`;
+    openModal('modal-notif-detail');
   }
+  await sb.from('notifications').update({is_read:true}).eq('id', notifId);
   loadNotifications();
 }
+async function goToPost(notifId, postId) {
+  closeModal('modal-notif-detail');
+  closeModal('modal-notif');
+  const boardTab = document.querySelector('.tab[onclick*="board"]');
+  if(boardTab) {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+    boardTab.classList.add('on');
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+    document.getElementById('p-board')?.classList.add('on');
+    await buildBoard();
+  }
+  await openPostDetail(postId);
+}
 async function deleteNotif(notifId) {
-  await sb.from('notifications').delete().eq('id', notifId);
-  loadNotifications();
+  event?.stopPropagation();
+  try {
+    const { error } = await sb.from('notifications').delete().eq('id', notifId);
+    if(error) throw error;
+    loadNotifications();
+  } catch(e) {
+    console.warn('notif delete error:', e.message);
+    // 실패해도 로컬에서 제거
+    loadNotifications();
+  }
 }
 
 function openNotifModal() {
@@ -1456,37 +1505,51 @@ async function openDirectMsgModal() {
   openModal('modal-dm');
 }
 async function searchDmUser() {
-  const q = document.getElementById('dm-search-input')?.value.trim().toLowerCase();
-  if(!q) { document.getElementById('dm-user-list').innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">닉네임을 입력해주세요.</div>'; return; }
-  // 현재 로그인한 사용자 프로필을 기준으로 검색 (RLS 우회)
-  const { data } = await sb.from('profiles').select('id,display_name,username,role').or(`display_name.ilike.%${q}%,username.ilike.%${q}%`);
-  const filtered = (data||[]).filter(u=>u.id!==currentUser.id);
-  const list = document.getElementById('dm-user-list'); list.innerHTML='';
-  filtered.slice(0,10).forEach(u => {
-    const el=document.createElement('div');
-    el.style.cssText='padding:.4rem .6rem;cursor:pointer;border-radius:4px;font-size:.78rem;display:flex;align-items:center;gap:.5rem;';
-    el.innerHTML=`<span style="flex:1;">${u.display_name||u.username}</span><span style="font-size:.62rem;color:var(--tx3);">${u.role==='admin'?'관리자':'산책자'}</span>`;
-    el.onmouseenter=()=>el.style.background='#ede4d0';
-    el.onmouseleave=()=>el.style.background='';
-    el.onclick=()=>sendDm(u.id, u.display_name||u.username);
-    list.appendChild(el);
-  });
+  const q = document.getElementById('dm-search-input')?.value.trim();
+  const listEl = document.getElementById('dm-user-list');
+  if(!q) { listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">닉네임을 입력해주세요.</div>'; return; }
+  listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">검색 중...</div>';
+  try {
+    // display_name 검색
+    const { data: byDisplay } = await sb.from('profiles').select('id,display_name,username,role').ilike('display_name', `%${q}%`).neq('id', currentUser.id).limit(10);
+    // username 검색
+    const { data: byUser } = await sb.from('profiles').select('id,display_name,username,role').ilike('username', `%${q}%`).neq('id', currentUser.id).limit(10);
+    // 합치고 중복 제거
+    const seen = new Set();
+    const results = [...(byDisplay||[]), ...(byUser||[])].filter(u => { if(seen.has(u.id)) return false; seen.add(u.id); return true; });
+    listEl.innerHTML = '';
+    if(!results.length) { listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">검색 결과가 없어요.</div>'; return; }
+    results.slice(0,10).forEach(u => {
+      const el=document.createElement('div');
+      el.style.cssText='padding:.45rem .7rem;cursor:pointer;border-radius:4px;font-size:.78rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border);';
+      el.innerHTML=`<span style="flex:1;font-weight:500;">${u.display_name||u.username}</span><span style="font-size:.62rem;color:var(--tx3);background:#ede4d0;padding:1px 5px;border-radius:3px;">${u.role==='admin'?'관리자':'산책자'}</span>`;
+      el.onmouseenter=()=>el.style.background='#ede4d0';
+      el.onmouseleave=()=>el.style.background='';
+      el.onclick=()=>{ window._dmReceiver={id:u.id,name:u.display_name||u.username}; document.getElementById('dm-receiver-label').textContent=`받는 사람: ${u.display_name||u.username}`; listEl.innerHTML=''; document.getElementById('dm-search-input').value=''; };
+      listEl.appendChild(el);
+    });
+  } catch(e) { listEl.innerHTML=`<div style="padding:.5rem .8rem;font-size:.75rem;color:#c0392b;">검색 오류: ${e.message}</div>`; }
 }
-async function sendDm(receiverId, receiverName) {
+async function sendDm() {
+  const receiver = window._dmReceiver;
+  if(!receiver) { alert('받는 사람을 선택해주세요.'); return; }
   const content = document.getElementById('dm-content')?.value.trim();
   if(!content) { alert('메시지를 입력해주세요.'); return; }
   try {
-    await sb.from('notifications').insert({
-      user_id: receiverId,
+    const { error } = await sb.from('notifications').insert({
+      user_id: receiver.id,
       sender_id: currentUser.id,
       type: 'admin_dm',
-      message: `📩 관리자 메시지: ${content}`,
+      message: `📩 관리자 쪽지: ${content}`,
       is_read: false,
       created_at: new Date().toISOString()
     });
+    if(error) throw error;
     document.getElementById('dm-content').value='';
+    document.getElementById('dm-receiver-label').textContent='';
+    window._dmReceiver = null;
     closeModal('modal-dm');
-    alert(`${receiverName}님에게 메시지를 보냈어요.`);
+    alert(`${receiver.name}님에게 쪽지를 보냈어요.`);
   } catch(e) { alert('전송 오류: '+(e.message||'알 수 없는 오류')); }
 }
 
@@ -1546,6 +1609,7 @@ async function buildBoard() {
   const { data: notices } = await sb.from('posts')
     .select('*').eq('is_notice', true).order('created_at', {ascending:false});
   const nWrap = document.getElementById('board-notice-wrap');
+  if(!nWrap) return; // 패널이 없으면 중단
   nWrap.innerHTML = '';
   (notices||[]).forEach(n => {
     const el = document.createElement('div');
@@ -1753,9 +1817,11 @@ async function openPostDetail(postId) {
     <div style="border-top:1px solid var(--border);padding-top:.75rem;">
       <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.55rem;">댓글 ${(comms||[]).length}개</div>
       <div id="comment-list">${commentsHtml}</div>
-      <div style="display:flex;gap:.4rem;margin-top:.6rem;">
-        <textarea id="new-comment" class="form-input" rows="2" placeholder="댓글을 입력해주세요..." style="flex:1;resize:none;font-size:.78rem;"></textarea>
-        <button onclick="submitComment('${postId}')" class="btn-save" style="padding:.4rem .65rem;font-size:.72rem;align-self:flex-end;">등록</button>
+      <div style="margin-top:.6rem;">
+        <textarea id="new-comment" class="form-input" rows="2" placeholder="댓글을 입력해주세요..." style="width:100%;resize:none;font-size:.78rem;margin-bottom:.3rem;"></textarea>
+        <div style="display:flex;justify-content:flex-end;">
+          <button onclick="submitComment('${postId}')" class="btn-save" style="padding:.3rem .8rem;font-size:.72rem;">등록</button>
+        </div>
       </div>
     </div>`;
 
@@ -1781,12 +1847,15 @@ async function openPostDetail(postId) {
     blindBtn.textContent=post.is_hidden?'🔓 블라인드 해제':'🚫 블라인드';
     blindBtn.onclick=()=>toggleBlindPost(postId, post.user_id, !post.is_hidden);
     footer.appendChild(blindBtn);
-    const banBtn=document.createElement('button');banBtn.className='btn-cancel';
-    banBtn.style.cssText='color:#8b0000;border-color:#f5c6cb;';
-    // 작성자 제한 여부 확인은 async라 텍스트 고정
-    banBtn.textContent='⛔ 작성자 관리';
-    banBtn.onclick=()=>openBanModal(post.user_id);
-    footer.appendChild(banBtn);
+    // 작성자 제한 상태 비동기 확인
+    sb.from('profiles').select('is_banned').eq('id',post.user_id).single().then(({data:pf})=>{
+      const isBanned = pf?.is_banned;
+      const banBtn=document.createElement('button');banBtn.className='btn-cancel';
+      banBtn.style.cssText=isBanned?'color:#2e7d32;border-color:#a8d8a8;':'color:#8b0000;border-color:#f5c6cb;';
+      banBtn.textContent=isBanned?'✅ 제한 해제':'⛔ 작성자 제한';
+      banBtn.onclick=()=>openBanModal(post.user_id);
+      footer.insertBefore(banBtn, closeBtn);
+    });
   }
   if(isMine||isAdmin) {
     const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';
@@ -1801,12 +1870,13 @@ async function openPostDetail(postId) {
   openModal('modal-post-detail');
 }
 
-// 작성자 제한 관리 모달
+// 작성자 제한 관리
 async function openBanModal(userId) {
   const { data: profile } = await sb.from('profiles').select('display_name,username,is_banned').eq('id',userId).single();
   const isBanned = profile?.is_banned;
   const name = profile?.display_name || profile?.username || '산책자';
-  if(confirm(`${name}님 ${isBanned?'제한 해제':'제한'}할까요?`)) {
+  const action = isBanned ? '제한 해제' : '계정 제한';
+  if(confirm(`${name}님을 ${action}할까요?`)) {
     await banUser(userId, !isBanned);
   }
 }
@@ -1877,11 +1947,13 @@ async function deleteComment(commentId, postId) {
 
 async function deletePost(postId) {
   if(!confirm('게시글을 삭제할까요?'))return;
+  // 먼저 모달 닫기 (DOM null 오류 방지)
+  closeModal('modal-post-detail');
   try {
     await sb.from('comments').delete().eq('post_id',postId);
+    await sb.from('reports').delete().eq('post_id',postId);
     const { error } = await sb.from('posts').delete().eq('id',postId);
     if(error) throw error;
-    closeModal('modal-post-detail');
     await buildBoard();
   } catch(e) { alert('삭제 오류: '+(e.message||'권한이 없거나 알 수 없는 오류')); }
 }
