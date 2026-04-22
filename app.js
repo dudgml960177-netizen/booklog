@@ -1371,8 +1371,9 @@ async function toggleBlindPost(postId, authorId, hide) {
     }
     closeModal('modal-post-detail');
     alert(hide ? '블라인드 처리됐어요.' : '블라인드가 해제됐어요.');
-    await buildBoard();
-  } catch(e) { alert('처리 오류: '+(e.message||'권한을 확인해주세요')); }
+    // board 패널이 활성화된 경우에만 새로고침
+    if(document.getElementById('p-board')?.classList.contains('on')) await renderBoardList();
+  } catch(e) { alert('처리 오류: '+(e.message||JSON.stringify(e))); }
 }
 
 // 관리자: 사용자 제한/해제
@@ -1385,21 +1386,23 @@ async function banUser(userId, ban) {
       message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
       is_read:false, created_at:new Date().toISOString()
     });
-    alert(ban ? '사용자를 제한했어요.' : '제한을 해제했어요.');
     closeModal('modal-post-detail');
-    await buildBoard();
-  } catch(e) { alert('처리 오류: '+(e.message||'권한을 확인해주세요')); }
+    alert(ban ? '사용자를 제한했어요.' : '제한을 해제했어요.');
+    if(document.getElementById('p-board')?.classList.contains('on')) await renderBoardList();
+  } catch(e) { alert('처리 오류: '+(e.message||JSON.stringify(e))); }
 }
 
 async function loadNotifications() {
   if(!currentUser) return;
   const [{ data: myNotifs }, { data: broadcasts }] = await Promise.all([
     sb.from('notifications').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(50),
-    sb.from('notifications').select('*').eq('type', 'admin_broadcast').is('user_id', null).order('created_at', {ascending:false}).limit(10)
+    sb.from('notifications').select('*').eq('type', 'admin_broadcast').eq('target_type','all').order('created_at', {ascending:false}).limit(10)
   ]);
+  // 내 알림 + broadcast (본인이 보낸 것 제외)
+  const myIds = new Set((myNotifs||[]).map(n=>n.id));
   const data = [
     ...(myNotifs||[]),
-    ...(broadcasts||[]).filter(b => b.sender_id !== currentUser.id)
+    ...(broadcasts||[]).filter(b => !myIds.has(b.id) && b.sender_id !== currentUser.id)
   ].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
   const unread = data.filter(n=>!n.is_read).length;
   const badge = document.getElementById('notif-badge');
@@ -1450,16 +1453,17 @@ async function goToNotif(notifId) {
 async function goToPost(postId) {
   closeModal('modal-notif-detail');
   closeModal('modal-notif');
+  if(!postId) return;
+  // 게시판 탭 활성화
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   const boardTab = document.querySelector('.tab[onclick*="board"]');
-  if(boardTab) {
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-    boardTab.classList.add('on');
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
-    const panel = document.getElementById('p-board');
-    if(panel) panel.classList.add('on');
-    await buildBoard();
-  }
-  if(postId) await openPostDetail(postId);
+  if(boardTab) boardTab.classList.add('on');
+  const boardPanel = document.getElementById('p-board');
+  if(boardPanel) boardPanel.classList.add('on');
+  // 게시글 목록 로드 후 해당 게시글 모달 바로 열기
+  await renderBoardList();
+  await openPostDetail(postId);
 }
 async function deleteNotif(notifId) {
   event?.stopPropagation();
@@ -1488,9 +1492,10 @@ async function sendAdminMessage() {
   const msg = document.getElementById('admin-msg-input')?.value.trim();
   if(!msg) { alert('메시지를 입력해주세요.'); return; }
   try {
-    // user_id=null로 저장 → 모든 사용자가 loadNotifications에서 볼 수 있음
+    // admin 자신에게 broadcast로 저장 (target_type='all')
+    // 다른 사용자들은 loadNotifications에서 type='admin_broadcast' 쿼리로 읽음
     const { error } = await sb.from('notifications').insert({
-      user_id: null,
+      user_id: currentUser.id,
       sender_id: currentUser.id,
       type: 'admin_broadcast',
       target_type: 'all',
@@ -1537,7 +1542,10 @@ async function searchDmUser() {
       el.onclick=()=>{ window._dmReceiver={id:u.id,name:u.display_name||u.username}; document.getElementById('dm-receiver-label').textContent=`받는 사람: ${u.display_name||u.username}`; listEl.innerHTML=''; document.getElementById('dm-search-input').value=''; };
       listEl.appendChild(el);
     });
-  } catch(e) { listEl.innerHTML=`<div style="padding:.5rem .8rem;font-size:.75rem;color:#c0392b;">검색 오류: ${e.message}</div>`; }
+  } catch(e) {
+    console.error('DM search error:', e);
+    listEl.innerHTML=`<div style="padding:.5rem .8rem;font-size:.75rem;color:#c0392b;">검색 오류: ${e.message||JSON.stringify(e)}<br><span style="font-size:.65rem;">Supabase RLS 정책을 확인해주세요.</span></div>`;
+  }
 }
 async function sendDm() {
   const receiver = window._dmReceiver;
