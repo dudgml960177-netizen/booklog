@@ -218,14 +218,8 @@ async function doLogin() {
   const saveChk = document.getElementById('save-email-chk');
   if(saveChk?.checked) localStorage.setItem('bl_saved_email', email);
   else localStorage.removeItem('bl_saved_email');
-  const btn = document.querySelector('.auth-btn');
-  if(btn) { btn.textContent = '로그인 중...'; btn.disabled = true; }
-  try {
-    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-    if(error) showAuthError(error.message);
-  } finally {
-    if(btn) { btn.textContent = '로그인'; btn.disabled = false; }
-  }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if(error) showAuthError(error.message);
 }
 
 function openInviteCheck() {
