@@ -169,6 +169,12 @@
                 <button class="tbtn tbtn-sec" onclick="resetTimer()">↺</button>
                 <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
               </div>
+              <div style="display:flex;align-items:center;gap:.4rem;margin-top:.55rem;justify-content:center;">
+                <span style="font-size:.68rem;color:var(--tx3);">현재 페이지</span>
+                <input type="number" id="timer-current-page" min="1" placeholder="쪽"
+                  style="width:64px;padding:.25rem .4rem;border:1px solid var(--border2);border-radius:4px;font-size:.78rem;font-family:var(--ff);text-align:center;">
+                <span style="font-size:.65rem;color:var(--tx3);">(선택)</span>
+              </div>
             </div>
 
             <!-- 트래커 (타이머 바로 아래) -->
@@ -716,6 +722,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=172"></script>
+<script src="app.js?v=173"></script>
 </body>
 </html>

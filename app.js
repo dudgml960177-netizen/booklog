@@ -555,12 +555,20 @@ async function saveTimer() {
   const mins=Math.round(timerSeconds/60);
   const today=new Date().toISOString().slice(0,10);
   try {
-    const {error} = await sb.from('books').update({
+    const updateData = {
       reading_time:(book.reading_time||0)+mins,
       last_read:today
-    }).eq('id',bookId).eq('user_id',currentUser.id);
+    };
+    // 타이머에서 현재 페이지 입력값 반영
+    const timerPageInput = document.getElementById('timer-current-page');
+    if(timerPageInput?.value) {
+      const cp = parseInt(timerPageInput.value);
+      if(!book.pages || cp <= book.pages) updateData.current_page = cp;
+    }
+    const {error} = await sb.from('books').update(updateData).eq('id',bookId).eq('user_id',currentUser.id);
     if(error) throw error;
     clearInterval(timerInterval);timerRunning=false;timerSeconds=0;
+    if(timerPageInput) timerPageInput.value='';
     await loadData(); updateTimerDisplay(); buildTimer();
     alert(`${mins}분 저장됐어요!`);
   } catch(e){ alert('저장 오류: '+(e.message||'알 수 없는 오류')); }
@@ -1288,6 +1296,10 @@ function openDetail(bookId) {
       ${b.status?`<span class="detail-chip">${b.status}</span>`:''}
       ${b.date_finish?`<span class="detail-chip">${b.date_finish}</span>`:''}
       ${b.pages?`<span class="detail-chip">${b.pages}p</span>`:''}
+      ${b.status==='읽는중'&&b.show_progress!==false&&b.current_page?
+        `<span class="detail-chip" style="background:#e8f5e9;color:#2e7d32;border-color:#a8d8a8;">
+          📖 ${b.current_page}p${b.pages?' / '+b.pages+'p':''}
+          ${b.pages?` (${Math.round(b.current_page/b.pages*100)}%)`:''}</span>`:''}
       ${readingTime}
       ${b.source?`<span class="detail-chip">${b.source}</span>`:''}
       ${b.category?`<span class="detail-chip">📁 ${b.category}</span>`:''}
@@ -1300,9 +1312,75 @@ function openDetail(bookId) {
     html+=`<div class="detail-divhr"></div><div class="detail-sec">인상 깊은 문장</div>`;
     quotes.forEach(q=>{html+=`<div class="detail-quote">${q.text}<div class="detail-qsrc">${q.page?'p.'+q.page+' ':''}${q.tag?'💬 '+q.tag:''}</div></div>`;});
   }
+  // 읽는중 책: 페이지 진행 업데이트 섹션
+  if(b.status === '읽는중') {
+    html += `<div class="detail-divhr"></div>
+    <div class="detail-sec">📖 독서 진행</div>
+    <div style="padding:.5rem 0;">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.75rem;cursor:pointer;">
+          <input type="checkbox" id="show-progress-chk" ${b.show_progress!==false?'checked':''} style="accent-color:var(--acc);">
+          <span>페이지 표시</span>
+        </label>
+      </div>
+      <div id="progress-input-wrap" style="${b.show_progress===false?'display:none;':''}display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:.3rem;">
+          <span style="font-size:.75rem;color:var(--tx3);">현재</span>
+          <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}"
+            placeholder="쪽" style="width:70px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:4px;font-size:.8rem;font-family:var(--ff);">
+          <span style="font-size:.75rem;color:var(--tx3);">쪽${b.pages?' / '+b.pages+'p':''}</span>
+        </div>
+        <button onclick="saveReadingProgress('${b.id}')" class="btn-save" style="padding:.3rem .8rem;font-size:.75rem;">저장</button>
+      </div>
+      ${b.pages&&b.current_page&&b.show_progress!==false?`
+      <div style="margin-top:.5rem;background:#ede4d0;border-radius:4px;overflow:hidden;height:6px;">
+        <div style="width:${Math.min(100,Math.round(b.current_page/b.pages*100))}%;height:100%;background:var(--acc);border-radius:4px;transition:width .3s;"></div>
+      </div>
+      <div style="font-size:.65rem;color:var(--tx3);margin-top:.2rem;">${Math.round(b.current_page/b.pages*100)}% 완료</div>`:''}
+    </div>`;
+    // 체크박스 이벤트는 html 삽입 후 연결
+  }
   document.getElementById('detail-body').innerHTML=html;
+  // 페이지 표시 체크박스 이벤트 연결
+  const showChk = document.getElementById('show-progress-chk');
+  if(showChk) {
+    showChk.onchange = () => {
+      const wrap = document.getElementById('progress-input-wrap');
+      if(wrap) wrap.style.display = showChk.checked ? 'flex' : 'none';
+      saveReadingProgress(b.id, true); // 표시 여부만 저장
+    };
+  }
   openModal('modal-detail');
 }
+
+async function saveReadingProgress(bookId, showOnly=false) {
+  const showChk = document.getElementById('show-progress-chk');
+  const showProgress = showChk ? showChk.checked : true;
+  let updateData = { show_progress: showProgress };
+  if(!showOnly) {
+    const pageInput = document.getElementById('current-page-input');
+    const currentPage = parseInt(pageInput?.value) || null;
+    const book = allBooks.find(b=>b.id===bookId);
+    // 페이지 수 초과 체크
+    if(currentPage && book?.pages && currentPage > book.pages) {
+      alert(`총 ${book.pages}p를 초과할 수 없어요.`); return;
+    }
+    updateData.current_page = currentPage;
+  }
+  try {
+    const { error } = await sb.from('books').update(updateData).eq('id', bookId);
+    if(error) throw error;
+    await loadData();
+    if(!showOnly) {
+      // 저장 완료 표시
+      const btn = document.querySelector('[onclick*="saveReadingProgress"]');
+      if(btn) { const orig=btn.textContent; btn.textContent='✓ 저장됨'; setTimeout(()=>btn.textContent=orig,1500); }
+    }
+    // 칩 업데이트 (모달 열린 채로)
+    openDetail(bookId);
+  } catch(e) { alert('저장 오류: '+e.message); }
+}
+
 function toggleDesc(el) {
   const p=el.parentElement;
   const short=p.querySelector('.desc-short'),full=p.querySelector('.desc-full');
