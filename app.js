@@ -112,7 +112,7 @@ function initFontSize() {
   applyFontSize(saved);
 }
 
-let _appInitialized = false; // 중복 실행 방지 플래그
+let _appInitialized = false;
 
 async function startApp(user) {
   if(_appInitialized) return;
@@ -126,14 +126,29 @@ async function startApp(user) {
   setTimeout(loadNotifications, 300);
 }
 
+function getStoredSession() {
+  // localStorage에서 Supabase 세션을 직접 읽어 즉시 반환 (네트워크 없음)
+  try {
+    const raw = localStorage.getItem('booklog-auth');
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    const session = parsed?.currentSession || parsed?.session || parsed;
+    if(!session?.access_token || !session?.user) return null;
+    // 만료 확인 (expires_at은 Unix timestamp)
+    const expiresAt = session.expires_at || 0;
+    if(expiresAt && expiresAt < Math.floor(Date.now()/1000) + 60) return null; // 60초 여유
+    return session;
+  } catch(e) { return null; }
+}
+
 async function init() {
   initFontSize();
   cleanupLocalStorage();
-  showScreen('loading');
 
-  // 비밀번호 재설정 토큰 처리
+  // 비밀번호 재설정 토큰 처리 (URL 해시)
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
+    showScreen('loading');
     try {
       const params = new URLSearchParams(hash.replace('#',''));
       const accessToken = params.get('access_token');
@@ -147,28 +162,32 @@ async function init() {
         return;
       }
     } catch(e) {}
+    showScreen('auth'); loadSavedEmail(); return;
   }
 
-  // 타임아웃 3초로 단축 (localStorage에 세션 있으면 즉시 응답)
-  const timeout = setTimeout(() => {
-    showScreen('auth');
-    loadSavedEmail();
-  }, 3000);
+  // ① localStorage에서 즉시 세션 확인 (네트워크 없음 → 즉시)
+  const stored = getStoredSession();
+  if(stored) {
+    // 저장된 세션으로 바로 앱 시작
+    showScreen('loading');
+    await startApp(stored.user);
+    // 백그라운드에서 세션 갱신 (만료 대비)
+    sb.auth.getSession().then(({ data }) => {
+      if(data?.session?.user) currentUser = data.session.user;
+    }).catch(() => {});
+    return;
+  }
 
-  try {
-    const { data } = await sb.auth.getSession();
-    clearTimeout(timeout);
-    if(data?.session?.user) {
+  // ② 세션 없음 → 로그인 화면 즉시 표시
+  showScreen('auth');
+  loadSavedEmail();
+
+  // 백그라운드에서 서버 세션 확인 (혹시 localStorage 미스 대비)
+  sb.auth.getSession().then(async ({ data }) => {
+    if(data?.session?.user && !_appInitialized) {
       await startApp(data.session.user);
-    } else {
-      showScreen('auth');
-      loadSavedEmail();
     }
-  } catch(e) {
-    clearTimeout(timeout);
-    showScreen('auth');
-    loadSavedEmail();
-  }
+  }).catch(() => {});
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -176,13 +195,8 @@ else init();
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if(event === 'SIGNED_IN' && session?.user) {
-    // init에서 이미 처리된 경우 스킵
-    if(!_appInitialized) {
-      await startApp(session.user);
-    } else {
-      // 이미 앱 실행 중 - 세션 갱신만
-      currentUser = session.user;
-    }
+    if(!_appInitialized) await startApp(session.user);
+    else currentUser = session.user;
   }
   if(event === 'SIGNED_OUT') {
     _appInitialized = false;
@@ -240,11 +254,10 @@ async function doLogin() {
   const saveChk = document.getElementById('save-email-chk');
   if(saveChk?.checked) localStorage.setItem('bl_saved_email', email);
   else localStorage.removeItem('bl_saved_email');
-  showAuthError('로그인 중...', true);
   try {
-    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
-    if(error) showAuthError(error.message);
-    // 성공 시 onAuthStateChange → startApp 자동 호출
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if(error) { showAuthError(error.message); return; }
+    // 로그인 성공 - onAuthStateChange가 자동으로 startApp 호출
   } catch(e) {
     showAuthError('연결 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
   }
