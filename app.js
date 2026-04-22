@@ -40,8 +40,15 @@ function showScreen(name) {
 
 async function init() {
   showScreen('loading');
+  // 최대 4초 대기 후 강제 auth 화면
+  const timeout = setTimeout(() => {
+    if(document.getElementById('screen-loading').style.display !== 'none') {
+      showScreen('auth');
+    }
+  }, 4000);
   try {
     const { data } = await sb.auth.getSession();
+    clearTimeout(timeout);
     if (data?.session) {
       currentUser = data.session.user;
       await loadData();
@@ -51,7 +58,10 @@ async function init() {
       buildBooks();
       loadNotifications();
     } else { showScreen('auth'); }
-  } catch(e) { showScreen('auth'); }
+  } catch(e) {
+    clearTimeout(timeout);
+    showScreen('auth');
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -1217,12 +1227,20 @@ async function submitReport() {
 }
 
 async function loadNotifications() {
-  if(!currentUser || curUserRole !== 'admin') return;
+  if(!currentUser) return;
   const { data } = await sb.from('notifications').select('*')
     .eq('user_id', currentUser.id).eq('is_read', false).order('created_at', {ascending:false});
   const count = data?.length || 0;
   const badge = document.getElementById('notif-badge');
-  if(badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
+  if(badge) {
+    badge.textContent = count;
+    badge.style.cssText = count > 0
+      ? 'display:flex;position:absolute;top:-2px;right:-2px;background:#c0392b;color:#fff;font-size:.45rem;border-radius:50%;width:14px;height:14px;align-items:center;justify-content:center;font-weight:700;'
+      : 'display:none;';
+  }
+  // 관리자 쪽지 버튼 표시
+  const adminBar = document.getElementById('notif-admin-bar');
+  if(adminBar) adminBar.style.display = curUserRole==='admin' ? '' : 'none';
   const list = document.getElementById('notif-list');
   if(list) {
     list.innerHTML = (data||[]).map(n => `
@@ -1243,6 +1261,60 @@ async function markNotifRead(notifId, postId) {
 function openNotifModal() {
   openModal('modal-notif');
   loadNotifications();
+}
+
+
+// 관리자 전체 쪽지 발송
+async function sendAdminMessage() {
+  const msg = document.getElementById('admin-msg-input')?.value.trim();
+  if(!msg) { alert('메시지를 입력해주세요.'); return; }
+  // 모든 유저에게 알림 전송
+  const { data: users } = await sb.from('profiles').select('id').neq('id', currentUser.id);
+  if(!users?.length) { alert('전송할 사용자가 없어요.'); return; }
+  const notifs = users.map(u => ({
+    user_id: u.id,
+    sender_id: currentUser.id,
+    type: 'admin_message',
+    message: `📢 관리자 메시지: ${msg}`,
+    is_read: false,
+    created_at: new Date().toISOString()
+  }));
+  await sb.from('notifications').insert(notifs);
+  document.getElementById('admin-msg-input').value = '';
+  closeModal('modal-admin-msg');
+  alert(`${users.length}명에게 메시지를 전송했어요.`);
+}
+
+function openAdminMsgModal() {
+  if(curUserRole !== 'admin') { alert('관리자만 사용할 수 있어요.'); return; }
+  document.getElementById('admin-msg-input').value = '';
+  openModal('modal-admin-msg');
+}
+
+
+// ── 리치 텍스트 에디터
+function editorCmd(cmd) {
+  document.getElementById('post-editor')?.focus();
+  document.execCommand(cmd, false, null);
+}
+function editorFontSize(size) {
+  if(!size) return;
+  document.getElementById('post-editor')?.focus();
+  document.execCommand('fontSize', false, size);
+}
+function editorInsertLink() {
+  const url = prompt('링크 URL을 입력하세요:');
+  if(url) {
+    document.getElementById('post-editor')?.focus();
+    document.execCommand('createLink', false, url);
+  }
+}
+function editorInsertImage() {
+  const url = prompt('이미지 URL을 입력하세요:');
+  if(url) {
+    document.getElementById('post-editor')?.focus();
+    document.execCommand('insertImage', false, url);
+  }
 }
 
 // ── 모달 유틸
@@ -1341,20 +1413,21 @@ function openPostWrite(editId=null) {
   boardEditId = editId;
   document.getElementById('post-write-title').textContent = editId ? '글 수정' : '글쓰기';
   document.getElementById('post-title').value = '';
-  document.getElementById('post-content').value = '';
-  document.getElementById('post-anonymous').checked = true;
-  document.getElementById('post-category').value = 'free';
-  // 관리자만 공지 옵션 표시
-  document.getElementById('post-notice-wrap').style.display = curUserRole==='admin' ? '' : 'none';
-  document.getElementById('post-is-notice').checked = false;
+  const editor = document.getElementById('post-editor');
+  if(editor) editor.innerHTML = '';
+  const catSel = document.getElementById('post-category');
+  if(catSel) catSel.value = 'free';
+  const noticeWrap = document.getElementById('post-notice-wrap');
+  if(noticeWrap) noticeWrap.style.display = curUserRole==='admin' ? '' : 'none';
+  const noticeChk = document.getElementById('post-is-notice');
+  if(noticeChk) noticeChk.checked = false;
   if(editId) {
     sb.from('posts').select('*').eq('id', editId).single().then(({data:p})=>{
       if(!p) return;
       document.getElementById('post-title').value = p.title;
-      document.getElementById('post-content').value = p.content;
-      document.getElementById('post-anonymous').checked = p.is_anonymous;
-      document.getElementById('post-category').value = p.category||'free';
-      document.getElementById('post-is-notice').checked = p.is_notice;
+      if(editor) editor.innerHTML = p.content || '';
+      if(catSel) catSel.value = p.category||'free';
+      if(noticeChk) noticeChk.checked = p.is_notice;
     });
   }
   openModal('modal-post');
@@ -1362,19 +1435,25 @@ function openPostWrite(editId=null) {
 
 async function submitPost() {
   const title   = document.getElementById('post-title').value.trim();
-  const content = document.getElementById('post-content').value.trim();
-  const anon    = document.getElementById('post-anonymous').checked;
-  const cat     = document.getElementById('post-category').value;
-  const notice  = curUserRole==='admin' && document.getElementById('post-is-notice').checked;
-  if(!title||!content){alert('제목과 내용을 입력해주세요.');return;}
+  // 에디터에서 innerHTML 읽기
+  const editor  = document.getElementById('post-editor');
+  const content = editor ? editor.innerHTML.trim() : '';
+  const textContent = editor ? editor.innerText.trim() : '';
+  const anon    = true; // 항상 익명
+  const cat     = document.getElementById('post-category')?.value || 'free';
+  const notice  = curUserRole==='admin' && document.getElementById('post-is-notice')?.checked;
+  if(!title){ alert('제목을 입력해주세요.'); return; }
+  if(!textContent){ alert('내용을 입력해주세요.'); return; }
   const payload = {user_id:currentUser.id, title, content, is_anonymous:anon, category:cat, is_notice:notice, updated_at:new Date().toISOString()};
-  if(boardEditId) {
-    await sb.from('posts').update(payload).eq('id', boardEditId);
-  } else {
-    await sb.from('posts').insert({...payload, created_at:new Date().toISOString()});
-  }
-  closeModal('modal-post');
-  buildBoard();
+  try {
+    if(boardEditId) {
+      await sb.from('posts').update(payload).eq('id', boardEditId);
+    } else {
+      await sb.from('posts').insert({...payload, created_at:new Date().toISOString()});
+    }
+    closeModal('modal-post');
+    buildBoard();
+  } catch(e) { alert('등록 오류: '+(e.message||'알 수 없는 오류')); }
 }
 
 async function openPostDetail(postId) {
@@ -1426,6 +1505,16 @@ async function openPostDetail(postId) {
     rpBtn.style.cssText='color:#c0392b;border-color:#e8b8a8;font-size:.75rem;';
     rpBtn.onclick=()=>openReportModal(postId, post.title);
     footer.appendChild(rpBtn);
+  }
+  if(isAdmin) {
+    // 관리자: 공지 토글 버튼
+    const noticeBtn=document.createElement('button');noticeBtn.className='btn-cancel';
+    noticeBtn.textContent=post.is_notice?'📌 공지 해제':'📌 공지 지정';
+    noticeBtn.onclick=async()=>{
+      await sb.from('posts').update({is_notice:!post.is_notice}).eq('id',postId);
+      closeModal('modal-post-detail'); buildBoard();
+    };
+    footer.appendChild(noticeBtn);
   }
   if(isMine||isAdmin) {
     const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';editBtn.onclick=()=>{closeModal('modal-post-detail');openPostWrite(postId);};

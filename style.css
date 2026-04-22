@@ -362,3 +362,14 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .board-title{font-size:.82rem;font-weight:600;color:var(--tx1);}
 .board-meta{font-size:.65rem;color:var(--tx3);}
 .board-cat{font-size:.62rem;background:#ede4d0;border:1px solid var(--border2);color:var(--tx2);border-radius:3px;padding:1px 5px;}
+
+/* ── 리치 에디터 */
+.editor-toolbar{display:flex;gap:2px;padding:.4rem;background:#f5f0e6;border:1px solid var(--border);border-bottom:none;border-radius:var(--rs) var(--rs) 0 0;flex-wrap:wrap;align-items:center;}
+.editor-btn{padding:.2rem .45rem;border:1px solid transparent;border-radius:3px;background:none;cursor:pointer;font-size:.78rem;color:var(--tx2);font-family:var(--ff);transition:all .12s;}
+.editor-btn:hover{background:#ede4d0;border-color:var(--border2);}
+.editor-sep{width:1px;height:16px;background:var(--border2);margin:0 2px;}
+.post-editor{min-height:180px;border:1px solid var(--border);border-radius:0 0 var(--rs) var(--rs);padding:.75rem .9rem;font-size:.83rem;font-family:var(--ff);color:var(--tx1);line-height:1.85;outline:none;background:#fff;overflow-y:auto;}
+.post-editor:empty::before{content:attr(placeholder);color:#b0a090;pointer-events:none;}
+.post-editor img{max-width:100%;border-radius:4px;margin:.3rem 0;}
+.post-editor a{color:var(--acc);text-decoration:underline;}
+.post-editor ul,.post-editor ol{padding-left:1.4rem;margin:.3rem 0;}
