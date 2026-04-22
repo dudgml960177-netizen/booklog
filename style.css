@@ -351,3 +351,14 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .post-title{font-size:.82rem;font-weight:600;color:var(--tx1);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .post-badge-notice{font-size:.62rem;background:var(--acc);color:#fff;border-radius:3px;padding:1px 5px;flex-shrink:0;}
 .post-item-meta{display:flex;gap:.6rem;font-size:.65rem;color:var(--tx3);}
+
+/* ── 탭 오른쪽 정렬 */
+.tabs{display:flex;max-width:920px;margin:0 auto;}
+.tab-right{margin-left:auto;}
+
+/* ── 게시판 아이템 */
+.board-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.68rem .9rem;margin-bottom:.4rem;cursor:pointer;transition:background .13s;}
+.board-item:hover{background:#ede4d0;}
+.board-title{font-size:.82rem;font-weight:600;color:var(--tx1);}
+.board-meta{font-size:.65rem;color:var(--tx3);}
+.board-cat{font-size:.62rem;background:#ede4d0;border:1px solid var(--border2);color:var(--tx2);border-radius:3px;padding:1px 5px;}

@@ -26,7 +26,7 @@
     <div class="auth-card">
       <div class="auth-tabs">
         <button class="auth-tab on" onclick="authSwitch('login',this)">로그인</button>
-        <button class="auth-tab" onclick="openInviteCheck()">회원가입</button>
+        <button class="auth-tab" onclick="authSwitch('signup',this)">회원가입</button>
       </div>
       <div id="auth-error" class="auth-error" style="display:none;"></div>
       <div id="form-login">
@@ -52,6 +52,9 @@
       <div class="header-logo">북로그</div>
       <div class="header-actions">
         <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
+        <button class="header-btn" id="notif-btn" onclick="openNotifModal()" title="알림" style="position:relative;">
+          🔔<span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#c0392b;color:#fff;font-size:.45rem;border-radius:50%;width:14px;height:14px;display:none;align-items:center;justify-content:center;font-weight:700;"></span>
+        </button>
         <button class="header-btn" onclick="openProfile()" title="프로필">☰</button>
       </div>
     </div>
@@ -62,8 +65,8 @@
       <button class="tab on" onclick="sw('books',this)">📚 서재</button>
       <button class="tab" onclick="sw('quotes',this)">✍️ 문장</button>
       <button class="tab" onclick="sw('record',this)">📅 기록</button>
-      <button class="tab" onclick="sw('board',this)">💬 게시판</button>
       <button class="tab" onclick="sw('graph',this)">📊 통계</button>
+      <button class="tab tab-right" onclick="sw('board',this)">🌲 산책</button>
     </div>
   </div>
 
@@ -195,7 +198,7 @@
           </div>
           <div style="display:flex;gap:.4rem;">
             <input type="text" id="board-search" class="search-input" placeholder="검색..." style="width:140px;font-size:.75rem;" oninput="renderBoard()">
-            <button class="search-btn" onclick="openPostModal()">글쓰기</button>
+            <button class="search-btn" onclick="openPostWrite()">글쓰기</button>
           </div>
         </div>
         <div id="board-notice-wrap"></div>
@@ -508,41 +511,7 @@
   </div>
 </div>
 
-<!-- 게시글 작성 모달 -->
-<div id="modal-post" class="modal-overlay" style="display:none;">
-  <div class="modal modal-wide">
-    <div class="modal-header">
-      <div class="modal-title" id="post-modal-title">글쓰기</div>
-      <button class="modal-close" onclick="closeModal('modal-post')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label">제목</label>
-        <input type="text" id="post-title" class="form-input" placeholder="제목을 입력하세요">
-      </div>
-      <div class="form-group">
-        <label class="form-label">내용</label>
-        <textarea id="post-content" class="form-textarea" rows="8" placeholder="내용을 입력하세요..."></textarea>
-      </div>
-      <div style="display:flex;gap:1rem;align-items:center;">
-        <label class="toggle-wrap" style="gap:.5rem;">
-          <input type="checkbox" id="post-anonymous" checked>
-          <span class="toggle"></span>
-          <span style="font-size:.75rem;color:var(--tx2);">익명으로 작성</span>
-        </label>
-        <label class="toggle-wrap" id="notice-toggle-wrap" style="gap:.5rem;display:none;">
-          <input type="checkbox" id="post-is-notice">
-          <span class="toggle"></span>
-          <span style="font-size:.75rem;color:var(--tx2);">공지로 등록</span>
-        </label>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal('modal-post')">취소</button>
-      <button class="btn-save" onclick="savePost()">등록</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- 게시글 상세 모달 -->
 <div id="modal-post-detail" class="modal-overlay" style="display:none;">
@@ -574,6 +543,75 @@
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-invite')">취소</button>
       <button class="btn-save" onclick="verifyInviteCode()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 신고 모달 -->
+<div id="modal-report" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🚨 신고하기</div>
+      <button class="modal-close" onclick="closeModal('modal-report')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="report-post-id">
+      <p style="font-size:.78rem;color:var(--tx2);margin-bottom:.8rem;">게시글: <strong id="report-post-title"></strong></p>
+      <div class="form-group">
+        <label class="form-label">신고 사유</label>
+        <textarea id="report-reason" class="form-textarea" rows="4" placeholder="신고 사유를 구체적으로 입력해주세요..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-report')">취소</button>
+      <button class="btn-save" style="background:#c0392b;" onclick="submitReport()">신고 접수</button>
+    </div>
+  </div>
+</div>
+
+<!-- 알림 모달 -->
+<div id="modal-notif" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔔 알림</div>
+      <button class="modal-close" onclick="closeModal('modal-notif')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <div id="notif-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 글쓰기 모달 -->
+<div id="modal-post" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="post-write-title">글쓰기</div>
+      <button class="modal-close" onclick="closeModal('modal-post')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">제목</label>
+        <input type="text" id="post-title" class="form-input" placeholder="제목을 입력하세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">내용</label>
+        <textarea id="post-content" class="form-textarea" rows="8" placeholder="자유롭게 이야기를 나눠보세요..."></textarea>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;cursor:pointer;">
+          <input type="checkbox" id="post-anonymous" checked> 익명으로 작성
+        </label>
+        <div id="post-notice-wrap" style="display:none;">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;cursor:pointer;">
+            <input type="checkbox" id="post-is-notice"> 📌 공지로 등록
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-post')">취소</button>
+      <button class="btn-save" onclick="submitPost()">등록</button>
     </div>
   </div>
 </div>

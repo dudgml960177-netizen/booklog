@@ -46,8 +46,10 @@ async function init() {
       currentUser = data.session.user;
       await loadData();
       loadGoals();
+      loadUserRole();
       showScreen('app');
       buildBooks();
+      loadNotifications();
     } else { showScreen('auth'); }
   } catch(e) { showScreen('auth'); }
 }
@@ -88,6 +90,11 @@ async function doLogin() {
     password: document.getElementById('login-pw').value
   });
   if (error) showAuthError(error.message);
+}
+
+function openInviteCheck() {
+  // 회원가입 탭으로 전환 (초대코드 확인 없이 바로)
+  authSwitch('signup', document.querySelectorAll('.auth-tab')[1]);
 }
 async function doSignup() {
   const email = document.getElementById('signup-email').value.trim();
@@ -1170,6 +1177,74 @@ async function saveProfile() {
 }
 
 
+
+// ── 신고 & 알림
+function openReportModal(postId, postTitle) {
+  document.getElementById('report-post-id').value = postId;
+  document.getElementById('report-post-title').textContent = postTitle;
+  document.getElementById('report-reason').value = '';
+  openModal('modal-report');
+}
+
+async function submitReport() {
+  const postId = document.getElementById('report-post-id').value;
+  const reason = document.getElementById('report-reason').value.trim();
+  if(!reason) { alert('신고 사유를 입력해주세요.'); return; }
+  // reports 테이블에 저장
+  const { error } = await sb.from('reports').insert({
+    post_id: postId,
+    reporter_id: currentUser.id,
+    reason,
+    created_at: new Date().toISOString()
+  });
+  if(error) { alert('신고 중 오류가 발생했어요.'); return; }
+  // 관리자 알림 생성
+  const { data: admins } = await sb.from('profiles').select('id').eq('role','admin');
+  if(admins?.length) {
+    await sb.from('notifications').insert(
+      admins.map(a => ({
+        user_id: a.id,
+        type: 'report',
+        message: `신고가 접수됐어요: "${document.getElementById('report-post-title').textContent}" — 사유: ${reason}`,
+        post_id: postId,
+        created_at: new Date().toISOString(),
+        is_read: false
+      }))
+    );
+  }
+  closeModal('modal-report');
+  alert('신고가 접수됐어요. 검토 후 조치할게요.');
+}
+
+async function loadNotifications() {
+  if(!currentUser || curUserRole !== 'admin') return;
+  const { data } = await sb.from('notifications').select('*')
+    .eq('user_id', currentUser.id).eq('is_read', false).order('created_at', {ascending:false});
+  const count = data?.length || 0;
+  const badge = document.getElementById('notif-badge');
+  if(badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
+  const list = document.getElementById('notif-list');
+  if(list) {
+    list.innerHTML = (data||[]).map(n => `
+      <div style="padding:.6rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;cursor:pointer;" onclick="markNotifRead('${n.id}','${n.post_id||''}')">
+        <div style="color:var(--tx1);margin-bottom:.2rem;">${n.message}</div>
+        <div style="color:var(--tx3);font-size:.65rem;">${n.created_at?.slice(0,16).replace('T',' ')}</div>
+      </div>`).join('') || '<div style="padding:.8rem;font-size:.75rem;color:var(--tx3);text-align:center;">새 알림이 없어요.</div>';
+  }
+}
+
+async function markNotifRead(notifId, postId) {
+  await sb.from('notifications').update({is_read:true}).eq('id', notifId);
+  closeModal('modal-notif');
+  if(postId) { await sw('board', document.querySelector('.tab:nth-child(4)')); openPostDetail(postId); }
+  loadNotifications();
+}
+
+function openNotifModal() {
+  openModal('modal-notif');
+  loadNotifications();
+}
+
 // ── 모달 유틸
 function openModal(id){document.getElementById(id).style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
@@ -1257,8 +1332,8 @@ async function renderBoardList() {
 
 function filterBoard(f, btn) {
   boardFilter=f; boardPage=1;
-  document.querySelectorAll('.board-tab').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  document.querySelectorAll('#board-all-btn,#board-notice-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
   renderBoardList();
 }
 
@@ -1282,7 +1357,7 @@ function openPostWrite(editId=null) {
       document.getElementById('post-is-notice').checked = p.is_notice;
     });
   }
-  openModal('modal-post-write');
+  openModal('modal-post');
 }
 
 async function submitPost() {
@@ -1298,7 +1373,7 @@ async function submitPost() {
   } else {
     await sb.from('posts').insert({...payload, created_at:new Date().toISOString()});
   }
-  closeModal('modal-post-write');
+  closeModal('modal-post');
   buildBoard();
 }
 
@@ -1345,6 +1420,13 @@ async function openPostDetail(postId) {
 
   const footer = document.getElementById('post-detail-footer');
   footer.innerHTML = '';
+  // 신고 버튼 (본인 글 제외)
+  if(!isMine) {
+    const rpBtn=document.createElement('button');rpBtn.className='btn-cancel';rpBtn.textContent='🚨 신고';
+    rpBtn.style.cssText='color:#c0392b;border-color:#e8b8a8;font-size:.75rem;';
+    rpBtn.onclick=()=>openReportModal(postId, post.title);
+    footer.appendChild(rpBtn);
+  }
   if(isMine||isAdmin) {
     const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';editBtn.onclick=()=>{closeModal('modal-post-detail');openPostWrite(postId);};
     const delBtn=document.createElement('button');delBtn.className='btn-cancel btn-delete';delBtn.textContent='삭제';delBtn.onclick=()=>deletePost(postId);
