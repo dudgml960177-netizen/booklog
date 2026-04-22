@@ -24,15 +24,18 @@ const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY
     storage: window.localStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: 'implicit',
   }
 }));
-// 30분마다 토큰 갱신 (세션 만료 방지)
+// 10분마다 토큰 갱신 (세션 만료 방지)
 setInterval(async () => {
   if(currentUser) {
-    const { error } = await sb.auth.refreshSession();
-    if(error) console.warn('token refresh failed:', error.message);
+    try {
+      const { error } = await sb.auth.refreshSession();
+      if(error) console.warn('token refresh failed:', error.message);
+    } catch(e) { console.warn('refresh exception:', e); }
   }
-}, 30 * 60 * 1000);
+}, 10 * 60 * 1000);
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
@@ -121,13 +124,21 @@ async function init() {
     } catch(e) {}
   }
 
+  // 최대 8초 대기 (느린 네트워크 대응)
   const timeout = setTimeout(() => {
     if(document.getElementById('screen-loading').style.display !== 'none') {
+      console.warn('Session load timeout - showing auth screen');
       showScreen('auth');
+      loadSavedEmail();
     }
-  }, 4000);
+  }, 8000);
   try {
-    const { data } = await sb.auth.getSession();
+    let { data } = await sb.auth.getSession();
+    // 세션 없으면 refreshSession 한 번 더 시도
+    if(!data?.session) {
+      const refreshResult = await sb.auth.refreshSession();
+      if(refreshResult.data?.session) data = refreshResult.data;
+    }
     clearTimeout(timeout);
     if (data?.session) {
       currentUser = data.session.user;
@@ -137,10 +148,14 @@ async function init() {
       showScreen('app');
       buildBooks();
       loadNotifications();
-    } else { showScreen('auth'); }
+    } else {
+      showScreen('auth');
+      loadSavedEmail();
+    }
   } catch(e) {
     clearTimeout(timeout);
     showScreen('auth');
+    loadSavedEmail();
   }
 }
 
@@ -154,7 +169,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
     showScreen('app'); buildBooks();
     setTimeout(loadNotifications, 500); // 화면 로드 후 알림 로드
   }
-  if (event === 'SIGNED_OUT') { currentUser=null; allBooks=[]; allQuotes=[]; showScreen('auth'); }
+  if (event === 'SIGNED_OUT') { currentUser=null; allBooks=[]; allQuotes=[]; showScreen('auth'); loadSavedEmail(); }
   if (event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
   if (event === 'PASSWORD_RECOVERY') {
     showScreen('auth');
@@ -174,6 +189,17 @@ async function loadData() {
 }
 
 // ── 인증
+
+function loadSavedEmail() {
+  const saved = localStorage.getItem('bl_saved_email');
+  const emailEl = document.getElementById('login-email');
+  const chkEl = document.getElementById('save-email-chk');
+  if(saved && emailEl) {
+    emailEl.value = saved;
+    if(chkEl) chkEl.checked = true;
+  }
+}
+
 function authSwitch(tab, btn) {
   // auth-tab 버튼 on/off
   document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('on'));
@@ -186,11 +212,20 @@ function authSwitch(tab, btn) {
   document.getElementById('auth-error').style.display = 'none';
 }
 async function doLogin() {
-  const { error } = await sb.auth.signInWithPassword({
-    email: document.getElementById('login-email').value.trim(),
-    password: document.getElementById('login-pw').value
-  });
-  if (error) showAuthError(error.message);
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  if(!email || !pw) { showAuthError('이메일과 비밀번호를 입력해주세요.'); return; }
+  const saveChk = document.getElementById('save-email-chk');
+  if(saveChk?.checked) localStorage.setItem('bl_saved_email', email);
+  else localStorage.removeItem('bl_saved_email');
+  const btn = document.querySelector('.auth-btn');
+  if(btn) { btn.textContent = '로그인 중...'; btn.disabled = true; }
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if(error) showAuthError(error.message);
+  } finally {
+    if(btn) { btn.textContent = '로그인'; btn.disabled = false; }
+  }
 }
 
 function openInviteCheck() {
@@ -1413,8 +1448,12 @@ async function submitReport() {
 // 관리자: 게시글 블라인드
 async function toggleBlindPost(postId, authorId, hide) {
   try {
-    const { error } = await sb.from('posts').update({is_hidden:hide}).eq('id',postId);
+    const { data, error } = await sb.from('posts')
+      .update({is_hidden:hide})
+      .eq('id',postId)
+      .select();
     if(error) throw error;
+    if(!data?.length) throw new Error('업데이트 권한이 없어요. Supabase RLS 정책을 확인해주세요.');
     if(authorId) {
       await sb.from('notifications').insert({
         user_id:authorId, type:'blind',
@@ -1431,8 +1470,12 @@ async function toggleBlindPost(postId, authorId, hide) {
 // 관리자: 사용자 제한/해제
 async function banUser(userId, ban) {
   try {
-    const { error } = await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+    const { data, error } = await sb.from('profiles')
+      .update({is_banned:ban})
+      .eq('id',userId)
+      .select();
     if(error) throw error;
+    if(!data?.length) throw new Error('업데이트 권한이 없어요. Supabase profiles UPDATE 정책 필요');
     await sb.from('notifications').insert({
       user_id:userId, type:'ban',
       message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
@@ -1530,14 +1573,21 @@ async function goToPost(postId) {
 async function deleteNotif(notifId) {
   event?.stopPropagation();
   try {
-    const { error } = await sb.from('notifications').delete().eq('id', notifId);
-    if(error) throw error;
-    loadNotifications();
+    // user_id 조건 추가해서 RLS 통과
+    const { error } = await sb.from('notifications')
+      .delete()
+      .eq('id', notifId)
+      .eq('user_id', currentUser.id);
+    if(error) {
+      // user_id가 다른 경우(broadcast) - is_read만 true로 처리
+      await sb.from('notifications').update({is_read:true}).eq('id', notifId);
+    }
   } catch(e) {
     console.warn('notif delete error:', e.message);
-    // 실패해도 로컬에서 제거
-    loadNotifications();
   }
+  // 캐시에서 제거 후 화면 갱신
+  if(window._notifCache) delete window._notifCache[notifId];
+  loadNotifications();
 }
 
 function openNotifModal() {
@@ -1754,8 +1804,12 @@ function renderMemberList(filter='') {
 
 async function toggleMemberBan(userId, ban) {
   try {
-    const { error } = await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+    const { data, error } = await sb.from('profiles')
+      .update({is_banned:ban})
+      .eq('id',userId)
+      .select();
     if(error) throw error;
+    if(!data?.length) throw new Error('업데이트 권한이 없어요. Supabase profiles UPDATE 정책 필요');
     await sb.from('notifications').insert({
       user_id:userId, type:'ban',
       message: ban ? '⛔ 관리자에 의해 계정이 제한되었습니다.' : '✅ 계정 제한이 해제되었습니다.',
@@ -1969,6 +2023,9 @@ async function openPostDetail(postId) {
 
   const detailBody = document.getElementById('post-detail-body');
   if(!detailBody) { openModal('modal-post-detail'); return; }
+  // 제목 설정
+  const titleEl = document.getElementById('post-detail-title');
+  if(titleEl) titleEl.textContent = (post.is_notice ? '📌 ' : '') + post.title;
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[post.category]||'';
 
   // 좋아요 중복 방지 - localStorage 기반
