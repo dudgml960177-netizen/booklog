@@ -396,10 +396,11 @@
       <div class="profile-avatar" id="profile-avatar"></div>
       <div class="profile-name" id="profile-name"></div>
       <div class="profile-email" id="profile-email"></div>
-      <div class="form-group" style="margin-top:1.2rem;">
+      <div class="form-group" style="margin-top:1rem;">
         <label class="form-label">닉네임 변경</label>
         <input type="text" id="profile-display-name" class="form-input">
       </div>
+      <div id="profile-invite-codes" style="margin-bottom:.8rem;"></div>
       <div class="modal-footer">
         <button class="btn-cancel" onclick="doLogout()">로그아웃</button>
         <button class="btn-save" onclick="saveProfile()">저장</button>
@@ -595,7 +596,10 @@
     </div>
     <div class="modal-body" style="padding:0;">
       <div id="notif-admin-bar" style="display:none;padding:.6rem .9rem;border-bottom:1px solid var(--border);background:#fdf8f0;">
-        <button class="add-quote-btn" onclick="openAdminMsgModal()" style="width:100%;text-align:center;">📢 전체 쪽지 발송</button>
+        <div style="display:flex;gap:.4rem;">
+          <button class="add-quote-btn" onclick="openAdminMsgModal()" style="flex:1;text-align:center;">📢 전체 쪽지</button>
+          <button class="add-quote-btn" onclick="openDirectMsgModal()" style="flex:1;text-align:center;">📩 개인 쪽지</button>
+        </div>
       </div>
       <div id="notif-list"></div>
     </div>
@@ -675,8 +679,35 @@
   </div>
 </div>
 
+<!-- 개인 쪽지 모달 -->
+<div id="modal-dm" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📩 개인 쪽지 발송</div>
+      <button class="modal-close" onclick="closeModal('modal-dm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">받는 사람 검색</label>
+        <div style="display:flex;gap:.4rem;">
+          <input type="text" id="dm-search-input" class="form-input" placeholder="닉네임으로 검색..." style="flex:1;">
+          <button class="search-btn" onclick="searchDmUser()">검색</button>
+        </div>
+        <div id="dm-user-list" style="margin-top:.4rem;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;max-height:160px;overflow-y:auto;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">메시지 내용</label>
+        <textarea id="dm-content" class="form-textarea" rows="4" placeholder="메시지를 입력하세요..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-dm')">취소</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=50"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>

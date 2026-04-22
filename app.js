@@ -174,6 +174,11 @@ async function doSignup() {
     await sb.from('profiles').upsert({id:data.user.id, username:name, display_name:name, role:'user'});
     await sb.from('invite_codes').update({used_by:data.user.id, used_at:new Date().toISOString()}).eq('code', code);
   }
+  // 신규 가입자에게 초대코드 1개 자동 발급
+  if(data.user) {
+    const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
+    await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
+  }
   showAuthError('가입 완료! 이메일 인증 후 로그인해주세요.', true);
 }
 async function doLogout() { await sb.auth.signOut(); closeModal('modal-profile'); }
@@ -240,9 +245,11 @@ async function bulkDelete() {
   if(!selectedIds.size){alert('삭제할 책을 선택해주세요.');return;}
   if(!confirm(`선택한 ${selectedIds.size}권을 삭제할까요?`))return;
   try {
-    for(const id of selectedIds){
+    const ids = [...selectedIds];
+    for(const id of ids){
       await sb.from('quotes').delete().eq('book_id',id);
-      await sb.from('books').delete().eq('id',id);
+      const {error} = await sb.from('books').delete().eq('id',id).eq('user_id',currentUser.id);
+      if(error) throw error;
     }
     selectedIds.clear(); selectMode=false;
     const btn=document.getElementById('select-mode-btn');
@@ -250,6 +257,7 @@ async function bulkDelete() {
     if(btn)btn.textContent='☑ 선택';
     if(delBtn)delBtn.style.display='none';
     await loadData(); buildBooks();
+    alert('삭제됐어요!');
   }catch(e){alert('삭제 오류: '+(e.message||'알 수 없는 오류'));}
 }
 
@@ -339,7 +347,7 @@ function renderQuotes() {
   }
   list.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
-    const color = book ? genreColor(book.genre) : '#b07030';
+    const color = randomQuoteColor(qt.book_id);
     const el = document.createElement('div'); el.className='qcard';
     let text = qt.text;
     if(q) {
@@ -357,9 +365,17 @@ function renderQuotes() {
     feed.appendChild(el);
   });
 }
+const QUOTE_COLORS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040','#7a6e9e','#6a8a6a','#9e7a5a'];
 function genreColor(genre) {
   const g = Array.isArray(genre)?genre[0]:genre;
   return {'소설':'#c4714a','에세이':'#7a9e7e','인문':'#5a8a8a','자기계발':'#c8a87a','과학':'#8a8aaa','시/시집':'#9a7090'}[g]||'#b07030';
+}
+function randomQuoteColor(bookId) {
+  // bookId 기반 일관된 색상 (같은 책은 항상 같은 색)
+  if(!bookId) return QUOTE_COLORS[0];
+  let hash = 0;
+  for(const c of bookId) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+  return QUOTE_COLORS[Math.abs(hash) % QUOTE_COLORS.length];
 }
 
 // ── 달력
@@ -431,21 +447,41 @@ async function saveTimer() {
   const bookId=sel?.value||timerBookId;
   if(!bookId){alert('책을 선택해주세요.');return;}
   const book=allBooks.find(b=>b.id===bookId);
+  if(!book){alert('책을 찾을 수 없어요.');return;}
   const mins=Math.round(timerSeconds/60);
   const today=new Date().toISOString().slice(0,10);
-  await sb.from('books').update({reading_time:(book?.reading_time||0)+mins,last_read:today}).eq('id',bookId);
-  clearInterval(timerInterval);timerRunning=false;timerSeconds=0;
-  await loadData(); updateTimerDisplay(); buildTimer();
-  alert(`${mins}분 저장됐어요!`);
+  try {
+    const {error} = await sb.from('books').update({
+      reading_time:(book.reading_time||0)+mins,
+      last_read:today
+    }).eq('id',bookId).eq('user_id',currentUser.id);
+    if(error) throw error;
+    clearInterval(timerInterval);timerRunning=false;timerSeconds=0;
+    await loadData(); updateTimerDisplay(); buildTimer();
+    alert(`${mins}분 저장됐어요!`);
+  } catch(e){ alert('저장 오류: '+(e.message||'알 수 없는 오류')); }
 }
 function moveTimerMonth(dir) {
-  timerTrackM+=dir;
-  if(timerTrackM>11){timerTrackM=0;timerTrackY++;}
-  if(timerTrackM<0){timerTrackM=11;timerTrackY--;}
+  if(timerPeriod === 'week') {
+    // 주 단위 이동
+    const cur = new Date(timerTrackY, timerTrackM, 1);
+    cur.setDate(cur.getDate() + dir * 7);
+    timerTrackY = cur.getFullYear();
+    timerTrackM = cur.getMonth();
+    // 이동 후 해당 주의 일요일로 설정
+    window._timerWeekOffset = (window._timerWeekOffset||0) + dir;
+  } else if(timerPeriod === 'year') {
+    timerTrackY += dir;
+  } else {
+    timerTrackM += dir;
+    if(timerTrackM>11){timerTrackM=0;timerTrackY++;}
+    if(timerTrackM<0){timerTrackM=11;timerTrackY--;}
+  }
   buildTrackerGrid();
 }
 function setTimerPeriod(p) {
   timerPeriod=p;
+  if(p==='week') window._timerWeekOffset=0;
   document.querySelectorAll('.tracker-period-btn').forEach(b=>b.classList.toggle('on',b.dataset.period===p));
   buildTrackerGrid();
 }
@@ -455,7 +491,6 @@ function buildTrackerGrid() {
   wrap.innerHTML = '';
   wrap.style.cssText = '';
 
-  // dayMap
   const dayMap = {};
   allBooks.forEach(b => {
     if(!b.last_read || !b.reading_time) return;
@@ -464,72 +499,72 @@ function buildTrackerGrid() {
   const allVals = Object.values(dayMap);
   const maxMins = allVals.length ? Math.max(...allVals) : 1;
   const fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const today = new Date();
 
   if(timerPeriod === 'week') {
-    // ── 주간: 이번 주 일요일~토요일
-    const today = new Date();
+    // 이번 주 일요일 기준 + offset(주 단위)
+    const offset = window._timerWeekOffset || 0;
     const sunday = new Date(today);
-    sunday.setDate(today.getDate() - today.getDay()); // 이번 주 일요일
+    sunday.setDate(today.getDate() - today.getDay() + offset * 7);
+    // 주차 레이블
+    const saturday = new Date(sunday); saturday.setDate(sunday.getDate()+6);
+    const labelEl = document.getElementById('timer-month-label');
+    if(labelEl) {
+      const mo = sunday.getMonth()+1;
+      // 몇 번째 주인지 계산
+      const weekNum = Math.ceil(sunday.getDate()/7);
+      labelEl.textContent = `${sunday.getFullYear()}년 ${mo}월 ${weekNum}주`;
+    }
     const days = Array.from({length:7}, (_,i) => {
       const d = new Date(sunday); d.setDate(sunday.getDate()+i); return d;
     });
+    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:5px;';
     const DOW = ['일','월','화','수','목','금','토'];
-    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;';
-    // 요일 헤더
-    days.forEach(d => {
+    days.forEach((d,i) => {
       const h = document.createElement('div');
-      h.style.cssText = 'font-size:.6rem;color:var(--tx3);text-align:center;padding:.15rem 0;font-weight:600;';
-      h.textContent = DOW[d.getDay()]; wrap.appendChild(h);
+      h.style.cssText = 'font-size:.6rem;color:var(--tx3);text-align:center;padding:.12rem 0;font-weight:600;';
+      h.textContent = DOW[i]; wrap.appendChild(h);
     });
-    // 날짜 셀
     days.forEach(d => {
       const key = fmtKey(d);
       const mins = dayMap[key]||0;
       const intensity = mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
-      const isToday = fmtKey(d)===fmtKey(new Date());
+      const isToday = fmtKey(d)===fmtKey(today);
       const cell = document.createElement('div');
-      cell.style.cssText = `aspect-ratio:1;border-radius:6px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.06)'};`;
+      cell.style.cssText = `aspect-ratio:1;border-radius:8px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.06)'};`;
       cell.title = `${d.getMonth()+1}/${d.getDate()}: ${mins?mins+'분':'없음'}`;
-      cell.innerHTML = `<span style="font-size:.62rem;font-weight:600;color:${intensity>=2?'#fff':'var(--tx2)'};">${d.getDate()}</span>
-        ${mins?`<span style="font-size:.52rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins}m</span>`:''}`;
+      cell.innerHTML = `<span style="font-size:.7rem;font-weight:600;color:${intensity>=2?'#fff':'var(--tx2)'};">${d.getDate()}</span>
+        ${mins?`<span style="font-size:.55rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins}m</span>`:''}`;
       wrap.appendChild(cell);
     });
-    // 총합
     const total = days.reduce((a,d)=>a+(dayMap[fmtKey(d)]||0),0);
-    const lbl = document.getElementById('timer-month-label');
-    if(lbl) lbl.textContent = `이번 주 — ${Math.floor(total/60)}h ${total%60}m`;
     const sum = document.getElementById('tracker-summary');
-    if(sum) sum.textContent = '';
+    if(sum) sum.textContent = `이번 주 ${Math.floor(total/60)}h ${total%60}m`;
 
   } else if(timerPeriod === 'month') {
-    // ── 월간: 달력 형태 (7열 그리드)
     const y = timerTrackY, m = timerTrackM;
     const daysInMonth = new Date(y,m+1,0).getDate();
     const firstDay = new Date(y,m,1).getDay();
     const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-    const lbl = document.getElementById('timer-month-label');
-    if(lbl) lbl.textContent = `${y}년 ${MN[m]}`;
-
+    const labelEl = document.getElementById('timer-month-label');
+    if(labelEl) labelEl.textContent = `${y}년 ${MN[m]}`;
     wrap.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:3px;';
-    const DOW2=['일','월','화','수','목','금','토'];
-    DOW2.forEach(d=>{
+    ['일','월','화','수','목','금','토'].forEach(d=>{
       const h=document.createElement('div');
-      h.style.cssText='font-size:.6rem;color:var(--tx3);text-align:center;padding:.12rem 0;font-weight:600;';
+      h.style.cssText='font-size:.58rem;color:var(--tx3);text-align:center;padding:.1rem 0;font-weight:600;';
       h.textContent=d; wrap.appendChild(h);
     });
-    // 앞 빈칸
     for(let i=0;i<firstDay;i++){
       const e=document.createElement('div');
       e.style.cssText='aspect-ratio:1;border-radius:5px;background:#f5f0e8;opacity:.3;';
       wrap.appendChild(e);
     }
-    // 날짜 셀
-    const today2 = fmtKey(new Date());
+    const todayKey = fmtKey(today);
     for(let d=1;d<=daysInMonth;d++){
       const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const mins=dayMap[key]||0;
       const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
-      const isToday=key===today2;
+      const isToday=key===todayKey;
       const cell=document.createElement('div');
       cell.style.cssText=`aspect-ratio:1;border-radius:5px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.05)'};cursor:default;transition:transform .12s;`;
       cell.title=`${m+1}월 ${d}일: ${mins?mins+'분':'없음'}`;
@@ -539,28 +574,23 @@ function buildTrackerGrid() {
       cell.onmouseleave=()=>cell.style.transform='scale(1)';
       wrap.appendChild(cell);
     }
-    const total = Object.entries(dayMap)
-      .filter(([k])=>k.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
-      .reduce((a,[,v])=>a+v,0);
+    const total=Object.entries(dayMap).filter(([k])=>k.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)).reduce((a,[,v])=>a+v,0);
     const sum=document.getElementById('tracker-summary');
     if(sum) sum.textContent=`이달 ${Math.floor(total/60)}h ${total%60}m`;
 
   } else {
-    // ── 연간: 12달 x 간소 그리드
+    // 연간
     const y = timerTrackY;
-    const lbl = document.getElementById('timer-month-label');
-    if(lbl) lbl.textContent = `${y}년`;
+    const labelEl = document.getElementById('timer-month-label');
+    if(labelEl) labelEl.textContent = `${y}년`;
     wrap.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:5px;';
     const MN2=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-    const today3 = new Date();
     for(let mo=0;mo<12;mo++){
       const card=document.createElement('div');
       card.style.cssText='background:#faf6ef;border:1px solid var(--border);border-radius:6px;padding:.4rem .45rem;';
       const days=new Date(y,mo+1,0).getDate();
       const fd=new Date(y,mo,1).getDay();
-      const moTotal=Object.entries(dayMap)
-        .filter(([k])=>k.startsWith(`${y}-${String(mo+1).padStart(2,'0')}`))
-        .reduce((a,[,v])=>a+v,0);
+      const moTotal=Object.entries(dayMap).filter(([k])=>k.startsWith(`${y}-${String(mo+1).padStart(2,'0')}`)).reduce((a,[,v])=>a+v,0);
       const moLabel=document.createElement('div');
       moLabel.style.cssText='font-size:.58rem;font-weight:600;color:var(--tx2);margin-bottom:3px;display:flex;justify-content:space-between;';
       moLabel.innerHTML=`<span>${MN2[mo]}</span>${moTotal?`<span style="color:var(--acc);font-size:.52rem;">${Math.floor(moTotal/60)}h${moTotal%60}m</span>`:''}`;
@@ -572,7 +602,7 @@ function buildTrackerGrid() {
         const key=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const mins=dayMap[key]||0;
         const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
-        const isT=(today3.getFullYear()===y&&today3.getMonth()===mo&&today3.getDate()===d);
+        const isT=(today.getFullYear()===y&&today.getMonth()===mo&&today.getDate()===d);
         const cell=document.createElement('div');
         cell.style.cssText=`aspect-ratio:1;border-radius:1px;background:${TRACKER_COLORS[intensity]};${isT?'outline:1.5px solid var(--acc);':''}`;
         cell.title=`${mo+1}/${d}: ${mins?mins+'분':'없음'}`;
@@ -581,9 +611,7 @@ function buildTrackerGrid() {
       card.appendChild(miniGrid);
       wrap.appendChild(card);
     }
-    const yearTotal=Object.entries(dayMap)
-      .filter(([k])=>k.startsWith(String(y)))
-      .reduce((a,[,v])=>a+v,0);
+    const yearTotal=Object.entries(dayMap).filter(([k])=>k.startsWith(String(y))).reduce((a,[,v])=>a+v,0);
     const sum=document.getElementById('tracker-summary');
     if(sum) sum.textContent=`연간 ${Math.floor(yearTotal/60)}h ${yearTotal%60}m`;
   }
@@ -1227,12 +1255,37 @@ async function openProfile() {
   document.getElementById('profile-email').textContent=currentUser.email;
   document.getElementById('profile-display-name').value=tempName;
   openModal('modal-profile');
-  const{data:profile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
-  if(profile){const name=profile.display_name||profile.username||tempName;document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();document.getElementById('profile-name').textContent=name;document.getElementById('profile-display-name').value=name;}
+  const[{data:profile},{data:myCodes}]=await Promise.all([
+    sb.from('profiles').select('*').eq('id',currentUser.id).single(),
+    sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
+  ]);
+  if(profile){
+    const name=profile.display_name||profile.username||tempName;
+    document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
+    document.getElementById('profile-name').textContent=name;
+    document.getElementById('profile-display-name').value=name;
+  }
+  // 초대코드 표시
+  const codeWrap=document.getElementById('profile-invite-codes');
+  if(codeWrap && myCodes) {
+    const available=myCodes.filter(c=>!c.used_by);
+    const used=myCodes.filter(c=>c.used_by);
+    codeWrap.innerHTML=`<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
+      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
+        <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
+      +(available.length===0?'<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
+      +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
+  }
 }
 async function saveProfile() {
-  const name=document.getElementById('profile-display-name').value.trim();if(!name)return;
-  await sb.from('profiles').update({display_name:name}).eq('id',currentUser.id);closeModal('modal-profile');
+  const name = document.getElementById('profile-display-name')?.value.trim();
+  if(!name){alert('닉네임을 입력해주세요.');return;}
+  try {
+    const {error} = await sb.from('profiles').update({display_name:name}).eq('id',currentUser.id);
+    if(error) throw error;
+    closeModal('modal-profile');
+    alert('닉네임이 변경됐어요!');
+  } catch(e){ alert('저장 오류: '+(e.message||JSON.stringify(e))); }
 }
 
 
@@ -1248,31 +1301,43 @@ function openReportModal(postId, postTitle) {
 async function submitReport() {
   const postId = document.getElementById('report-post-id').value;
   const reason = document.getElementById('report-reason').value.trim();
+  const postTitle = document.getElementById('report-post-title').textContent;
   if(!reason) { alert('신고 사유를 입력해주세요.'); return; }
-  // reports 테이블에 저장
-  const { error } = await sb.from('reports').insert({
-    post_id: postId,
-    reporter_id: currentUser.id,
-    reason,
-    created_at: new Date().toISOString()
-  });
-  if(error) { alert('신고 중 오류가 발생했어요.'); return; }
-  // 관리자 알림 생성
-  const { data: admins } = await sb.from('profiles').select('id').eq('role','admin');
-  if(admins?.length) {
-    await sb.from('notifications').insert(
-      admins.map(a => ({
-        user_id: a.id,
-        type: 'report',
-        message: `신고가 접수됐어요: "${document.getElementById('report-post-title').textContent}" — 사유: ${reason}`,
-        post_id: postId,
-        created_at: new Date().toISOString(),
-        is_read: false
-      }))
-    );
-  }
-  closeModal('modal-report');
-  alert('신고가 접수됐어요. 검토 후 조치할게요.');
+  try {
+    await sb.from('reports').insert({
+      post_id:postId, reporter_id:currentUser.id,
+      reason, created_at:new Date().toISOString()
+    });
+    const { data: admins } = await sb.from('profiles').select('id').eq('role','admin');
+    if(admins?.length) {
+      await sb.from('notifications').insert(
+        admins.map(a => ({
+          user_id:a.id, sender_id:currentUser.id,
+          type:'report',
+          message:`🚨 신고 접수: "${postTitle}" — ${reason}`,
+          post_id:postId, is_read:false,
+          created_at:new Date().toISOString()
+        }))
+      );
+    }
+    closeModal('modal-report');
+    alert('신고가 접수됐어요.');
+    await loadNotifications();
+  } catch(e){ alert('신고 오류: '+(e.message||'알 수 없는 오류')); }
+}
+
+// 관리자: 게시글 블라인드
+async function toggleBlindPost(postId, hide) {
+  await sb.from('posts').update({is_hidden:hide}).eq('id',postId);
+  closeModal('modal-post-detail');
+  buildBoard();
+}
+
+// 관리자: 사용자 제한
+async function banUser(userId, ban) {
+  await sb.from('profiles').update({is_banned:ban}).eq('id',userId);
+  alert(ban?'사용자를 제한했어요.':'제한을 해제했어요.');
+  buildBoard();
 }
 
 async function loadNotifications() {
@@ -1310,6 +1375,9 @@ async function markNotifRead(notifId, postId) {
 function openNotifModal() {
   openModal('modal-notif');
   loadNotifications();
+  // 관리자 전용 버튼 표시
+  const adminBar = document.getElementById('notif-admin-bar');
+  if(adminBar) adminBar.style.display = curUserRole==='admin' ? '' : 'none';
 }
 
 
@@ -1317,21 +1385,65 @@ function openNotifModal() {
 async function sendAdminMessage() {
   const msg = document.getElementById('admin-msg-input')?.value.trim();
   if(!msg) { alert('메시지를 입력해주세요.'); return; }
-  // 모든 유저에게 알림 전송
-  const { data: users } = await sb.from('profiles').select('id').neq('id', currentUser.id);
-  if(!users?.length) { alert('전송할 사용자가 없어요.'); return; }
-  const notifs = users.map(u => ({
-    user_id: u.id,
-    sender_id: currentUser.id,
-    type: 'admin_message',
-    message: `📢 관리자 메시지: ${msg}`,
-    is_read: false,
-    created_at: new Date().toISOString()
-  }));
-  await sb.from('notifications').insert(notifs);
-  document.getElementById('admin-msg-input').value = '';
-  closeModal('modal-admin-msg');
-  alert(`${users.length}명에게 메시지를 전송했어요.`);
+  try {
+    const { data: users, error } = await sb.from('profiles').select('id');
+    if(error) throw error;
+    const targets = (users||[]).filter(u => u.id !== currentUser.id);
+    if(!targets.length) { alert('전송할 다른 사용자가 없어요.'); return; }
+    const notifs = targets.map(u => ({
+      user_id: u.id,
+      sender_id: currentUser.id,
+      type: 'admin_message',
+      message: `📢 관리자 메시지: ${msg}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    }));
+    await sb.from('notifications').insert(notifs);
+    document.getElementById('admin-msg-input').value = '';
+    closeModal('modal-admin-msg');
+    alert(`${targets.length}명에게 메시지를 전송했어요.`);
+  } catch(e) { alert('전송 오류: '+(e.message||'알 수 없는 오류')); }
+}
+
+// 관리자 개인 메시지 (회원 검색 후 발송)
+async function openDirectMsgModal() {
+  if(curUserRole !== 'admin') return;
+  document.getElementById('dm-search-input').value = '';
+  document.getElementById('dm-user-list').innerHTML = '';
+  document.getElementById('dm-content').value = '';
+  openModal('modal-dm');
+}
+async function searchDmUser() {
+  const q = document.getElementById('dm-search-input')?.value.trim().toLowerCase();
+  const { data } = await sb.from('profiles').select('id,display_name,username,role').neq('id',currentUser.id);
+  const filtered = q ? (data||[]).filter(u=>(u.display_name||u.username||'').toLowerCase().includes(q)) : (data||[]);
+  const list = document.getElementById('dm-user-list'); list.innerHTML='';
+  filtered.slice(0,10).forEach(u => {
+    const el=document.createElement('div');
+    el.style.cssText='padding:.4rem .6rem;cursor:pointer;border-radius:4px;font-size:.78rem;display:flex;align-items:center;gap:.5rem;';
+    el.innerHTML=`<span style="flex:1;">${u.display_name||u.username}</span><span style="font-size:.62rem;color:var(--tx3);">${u.role==='admin'?'관리자':'산책자'}</span>`;
+    el.onmouseenter=()=>el.style.background='#ede4d0';
+    el.onmouseleave=()=>el.style.background='';
+    el.onclick=()=>sendDm(u.id, u.display_name||u.username);
+    list.appendChild(el);
+  });
+}
+async function sendDm(receiverId, receiverName) {
+  const content = document.getElementById('dm-content')?.value.trim();
+  if(!content) { alert('메시지를 입력해주세요.'); return; }
+  try {
+    await sb.from('notifications').insert({
+      user_id: receiverId,
+      sender_id: currentUser.id,
+      type: 'admin_dm',
+      message: `📩 관리자 메시지: ${content}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+    document.getElementById('dm-content').value='';
+    closeModal('modal-dm');
+    alert(`${receiverName}님에게 메시지를 보냈어요.`);
+  } catch(e) { alert('전송 오류: '+(e.message||'알 수 없는 오류')); }
 }
 
 function openAdminMsgModal() {
@@ -1424,13 +1536,16 @@ async function renderBoardList() {
       el.className = 'board-item';
       el.onclick = () => openPostDetail(p.id);
       const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[p.category]||'';
+      const isBlind = p.is_hidden;
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.22rem;flex-wrap:wrap;">
           ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
-          <span class="board-title">${p.title}</span>
+          <span class="board-title" style="${isBlind?'color:var(--tx3);font-style:italic;':''}">
+            ${isBlind?'🚫 신고 게시글로 분류되었습니다.':p.title}
+          </span>
         </div>
         <div style="display:flex;align-items:center;gap:.6rem;">
-          <span class="board-meta">${p.is_anonymous?'익명':p.user_id?.slice(0,8)}</span>
+          <span class="board-meta">산책자</span>
           <span class="board-meta">${p.created_at?.slice(0,10)}</span>
           <span class="board-meta" style="margin-left:auto;">❤️ ${p.likes||0}</span>
         </div>`;
@@ -1483,25 +1598,30 @@ function openPostWrite(editId=null) {
 }
 
 async function submitPost() {
-  const title   = document.getElementById('post-title').value.trim();
-  // 에디터에서 innerHTML 읽기
+  const titleEl = document.getElementById('post-title');
   const editor  = document.getElementById('post-editor');
-  const content = editor ? editor.innerHTML.trim() : '';
-  const textContent = editor ? editor.innerText.trim() : '';
-  const anon    = true; // 항상 익명
-  const cat     = document.getElementById('post-category')?.value || 'free';
-  const notice  = curUserRole==='admin' && document.getElementById('post-is-notice')?.checked;
-  if(!title){ alert('제목을 입력해주세요.'); return; }
-  if(!textContent){ alert('내용을 입력해주세요.'); return; }
-  const payload = {user_id:currentUser.id, title, content, is_anonymous:anon, category:cat, is_notice:notice, updated_at:new Date().toISOString()};
+  if(!titleEl || !editor) { alert('폼을 찾을 수 없어요.'); return; }
+  const title = titleEl.value.trim();
+  const content = editor.innerHTML;
+  const textOnly = editor.innerText.trim();
+  if(!title) { alert('제목을 입력해주세요.'); titleEl.focus(); return; }
+  if(!textOnly) { alert('내용을 입력해주세요.'); editor.focus(); return; }
+  const cat = document.getElementById('post-category')?.value || 'free';
+  const notice = curUserRole==='admin' && document.getElementById('post-is-notice')?.checked;
+  const payload = {
+    user_id: currentUser.id, title, content,
+    is_anonymous: true, category: cat, is_notice: notice,
+    updated_at: new Date().toISOString()
+  };
   try {
     if(boardEditId) {
       await sb.from('posts').update(payload).eq('id', boardEditId);
     } else {
-      await sb.from('posts').insert({...payload, created_at:new Date().toISOString()});
+      await sb.from('posts').insert({...payload, created_at: new Date().toISOString()});
     }
     closeModal('modal-post');
-    buildBoard();
+    boardEditId = null;
+    await buildBoard();
   } catch(e) { alert('등록 오류: '+(e.message||'알 수 없는 오류')); }
 }
 
@@ -1521,21 +1641,48 @@ async function openPostDetail(postId) {
       <span class="board-meta">${post.is_anonymous?'익명':post.user_id?.slice(0,8)}</span>
       <span class="board-meta">${post.created_at?.slice(0,10)}</span>
     </div>
-    <div style="font-size:.85rem;line-height:1.9;color:var(--tx1);white-space:pre-wrap;border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;">${post.content}</div>
+    <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':' var(--tx1)'};white-space:pre-wrap;border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;font-style:${post.is_hidden?'italic':'normal'};">
+      ${post.is_hidden?'🚫 이 게시글은 신고 게시글로 분류되었습니다.':post.content}
+    </div>
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
       <button onclick="likePost('${postId}')" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:none;cursor:pointer;color:var(--tx2);">❤️ ${post.likes||0}</button>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:.75rem;">
       <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.55rem;">댓글 ${comms?.length||0}개</div>
       <div id="comment-list">
-        ${(comms||[]).map(c=>`
-          <div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;display:flex;gap:.5rem;align-items:flex-start;">
-            <div style="flex:1;">
-              <div style="font-size:.68rem;color:var(--tx3);margin-bottom:.18rem;">${c.is_anonymous?'익명':c.user_id?.slice(0,8)} · ${c.created_at?.slice(0,10)}</div>
-              <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
+        ${(comms||[]).filter(c=>!c.parent_id).map(c=>{
+          const isAuthor = c.user_id === post.user_id;
+          const authorLabel = isAuthor
+            ? '<span style="color:#2e7d32;font-weight:700;font-size:.65rem;">[작성자]</span> '
+            : '<span style="font-size:.65rem;color:var(--tx3);">산책자</span> ';
+          const replies = (comms||[]).filter(r=>r.parent_id===c.id);
+          const replyHtml = replies.map(r=>{
+            const rIsAuthor = r.user_id===post.user_id;
+            return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
+              <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${rIsAuthor?'<span style="color:#2e7d32;font-weight:700;">[작성자]</span> ':''}산책자 · ${r.created_at?.slice(0,10)}</div>
+              <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;">${r.content}</div>
+            </div>`;
+          }).join('');
+          return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
+            <div style="display:flex;align-items:flex-start;gap:.5rem;">
+              <div style="flex:1;">
+                <div style="font-size:.68rem;margin-bottom:.18rem;">${authorLabel}· ${c.created_at?.slice(0,10)}</div>
+                <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
+              </div>
+              <div style="display:flex;gap:.3rem;flex-shrink:0;">
+                <button onclick="showReplyInput('${c.id}')" style="font-size:.6rem;color:var(--acc);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;background:none;cursor:pointer;">답글</button>
+                ${c.user_id===currentUser.id||isAdmin?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;">삭제</button>`:''}
+              </div>
             </div>
-            ${c.user_id===currentUser.id||isAdmin?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;flex-shrink:0;">삭제</button>`:''}
-          </div>`).join('')}
+            ${replyHtml}
+            <div id="reply-box-${c.id}" style="display:none;margin-top:.4rem;margin-left:1rem;">
+              <div style="display:flex;gap:.3rem;">
+                <input type="text" placeholder="답글 입력..." style="flex:1;padding:.3rem .6rem;border:1px solid var(--border2);border-radius:4px;font-size:.75rem;font-family:var(--ff);" id="reply-input-${c.id}">
+                <button onclick="submitReply('${postId}','${c.id}')" class="btn-save" style="padding:.3rem .6rem;font-size:.72rem;">등록</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
       <div style="display:flex;gap:.4rem;margin-top:.6rem;">
         <textarea id="new-comment" class="form-input" rows="2" placeholder="댓글을 입력해주세요..." style="flex:1;resize:none;font-size:.78rem;"></textarea>
@@ -1556,14 +1703,22 @@ async function openPostDetail(postId) {
     footer.appendChild(rpBtn);
   }
   if(isAdmin) {
-    // 관리자: 공지 토글 버튼
     const noticeBtn=document.createElement('button');noticeBtn.className='btn-cancel';
     noticeBtn.textContent=post.is_notice?'📌 공지 해제':'📌 공지 지정';
-    noticeBtn.onclick=async()=>{
-      await sb.from('posts').update({is_notice:!post.is_notice}).eq('id',postId);
-      closeModal('modal-post-detail'); buildBoard();
-    };
+    noticeBtn.onclick=async()=>{await sb.from('posts').update({is_notice:!post.is_notice}).eq('id',postId);closeModal('modal-post-detail');buildBoard();};
     footer.appendChild(noticeBtn);
+    // 블라인드 버튼
+    const blindBtn=document.createElement('button');blindBtn.className='btn-cancel';
+    blindBtn.style.cssText='color:#c0392b;border-color:#e8b8a8;';
+    blindBtn.textContent=post.is_hidden?'🔓 블라인드 해제':'🚫 블라인드 처리';
+    blindBtn.onclick=()=>toggleBlindPost(postId,!post.is_hidden);
+    footer.appendChild(blindBtn);
+    // 사용자 제한 버튼
+    const banBtn=document.createElement('button');banBtn.className='btn-cancel';
+    banBtn.style.cssText='color:#8b0000;border-color:#f5c6cb;';
+    banBtn.textContent='⛔ 작성자 제한';
+    banBtn.onclick=()=>{if(confirm('이 글의 작성자를 제한할까요?'))banUser(post.user_id,true);};
+    footer.appendChild(banBtn);
   }
   if(isMine||isAdmin) {
     const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';editBtn.onclick=()=>{closeModal('modal-post-detail');openPostWrite(postId);};
@@ -1576,17 +1731,58 @@ async function openPostDetail(postId) {
 }
 
 async function likePost(postId) {
-  const { data:p } = await sb.from('posts').select('likes').eq('id',postId).single();
+  const { data:p } = await sb.from('posts').select('likes,user_id').eq('id',postId).single();
   await sb.from('posts').update({likes:(p?.likes||0)+1}).eq('id',postId);
+  // 작성자에게 좋아요 알림
+  if(p?.user_id && p.user_id !== currentUser.id) {
+    await sb.from('notifications').insert({
+      user_id:p.user_id, type:'like',
+      message:'내 글에 공감이 달렸어요.', post_id:postId,
+      is_read:false, created_at:new Date().toISOString()
+    });
+  }
   openPostDetail(postId);
 }
 
 async function submitComment(postId) {
-  const content = document.getElementById('new-comment').value.trim();
-  const anon = document.getElementById('comment-anon').checked;
+  const content = document.getElementById('new-comment')?.value.trim();
   if(!content){alert('댓글을 입력해주세요.');return;}
-  await sb.from('comments').insert({post_id:postId,user_id:currentUser.id,content,is_anonymous:anon,created_at:new Date().toISOString()});
-  openPostDetail(postId);
+  await sb.from('comments').insert({post_id:postId,user_id:currentUser.id,content,is_anonymous:true,created_at:new Date().toISOString()});
+  // 게시글 작성자에게 알림 (본인 제외)
+  const { data: post } = await sb.from('posts').select('user_id').eq('id',postId).single();
+  if(post?.user_id && post.user_id !== currentUser.id) {
+    await sb.from('notifications').insert({
+      user_id: post.user_id, type:'comment',
+      message:'내 글에 댓글이 달렸어요.', post_id:postId,
+      is_read:false, created_at:new Date().toISOString()
+    });
+  }
+  await openPostDetail(postId);
+  await loadNotifications();
+}
+function showReplyInput(commentId) {
+  const box = document.getElementById(`reply-box-${commentId}`);
+  if(box) { box.style.display = box.style.display==='none'?'':'none'; }
+}
+async function submitReply(postId, parentId) {
+  const input = document.getElementById(`reply-input-${parentId}`);
+  const content = input?.value.trim();
+  if(!content){alert('답글을 입력해주세요.');return;}
+  await sb.from('comments').insert({
+    post_id:postId, user_id:currentUser.id,
+    content, is_anonymous:true, parent_id:parentId,
+    created_at:new Date().toISOString()
+  });
+  // 원댓글 작성자에게 알림
+  const { data: parentC } = await sb.from('comments').select('user_id').eq('id',parentId).single();
+  if(parentC?.user_id && parentC.user_id !== currentUser.id) {
+    await sb.from('notifications').insert({
+      user_id:parentC.user_id, type:'reply',
+      message:'내 댓글에 답글이 달렸어요.', post_id:postId,
+      is_read:false, created_at:new Date().toISOString()
+    });
+  }
+  await openPostDetail(postId);
 }
 
 async function deleteComment(commentId, postId) {
