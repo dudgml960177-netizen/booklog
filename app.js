@@ -91,12 +91,23 @@ async function doLogin() {
 }
 async function doSignup() {
   const email = document.getElementById('signup-email').value.trim();
-  const pw = document.getElementById('signup-pw').value;
-  const name = document.getElementById('signup-name').value.trim();
+  const pw    = document.getElementById('signup-pw').value;
+  const name  = document.getElementById('signup-name').value.trim();
+  const code  = document.getElementById('signup-code').value.trim().toUpperCase();
   if (!name) { showAuthError('닉네임을 입력해주세요.'); return; }
+  if (!code) { showAuthError('초대코드를 입력해주세요.'); return; }
+  // 초대코드 검증
+  const { data: codeRow, error: codeErr } = await sb
+    .from('invite_codes').select('*').eq('code', code).single();
+  if (codeErr || !codeRow) { showAuthError('유효하지 않은 초대코드예요.'); return; }
+  if (codeRow.used_by) { showAuthError('이미 사용된 초대코드예요.'); return; }
+  // 회원가입
   const { data, error } = await sb.auth.signUp({ email, password: pw });
   if (error) { showAuthError(error.message); return; }
-  if (data.user) await sb.from('profiles').upsert({id:data.user.id, username:name, display_name:name});
+  if (data.user) {
+    await sb.from('profiles').upsert({id:data.user.id, username:name, display_name:name, role:'user'});
+    await sb.from('invite_codes').update({used_by:data.user.id, used_at:new Date().toISOString()}).eq('code', code);
+  }
   showAuthError('가입 완료! 이메일 인증 후 로그인해주세요.', true);
 }
 async function doLogout() { await sb.auth.signOut(); closeModal('modal-profile'); }
@@ -117,6 +128,8 @@ function sw(name, btn) {
   if (name==='books')  buildBooks();
   if (name==='quotes') buildQuotes();
   if (name==='record') { renderCal(); buildTimer(); }
+  if (name==='board')  buildBoard();
+  if (name==='board')  buildBoard();
   if (name==='graph')  { buildStats(); buildMilestone(); buildGoalDisplay(); document.querySelectorAll('.gst').forEach((t,i)=>t.classList.toggle('on',i===0)); showGraph('monthly'); }
 }
 
@@ -388,10 +401,12 @@ function buildTrackerGrid() {
   const fmtKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   if(timerPeriod === 'week') {
-    // ── 주간: 최근 7일 달력형 (가로 7칸)
+    // ── 주간: 이번 주 일요일~토요일
     const today = new Date();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay()); // 이번 주 일요일
     const days = Array.from({length:7}, (_,i) => {
-      const d = new Date(today); d.setDate(d.getDate()-6+i); return d;
+      const d = new Date(sunday); d.setDate(sunday.getDate()+i); return d;
     });
     const DOW = ['일','월','화','수','목','금','토'];
     wrap.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;';
@@ -1155,7 +1170,439 @@ async function saveProfile() {
   await sb.from('profiles').update({display_name:name}).eq('id',currentUser.id);closeModal('modal-profile');
 }
 
+
+// ══════════════════════════════════════
+// 게시판
+// ══════════════════════════════════════
+let allPosts = [], curBoardFilter = 'all', curPostId = null, curUserRole = 'user';
+let boardSearchQ = '';
+
+async function loadPosts() {
+  const { data } = await sb.from('posts').select('*').order('is_notice',{ascending:false}).order('created_at',{ascending:false});
+  allPosts = data || [];
+}
+
+async function loadUserRole() {
+  if(!currentUser) return;
+  const { data } = await sb.from('profiles').select('role').eq('id',currentUser.id).single();
+  curUserRole = data?.role || 'user';
+  // 공지 토글 보이기/숨기기
+  const noticeWrap = document.getElementById('notice-toggle-wrap');
+  if(noticeWrap) noticeWrap.style.display = (curUserRole==='admin') ? '' : 'none';
+}
+
+async function buildBoard() {
+  await loadPosts();
+  await loadUserRole();
+  renderBoard();
+}
+
+function filterBoard(f, btn) {
+  curBoardFilter = f;
+  document.querySelectorAll('#board-all-btn,#board-notice-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderBoard();
+}
+
+function renderBoard() {
+  const wrap = document.getElementById('board-list'); if(!wrap) return;
+  const searchQ = (document.getElementById('board-search')?.value||'').toLowerCase();
+  let list = allPosts;
+  if(curBoardFilter === 'notice') list = list.filter(p=>p.is_notice);
+  if(searchQ) list = list.filter(p=>p.title.toLowerCase().includes(searchQ)||p.content.toLowerCase().includes(searchQ));
+
+  if(!list.length) { wrap.innerHTML='<div class="empty-state">게시글이 없어요.</div>'; return; }
+  wrap.innerHTML = '';
+  list.forEach(post => {
+    const el = document.createElement('div');
+    el.className = 'post-item' + (post.is_notice?' post-notice':'');
+    el.onclick = () => openPostDetail(post.id);
+    const date = new Date(post.created_at).toLocaleDateString('ko',{month:'numeric',day:'numeric'});
+    el.innerHTML = `
+      <div class="post-item-header">
+        ${post.is_notice?'<span class="post-badge-notice">📌 공지</span>':''}
+        <span class="post-title">${post.title}</span>
+      </div>
+      <div class="post-item-meta">
+        <span>${post.is_anonymous?'익명':'작성자'}</span>
+        <span>${date}</span>
+        <span>❤️ ${post.likes||0}</span>
+      </div>`;
+    wrap.appendChild(el);
+  });
+}
+
+// 검색 이벤트 - 실시간
+document.addEventListener('DOMContentLoaded', () => {
+  const searchEl = document.getElementById('board-search');
+  if(searchEl) searchEl.oninput = () => renderBoard();
+});
+
+let editingPostId = null;
+function openPostModal(postId=null) {
+  editingPostId = postId;
+  const noticeWrap = document.getElementById('notice-toggle-wrap');
+  if(noticeWrap) noticeWrap.style.display = curUserRole==='admin' ? '' : 'none';
+  if(postId) {
+    const p = allPosts.find(x=>x.id===postId);
+    if(!p) return;
+    document.getElementById('post-modal-title').textContent = '글 수정';
+    document.getElementById('post-title').value = p.title;
+    document.getElementById('post-content').value = p.content;
+    document.getElementById('post-anonymous').checked = p.is_anonymous;
+    document.getElementById('post-is-notice').checked = p.is_notice;
+  } else {
+    document.getElementById('post-modal-title').textContent = '글쓰기';
+    document.getElementById('post-title').value = '';
+    document.getElementById('post-content').value = '';
+    document.getElementById('post-anonymous').checked = true;
+    document.getElementById('post-is-notice').checked = false;
+  }
+  openModal('modal-post');
+}
+
+async function savePost() {
+  const title = document.getElementById('post-title').value.trim();
+  const content = document.getElementById('post-content').value.trim();
+  if(!title||!content) { alert('제목과 내용을 입력해주세요.'); return; }
+  const isAnon = document.getElementById('post-anonymous').checked;
+  const isNotice = curUserRole==='admin' && document.getElementById('post-is-notice').checked;
+  try {
+    if(editingPostId) {
+      await sb.from('posts').update({title,content,is_anonymous:isAnon,is_notice:isNotice,updated_at:new Date().toISOString()}).eq('id',editingPostId);
+    } else {
+      await sb.from('posts').insert({user_id:currentUser.id,title,content,is_anonymous:isAnon,is_notice:isNotice});
+    }
+    closeModal('modal-post');
+    await buildBoard();
+  } catch(e) { alert('저장 오류: '+(e.message||'알 수 없는 오류')); }
+}
+
+async function openPostDetail(postId) {
+  curPostId = postId;
+  const post = allPosts.find(p=>p.id===postId);
+  if(!post) return;
+  // 댓글 불러오기
+  const { data: comments } = await sb.from('comments').select('*').eq('post_id',postId).order('created_at',{ascending:true});
+  const date = new Date(post.created_at).toLocaleString('ko',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('post-detail-title').textContent = (post.is_notice?'📌 ':'')+post.title;
+  document.getElementById('post-detail-body').innerHTML = `
+    <div style="font-size:.7rem;color:var(--tx3);margin-bottom:.8rem;padding-bottom:.6rem;border-bottom:1px solid var(--border);display:flex;gap:.8rem;">
+      <span>${post.is_anonymous?'익명':'작성자'}</span><span>${date}</span><span>❤️ ${post.likes||0}</span>
+    </div>
+    <div style="font-size:.83rem;line-height:1.9;color:var(--tx1);white-space:pre-wrap;margin-bottom:1.2rem;">${post.content}</div>
+    <div style="border-top:1px solid var(--border);padding-top:.8rem;">
+      <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.6rem;">댓글 ${comments?.length||0}개</div>
+      <div id="comment-list">${renderComments(comments||[])}</div>
+      <div style="display:flex;gap:.4rem;margin-top:.7rem;">
+        <textarea id="comment-input" class="form-textarea" rows="2" placeholder="댓글을 입력하세요..." style="flex:1;font-size:.78rem;"></textarea>
+        <div style="display:flex;flex-direction:column;gap:.3rem;">
+          <label class="toggle-wrap" style="gap:.3rem;font-size:.65rem;">
+            <input type="checkbox" id="comment-anon" checked>
+            <span class="toggle" style="width:28px;height:16px;"></span>
+            <span>익명</span>
+          </label>
+          <button class="btn-save" style="padding:.4rem .6rem;font-size:.72rem;" onclick="saveComment()">등록</button>
+        </div>
+      </div>
+    </div>`;
+  // 하단 버튼
+  const isOwner = post.user_id === currentUser.id;
+  const isAdmin = curUserRole === 'admin';
+  const footer = document.getElementById('post-detail-footer');
+  footer.innerHTML = `
+    <button class="btn-cancel" onclick="likePost('${post.id}')">❤️ 좋아요</button>
+    ${isOwner||isAdmin ? `<button class="btn-cancel" onclick="openPostModal('${post.id}');closeModal('modal-post-detail')">수정</button>` : ''}
+    ${isOwner||isAdmin ? `<button class="btn-cancel btn-delete" onclick="deletePost('${post.id}')">삭제</button>` : ''}
+    <button class="btn-save" onclick="closeModal('modal-post-detail')">닫기</button>`;
+  openModal('modal-post-detail');
+}
+
+function renderComments(comments) {
+  if(!comments.length) return '<div style="font-size:.75rem;color:var(--tx3);padding:.3rem 0;">첫 댓글을 남겨보세요.</div>';
+  return comments.map(c => {
+    const d = new Date(c.created_at).toLocaleString('ko',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const isMine = c.user_id===currentUser?.id || curUserRole==='admin';
+    return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;font-size:.78rem;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.2rem;">
+        <span style="font-weight:600;color:var(--tx2);">${c.is_anonymous?'익명':c.user_id?.slice(0,8)}</span>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <span style="color:var(--tx3);font-size:.65rem;">${d}</span>
+          ${isMine?`<button onclick="deleteComment('${c.id}')" style="border:none;background:none;font-size:.65rem;color:var(--tx3);cursor:pointer;">삭제</button>`:''}
+        </div>
+      </div>
+      <div style="color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
+    </div>`;
+  }).join('');
+}
+
+async function saveComment() {
+  const content = document.getElementById('comment-input')?.value.trim();
+  if(!content) return;
+  const isAnon = document.getElementById('comment-anon')?.checked ?? true;
+  await sb.from('comments').insert({post_id:curPostId, user_id:currentUser.id, content, is_anonymous:isAnon});
+  await openPostDetail(curPostId);
+}
+
+async function deleteComment(commentId) {
+  if(!confirm('댓글을 삭제할까요?')) return;
+  await sb.from('comments').delete().eq('id',commentId);
+  await openPostDetail(curPostId);
+}
+
+async function deletePost(postId) {
+  if(!confirm('게시글을 삭제할까요?')) return;
+  await sb.from('comments').delete().eq('post_id',postId);
+  await sb.from('posts').delete().eq('id',postId);
+  closeModal('modal-post-detail');
+  await buildBoard();
+}
+
+async function likePost(postId) {
+  const post = allPosts.find(p=>p.id===postId);
+  if(!post) return;
+  await sb.from('posts').update({likes:(post.likes||0)+1}).eq('id',postId);
+  await openPostDetail(postId);
+  await loadPosts();
+}
+
+// ══════════════════════════════════════
+// 초대코드 관련
+// ══════════════════════════════════════
+function openInviteCheck() {
+  const codeInput = document.getElementById('invite-code-input');
+  if(codeInput) codeInput.value = '';
+  const errEl = document.getElementById('invite-error');
+  if(errEl) errEl.style.display = 'none';
+  openModal('modal-invite');
+}
+
+async function verifyInviteCode() {
+  const code = (document.getElementById('invite-code-input')?.value||'').trim().toUpperCase();
+  if(!code) { showInviteError('초대코드를 입력해주세요.'); return; }
+  const { data, error } = await sb.from('invite_codes').select('*').eq('code',code).single();
+  if(error||!data) { showInviteError('존재하지 않는 초대코드예요.'); return; }
+  if(data.used_by) { showInviteError('이미 사용된 초대코드예요.'); return; }
+  // 유효 - 회원가입 폼으로
+  closeModal('modal-invite');
+  window._validInviteCode = code;
+  authSwitch('signup', document.querySelectorAll('.auth-tab')[1]);
+}
+
+function showInviteError(msg) {
+  const el = document.getElementById('invite-error');
+  if(el) { el.textContent=msg; el.style.display=''; }
+}
+
 // ── 모달 유틸
 function openModal(id){document.getElementById(id).style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.style.display='none';});});
+
+// ══════════════════════════════════════
+// 게시판
+// ══════════════════════════════════════
+let boardFilter = 'all', boardPage = 1, boardEditId = null;
+const BOARD_PER_PAGE = 10;
+let curUserRole = 'user';
+
+async function loadUserRole() {
+  if(!currentUser) return;
+  const { data } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+  curUserRole = data?.role || 'user';
+}
+
+async function buildBoard() {
+  if(curUserRole === 'user') await loadUserRole();
+  // 공지 표시
+  const { data: notices } = await sb.from('posts')
+    .select('*').eq('is_notice', true).order('created_at', {ascending:false});
+  const nWrap = document.getElementById('board-notice-wrap');
+  nWrap.innerHTML = '';
+  (notices||[]).forEach(n => {
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.45rem .7rem;background:#fffbe6;border:1px solid #f0d060;border-radius:5px;margin-bottom:.35rem;cursor:pointer;';
+    el.onclick = () => openPostDetail(n.id);
+    el.innerHTML = `<span style="font-size:.65rem;background:#e0a020;color:#fff;border-radius:3px;padding:1px 5px;flex-shrink:0;">공지</span>
+      <span style="font-size:.78rem;font-weight:600;color:#2e1f0e;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.title}</span>
+      <span style="font-size:.62rem;color:#a08c72;">${n.created_at?.slice(0,10)}</span>`;
+    nWrap.appendChild(el);
+  });
+
+  // 게시글 목록
+  await renderBoardList();
+}
+
+async function renderBoardList() {
+  const list = document.getElementById('board-list');
+  list.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.8rem;text-align:center;">불러오는 중...</div>';
+  let query = sb.from('posts').select('*', {count:'exact'})
+    .eq('is_notice', false).order('created_at', {ascending:false});
+  if(boardFilter !== 'all') query = query.eq('category', boardFilter);
+  const from = (boardPage-1)*BOARD_PER_PAGE, to = from+BOARD_PER_PAGE-1;
+  query = query.range(from, to);
+  const { data: posts, count } = await query;
+
+  list.innerHTML = '';
+  if(!posts?.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:2rem;">아직 게시글이 없어요. 첫 글을 남겨보세요!</div>';
+  } else {
+    posts.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'board-item';
+      el.onclick = () => openPostDetail(p.id);
+      const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[p.category]||'';
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.22rem;flex-wrap:wrap;">
+          ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
+          <span class="board-title">${p.title}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.6rem;">
+          <span class="board-meta">${p.is_anonymous?'익명':p.user_id?.slice(0,8)}</span>
+          <span class="board-meta">${p.created_at?.slice(0,10)}</span>
+          <span class="board-meta" style="margin-left:auto;">❤️ ${p.likes||0}</span>
+        </div>`;
+      list.appendChild(el);
+    });
+  }
+  // 페이지네이션
+  const totalPages = Math.ceil((count||0)/BOARD_PER_PAGE);
+  const pg = document.getElementById('board-pagination'); pg.innerHTML = '';
+  if(totalPages > 1) {
+    for(let i=1;i<=totalPages;i++){
+      const btn=document.createElement('button');
+      btn.className='yr-btn'+(i===boardPage?' on':'');
+      btn.style.cssText=i===boardPage?'background:var(--acc);color:#fff;border-color:transparent;':'';
+      btn.textContent=i; btn.onclick=()=>{boardPage=i;renderBoardList();};
+      pg.appendChild(btn);
+    }
+  }
+}
+
+function filterBoard(f, btn) {
+  boardFilter=f; boardPage=1;
+  document.querySelectorAll('.board-tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderBoardList();
+}
+
+function openPostWrite(editId=null) {
+  boardEditId = editId;
+  document.getElementById('post-write-title').textContent = editId ? '글 수정' : '글쓰기';
+  document.getElementById('post-title').value = '';
+  document.getElementById('post-content').value = '';
+  document.getElementById('post-anonymous').checked = true;
+  document.getElementById('post-category').value = 'free';
+  // 관리자만 공지 옵션 표시
+  document.getElementById('post-notice-wrap').style.display = curUserRole==='admin' ? '' : 'none';
+  document.getElementById('post-is-notice').checked = false;
+  if(editId) {
+    sb.from('posts').select('*').eq('id', editId).single().then(({data:p})=>{
+      if(!p) return;
+      document.getElementById('post-title').value = p.title;
+      document.getElementById('post-content').value = p.content;
+      document.getElementById('post-anonymous').checked = p.is_anonymous;
+      document.getElementById('post-category').value = p.category||'free';
+      document.getElementById('post-is-notice').checked = p.is_notice;
+    });
+  }
+  openModal('modal-post-write');
+}
+
+async function submitPost() {
+  const title   = document.getElementById('post-title').value.trim();
+  const content = document.getElementById('post-content').value.trim();
+  const anon    = document.getElementById('post-anonymous').checked;
+  const cat     = document.getElementById('post-category').value;
+  const notice  = curUserRole==='admin' && document.getElementById('post-is-notice').checked;
+  if(!title||!content){alert('제목과 내용을 입력해주세요.');return;}
+  const payload = {user_id:currentUser.id, title, content, is_anonymous:anon, category:cat, is_notice:notice, updated_at:new Date().toISOString()};
+  if(boardEditId) {
+    await sb.from('posts').update(payload).eq('id', boardEditId);
+  } else {
+    await sb.from('posts').insert({...payload, created_at:new Date().toISOString()});
+  }
+  closeModal('modal-post-write');
+  buildBoard();
+}
+
+async function openPostDetail(postId) {
+  const { data: post } = await sb.from('posts').select('*').eq('id', postId).single();
+  if(!post) return;
+  const { data: comms } = await sb.from('comments').select('*').eq('post_id', postId).order('created_at');
+  const isMine = post.user_id === currentUser.id;
+  const isAdmin = curUserRole === 'admin';
+
+  document.getElementById('post-detail-title').textContent = post.title;
+  const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[post.category]||'';
+  document.getElementById('post-detail-body').innerHTML = `
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap;">
+      ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
+      ${post.is_notice?'<span style="background:#e0a020;color:#fff;font-size:.63rem;border-radius:3px;padding:1px 6px;">공지</span>':''}
+      <span class="board-meta">${post.is_anonymous?'익명':post.user_id?.slice(0,8)}</span>
+      <span class="board-meta">${post.created_at?.slice(0,10)}</span>
+    </div>
+    <div style="font-size:.85rem;line-height:1.9;color:var(--tx1);white-space:pre-wrap;border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;">${post.content}</div>
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
+      <button onclick="likePost('${postId}')" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:none;cursor:pointer;color:var(--tx2);">❤️ ${post.likes||0}</button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:.75rem;">
+      <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.55rem;">댓글 ${comms?.length||0}개</div>
+      <div id="comment-list">
+        ${(comms||[]).map(c=>`
+          <div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;display:flex;gap:.5rem;align-items:flex-start;">
+            <div style="flex:1;">
+              <div style="font-size:.68rem;color:var(--tx3);margin-bottom:.18rem;">${c.is_anonymous?'익명':c.user_id?.slice(0,8)} · ${c.created_at?.slice(0,10)}</div>
+              <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
+            </div>
+            ${c.user_id===currentUser.id||isAdmin?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;flex-shrink:0;">삭제</button>`:''}
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:.4rem;margin-top:.6rem;">
+        <textarea id="new-comment" class="form-input" rows="2" placeholder="댓글을 입력해주세요..." style="flex:1;resize:none;font-size:.78rem;"></textarea>
+        <div style="display:flex;flex-direction:column;gap:.3rem;">
+          <label style="font-size:.62rem;color:var(--tx3);display:flex;align-items:center;gap:.2rem;cursor:pointer;"><input type="checkbox" id="comment-anon" checked style="width:11px;height:11px;"> 익명</label>
+          <button onclick="submitComment('${postId}')" class="btn-save" style="padding:.4rem .65rem;font-size:.72rem;">등록</button>
+        </div>
+      </div>
+    </div>`;
+
+  const footer = document.getElementById('post-detail-footer');
+  footer.innerHTML = '';
+  if(isMine||isAdmin) {
+    const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';editBtn.onclick=()=>{closeModal('modal-post-detail');openPostWrite(postId);};
+    const delBtn=document.createElement('button');delBtn.className='btn-cancel btn-delete';delBtn.textContent='삭제';delBtn.onclick=()=>deletePost(postId);
+    footer.appendChild(editBtn); footer.appendChild(delBtn);
+  }
+  const closeBtn=document.createElement('button');closeBtn.className='btn-save';closeBtn.textContent='닫기';closeBtn.onclick=()=>closeModal('modal-post-detail');
+  footer.appendChild(closeBtn);
+  openModal('modal-post-detail');
+}
+
+async function likePost(postId) {
+  const { data:p } = await sb.from('posts').select('likes').eq('id',postId).single();
+  await sb.from('posts').update({likes:(p?.likes||0)+1}).eq('id',postId);
+  openPostDetail(postId);
+}
+
+async function submitComment(postId) {
+  const content = document.getElementById('new-comment').value.trim();
+  const anon = document.getElementById('comment-anon').checked;
+  if(!content){alert('댓글을 입력해주세요.');return;}
+  await sb.from('comments').insert({post_id:postId,user_id:currentUser.id,content,is_anonymous:anon,created_at:new Date().toISOString()});
+  openPostDetail(postId);
+}
+
+async function deleteComment(commentId, postId) {
+  if(!confirm('댓글을 삭제할까요?'))return;
+  await sb.from('comments').delete().eq('id',commentId);
+  openPostDetail(postId);
+}
+
+async function deletePost(postId) {
+  if(!confirm('게시글을 삭제할까요?'))return;
+  await sb.from('comments').delete().eq('post_id',postId);
+  await sb.from('posts').delete().eq('id',postId);
+  closeModal('modal-post-detail');
+  buildBoard();
+}

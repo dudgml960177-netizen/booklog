@@ -26,7 +26,7 @@
     <div class="auth-card">
       <div class="auth-tabs">
         <button class="auth-tab on" onclick="authSwitch('login',this)">로그인</button>
-        <button class="auth-tab" onclick="authSwitch('signup',this)">회원가입</button>
+        <button class="auth-tab" onclick="openInviteCheck()">회원가입</button>
       </div>
       <div id="auth-error" class="auth-error" style="display:none;"></div>
       <div id="form-login">
@@ -38,6 +38,7 @@
         <input type="email" id="signup-email" class="auth-input" placeholder="이메일">
         <input type="password" id="signup-pw" class="auth-input" placeholder="비밀번호 (6자 이상)">
         <input type="text" id="signup-name" class="auth-input" placeholder="닉네임">
+        <input type="text" id="signup-code" class="auth-input" placeholder="초대코드" style="text-transform:uppercase;">
         <button class="auth-btn" onclick="doSignup()">회원가입</button>
       </div>
     </div>
@@ -61,6 +62,7 @@
       <button class="tab on" onclick="sw('books',this)">📚 서재</button>
       <button class="tab" onclick="sw('quotes',this)">✍️ 문장</button>
       <button class="tab" onclick="sw('record',this)">📅 기록</button>
+      <button class="tab" onclick="sw('board',this)">💬 게시판</button>
       <button class="tab" onclick="sw('graph',this)">📊 통계</button>
     </div>
   </div>
@@ -182,6 +184,38 @@
           <div class="sec" style="margin-bottom:.45rem;">책별 누적 독서 시간</div>
           <div id="timer-book-list"></div>
         </div>
+      </div>
+
+      <!-- 게시판 -->
+      <div class="panel" id="p-board">
+        <div class="board-toolbar">
+          <div class="sec" style="margin:0;">💬 자유게시판</div>
+          <button class="btn-write" onclick="openPostWrite()">✏️ 글쓰기</button>
+        </div>
+        <div id="board-notice-wrap"></div>
+        <div class="board-tabs">
+          <button class="board-tab on" onclick="filterBoard('all',this)">전체</button>
+          <button class="board-tab" onclick="filterBoard('book',this)">📖 책 이야기</button>
+          <button class="board-tab" onclick="filterBoard('free',this)">💭 자유</button>
+          <button class="board-tab" onclick="filterBoard('review',this)">✨ 감상 공유</button>
+        </div>
+        <div id="board-list"></div>
+        <div id="board-pagination" style="display:flex;justify-content:center;gap:.4rem;margin-top:.8rem;"></div>
+      </div>
+
+      <!-- 게시판 -->
+      <div class="panel" id="p-board">
+        <div class="board-toolbar">
+          <div style="display:flex;gap:.4rem;align-items:center;flex:1;">
+            <button class="filter-btn on" id="board-all-btn" onclick="filterBoard('all',this)">전체</button>
+            <button class="filter-btn" id="board-notice-btn" onclick="filterBoard('notice',this)">📌 공지</button>
+          </div>
+          <div style="display:flex;gap:.4rem;">
+            <input type="text" id="board-search" class="search-input" placeholder="검색..." style="width:140px;font-size:.75rem;">
+            <button class="search-btn" onclick="openPostModal()">글쓰기</button>
+          </div>
+        </div>
+        <div id="board-list"></div>
       </div>
 
       <!-- 통계 -->
@@ -434,8 +468,134 @@
   </div>
 </div>
 
+<!-- 글쓰기 모달 -->
+<div id="modal-post-write" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="post-write-title">글쓰기</div>
+      <button class="modal-close" onclick="closeModal('modal-post-write')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">카테고리</label>
+        <select id="post-category" class="form-input">
+          <option value="free">💭 자유</option>
+          <option value="book">📖 책 이야기</option>
+          <option value="review">✨ 감상 공유</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">제목</label>
+        <input type="text" id="post-title" class="form-input" placeholder="제목을 입력해주세요.">
+      </div>
+      <div class="form-group">
+        <label class="form-label">내용</label>
+        <textarea id="post-content" class="form-textarea" rows="8" placeholder="내용을 자유롭게 작성해주세요."></textarea>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:.8rem;">
+        <label class="form-label" style="margin:0;">익명으로 작성</label>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="post-anonymous" checked>
+          <span class="toggle"></span>
+        </label>
+      </div>
+      <div id="post-notice-wrap" style="display:none;" class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;gap:.5rem;">
+          <input type="checkbox" id="post-is-notice"> 공지사항으로 등록
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-post-write')">취소</button>
+      <button class="btn-save" onclick="submitPost()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 게시글 상세 모달 -->
+<div id="modal-post-detail" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="post-detail-title" style="font-size:.95rem;"></div>
+      <button class="modal-close" onclick="closeModal('modal-post-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="post-detail-body"></div>
+    <div class="modal-footer" id="post-detail-footer"></div>
+  </div>
+</div>
+
+<!-- 게시글 작성 모달 -->
+<div id="modal-post" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="post-modal-title">글쓰기</div>
+      <button class="modal-close" onclick="closeModal('modal-post')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">제목</label>
+        <input type="text" id="post-title" class="form-input" placeholder="제목을 입력하세요">
+      </div>
+      <div class="form-group">
+        <label class="form-label">내용</label>
+        <textarea id="post-content" class="form-textarea" rows="8" placeholder="내용을 입력하세요..."></textarea>
+      </div>
+      <div style="display:flex;gap:1rem;align-items:center;">
+        <label class="toggle-wrap" style="gap:.5rem;">
+          <input type="checkbox" id="post-anonymous" checked>
+          <span class="toggle"></span>
+          <span style="font-size:.75rem;color:var(--tx2);">익명으로 작성</span>
+        </label>
+        <label class="toggle-wrap" id="notice-toggle-wrap" style="gap:.5rem;display:none;">
+          <input type="checkbox" id="post-is-notice">
+          <span class="toggle"></span>
+          <span style="font-size:.75rem;color:var(--tx2);">공지로 등록</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-post')">취소</button>
+      <button class="btn-save" onclick="savePost()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 게시글 상세 모달 -->
+<div id="modal-post-detail" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="post-detail-title" style="font-size:.95rem;line-height:1.4;"></div>
+      <button class="modal-close" onclick="closeModal('modal-post-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="post-detail-body"></div>
+    <div class="modal-footer" id="post-detail-footer"></div>
+  </div>
+</div>
+
+<!-- 초대코드 모달 (회원가입 전) -->
+<div id="modal-invite" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔑 초대코드 확인</div>
+      <button class="modal-close" onclick="closeModal('modal-invite')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.8rem;color:var(--tx2);margin-bottom:1rem;line-height:1.7;">북로그는 초대코드가 있어야 가입할 수 있어요.<br>초대코드를 입력해주세요.</p>
+      <div class="form-group">
+        <label class="form-label">초대코드</label>
+        <input type="text" id="invite-code-input" class="form-input" placeholder="예: BOOKLOG2026" style="text-transform:uppercase;">
+      </div>
+      <div id="invite-error" style="font-size:.75rem;color:#9e3a1e;display:none;margin-top:.3rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-invite')">취소</button>
+      <button class="btn-save" onclick="verifyInviteCode()">확인</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=50"></script>
 </body>
 </html>
