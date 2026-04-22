@@ -189,32 +189,16 @@
       <!-- 게시판 -->
       <div class="panel" id="p-board">
         <div class="board-toolbar">
-          <div class="sec" style="margin:0;">💬 자유게시판</div>
-          <button class="btn-write" onclick="openPostWrite()">✏️ 글쓰기</button>
-        </div>
-        <div id="board-notice-wrap"></div>
-        <div class="board-tabs">
-          <button class="board-tab on" onclick="filterBoard('all',this)">전체</button>
-          <button class="board-tab" onclick="filterBoard('book',this)">📖 책 이야기</button>
-          <button class="board-tab" onclick="filterBoard('free',this)">💭 자유</button>
-          <button class="board-tab" onclick="filterBoard('review',this)">✨ 감상 공유</button>
-        </div>
-        <div id="board-list"></div>
-        <div id="board-pagination" style="display:flex;justify-content:center;gap:.4rem;margin-top:.8rem;"></div>
-      </div>
-
-      <!-- 게시판 -->
-      <div class="panel" id="p-board">
-        <div class="board-toolbar">
           <div style="display:flex;gap:.4rem;align-items:center;flex:1;">
             <button class="filter-btn on" id="board-all-btn" onclick="filterBoard('all',this)">전체</button>
             <button class="filter-btn" id="board-notice-btn" onclick="filterBoard('notice',this)">📌 공지</button>
           </div>
           <div style="display:flex;gap:.4rem;">
-            <input type="text" id="board-search" class="search-input" placeholder="검색..." style="width:140px;font-size:.75rem;">
+            <input type="text" id="board-search" class="search-input" placeholder="검색..." style="width:140px;font-size:.75rem;" oninput="renderBoard()">
             <button class="search-btn" onclick="openPostModal()">글쓰기</button>
           </div>
         </div>
+        <div id="board-notice-wrap"></div>
         <div id="board-list"></div>
       </div>
 
