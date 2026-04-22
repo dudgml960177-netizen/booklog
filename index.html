@@ -19,7 +19,7 @@
 </div>
 
 <!-- 로그인 -->
-<div id="screen-auth" style="display:none;flex-direction:column;min-height:100vh;background:#f2ece0;">
+<div id="screen-auth" style="display:none;flex-direction:column;min-height:100vh;background:#f2ece0;overflow-y:auto;">
   <div class="auth-wrap">
     <div class="auth-logo">북로그</div>
     <div class="auth-tagline">읽은 것들이 쌓여 나를 만든다</div>
@@ -31,8 +31,25 @@
       <div id="auth-error" class="auth-error" style="display:none;"></div>
       <div id="form-login">
         <input type="email" id="login-email" class="auth-input" placeholder="이메일">
-        <input type="password" id="login-pw" class="auth-input" placeholder="비밀번호">
+        <input type="password" id="login-pw" class="auth-input" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
         <button class="auth-btn" onclick="doLogin()">로그인</button>
+        <div style="text-align:center;margin-top:.6rem;">
+          <button onclick="authSwitch('reset',this)" style="background:none;border:none;font-size:.73rem;color:var(--tx3);cursor:pointer;text-decoration:underline;font-family:var(--ff);">비밀번호를 잊으셨나요?</button>
+        </div>
+      </div>
+      <div id="form-reset" style="display:none;">
+        <p style="font-size:.75rem;color:var(--tx3);margin-bottom:.8rem;line-height:1.6;">가입한 이메일을 입력하면<br>재설정 링크를 보내드려요.</p>
+        <input type="email" id="reset-email" class="auth-input" placeholder="이메일">
+        <button class="auth-btn" onclick="doResetPassword()">재설정 링크 보내기</button>
+        <div style="text-align:center;margin-top:.6rem;">
+          <button onclick="authSwitch('login',document.querySelectorAll('.auth-tab')[0])" style="background:none;border:none;font-size:.73rem;color:var(--tx3);cursor:pointer;text-decoration:underline;font-family:var(--ff);">← 로그인으로 돌아가기</button>
+        </div>
+      </div>
+      <div id="form-newpw" style="display:none;">
+        <p style="font-size:.75rem;color:var(--tx3);margin-bottom:.8rem;line-height:1.6;">새 비밀번호를 입력해주세요.</p>
+        <input type="password" id="newpw-input" class="auth-input" placeholder="새 비밀번호 (6자 이상)">
+        <input type="password" id="newpw-confirm" class="auth-input" placeholder="비밀번호 확인">
+        <button class="auth-btn" onclick="doUpdatePassword()">비밀번호 변경</button>
       </div>
       <div id="form-signup" style="display:none;">
         <input type="email" id="signup-email" class="auth-input" placeholder="이메일">

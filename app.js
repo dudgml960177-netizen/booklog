@@ -40,7 +40,25 @@ function showScreen(name) {
 
 async function init() {
   showScreen('loading');
-  // 최대 4초 대기 후 강제 auth 화면
+
+  // 비밀번호 재설정 토큰 처리 (#access_token 또는 type=recovery)
+  const hash = window.location.hash;
+  if(hash.includes('type=recovery') || hash.includes('access_token')) {
+    try {
+      const params = new URLSearchParams(hash.replace('#',''));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if(accessToken) {
+        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' });
+        window.history.replaceState(null, '', window.location.pathname);
+        showScreen('auth');
+        authSwitch('newpw', null);
+        showAuthError('새 비밀번호를 입력해주세요.', true);
+        return;
+      }
+    } catch(e) {}
+  }
+
   const timeout = setTimeout(() => {
     if(document.getElementById('screen-loading').style.display !== 'none') {
       showScreen('auth');
@@ -70,11 +88,16 @@ else init();
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN') {
     currentUser = session.user;
-    await loadData(); loadGoals();
-    showScreen('app'); buildBooks();
+    await loadData(); loadGoals(); loadUserRole();
+    showScreen('app'); buildBooks(); loadNotifications();
   }
   if (event === 'SIGNED_OUT') { currentUser=null; allBooks=[]; allQuotes=[]; showScreen('auth'); }
   if (event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
+  if (event === 'PASSWORD_RECOVERY') {
+    showScreen('auth');
+    authSwitch('newpw', null);
+    showAuthError('새 비밀번호를 입력해주세요.', true);
+  }
 });
 
 async function loadData() {
@@ -89,9 +112,14 @@ async function loadData() {
 
 // ── 인증
 function authSwitch(tab, btn) {
-  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('on')); btn.classList.add('on');
-  document.getElementById('form-login').style.display = tab==='login'?'':'none';
-  document.getElementById('form-signup').style.display = tab==='signup'?'':'none';
+  // auth-tab 버튼 on/off
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('on'));
+  if(btn && btn.classList.contains('auth-tab')) btn.classList.add('on');
+  // 폼 전환
+  ['login','signup','reset','newpw'].forEach(f => {
+    const el = document.getElementById('form-'+f);
+    if(el) el.style.display = f===tab ? '' : 'none';
+  });
   document.getElementById('auth-error').style.display = 'none';
 }
 async function doLogin() {
@@ -106,6 +134,27 @@ function openInviteCheck() {
   // 회원가입 탭으로 전환 (초대코드 확인 없이 바로)
   authSwitch('signup', document.querySelectorAll('.auth-tab')[1]);
 }
+
+async function doResetPassword() {
+  const email = document.getElementById('reset-email').value.trim();
+  if(!email) { showAuthError('이메일을 입력해주세요.'); return; }
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+  if(error) { showAuthError(error.message); return; }
+  showAuthError('재설정 링크를 보냈어요! 이메일을 확인해주세요.', true);
+}
+
+async function doUpdatePassword() {
+  const pw = document.getElementById('newpw-input').value;
+  const pw2 = document.getElementById('newpw-confirm').value;
+  if(pw.length < 6) { showAuthError('비밀번호는 6자 이상이어야 해요.'); return; }
+  if(pw !== pw2) { showAuthError('비밀번호가 일치하지 않아요.'); return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if(error) { showAuthError(error.message); return; }
+  showAuthError('비밀번호가 변경됐어요! 다시 로그인해주세요.', true);
+  setTimeout(() => { sb.auth.signOut(); authSwitch('login', document.querySelectorAll('.auth-tab')[0]); }, 2000);
+}
+
 async function doSignup() {
   const email = document.getElementById('signup-email').value.trim();
   const pw    = document.getElementById('signup-pw').value;
