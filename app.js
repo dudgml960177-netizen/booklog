@@ -1083,7 +1083,7 @@ function buildPagesChart() {
   const avgP = totalB > 0 ? Math.round(totalP/totalB) : 0;
   const bestIdx = vals.indexOf(Math.max(...vals));
   document.getElementById('pages-stat').innerHTML =
-    `<div class="si"><span class="sn">${totalP.toLocaleString()}p</span><span class="sl">${curPY==='all'?'누적 페이지':'이 해 페이지'}</span></div>
+    `<div class="si"><span class="sn">${totalP.toLocaleString()}p</span><span class="sl">${curPY==='all'?'전체 누적 페이지':curPY+'년 누적 페이지'}</span></div>
      <div class="si"><span class="sn">${avgP.toLocaleString()}p</span><span class="sl">권당 평균</span></div>
      <div class="si"><span class="sn">${labels[bestIdx]||'—'}</span><span class="sl">최다 독서 기간</span></div>`;
 }
@@ -2066,11 +2066,15 @@ function renderPostItems(list, posts, count, catLabel) {
 
 
 async function showMyPosts() {
+  // 이미 내 글 필터면 전체로 돌아가기 (토글)
+  if(boardFilter === 'mine') {
+    filterBoard('all', document.getElementById('board-all-btn'));
+    return;
+  }
   const { data: posts } = await sb.from('posts')
     .select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
   const wrap = document.getElementById('board-list');
   if(!wrap) return;
-  // 필터 버튼 상태 업데이트
   document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
   const myBtn = document.getElementById('board-mine-btn');
   if(myBtn) myBtn.classList.add('on');
