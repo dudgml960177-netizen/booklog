@@ -420,9 +420,10 @@
         <div style="font-size:.72rem;font-weight:600;color:var(--tx2);margin-bottom:.5rem;">🔒 공개 설정</div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
           <span style="font-size:.75rem;color:var(--tx2);">서재 공개</span>
-          <select id="library-public-sel" class="form-input" style="width:90px;font-size:.72rem;padding:.2rem .4rem;" onchange="saveLibraryPublic(this.value==='true')">
-            <option value="true">공개</option>
-            <option value="false">비공개</option>
+          <select id="library-public-sel" class="form-input" style="width:90px;font-size:.72rem;padding:.2rem .4rem;" onchange="saveLibraryPublic(this.value)">
+            <option value="public">전체 공개</option>
+            <option value="friends">친구만</option>
+            <option value="private">비공개</option>
           </select>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -812,6 +813,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=261"></script>
+<script src="app.js?v=270"></script>
 </body>
 </html>

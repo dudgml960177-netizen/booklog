@@ -110,86 +110,76 @@ async function startApp(user) {
   if(_appInitialized) return;
   _appInitialized = true;
   currentUser = user;
-  try {
-    await loadData();
-  } catch(e) {
-    console.warn('loadData error:', e);
-    // loadData 실패해도 앱은 시작
-  }
-  await loadGoals();
-  loadUserRole();
+  try { await loadData(); } catch(e) { console.warn('loadData:', e); }
+  try { await loadGoals(); } catch(e) { console.warn('loadGoals:', e); }
+  try { loadUserRole(); } catch(e) {}
   showScreen('app');
   buildBooks();
   setTimeout(loadNotifications, 500);
 }
 
-async function init() {
+// ── onAuthStateChange를 가장 먼저 등록 (sb 생성 직후)
+// 이렇게 해야 캐시/에러 상황에서도 세션 이벤트를 항상 받을 수 있음
+sb.auth.onAuthStateChange(async (event, session) => {
+  try {
+    if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      if(session?.user && !_appInitialized) {
+        await startApp(session.user);
+      } else if(session?.user && _appInitialized) {
+        currentUser = session.user;
+      }
+    }
+    if(event === 'SIGNED_OUT') {
+      _appInitialized = false;
+      currentUser = null; allBooks = []; allQuotes = [];
+      showScreen('auth');
+      loadSavedEmail();
+    }
+    if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
+    if(event === 'PASSWORD_RECOVERY') {
+      showScreen('auth');
+      authSwitch('newpw', null);
+      showAuthError('새 비밀번호를 입력해주세요.', true);
+    }
+  } catch(e) { console.warn('authStateChange error:', e); }
+});
+
+function init() {
   initFontSize();
   cleanupLocalStorage();
-  // 모달 외부 클릭 닫기 이벤트 등록
+
+  // DOM 이벤트 등록
   document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', e => { if(e.target===el) el.style.display='none'; });
   });
-  // board-search 이벤트 등록
-  const boardSearch = document.getElementById('board-search');
-  if(boardSearch && !boardSearch._evtSet) {
-    boardSearch.oninput = () => { boardPage=1; renderBoardList(); };
-    boardSearch._evtSet = true;
-  }
 
-  // 비밀번호 재설정 토큰 처리
+  // 비밀번호 재설정 토큰 처리 (URL 해시)
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
-    showScreen('loading');
     try {
       const params = new URLSearchParams(hash.replace('#',''));
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
       if(accessToken) {
-        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken||'' });
-        window.history.replaceState(null, '', window.location.pathname);
-        showScreen('auth'); authSwitch('newpw', null);
-        showAuthError('새 비밀번호를 입력해주세요.', true);
+        sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken||'' })
+          .then(() => {
+            window.history.replaceState(null, '', window.location.pathname);
+            showScreen('auth'); authSwitch('newpw', null);
+            showAuthError('새 비밀번호를 입력해주세요.', true);
+          }).catch(() => { showScreen('auth'); loadSavedEmail(); });
         return;
       }
     } catch(e) {}
-    showScreen('auth'); loadSavedEmail(); return;
   }
 
-  // 로그인 화면 먼저 즉시 표시 (스피너 없음)
+  // 로그인 화면 즉시 표시
+  // onAuthStateChange(INITIAL_SESSION)이 세션 있으면 자동으로 startApp 호출
   showScreen('auth');
   loadSavedEmail();
-
-  // 백그라운드에서 세션 확인 → 세션 있으면 자동으로 앱 전환
-  // onAuthStateChange가 세션 복원 시 SIGNED_IN 이벤트를 발생시킴
-  // 별도로 getSession 호출 불필요 — Supabase가 자동 처리
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
-
-sb.auth.onAuthStateChange(async (event, session) => {
-  if(event === 'SIGNED_IN' && session?.user) {
-    if(!_appInitialized) await startApp(session.user);
-    else currentUser = session.user;
-  }
-  if(event === 'SIGNED_OUT') {
-    _appInitialized = false;
-    currentUser = null; allBooks = []; allQuotes = [];
-    showScreen('auth'); loadSavedEmail();
-  }
-  if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
-  if(event === 'PASSWORD_RECOVERY') {
-    showScreen('auth'); authSwitch('newpw', null);
-    showAuthError('새 비밀번호를 입력해주세요.', true);
-  }
-  if(event === 'INITIAL_SESSION') {
-    // 앱 첫 로드 시 저장된 세션 복원
-    if(session?.user && !_appInitialized) {
-      await startApp(session.user);
-    }
-  }
-});
 
 async function loadData() {
   const [bR, qR] = await Promise.all([
@@ -1505,7 +1495,10 @@ async function openProfile() {
   if(profile) {
     const libSel = document.getElementById('library-public-sel');
     const catSel = document.getElementById('category-vis-sel');
-    if(libSel) libSel.value = profile.library_public === false ? 'false' : 'true';
+    if(libSel) {
+      const vis = profile.library_visibility || (profile.library_public === false ? 'private' : 'public');
+      libSel.value = vis;
+    }
     if(catSel) catSel.value = profile.category_visibility || 'public';
   }
   // 초대코드 표시
@@ -2145,8 +2138,16 @@ async function openLibrary(userId, userName) {
     sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false})
   ]);
   const targetProfile = profileRes.data;
-  // library_public이 명시적으로 false인 경우만 비공개 (null/undefined는 공개로 처리)
-  if(targetProfile?.library_public === false) { alert(`${userName}님의 서재는 비공개예요.`); return; }
+  // 공개 범위 확인
+  const visibility = targetProfile?.library_visibility || (targetProfile?.library_public === false ? 'private' : 'public');
+  if(visibility === 'private') { alert(`${userName}님의 서재는 비공개예요.`); return; }
+  if(visibility === 'friends') {
+    // 친구 여부 먼저 확인
+    const { data: fCheck } = await sb.from('friendships').select('id').eq('status','accepted')
+      .or(`and(requester_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(requester_id.eq.${userId},receiver_id.eq.${currentUser.id})`)
+      .limit(1);
+    if(!fCheck?.length) { alert(`${userName}님의 서재는 친구에게만 공개돼 있어요.`); return; }
+  }
 
   // 친구 여부 (friendship 쿼리 개선)
   const { data: friendship } = await sb.from('friendships')
@@ -2281,7 +2282,12 @@ async function saveCategoryVisibility(val) {
   await sb.from('profiles').update({category_visibility: val}).eq('id', currentUser.id);
 }
 async function saveLibraryPublic(val) {
-  await sb.from('profiles').update({library_public: val}).eq('id', currentUser.id);
+  // val: 'public'(전체), 'friends'(친구만), 'private'(비공개)
+  const isPublic = val === 'public';
+  await sb.from('profiles').update({
+    library_public: isPublic,
+    library_visibility: val  // 상세 설정 저장
+  }).eq('id', currentUser.id);
 }
 
 // ── 모달 유틸
