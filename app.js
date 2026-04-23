@@ -2123,47 +2123,127 @@ async function surfLibrary() {
   openLibrary(random.id, name);
 }
 
+// 서재 구경 상태
+let _libBooks = [], _libFilter = '전체', _libCatFilter = null, _libUserId = null, _libUserName = '';
+
 async function openLibrary(userId, userName) {
   closeModal('modal-social');
-  const { data: books } = await sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false});
-  const { data: targetProfile } = await sb.from('profiles').select('library_public,category_visibility,categories').eq('id',userId).single();
-
+  const { data: targetProfile } = await sb.from('profiles')
+    .select('library_public,category_visibility,categories').eq('id',userId).single();
   if(!targetProfile?.library_public) { alert(`${userName}님의 서재는 비공개예요.`); return; }
 
-  // 친구 여부 확인 (카테고리 표시용)
   const { data: friendship } = await sb.from('friendships')
-    .select('status').or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+    .select('status')
+    .or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
     .eq('status','accepted').limit(1);
   const isFriend = !!friendship?.length;
-  const canSeeCategory = targetProfile.category_visibility === 'public' ||
+  const canSeeCat = targetProfile.category_visibility === 'public' ||
     (targetProfile.category_visibility === 'friends' && isFriend);
 
-  const modal = document.getElementById('modal-library');
-  const title = document.getElementById('library-modal-title');
-  const body = document.getElementById('library-modal-body');
-  if(!modal||!title||!body) return;
-  title.textContent = `📚 ${userName}님의 서재`;
+  const { data: books } = await sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false});
+  _libBooks = books || [];
+  _libFilter = '전체';
+  _libCatFilter = null;
+  _libUserId = userId;
+  _libUserName = userName;
 
-  const done = (books||[]).filter(b=>b.status==='완독').length;
-  const reading = (books||[]).filter(b=>b.status==='읽는중').length;
+  const title = document.getElementById('library-modal-title');
+  if(title) title.textContent = `📚 ${userName}님의 서재`;
+
+  // 탭 영역 렌더
+  const body = document.getElementById('library-modal-body');
+  if(!body) return;
+
+  // 카테고리 목록
+  const cats = canSeeCat ? (targetProfile.categories||[]) : [];
+
   body.innerHTML = `
-    <div style="display:flex;gap:1rem;margin-bottom:1rem;padding:.6rem .8rem;background:#faf6ef;border-radius:var(--rs);">
-      <div style="text-align:center;"><div style="font-size:1.2rem;font-weight:700;color:var(--acc);">${done}</div><div style="font-size:.65rem;color:var(--tx3);">완독</div></div>
-      <div style="text-align:center;"><div style="font-size:1.2rem;font-weight:700;color:var(--acc);">${reading}</div><div style="font-size:.65rem;color:var(--tx3);">읽는중</div></div>
-      <div style="text-align:center;"><div style="font-size:1.2rem;font-weight:700;color:var(--acc);">${(books||[]).length}</div><div style="font-size:.65rem;color:var(--tx3);">전체</div></div>
+    <!-- 필터 탭 -->
+    <div style="display:flex;gap:.35rem;margin-bottom:.7rem;flex-wrap:wrap;padding-bottom:.6rem;border-bottom:1px solid var(--border);">
+      <button class="filter-btn on" id="lib-f-전체" onclick="libFilter('전체',this)">전체</button>
+      <button class="filter-btn" id="lib-f-완독" onclick="libFilter('완독',this)">완독</button>
+      <button class="filter-btn" id="lib-f-읽는중" onclick="libFilter('읽는중',this)">읽는중</button>
+      <button class="filter-btn" id="lib-f-읽고싶음" onclick="libFilter('읽고싶음',this)">읽고싶음</button>
     </div>
-    ${canSeeCategory && targetProfile.categories?.length ? `
-    <div style="margin-bottom:.8rem;">
-      <div style="font-size:.7rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">카테고리</div>
-      <div style="display:flex;gap:.3rem;flex-wrap:wrap;">${(targetProfile.categories||[]).map(c=>`<span style="font-size:.68rem;background:#ede4d0;border:1px solid var(--border2);padding:2px 7px;border-radius:3px;">${c}</span>`).join('')}</div>
+    <!-- 카테고리 폴더 (공개된 경우) -->
+    ${cats.length ? `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.7rem;">
+      <button class="filter-btn on" id="lib-cat-all" onclick="libCatFilter(null,this)">전체</button>
+      ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c}" onclick="libCatFilter('${c}',this)">📁 ${c}</button>`).join('')}
     </div>` : ''}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;">
-      ${(books||[]).slice(0,20).map(b=>`
-        <div style="aspect-ratio:2/3;border-radius:4px;overflow:hidden;background:linear-gradient(150deg,#a07040,#5c3010);" title="${b.title}">
-          ${b.cover?`<img src="${b.cover}" style="width:100%;height:100%;object-fit:cover;">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.4rem;color:rgba(255,255,255,.7);padding:.2rem;text-align:center;">${b.title}</div>`}
-        </div>`).join('')}
-    </div>`;
+    <!-- 달력 요약 -->
+    <div id="lib-cal-wrap" style="margin-bottom:.7rem;"></div>
+    <!-- 갤러리 -->
+    <div id="lib-gallery" class="gallery"></div>`;
+
+  renderLibCal();
+  renderLibGallery();
   openModal('modal-library');
+}
+
+function libFilter(f, btn) {
+  _libFilter = f;
+  document.querySelectorAll('[id^="lib-f-"]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderLibGallery();
+}
+
+function libCatFilter(cat, btn) {
+  _libCatFilter = cat;
+  document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderLibGallery();
+}
+
+function renderLibGallery() {
+  const g = document.getElementById('lib-gallery');
+  if(!g) return;
+  let list = _libBooks;
+  if(_libFilter !== '전체') list = list.filter(b=>b.status===_libFilter);
+  if(_libCatFilter) list = list.filter(b=>b.category===_libCatFilter);
+  g.innerHTML = '';
+  if(!list.length) { g.innerHTML='<div class="empty-state">책이 없어요.</div>'; return; }
+  list.forEach(b => {
+    const el = document.createElement('div');
+    el.className = 'gi';
+    el.style.cursor = 'default';
+    const img = b.cover
+      ? `<img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;display:block;">`
+      : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.42rem;color:rgba(255,255,255,.8);text-align:center;padding:.2rem;font-style:italic;line-height:1.3;">${b.title}</div>`;
+    el.innerHTML = `<div class="gi-cover">${img}</div>
+      <div class="gi-title">${b.title}</div>
+      <div class="gi-author">${b.author||''}</div>
+      <div class="gi-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
+      <span class="gi-status">${b.status||''}</span>`;
+    g.appendChild(el);
+  });
+}
+
+function renderLibCal() {
+  const wrap = document.getElementById('lib-cal-wrap');
+  if(!wrap) return;
+  // 이번달 완독 표시
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const firstDay = new Date(y,m,1).getDay();
+  // 날짜별 완독 맵
+  const finishMap = {};
+  _libBooks.filter(b=>b.date_finish?.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
+    .forEach(b=>{ finishMap[parseInt(b.date_finish.slice(8,10))] = (finishMap[parseInt(b.date_finish.slice(8,10))]||0)+1; });
+  const thisMonthDone = Object.values(finishMap).reduce((a,b)=>a+b,0);
+  wrap.innerHTML = `
+    <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.4rem;">${y}년 ${MN[m]} · 완독 ${thisMonthDone}권</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+      ${['일','월','화','수','목','금','토'].map(d=>`<div style="font-size:.52rem;color:var(--tx3);text-align:center;padding:.08rem 0;">${d}</div>`).join('')}
+      ${Array(firstDay).fill('<div></div>').join('')}
+      ${Array.from({length:daysInMonth},(_,i)=>{
+        const d=i+1, cnt=finishMap[d]||0;
+        return `<div style="aspect-ratio:1;border-radius:3px;background:${cnt?'var(--acc)':'var(--border)'};display:flex;align-items:center;justify-content:center;" title="${d}일${cnt?' 완독'+cnt+'권':''}">
+          <span style="font-size:.48rem;color:${cnt?'#fff':'var(--tx3)'};">${d}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 // 카테고리 공개 설정

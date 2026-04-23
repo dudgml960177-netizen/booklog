@@ -798,12 +798,12 @@
 
 <!-- 서재 구경 모달 -->
 <div id="modal-library" class="modal-overlay" style="display:none;">
-  <div class="modal modal-wide">
+  <div class="modal modal-wide" style="max-height:92vh;display:flex;flex-direction:column;width:min(600px,96vw);">
     <div class="modal-header">
       <div class="modal-title" id="library-modal-title">📚 서재</div>
       <button class="modal-close" onclick="closeModal('modal-library')">✕</button>
     </div>
-    <div class="modal-body" id="library-modal-body"></div>
+    <div class="modal-body" id="library-modal-body" style="flex:1;overflow-y:auto;"></div>
     <div class="modal-footer">
       <button class="btn-save" onclick="closeModal('modal-library')">닫기</button>
     </div>
@@ -812,6 +812,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=250"></script>
+<script src="app.js?v=251"></script>
 </body>
 </html>
