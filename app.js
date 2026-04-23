@@ -27,15 +27,7 @@ const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY
     flowType: 'implicit',
   }
 }));
-// 10분마다 토큰 갱신 (세션 만료 방지)
-setInterval(async () => {
-  if(currentUser) {
-    try {
-      const { error } = await sb.auth.refreshSession();
-      if(error) console.warn('token refresh failed:', error.message);
-    } catch(e) { console.warn('refresh exception:', e); }
-  }
-}, 10 * 60 * 1000);
+// Supabase autoRefreshToken이 자동으로 처리함 - 수동 갱신 불필요
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
@@ -124,7 +116,7 @@ async function startApp(user) {
     console.warn('loadData error:', e);
     // loadData 실패해도 앱은 시작
   }
-  loadGoals();
+  await loadGoals();
   loadUserRole();
   showScreen('app');
   buildBooks();
@@ -196,7 +188,10 @@ async function loadData() {
   ]);
   allBooks = bR.data || []; allQuotes = qR.data || [];
   // 카테고리 로컬 스토리지에서 로드
-  try { allCategories = JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]'); } catch(e){ allCategories=[]; }
+  try {
+    const { data: pf } = await sb.from('profiles').select('categories').eq('id',currentUser.id).single();
+    allCategories = pf?.categories || JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]');
+  } catch(e) { try { allCategories = JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]'); } catch(e2){ allCategories=[]; } }
 }
 
 // ── 인증
@@ -903,8 +898,14 @@ function buildAuthorChart() {
     if(b.author) authorMap[b.author]=(authorMap[b.author]||0)+1;
     if(b.publisher) pubMap[b.publisher]=(pubMap[b.publisher]||0)+1;
   });
-  const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]);
-  const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]);
+  // 동점 시 별점 합산으로 정렬
+  const authorRating={}, pubRating={};
+  done.forEach(b=>{
+    if(b.author) authorRating[b.author]=(authorRating[b.author]||0)+(b.rating||0);
+    if(b.publisher) pubRating[b.publisher]=(pubRating[b.publisher]||0)+(b.rating||0);
+  });
+  const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]||((authorRating[b[0]]||0)-(authorRating[a[0]]||0)));
+  const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
   if(!aSorted.length){wrap.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독한 책이 없어요.</div>';return;}
 
   // ─ 명예의 전당
@@ -1101,7 +1102,12 @@ function buildMilestone() {
 }
 
 // ── 목표
-function loadGoals() {
+async function loadGoals() {
+  try {
+    const { data } = await sb.from('user_goals').select('*').eq('user_id',currentUser.id).single();
+    if(data) { goals = {books:data.books||0, minutes:data.minutes||0, pages:data.pages||0}; return; }
+  } catch(e) {}
+  // localStorage 폴백
   try { goals = JSON.parse(localStorage.getItem('bl_goals_'+currentUser.id)||'{}'); } catch(e){ goals={}; }
   goals = { books:0, minutes:0, pages:0, ...goals };
 }
@@ -1111,10 +1117,16 @@ function openGoalModal() {
   document.getElementById('goal-pages').value = goals.pages||'';
   openModal('modal-goal');
 }
-function saveGoal() {
+async function saveGoal() {
   goals.books   = parseInt(document.getElementById('goal-books').value)||0;
   goals.minutes = parseInt(document.getElementById('goal-minutes').value)||0;
   goals.pages   = parseInt(document.getElementById('goal-pages').value)||0;
+  try {
+    await sb.from('user_goals').upsert({
+      user_id:currentUser.id, books:goals.books, minutes:goals.minutes, pages:goals.pages,
+      updated_at:new Date().toISOString()
+    });
+  } catch(e) { console.warn('goals save error:', e); }
   localStorage.setItem('bl_goals_'+currentUser.id, JSON.stringify(goals));
   closeModal('modal-goal');
   buildGoalDisplay();
@@ -1174,6 +1186,7 @@ function addCategory() {
   if(allCategories.includes(name)){alert('이미 있는 카테고리예요.');return;}
   allCategories.push(name);
   localStorage.setItem('bl_cats_'+currentUser.id,JSON.stringify(allCategories));
+  sb.from('profiles').update({categories:allCategories}).eq('id',currentUser.id).then().catch(e=>console.warn('cats save:',e));
   input.value='';buildCatList();buildCatFilterList();
   updateBookCategorySelect();
 }
@@ -1181,6 +1194,7 @@ function deleteCategory(idx) {
   if(!confirm(`'${allCategories[idx]}' 카테고리를 삭제할까요?`))return;
   allCategories.splice(idx,1);
   localStorage.setItem('bl_cats_'+currentUser.id,JSON.stringify(allCategories));
+  sb.from('profiles').update({categories:allCategories}).eq('id',currentUser.id).then().catch(e=>console.warn('cats save:',e));
   buildCatList();buildCatFilterList();updateBookCategorySelect();
 }
 function updateBookCategorySelect() {
@@ -2045,6 +2059,40 @@ function renderPostItems(list, posts, count, catLabel) {
   }
 }
 
+
+async function showMyPosts() {
+  const { data: posts } = await sb.from('posts')
+    .select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
+  const wrap = document.getElementById('board-list');
+  if(!wrap) return;
+  // 필터 버튼 상태 업데이트
+  document.querySelectorAll('#board-all-btn,#board-notice-btn').forEach(b=>b.classList.remove('on'));
+  const myBtn = document.getElementById('board-mine-btn');
+  if(myBtn) myBtn.classList.add('on');
+  wrap.innerHTML = '';
+  if(!posts?.length) { wrap.innerHTML='<div class="empty-state">작성한 글이 없어요.</div>'; return; }
+  const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'};
+  posts.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'board-item' + (p.is_notice?' post-notice':'');
+    el.onclick = () => openPostDetail(p.id);
+    const cat = catLabel[p.category]||'';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.22rem;flex-wrap:wrap;">
+        ${p.is_notice?'<span class="post-badge-notice">📌 공지</span>':''}
+        ${cat?`<span class="board-cat">${cat}</span>`:''}
+        <span class="board-title">${p.is_hidden?'🚫 블라인드 처리됨':p.title}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <span class="board-meta">${p.created_at?.slice(0,10)}</span>
+        <span class="board-meta" style="margin-left:auto;">❤️ ${p.likes||0}</span>
+      </div>`;
+    wrap.appendChild(el);
+  });
+  const pg = document.getElementById('board-pagination');
+  if(pg) pg.innerHTML = '';
+}
+
 function filterBoard(f, btn) {
   boardFilter=f; boardPage=1;
   document.querySelectorAll('#board-all-btn,#board-notice-btn').forEach(b=>b.classList.remove('on'));
@@ -2080,6 +2128,9 @@ function openPostWrite(editId=null) {
 }
 
 async function submitPost() {
+  // 제한된 사용자 차단
+  const { data: myProfile } = await sb.from('profiles').select('is_banned').eq('id',currentUser.id).single();
+  if(myProfile?.is_banned) { alert('계정이 제한되어 글을 작성할 수 없어요.'); closeModal('modal-post'); return; }
   const titleEl = document.getElementById('post-title');
   if(!titleEl) { alert('폼을 찾을 수 없어요.'); return; }
   const title = titleEl.value.trim();
@@ -2138,8 +2189,9 @@ async function openPostDetail(postId) {
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[post.category]||'';
 
   // 좋아요 중복 방지 - localStorage 기반
-  const likedKey = `liked_${currentUser.id}_${postId}`;
-  const alreadyLiked = localStorage.getItem(likedKey);
+  const { data: likedRow } = await sb.from('post_likes')
+    .select('post_id').eq('post_id', postId).eq('user_id', currentUser.id).single();
+  const alreadyLiked = !!likedRow;
 
   const commentsHtml = (comms||[]).filter(c=>!c.parent_id).map(c => {
     const replies = (comms||[]).filter(r=>r.parent_id===c.id);
@@ -2180,8 +2232,10 @@ async function openPostDetail(postId) {
       <span class="board-meta">산책자</span>
       <span class="board-meta">${post.created_at?.slice(0,10)}</span>
     </div>
-    <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':'var(--tx1)'};border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;font-style:${post.is_hidden?'italic':'normal'};">
-      ${post.is_hidden?'🚫 이 게시글은 신고 게시글로 분류되었습니다.':post.content}
+    <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':'var(--tx1)'};border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;">
+      ${post.is_hidden
+        ? '🚫 이 게시글은 신고 게시글로 분류되었습니다.'
+        : (post.content||'').replace(/\n/g,'<br>')}
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
       <button onclick="likePost('${postId}')" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);">
@@ -2257,11 +2311,18 @@ async function openBanModal(userId) {
 
 
 async function likePost(postId) {
-  const likedKey = `liked_${currentUser.id}_${postId}`;
-  if(localStorage.getItem(likedKey)) { alert('이미 공감한 글이에요.'); return; }
-  const { data:p } = await sb.from('posts').select('likes,user_id').eq('id',postId).single();
+  const { data: myProfile } = await sb.from('profiles').select('is_banned').eq('id',currentUser.id).single();
+  if(myProfile?.is_banned) { alert('계정이 제한되어 공감할 수 없어요.'); return; }
+  // DB 기반 중복 방지 (post_likes 테이블)
+  const { data: existing } = await sb.from('post_likes')
+    .select('post_id').eq('post_id', postId).eq('user_id', currentUser.id).single();
+  if(existing) { alert('이미 공감한 글이에요.'); return; }
+  // 좋아요 기록 + 카운트 증가 동시 처리
+  const [_, { data:p }] = await Promise.all([
+    sb.from('post_likes').insert({ post_id: postId, user_id: currentUser.id }),
+    sb.from('posts').select('likes,user_id').eq('id',postId).single()
+  ]);
   await sb.from('posts').update({likes:(p?.likes||0)+1}).eq('id',postId);
-  localStorage.setItem(likedKey, '1');
   if(p?.user_id && p.user_id !== currentUser.id) {
     await sb.from('notifications').insert({
       user_id:p.user_id, type:'like',
@@ -2273,6 +2334,8 @@ async function likePost(postId) {
 }
 
 async function submitComment(postId) {
+  const { data: myProfile } = await sb.from('profiles').select('is_banned').eq('id',currentUser.id).single();
+  if(myProfile?.is_banned) { alert('계정이 제한되어 댓글을 달 수 없어요.'); return; }
   const content = document.getElementById('new-comment')?.value.trim();
   if(!content){alert('댓글을 입력해주세요.');return;}
   await sb.from('comments').insert({post_id:postId,user_id:currentUser.id,content,is_anonymous:true,created_at:new Date().toISOString()});
@@ -2293,6 +2356,8 @@ function showReplyInput(commentId) {
   if(box) { box.style.display = box.style.display==='none'?'':'none'; }
 }
 async function submitReply(postId, parentId) {
+  const { data: myProfile } = await sb.from('profiles').select('is_banned').eq('id',currentUser.id).single();
+  if(myProfile?.is_banned) { alert('계정이 제한되어 답글을 달 수 없어요.'); return; }
   const input = document.getElementById(`reply-input-${parentId}`);
   const content = input?.value.trim();
   if(!content){alert('답글을 입력해주세요.');return;}
