@@ -81,7 +81,7 @@ function cleanupLocalStorage() {
             .forEach(k => localStorage.removeItem(k));
       }
     } catch(e) {}
-  } catch(e) { console.warn('localStorage cleanup error:', e); }
+  } catch(e) { /* localStorage 접근 불가 - 무시 */ }
 }
 
 
@@ -126,6 +126,16 @@ async function startApp(user) {
 async function init() {
   initFontSize();
   cleanupLocalStorage();
+  // 모달 외부 클릭 닫기 이벤트 등록
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => { if(e.target===el) el.style.display='none'; });
+  });
+  // board-search 이벤트 등록
+  const boardSearch = document.getElementById('board-search');
+  if(boardSearch && !boardSearch._evtSet) {
+    boardSearch.oninput = () => { boardPage=1; renderBoardList(); };
+    boardSearch._evtSet = true;
+  }
 
   // 비밀번호 재설정 토큰 처리
   const hash = window.location.hash;
@@ -215,7 +225,7 @@ function authSwitch(tab, btn) {
     const el = document.getElementById('form-'+f);
     if(el) el.style.display = f===tab ? '' : 'none';
   });
-  document.getElementById('auth-error').style.display = 'none';
+  const authErr = document.getElementById('auth-error'); if(authErr) authErr.style.display = 'none';
 }
 async function doLogin() {
   const emailEl = document.getElementById('login-email');
@@ -312,7 +322,7 @@ function sw(name, btn) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   btn.classList.add('on');
-  document.getElementById('p-'+name).classList.add('on');
+  const panel = document.getElementById('p-'+name); if(panel) panel.classList.add('on');
   if (name==='books')  buildBooks();
   if (name==='quotes') buildQuotes();
   if (name==='record') { renderCal(); buildTimer(); }
@@ -2257,7 +2267,7 @@ async function saveLibraryPublic(val) {
 // ── 모달 유틸
 function openModal(id){document.getElementById(id).style.display='flex';}
 function closeModal(id){document.getElementById(id).style.display='none';}
-document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.style.display='none';});});
+// modal overlay click-outside: init에서 등록
 
 // ══════════════════════════════════════
 // 게시판
