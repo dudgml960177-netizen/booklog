@@ -2138,19 +2138,32 @@ let _libBooks = [], _libFilter = '전체', _libCatFilter = null, _libUserId = nu
 
 async function openLibrary(userId, userName) {
   closeModal('modal-social');
-  const { data: targetProfile } = await sb.from('profiles')
-    .select('library_public,category_visibility,categories').eq('id',userId).single();
-  if(!targetProfile?.library_public) { alert(`${userName}님의 서재는 비공개예요.`); return; }
 
+  // 프로필 + 책 동시 로드
+  const [profileRes, booksRes] = await Promise.all([
+    sb.from('profiles').select('library_public,category_visibility,categories').eq('id',userId).single(),
+    sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false})
+  ]);
+  const targetProfile = profileRes.data;
+  // library_public이 명시적으로 false인 경우만 비공개 (null/undefined는 공개로 처리)
+  if(targetProfile?.library_public === false) { alert(`${userName}님의 서재는 비공개예요.`); return; }
+
+  // 친구 여부 (friendship 쿼리 개선)
   const { data: friendship } = await sb.from('friendships')
-    .select('status')
-    .or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
-    .eq('status','accepted').limit(1);
+    .select('status').eq('status','accepted')
+    .or(`and(requester_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(requester_id.eq.${userId},receiver_id.eq.${currentUser.id})`)
+    .limit(1);
   const isFriend = !!friendship?.length;
-  const canSeeCat = targetProfile.category_visibility === 'public' ||
+  const canSeeCat = !targetProfile?.category_visibility ||
+    targetProfile.category_visibility === 'public' ||
     (targetProfile.category_visibility === 'friends' && isFriend);
 
-  const { data: books } = await sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false});
+  const { data: books } = booksRes;
+  if(!books) {
+    alert('서재를 불러올 수 없어요. 해당 사용자의 서재가 비공개이거나 오류가 발생했어요.');
+    return;
+  }
+  console.log('Library books loaded:', books?.length, 'for user:', userId);
   _libBooks = books || [];
   _libFilter = '전체';
   _libCatFilter = null;
@@ -2231,19 +2244,26 @@ function renderLibGallery() {
 function renderLibCal() {
   const wrap = document.getElementById('lib-cal-wrap');
   if(!wrap) return;
-  // 이번달 완독 표시
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
   const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   const daysInMonth = new Date(y,m+1,0).getDate();
   const firstDay = new Date(y,m,1).getDay();
-  // 날짜별 완독 맵
+  // 전체 통계
+  const totalDone = _libBooks.filter(b=>b.status==='완독').length;
+  const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
+  // 이번달 완독 맵
   const finishMap = {};
   _libBooks.filter(b=>b.date_finish?.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
-    .forEach(b=>{ finishMap[parseInt(b.date_finish.slice(8,10))] = (finishMap[parseInt(b.date_finish.slice(8,10))]||0)+1; });
+    .forEach(b=>{ const d=parseInt(b.date_finish.slice(8,10)); finishMap[d]=(finishMap[d]||0)+1; });
   const thisMonthDone = Object.values(finishMap).reduce((a,b)=>a+b,0);
   wrap.innerHTML = `
-    <div style="font-size:.72rem;font-weight:600;color:var(--acc2);margin-bottom:.4rem;">${y}년 ${MN[m]} · 완독 ${thisMonthDone}권</div>
+    <div style="display:flex;gap:1.2rem;margin-bottom:.6rem;padding:.5rem .7rem;background:#faf6ef;border-radius:var(--rs);">
+      <div style="text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:var(--acc);">${totalDone}</div><div style="font-size:.62rem;color:var(--tx3);">완독</div></div>
+      <div style="text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:var(--acc);">${totalReading}</div><div style="font-size:.62rem;color:var(--tx3);">읽는중</div></div>
+      <div style="text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:var(--acc);">${_libBooks.length}</div><div style="font-size:.62rem;color:var(--tx3);">전체</div></div>
+    </div>
+    <div style="font-size:.7rem;font-weight:600;color:var(--acc2);margin-bottom:.35rem;">${y}년 ${MN[m]} · 이달 완독 ${thisMonthDone}권</div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
       ${['일','월','화','수','목','금','토'].map(d=>`<div style="font-size:.52rem;color:var(--tx3);text-align:center;padding:.08rem 0;">${d}</div>`).join('')}
       ${Array(firstDay).fill('<div></div>').join('')}
