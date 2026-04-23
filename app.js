@@ -1654,8 +1654,7 @@ async function goToNotif(notifId) {
   const detailEl = document.getElementById('notif-detail-body');
   if(detailEl) {
     const postId = n.post_id || null;
-        const msgHtml = (n.message||'').split('\n').map(l=>l||'<br>').join('<br>');
-/g,'<br>');
+        const msgHtml = (n.message||'').split('\n').map(l=>l===''?'<br>':l).join('<br>');
     detailEl.innerHTML = `
       <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${msgHtml}</div>
       <div style="font-size:.65rem;color:var(--tx3);">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
