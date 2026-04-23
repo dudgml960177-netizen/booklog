@@ -770,10 +770,13 @@ function buildStats() {
   // 완독된 책만 누적 페이지
   const totalPages=done.reduce((a,b)=>a+(b.pages||0),0);
   // 최애 작가/출판사
-  const aMap={},pMap={};
-  done.forEach(b=>{if(b.author)aMap[b.author]=(aMap[b.author]||0)+1;if(b.publisher)pMap[b.publisher]=(pMap[b.publisher]||0)+1;});
-  const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1])[0];
-  const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1])[0];
+  const aMap={},pMap={},aRating={},pRating={};
+  done.forEach(b=>{
+    if(b.author){aMap[b.author]=(aMap[b.author]||0)+1;aRating[b.author]=(aRating[b.author]||0)+(b.rating||0);}
+    if(b.publisher){pMap[b.publisher]=(pMap[b.publisher]||0)+1;pRating[b.publisher]=(pRating[b.publisher]||0)+(b.rating||0);}
+  });
+  const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1]||(aRating[b[0]]||0)-(aRating[a[0]]||0))[0];
+  const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1]||(pRating[b[0]]||0)-(pRating[a[0]]||0))[0];
   const items=[
     {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체'},
     {n:avg,   l:'평균 평점', sub:avg+' / 5.0'},
@@ -1634,7 +1637,7 @@ async function loadNotifications() {
       list.innerHTML = data.map(n => `
         <div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
           <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}')">
-            <div style="color:var(--tx1);margin-bottom:.15rem;">${n.message}</div>
+            <div style="color:var(--tx1);margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">${(n.message||'').length>50?(n.message||'').slice(0,50)+'…':(n.message||'')}</div>
             <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
           </div>
           <button onclick="event.stopPropagation();deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
@@ -1649,8 +1652,10 @@ async function goToNotif(notifId) {
   const detailEl = document.getElementById('notif-detail-body');
   if(detailEl) {
     const postId = n.post_id || null;
+    const msgHtml = (n.message||'').replace(/
+/g,'<br>');
     detailEl.innerHTML = `
-      <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${n.message||''}</div>
+      <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${msgHtml}</div>
       <div style="font-size:.65rem;color:var(--tx3);">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
       ${postId ? `<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
         <button class="btn-save" style="width:100%;padding:.5rem;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
@@ -2066,9 +2071,10 @@ async function showMyPosts() {
   const wrap = document.getElementById('board-list');
   if(!wrap) return;
   // 필터 버튼 상태 업데이트
-  document.querySelectorAll('#board-all-btn,#board-notice-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
   const myBtn = document.getElementById('board-mine-btn');
   if(myBtn) myBtn.classList.add('on');
+  boardFilter = 'mine'; boardPage = 1;
   wrap.innerHTML = '';
   if(!posts?.length) { wrap.innerHTML='<div class="empty-state">작성한 글이 없어요.</div>'; return; }
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'};
@@ -2095,7 +2101,7 @@ async function showMyPosts() {
 
 function filterBoard(f, btn) {
   boardFilter=f; boardPage=1;
-  document.querySelectorAll('#board-all-btn,#board-notice-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
   renderBoardList();
 }
