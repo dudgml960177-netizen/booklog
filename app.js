@@ -1491,6 +1491,13 @@ async function openProfile() {
     document.getElementById('profile-name').textContent=name;
     document.getElementById('profile-display-name').value=name;
   }
+  // 공개 설정 현재값 반영
+  if(profile) {
+    const libSel = document.getElementById('library-public-sel');
+    const catSel = document.getElementById('category-vis-sel');
+    if(libSel) libSel.value = profile.library_public === false ? 'false' : 'true';
+    if(catSel) catSel.value = profile.category_visibility || 'public';
+  }
   // 초대코드 표시
   const codeWrap=document.getElementById('profile-invite-codes');
   if(codeWrap && myCodes) {
@@ -1952,6 +1959,219 @@ async function sendMsgToSelected() {
     renderMemberList();
     alert(`${notifs.length}명에게 쪽지를 보냈어요.`);
   } catch(e) { alert('전송 오류: '+e.message); }
+}
+
+
+// ══════════════════════════════════════
+// 백업 & 복원
+// ══════════════════════════════════════
+async function downloadBackup() {
+  try {
+    const { data: books } = await sb.from('books').select('*').eq('user_id', currentUser.id);
+    const { data: quotes } = await sb.from('quotes').select('*').eq('user_id', currentUser.id);
+    const { data: goals } = await sb.from('user_goals').select('*').eq('user_id', currentUser.id);
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+    const backup = {
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      user: { email: currentUser.email, display_name: profile?.display_name },
+      books: books || [],
+      quotes: quotes || [],
+      goals: goals?.[0] || {},
+      categories: profile?.categories || []
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `booklog_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('백업 파일이 다운로드됐어요!');
+  } catch(e) { alert('백업 오류: '+e.message); }
+}
+
+async function restoreBackup(file) {
+  if(!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!data.version || !data.books) { alert('올바른 백업 파일이 아니에요.'); return; }
+    if(!confirm(`백업 파일을 복원할까요?
+책 ${data.books.length}권, 문장 ${data.quotes.length}개
+⚠️ 기존 데이터와 병합됩니다.`)) return;
+    // 책 복원 (isbn 기준 중복 제외)
+    const { data: existingBooks } = await sb.from('books').select('isbn').eq('user_id', currentUser.id);
+    const existingIsbns = new Set((existingBooks||[]).map(b=>b.isbn).filter(Boolean));
+    const newBooks = data.books
+      .filter(b => !b.isbn || !existingIsbns.has(b.isbn))
+      .map(b => ({...b, id: undefined, user_id: currentUser.id, created_at: b.created_at||new Date().toISOString()}));
+    if(newBooks.length) await sb.from('books').insert(newBooks);
+    // 목표 복원
+    if(data.goals?.books || data.goals?.minutes || data.goals?.pages) {
+      await sb.from('user_goals').upsert({
+        user_id: currentUser.id,
+        books: data.goals.books||0, minutes: data.goals.minutes||0, pages: data.goals.pages||0
+      });
+    }
+    await loadData(); await loadGoals(); buildBooks();
+    alert(`복원 완료! 책 ${newBooks.length}권을 추가했어요.`);
+    closeModal('modal-backup');
+  } catch(e) { alert('복원 오류: '+e.message); }
+}
+
+// ══════════════════════════════════════
+// 친구 & 파도타기 (서재 구경)
+// ══════════════════════════════════════
+async function openSocialModal() {
+  openModal('modal-social');
+  loadFriends();
+}
+
+async function loadFriends() {
+  const wrap = document.getElementById('friend-list');
+  if(!wrap) return;
+  wrap.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">불러오는 중...</div>';
+  const { data } = await sb.from('friendships').select(`
+    id, status, requester_id, receiver_id,
+    requester:profiles!friendships_requester_id_fkey(id,display_name,username),
+    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username)
+  `).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+
+  wrap.innerHTML = '';
+  if(!data?.length) { wrap.innerHTML='<div style="padding:.5rem;font-size:.75rem;color:var(--tx3);">아직 친구가 없어요.</div>'; return; }
+  data.forEach(f => {
+    const isMine = f.requester_id === currentUser.id;
+    const other = isMine ? f.receiver : f.requester;
+    const name = other?.display_name || other?.username || '산책자';
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.45rem .7rem;border-bottom:1px solid var(--border);font-size:.78rem;';
+    if(f.status === 'accepted') {
+      el.innerHTML = `
+        <span style="flex:1;font-weight:500;">${name}</span>
+        <button onclick="openLibrary('${other.id}','${name}')" class="btn-cancel" style="font-size:.68rem;padding:.2rem .5rem;">📚 서재</button>
+        <button onclick="removeFriend('${f.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.68rem;">✕</button>`;
+    } else if(f.status === 'pending' && !isMine) {
+      el.innerHTML = `
+        <span style="flex:1;font-weight:500;">${name} <span style="font-size:.65rem;color:var(--acc);">친구 요청</span></span>
+        <button onclick="acceptFriend('${f.id}')" class="btn-save" style="font-size:.68rem;padding:.2rem .5rem;">수락</button>
+        <button onclick="removeFriend('${f.id}')" class="btn-cancel" style="font-size:.68rem;padding:.2rem .5rem;">거절</button>`;
+    } else {
+      el.innerHTML = `
+        <span style="flex:1;font-weight:500;color:var(--tx3);">${name} <span style="font-size:.65rem;">(요청 중)</span></span>
+        <button onclick="removeFriend('${f.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.68rem;">취소</button>`;
+    }
+    wrap.appendChild(el);
+  });
+}
+
+async function searchFriend() {
+  const q = document.getElementById('friend-search-input')?.value.trim();
+  const resultEl = document.getElementById('friend-search-result');
+  if(!q || !resultEl) return;
+  const { data } = await sb.from('profiles').select('id,display_name,username')
+    .or(`display_name.ilike.%${q}%,username.ilike.%${q}%`)
+    .neq('id', currentUser.id).limit(5);
+  resultEl.innerHTML = '';
+  if(!data?.length) { resultEl.innerHTML='<div style="font-size:.73rem;color:var(--tx3);padding:.3rem 0;">검색 결과가 없어요.</div>'; return; }
+  data.forEach(u => {
+    const name = u.display_name || u.username;
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-bottom:1px solid var(--border);font-size:.78rem;cursor:pointer;';
+    el.innerHTML = `<span style="flex:1;">${name}</span>
+      <button onclick="sendFriendRequest('${u.id}','${name}')" class="btn-save" style="font-size:.68rem;padding:.2rem .5rem;">친구 추가</button>
+      <button onclick="openLibrary('${u.id}','${name}')" class="btn-cancel" style="font-size:.68rem;padding:.2rem .5rem;">📚 서재</button>`;
+    resultEl.appendChild(el);
+  });
+}
+
+async function sendFriendRequest(receiverId, name) {
+  const { error } = await sb.from('friendships').insert({requester_id: currentUser.id, receiver_id: receiverId});
+  if(error) { alert(error.message.includes('unique') ? '이미 친구 요청을 보냈어요.' : error.message); return; }
+  // 알림
+  await sb.from('notifications').insert({
+    user_id: receiverId, type: 'friend_request',
+    message: `📬 친구 요청이 왔어요!`,
+    is_read: false, created_at: new Date().toISOString()
+  });
+  alert(`${name}님에게 친구 요청을 보냈어요!`);
+  loadFriends();
+}
+
+async function acceptFriend(friendshipId) {
+  await sb.from('friendships').update({status:'accepted'}).eq('id', friendshipId);
+  loadFriends();
+  alert('친구 요청을 수락했어요!');
+}
+
+async function removeFriend(friendshipId) {
+  if(!confirm('친구를 삭제할까요?')) return;
+  await sb.from('friendships').delete().eq('id', friendshipId);
+  loadFriends();
+}
+
+// 파도타기 - 랜덤 서재 구경
+async function surfLibrary() {
+  const { data } = await sb.from('profiles')
+    .select('id,display_name,username,library_public')
+    .eq('library_public', true)
+    .neq('id', currentUser.id)
+    .limit(50);
+  if(!data?.length) { alert('공개된 서재가 없어요.'); return; }
+  const random = data[Math.floor(Math.random()*data.length)];
+  const name = random.display_name || random.username || '산책자';
+  openLibrary(random.id, name);
+}
+
+async function openLibrary(userId, userName) {
+  closeModal('modal-social');
+  const { data: books } = await sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false});
+  const { data: targetProfile } = await sb.from('profiles').select('library_public,category_visibility,categories').eq('id',userId).single();
+
+  if(!targetProfile?.library_public) { alert(`${userName}님의 서재는 비공개예요.`); return; }
+
+  // 친구 여부 확인 (카테고리 표시용)
+  const { data: friendship } = await sb.from('friendships')
+    .select('status').or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+    .eq('status','accepted').limit(1);
+  const isFriend = !!friendship?.length;
+  const canSeeCategory = targetProfile.category_visibility === 'public' ||
+    (targetProfile.category_visibility === 'friends' && isFriend);
+
+  const modal = document.getElementById('modal-library');
+  const title = document.getElementById('library-modal-title');
+  const body = document.getElementById('library-modal-body');
+  if(!modal||!title||!body) return;
+  title.textContent = `📚 ${userName}님의 서재`;
+
+  const done = (books||[]).filter(b=>b.status==='완독').length;
+  const reading = (books||[]).filter(b=>b.status==='읽는중').length;
+  body.innerHTML = `
+    <div style="display:flex;gap:1rem;margin-bottom:1rem;padding:.6rem .8rem;background:#faf6ef;border-radius:var(--rs);">
+      <div style="text-align:center;"><div style="font-size:1.2rem;font-weight:700;color:var(--acc);">${done}</div><div style="font-size:.65rem;color:var(--tx3);">완독</div></div>
+      <div style="text-align:center;"><div style="font-size:1.2rem;font-weight:700;color:var(--acc);">${reading}</div><div style="font-size:.65rem;color:var(--tx3);">읽는중</div></div>
+      <div style="text-align:center;"><div style="font-size:1.2rem;font-weight:700;color:var(--acc);">${(books||[]).length}</div><div style="font-size:.65rem;color:var(--tx3);">전체</div></div>
+    </div>
+    ${canSeeCategory && targetProfile.categories?.length ? `
+    <div style="margin-bottom:.8rem;">
+      <div style="font-size:.7rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">카테고리</div>
+      <div style="display:flex;gap:.3rem;flex-wrap:wrap;">${(targetProfile.categories||[]).map(c=>`<span style="font-size:.68rem;background:#ede4d0;border:1px solid var(--border2);padding:2px 7px;border-radius:3px;">${c}</span>`).join('')}</div>
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;">
+      ${(books||[]).slice(0,20).map(b=>`
+        <div style="aspect-ratio:2/3;border-radius:4px;overflow:hidden;background:linear-gradient(150deg,#a07040,#5c3010);" title="${b.title}">
+          ${b.cover?`<img src="${b.cover}" style="width:100%;height:100%;object-fit:cover;">`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.4rem;color:rgba(255,255,255,.7);padding:.2rem;text-align:center;">${b.title}</div>`}
+        </div>`).join('')}
+    </div>`;
+  openModal('modal-library');
+}
+
+// 카테고리 공개 설정
+async function saveCategoryVisibility(val) {
+  await sb.from('profiles').update({category_visibility: val}).eq('id', currentUser.id);
+}
+async function saveLibraryPublic(val) {
+  await sb.from('profiles').update({library_public: val}).eq('id', currentUser.id);
 }
 
 // ── 모달 유틸

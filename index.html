@@ -72,6 +72,8 @@
     <div class="header-inner">
       <div class="header-logo">북로그</div>
       <div class="header-actions">
+        <button class="header-btn" onclick="surfLibrary()" title="파도타기 🌊">🌊</button>
+        <button class="header-btn" onclick="openSocialModal()" title="친구">👥</button>
         <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
         <button class="header-btn" id="notif-btn" onclick="openNotifModal()" title="알림" style="position:relative;">
           🔔<span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#c0392b;color:#fff;font-size:.45rem;border-radius:50%;width:14px;height:14px;display:none;align-items:center;justify-content:center;font-weight:700;"></span>
@@ -413,6 +415,29 @@
         <input type="text" id="profile-display-name" class="form-input">
       </div>
       <div id="profile-invite-codes" style="margin-bottom:.8rem;"></div>
+      <!-- 서재/카테고리 공개 설정 -->
+      <div style="margin-bottom:.7rem;padding:.6rem .8rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
+        <div style="font-size:.72rem;font-weight:600;color:var(--tx2);margin-bottom:.5rem;">🔒 공개 설정</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+          <span style="font-size:.75rem;color:var(--tx2);">서재 공개</span>
+          <select id="library-public-sel" class="form-input" style="width:90px;font-size:.72rem;padding:.2rem .4rem;" onchange="saveLibraryPublic(this.value==='true')">
+            <option value="true">공개</option>
+            <option value="false">비공개</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:.75rem;color:var(--tx2);">카테고리</span>
+          <select id="category-vis-sel" class="form-input" style="width:90px;font-size:.72rem;padding:.2rem .4rem;" onchange="saveCategoryVisibility(this.value)">
+            <option value="public">전체 공개</option>
+            <option value="friends">친구만</option>
+            <option value="private">비공개</option>
+          </select>
+        </div>
+      </div>
+      <!-- 백업 버튼 -->
+      <div style="margin-bottom:.7rem;">
+        <button class="btn-cancel" style="width:100%;font-size:.75rem;" onclick="openModal('modal-backup')">💾 데이터 백업/복원</button>
+      </div>
       <!-- 폰트 크기 설정 -->
       <div style="margin-bottom:.75rem;padding:.6rem .8rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
@@ -722,8 +747,71 @@
   </div>
 </div>
 
+<!-- 백업/복원 모달 -->
+<div id="modal-backup" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💾 데이터 백업/복원</div>
+      <button class="modal-close" onclick="closeModal('modal-backup')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:1rem;padding:.7rem .9rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
+        <div style="font-size:.75rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;">📥 백업 다운로드</div>
+        <div style="font-size:.72rem;color:var(--tx3);margin-bottom:.6rem;">내 책, 문장, 목표를 JSON 파일로 저장해요.</div>
+        <button class="btn-save" style="width:100%;" onclick="downloadBackup()">백업 파일 다운로드</button>
+      </div>
+      <div style="padding:.7rem .9rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
+        <div style="font-size:.75rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;">📤 백업 복원</div>
+        <div style="font-size:.72rem;color:var(--tx3);margin-bottom:.6rem;">백업 파일을 선택해 기존 데이터에 병합해요.</div>
+        <input type="file" id="restore-file" accept=".json" style="display:none;" onchange="restoreBackup(this.files[0])">
+        <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('restore-file').click()">복원 파일 선택</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 친구/소셜 모달 -->
+<div id="modal-social" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title">👥 친구</div>
+      <button class="modal-close" onclick="closeModal('modal-social')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:.8rem;">
+        <div style="font-size:.7rem;font-weight:600;color:var(--acc2);margin-bottom:.4rem;">친구 검색</div>
+        <div style="display:flex;gap:.4rem;">
+          <input type="text" id="friend-search-input" class="form-input" placeholder="닉네임으로 검색..." style="flex:1;font-size:.78rem;">
+          <button class="btn-save" style="font-size:.75rem;" onclick="searchFriend()">검색</button>
+        </div>
+        <div id="friend-search-result" style="margin-top:.4rem;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;"></div>
+      </div>
+      <div style="font-size:.7rem;font-weight:600;color:var(--acc2);margin-bottom:.4rem;">친구 목록</div>
+      <div id="friend-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="surfLibrary();closeModal('modal-social')">🌊 랜덤 서재 파도타기</button>
+      <button class="btn-save" onclick="closeModal('modal-social')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 서재 구경 모달 -->
+<div id="modal-library" class="modal-overlay" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="library-modal-title">📚 서재</div>
+      <button class="modal-close" onclick="closeModal('modal-library')">✕</button>
+    </div>
+    <div class="modal-body" id="library-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn-save" onclick="closeModal('modal-library')">닫기</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=240"></script>
+<script src="app.js?v=250"></script>
 </body>
 </html>
