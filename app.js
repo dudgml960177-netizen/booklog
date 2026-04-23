@@ -1637,7 +1637,9 @@ async function loadNotifications() {
       list.innerHTML = data.map(n => `
         <div style="padding:.55rem .8rem;border-bottom:1px solid var(--border);font-size:.75rem;display:flex;align-items:flex-start;gap:.5rem;background:${n.is_read?'':'#fdf8f0'};">
           <div style="flex:1;cursor:pointer;" onclick="goToNotif('${n.id}')">
-            <div style="color:var(--tx1);margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">${(n.message||'').length>50?(n.message||'').slice(0,50)+'…':(n.message||'')}</div>
+            <div style="color:var(--tx1);margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${(()=>{const first=(n.message||'').split('\n').find(l=>l.trim())||n.message||'';return first.length>40?first.slice(0,40)+'…':first;})()}
+            </div>
             <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
           </div>
           <button onclick="event.stopPropagation();deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
@@ -1652,7 +1654,7 @@ async function goToNotif(notifId) {
   const detailEl = document.getElementById('notif-detail-body');
   if(detailEl) {
     const postId = n.post_id || null;
-    const msgHtml = (n.message||'').replace(/
+        const msgHtml = (n.message||'').split('\n').map(l=>l||'<br>').join('<br>');
 /g,'<br>');
     detailEl.innerHTML = `
       <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${msgHtml}</div>
