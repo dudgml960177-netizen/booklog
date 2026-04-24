@@ -106,7 +106,16 @@
             <button class="filter-btn" onclick="filterStatus('읽고싶음',this)">읽고싶음</button>
             <button class="filter-btn" onclick="filterStatus('중단',this)">중단</button>
           </div>
-          <div class="toolbar-right">
+          <div class="toolbar-right" style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;">
+            <!-- 정렬 -->
+            <select id="sort-select" class="view-btn" style="font-size:.68rem;padding:.18rem .4rem;cursor:pointer;border-radius:4px;" onchange="setSort(this.value)" title="정렬">
+              <option value="recent">최신순</option>
+              <option value="oldest">오래된순</option>
+              <option value="rating_high">별점높은순</option>
+              <option value="rating_low">별점낮은순</option>
+              <option value="title">제목순</option>
+              <option value="finish">완독일순</option>
+            </select>
             <button class="view-btn on" id="view-gallery-btn" onclick="setView('gallery')" title="갤러리">⊞</button>
             <button class="view-btn" id="view-list-btn" onclick="setView('list')" title="목록">≡</button>
             <button class="cat-btn" onclick="openCategories()" title="카테고리">🗂</button>
@@ -831,6 +840,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=303"></script>
+<script src="app.js?v=304"></script>
 </body>
 </html>

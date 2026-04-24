@@ -66,7 +66,7 @@ function showConfirm(msg) {
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
-let curFilter = '전체', curCatFilter = null, curView = 'gallery';
+let curFilter = '전체', curCatFilter = null, curView = 'gallery', curSort = 'recent';
 let curTagQ = '전체', curBookId = null, editingBookId = null, selectedBook = null;
 let curRating = 0, curStatus = '완독';
 let calY = new Date().getFullYear(), calM = new Date().getMonth();
@@ -441,10 +441,31 @@ function setView(v) {
   buildBooks();
 }
 function getFilteredBooks() {
-  let list = allBooks;
+  let list = [...allBooks];
   if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
   if (curCatFilter) list = list.filter(b=>(b.category||'')=== curCatFilter);
+  // 정렬
+  if(curSort === 'recent') {
+    list.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+  } else if(curSort === 'oldest') {
+    list.sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
+  } else if(curSort === 'rating_high') {
+    list.sort((a,b) => (b.rating||0) - (a.rating||0));
+  } else if(curSort === 'rating_low') {
+    list.sort((a,b) => (a.rating||0) - (b.rating||0));
+  } else if(curSort === 'title') {
+    list.sort((a,b) => (a.title||'').localeCompare(b.title||'', 'ko'));
+  } else if(curSort === 'finish') {
+    list.sort((a,b) => new Date(b.date_finish||0) - new Date(a.date_finish||0));
+  }
   return list;
+}
+
+function setSort(s) {
+  curSort = s;
+  const sel = document.getElementById('sort-select');
+  if(sel) sel.value = s;
+  buildBooks();
 }
 function buildBooks() {
   document.getElementById('view-gallery').style.display = curView==='gallery'?'':'none';
