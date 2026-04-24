@@ -2429,33 +2429,69 @@ async function openLibrary(userId, userName) {
   _libUserId = userId;
   _libUserName = userName;
 
-  const title = document.getElementById('library-modal-title');
-  if(title) title.textContent = `📚 ${userName}님의 서재`;
-
-  // 탭 영역 렌더
+  const header = document.getElementById('library-modal-header');
   const body = document.getElementById('library-modal-body');
-  if(!body) return;
+  if(!header || !body) return;
 
-  // 카테고리 목록
+  const totalDone = _libBooks.filter(b=>b.status==='완독').length;
+  const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
   const cats = canSeeCat ? (targetProfile.categories||[]) : [];
 
-  body.innerHTML = `
+  // 헤더 - 감성적 배경
+  const headerColors = [
+    'linear-gradient(135deg,#4a3520 0%,#7a5030 50%,#5a3a20 100%)',
+    'linear-gradient(135deg,#2a4a3a 0%,#3a6a50 50%,#2a4a3a 100%)',
+    'linear-gradient(135deg,#3a3a5a 0%,#5a4a7a 50%,#3a3a5a 100%)',
+    'linear-gradient(135deg,#4a3a2a 0%,#7a6a4a 50%,#4a3a2a 100%)',
+  ];
+  const hColor = headerColors[userName.charCodeAt(0) % headerColors.length];
+  const initial = userName.slice(0,1).toUpperCase();
+
+  header.innerHTML = `
+    <div style="background:${hColor};padding:1.4rem 1.4rem 1rem;position:relative;overflow:hidden;">
+      <!-- 배경 장식 -->
+      <div style="position:absolute;top:-30px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.04);"></div>
+      <div style="position:absolute;bottom:-40px;right:40px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.03);"></div>
+      <!-- 닫기 -->
+      <button onclick="closeModal('modal-library')" style="position:absolute;top:.9rem;right:.9rem;width:28px;height:28px;border:none;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
+      <!-- 프로필 -->
+      <div style="display:flex;align-items:center;gap:.9rem;margin-bottom:1rem;">
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;font-family:var(--fs);">${initial}</div>
+        <div>
+          <div style="font-size:1rem;font-weight:700;color:#fff;font-family:var(--fs);">${userName}님의 서재</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem;">📚 함께 읽는 산책자</div>
+        </div>
+      </div>
+      <!-- 통계 칩 -->
+      <div style="display:flex;gap:.5rem;">
+        <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
+          <div style="font-size:.95rem;font-weight:700;color:#fff;">${totalDone}</div>
+          <div style="font-size:.58rem;color:rgba(255,255,255,.7);">완독</div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
+          <div style="font-size:.95rem;font-weight:700;color:#fff;">${totalReading}</div>
+          <div style="font-size:.58rem;color:rgba(255,255,255,.7);">읽는중</div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
+          <div style="font-size:.95rem;font-weight:700;color:#fff;">${_libBooks.length}</div>
+          <div style="font-size:.58rem;color:rgba(255,255,255,.7);">전체</div>
+        </div>
+      </div>
+    </div>
     <!-- 필터 탭 -->
-    <div style="display:flex;gap:.35rem;margin-bottom:.7rem;flex-wrap:wrap;padding-bottom:.6rem;border-bottom:1px solid var(--border);">
+    <div style="padding:.7rem 1rem .3rem;display:flex;gap:.3rem;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--card);">
       <button class="filter-btn on" id="lib-f-전체" onclick="libFilter('전체',this)">전체</button>
       <button class="filter-btn" id="lib-f-완독" onclick="libFilter('완독',this)">완독</button>
       <button class="filter-btn" id="lib-f-읽는중" onclick="libFilter('읽는중',this)">읽는중</button>
       <button class="filter-btn" id="lib-f-읽고싶음" onclick="libFilter('읽고싶음',this)">읽고싶음</button>
-    </div>
-    <!-- 카테고리 폴더 (공개된 경우) -->
-    ${cats.length ? `<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.7rem;">
-      <button class="filter-btn on" id="lib-cat-all" onclick="libCatFilter(null,this)">전체</button>
       ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c}" onclick="libCatFilter('${c}',this)">📁 ${c}</button>`).join('')}
-    </div>` : ''}
-    <!-- 달력 요약 -->
-    <div id="lib-cal-wrap" style="margin-bottom:.7rem;"></div>
+    </div>`;
+
+  body.innerHTML = `
+    <!-- 달력 -->
+    <div id="lib-cal-wrap" style="padding:.8rem 1rem .4rem;border-bottom:1px solid var(--border);"></div>
     <!-- 갤러리 -->
-    <div id="lib-gallery" class="gallery"></div>`;
+    <div id="lib-gallery" class="gallery" style="padding:.8rem 1rem 1.2rem;"></div>`;
 
   renderLibCal();
   renderLibGallery();
@@ -2517,12 +2553,10 @@ function renderLibCal() {
     .forEach(b=>{ const d=parseInt(b.date_finish.slice(8,10)); finishMap[d]=(finishMap[d]||0)+1; });
   const thisMonthDone = Object.values(finishMap).reduce((a,b)=>a+b,0);
   wrap.innerHTML = `
-    <div style="display:flex;gap:1.2rem;margin-bottom:.6rem;padding:.5rem .7rem;background:#faf6ef;border-radius:var(--rs);">
-      <div style="text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:var(--acc);">${totalDone}</div><div style="font-size:.62rem;color:var(--tx3);">완독</div></div>
-      <div style="text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:var(--acc);">${totalReading}</div><div style="font-size:.62rem;color:var(--tx3);">읽는중</div></div>
-      <div style="text-align:center;"><div style="font-size:1.1rem;font-weight:700;color:var(--acc);">${_libBooks.length}</div><div style="font-size:.62rem;color:var(--tx3);">전체</div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <div style="font-size:.72rem;font-weight:600;color:var(--tx2);">📅 ${y}년 ${MN[m]}</div>
+      <div style="font-size:.68rem;color:var(--acc);font-weight:600;">${thisMonthDone > 0 ? `이달 ${thisMonthDone}권 완독 🎉` : '이달 완독 없음'}</div>
     </div>
-    <div style="font-size:.7rem;font-weight:600;color:var(--acc2);margin-bottom:.35rem;">${y}년 ${MN[m]} · 이달 완독 ${thisMonthDone}권</div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
       ${['일','월','화','수','목','금','토'].map(d=>`<div style="font-size:.52rem;color:var(--tx3);text-align:center;padding:.08rem 0;">${d}</div>`).join('')}
       ${Array(firstDay).fill('<div></div>').join('')}
