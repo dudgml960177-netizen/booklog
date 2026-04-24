@@ -76,43 +76,47 @@ function showScreen(name) {
 function cleanupLocalStorage() {
   try {
     const keys = Object.keys(localStorage);
-    // 좋아요 키 정리 (100개 초과 시)
+    // 좋아요 키 정리 (50개 초과 시)
     const likedKeys = keys.filter(k => k.startsWith('liked_'));
-    if(likedKeys.length > 100) {
-      likedKeys.slice(0, likedKeys.length - 50).forEach(k => localStorage.removeItem(k));
-      console.log('Cleaned up', likedKeys.length - 50, 'old like keys');
-    }
-    // localStorage 용량 체크 (5MB 근접 시 경고)
+    if(likedKeys.length > 50) likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
+    // 오래된 goals 키 정리 (DB로 이전됨)
+    keys.filter(k => k.startsWith('bl_goals_')).forEach(k => localStorage.removeItem(k));
+    // localStorage 용량 체크
     try {
       const total = JSON.stringify(localStorage).length;
-      if(total > 4 * 1024 * 1024) { // 4MB 초과
-        console.warn('localStorage near limit:', total, 'bytes');
-        // Supabase 세션 외 불필요한 키 정리
-        keys.filter(k => !k.startsWith('booklog-auth') && !k.startsWith('bl_'))
+      if(total > 3 * 1024 * 1024) {
+        // 세션/폰트 크기/이메일 외 전부 정리
+        keys.filter(k => !k.startsWith('booklog-auth') && k !== 'bl_font_size' && k !== 'bl_saved_email')
             .forEach(k => localStorage.removeItem(k));
+        console.log('localStorage cleaned due to size limit');
       }
     } catch(e) {}
-  } catch(e) { /* localStorage 접근 불가 - 무시 */ }
+  } catch(e) {}
 }
 
 
 // ── 폰트 크기 설정
-function applyFontSize(size) {
+function applyFontSize(size, save=true) {
   const root = document.documentElement;
-  // 기본 폰트 크기를 비율로 조절 (rem 기반)
   const ratio = parseInt(size) / 100;
   root.style.setProperty('--font-scale', ratio);
-  // html font-size 조절 (rem 기준)
-  const base = Math.round(16 * ratio);
-  root.style.fontSize = base + 'px';
+  root.style.fontSize = Math.round(16 * ratio) + 'px';
   localStorage.setItem('bl_font_size', size);
   const label = document.getElementById('font-size-label');
+  const slider = document.getElementById('font-size-slider');
   if(label) label.textContent = size + '%';
+  if(slider) slider.value = size;
+  // DB에도 저장 (로그인 상태일 때)
+  if(save && currentUser) {
+    sb.from('profiles').update({font_size: parseInt(size)}).eq('id', currentUser.id)
+      .then().catch(e => console.warn('font save:', e));
+  }
 }
 
-function initFontSize() {
-  const saved = localStorage.getItem('bl_font_size') || '100';
-  applyFontSize(saved);
+function initFontSize(sizeFromDB) {
+  // DB값 우선, 없으면 localStorage, 없으면 100
+  const size = sizeFromDB || localStorage.getItem('bl_font_size') || '100';
+  applyFontSize(size, false); // 초기화 시엔 DB 재저장 안 함
 }
 
 let _appInitialized = false;
@@ -124,6 +128,11 @@ async function startApp(user) {
   try { await loadData(); } catch(e) { console.warn('loadData:', e); }
   try { await loadGoals(); } catch(e) { console.warn('loadGoals:', e); }
   try { loadUserRole(); } catch(e) {}
+  // 프로필에서 font_size 로드
+  try {
+    const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
+    if(pf?.font_size) initFontSize(String(pf.font_size));
+  } catch(e) {}
   showScreen('app');
   buildBooks();
   setTimeout(loadNotifications, 500);
@@ -146,10 +155,15 @@ sb.auth.onAuthStateChange(async (event, session) => {
       }
     }
     if(event === 'SIGNED_OUT') {
-      _appInitialized = false;
-      currentUser = null; allBooks = []; allQuotes = [];
-      showScreen('auth');
-      loadSavedEmail();
+      // 다른 탭에서 로그아웃 시 무시 (동시 접속 허용)
+      // 명시적 로그아웃(doLogout)에서만 처리
+      if(window._manualSignOut) {
+        window._manualSignOut = false;
+        _appInitialized = false;
+        currentUser = null; allBooks = []; allQuotes = [];
+        showScreen('auth');
+        loadSavedEmail();
+      }
     }
     if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
     if(event === 'PASSWORD_RECOVERY') {
@@ -161,7 +175,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 function init() {
-  initFontSize();
+  initFontSize(); // 로그인 전 localStorage로만
   cleanupLocalStorage();
 
   // DOM 이벤트 등록
@@ -305,12 +319,14 @@ async function doSignup() {
 async function doLogout() {
   try {
     closeModal('modal-profile');
+    window._manualSignOut = true; // 명시적 로그아웃 플래그
+    _appInitialized = false;
     await sb.auth.signOut();
     currentUser = null; allBooks = []; allQuotes = [];
     showScreen('auth');
+    loadSavedEmail();
   } catch(e) {
-    console.warn('logout error:', e);
-    // 강제 로그아웃
+    window._manualSignOut = false;
     localStorage.removeItem('booklog-auth');
     location.reload();
   }
@@ -1182,11 +1198,15 @@ function buildMilestone() {
 async function loadGoals() {
   try {
     const { data } = await sb.from('user_goals').select('*').eq('user_id',currentUser.id).single();
-    if(data) { goals = {books:data.books||0, minutes:data.minutes||0, pages:data.pages||0}; return; }
-  } catch(e) {}
-  // localStorage 폴백
-  try { goals = JSON.parse(localStorage.getItem('bl_goals_'+currentUser.id)||'{}'); } catch(e){ goals={}; }
-  goals = { books:0, minutes:0, pages:0, ...goals };
+    if(data) {
+      goals = {books:data.books||0, minutes:data.minutes||0, pages:data.pages||0};
+      // localStorage도 동기화
+      localStorage.setItem('bl_goals_'+currentUser.id, JSON.stringify(goals));
+      return;
+    }
+  } catch(e) { console.warn('loadGoals DB error:', e); }
+  // DB에 없으면 기본값 (localStorage 폴백 제거 - 오래된 값 방지)
+  goals = { books:0, minutes:0, pages:0 };
 }
 function openGoalModal() {
   document.getElementById('goal-books').value = goals.books||'';
@@ -1199,12 +1219,15 @@ async function saveGoal() {
   goals.minutes = parseInt(document.getElementById('goal-minutes').value)||0;
   goals.pages   = parseInt(document.getElementById('goal-pages').value)||0;
   try {
-    await sb.from('user_goals').upsert({
+    const { error } = await sb.from('user_goals').upsert({
       user_id:currentUser.id, books:goals.books, minutes:goals.minutes, pages:goals.pages,
       updated_at:new Date().toISOString()
     });
-  } catch(e) { console.warn('goals save error:', e); }
-  localStorage.setItem('bl_goals_'+currentUser.id, JSON.stringify(goals));
+    if(error) throw error;
+  } catch(e) {
+    alert('목표 저장 오류: '+(e.message||'다시 시도해주세요'));
+    return;
+  }
   closeModal('modal-goal');
   buildGoalDisplay();
 }
