@@ -89,11 +89,13 @@ const YC = {
 const GCOLS = ['#c4714a','#6b8f6b','#5a7a8a','#c8a050','#8b6b8b','#4a7a6a','#c8704a','#7a8a6a','#7a6aaa','#5a8a7a'];
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 const TRACKER_COLORS = [
-  '#e8e0d4',  // 0: 비어있음 - 따뜻한 베이지 (배경과 대비)
-  '#f0c070',  // 1: 적음 - 골드 옐로우
-  '#e08840',  // 2: 보통 - 오렌지
-  '#c05830',  // 3: 많음 - 딥 오렌지
-  '#7a2010',  // 4: 아주 많음 - 다크 레드브라운
+  '#edf4ee',  // 0: 없음
+  '#c6e6c8',  // 1: 아주 적음
+  '#96d09a',  // 2: 적음
+  '#5cb860',  // 3: 보통
+  '#3a9e40',  // 4: 많음
+  '#2a7a2e',  // 5: 아주 많음
+  '#1a5a1e',  // 6: 최대
 ];
 
 // ── 초기화
@@ -802,7 +804,7 @@ function buildTrackerGrid() {
     days.forEach(d => {
       const key = fmtKey(d);
       const mins = dayMap[key]||0;
-      const intensity = mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+      const intensity = mins===0?0:Math.min(6,Math.ceil((mins/maxMins)*6));
       const isToday = fmtKey(d)===fmtKey(today);
       const cell = document.createElement('div');
       cell.style.cssText = `aspect-ratio:1;border-radius:8px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.06)'};`;
@@ -837,7 +839,7 @@ function buildTrackerGrid() {
     for(let d=1;d<=daysInMonth;d++){
       const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const mins=dayMap[key]||0;
-      const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+      const intensity=mins===0?0:Math.min(6,Math.ceil((mins/maxMins)*6));
       const isToday=key===todayKey;
       const cell=document.createElement('div');
       cell.style.cssText=`aspect-ratio:1;border-radius:5px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.05)'};cursor:default;transition:transform .12s;`;
@@ -875,7 +877,7 @@ function buildTrackerGrid() {
       for(let d=1;d<=days;d++){
         const key=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const mins=dayMap[key]||0;
-        const intensity=mins===0?0:Math.min(4,Math.ceil((mins/maxMins)*4));
+        const intensity=mins===0?0:Math.min(6,Math.ceil((mins/maxMins)*6));
         const isT=(today.getFullYear()===y&&today.getMonth()===mo&&today.getDate()===d);
         const cell=document.createElement('div');
         cell.style.cssText=`aspect-ratio:1;border-radius:1px;background:${TRACKER_COLORS[intensity]};${isT?'outline:1.5px solid var(--acc);':''}`;
@@ -2047,11 +2049,6 @@ async function openAdminPanel() {
 
 async function loadAllMembers() {
   try {
-    // 전체 회원 수 별도 쿼리 (고아 계정 포함 전체)
-    const { count: totalCount } = await sb.from('profiles').select('*', {count:'exact', head:true});
-    const totalCountEl = document.getElementById('admin-total-count');
-    if(totalCountEl) totalCountEl.textContent = `전체 가입자 ${totalCount||0}명`;
-
     const { data, error } = await sb.from('profiles')
       .select('id,display_name,username,role,is_banned,created_at')
       .order('created_at', {ascending:false})
@@ -2066,8 +2063,9 @@ async function loadAllMembers() {
       return;
     }
     allMembers = data || [];
-    const countEl = document.getElementById('admin-member-count');
-    if(countEl) countEl.textContent = `총 ${allMembers.length}명`;
+    // admin-total-count에 통합 표시 (실제 가입자 기준)
+    const totalCountEl = document.getElementById('admin-total-count');
+    if(totalCountEl) totalCountEl.textContent = `전체 가입자 ${allMembers.length}명`;
     renderMemberList();
   } catch(e) {
     console.error('loadAllMembers exception:', e);
