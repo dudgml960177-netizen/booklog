@@ -145,94 +145,89 @@
 
       <!-- 기록 탭 -->
       <div class="panel" id="p-record">
-
-        <!-- 상단: 달력 + 타이머 나란히 -->
-        <div class="record-top" style="margin-bottom:.7rem;">
-
-          <!-- 달력 -->
-          <div class="card record-cal-card" style="padding:.8rem;">
-            <div class="cal-hd" style="margin-bottom:.5rem;">
+        <div class="record-top">
+          <!-- 달력 (좌) -->
+          <div class="card record-cal-card">
+            <div class="cal-hd">
               <button class="cal-nav" onclick="moveCal(-1)">◀</button>
-              <div class="cal-ttl" id="cal-ttl" style="font-size:.82rem;"></div>
+              <div class="cal-ttl" id="cal-ttl"></div>
               <button class="cal-nav" onclick="moveCal(1)">▶</button>
             </div>
             <div class="cal-grid" id="cal-grid">
               <div class="dow">일</div><div class="dow">월</div><div class="dow">화</div>
               <div class="dow">수</div><div class="dow">목</div><div class="dow">금</div><div class="dow">토</div>
             </div>
-            <div class="cal-list" style="margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--border);">
-              <div class="cal-list-ttl" style="font-size:.62rem;color:var(--tx3);margin-bottom:.3rem;">이 달의 완독</div>
+            <div class="cal-list">
+              <div class="cal-list-ttl">이 달의 완독</div>
               <div id="cal-list"></div>
             </div>
           </div>
 
-          <!-- 타이머 -->
-          <div class="card record-timer-card" style="padding:.85rem;display:flex;flex-direction:column;">
-            <!-- 타이머 헤더 -->
-            <div style="font-size:.65rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.5rem;">⏱ 독서 타이머</div>
-            <!-- 책 선택 -->
-            <select id="timer-book-select" class="form-input" style="font-size:.73rem;margin-bottom:.6rem;background:#f5f0e8;border-color:transparent;border-radius:8px;">
-              <option value="">읽는 중인 책 선택...</option>
-            </select>
-            <!-- 시계 -->
-            <div style="text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.3rem 0;">
-              <div id="timer-display" class="timer-display" style="font-size:2.2rem;letter-spacing:.05em;">00:00:00</div>
-              <div style="font-size:.6rem;color:var(--tx3);margin-top:.15rem;">오늘 독서 시간</div>
-            </div>
-            <!-- 버튼 -->
-            <div class="timer-btns" style="justify-content:center;gap:.35rem;margin-bottom:.55rem;">
-              <button class="tbtn" id="timer-btn" onclick="toggleTimer()">▶ 시작</button>
-              <button class="tbtn tbtn-sec" onclick="resetTimer()">↺</button>
-              <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
-            </div>
-            <!-- 현재 페이지 -->
-            <div style="display:flex;align-items:center;gap:.4rem;justify-content:center;padding-top:.5rem;border-top:1px solid var(--border);">
-              <span style="font-size:.65rem;color:var(--tx3);">현재 쪽</span>
-              <input type="number" id="timer-current-page" min="1" placeholder="—"
-                style="width:56px;padding:.22rem .4rem;border:1px solid var(--border2);border-radius:6px;font-size:.78rem;font-family:var(--ff);text-align:center;background:#faf6ef;">
-            </div>
-          </div>
-        </div>
-
-        <!-- 트래커 -->
-        <div class="card" style="margin-bottom:.7rem;padding:.8rem .9rem;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-            <div style="font-size:.65rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">독서 트래커</div>
-            <div style="display:flex;align-items:center;gap:.25rem;">
-              <div style="display:flex;gap:.2rem;margin-right:.4rem;">
-                <button class="tracker-period-btn" data-period="week" onclick="setTimerPeriod('week')">주간</button>
-                <button class="tracker-period-btn on" data-period="month" onclick="setTimerPeriod('month')">월간</button>
-                <button class="tracker-period-btn" data-period="year" onclick="setTimerPeriod('year')">연간</button>
+          <!-- 타이머 + 트래커 (우측, 세로 배치) -->
+          <div style="display:flex;flex-direction:column;gap:.6rem;">
+            <!-- 타이머 -->
+            <div class="card record-timer-card" style="padding:.8rem;">
+              <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem;">⏱ 독서 타이머</div>
+              <select id="timer-book-select" class="form-input" style="font-size:.72rem;margin-bottom:.5rem;background:#f5f0e8;border-color:transparent;border-radius:6px;">
+                <option value="">읽는 중인 책 선택...</option>
+              </select>
+              <div style="text-align:center;margin:.25rem 0 .5rem;">
+                <div id="timer-display" class="timer-display" style="font-size:1.8rem;">00:00:00</div>
+                <div style="font-size:.58rem;color:var(--tx3);margin-top:.1rem;">오늘 독서 시간</div>
               </div>
-              <button class="cal-nav" onclick="moveTimerMonth(-1)">◀</button>
-              <span id="timer-month-label" style="font-size:.62rem;color:var(--tx2);font-weight:600;min-width:75px;text-align:center;"></span>
-              <button class="cal-nav" onclick="moveTimerMonth(1)">▶</button>
+              <div class="timer-btns" style="justify-content:center;gap:.3rem;margin-bottom:.45rem;">
+                <button class="tbtn" id="timer-btn" onclick="toggleTimer()">▶ 시작</button>
+                <button class="tbtn tbtn-sec" onclick="resetTimer()">↺</button>
+                <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:.35rem;justify-content:center;padding-top:.4rem;border-top:1px solid var(--border);">
+                <span style="font-size:.62rem;color:var(--tx3);">현재 쪽</span>
+                <input type="number" id="timer-current-page" min="1" placeholder="—"
+                  style="width:52px;padding:.2rem .35rem;border:1px solid var(--border2);border-radius:5px;font-size:.75rem;font-family:var(--ff);text-align:center;background:#faf6ef;">
+              </div>
             </div>
-          </div>
-          <div id="timer-tracker-grid"></div>
-          <!-- 레전드 -->
-          <div style="display:flex;align-items:center;gap:.35rem;margin-top:.35rem;">
-            <span style="font-size:.52rem;color:var(--tx3);">적음</span>
-            <div style="display:flex;gap:2px;">
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#ede8df;"></div>
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#e8d4b0;"></div>
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#d4a870;"></div>
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#c08840;"></div>
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#a06820;"></div>
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#7a4a10;"></div>
-              <div style="width:8px;height:8px;border-radius:1.5px;background:#4a2808;"></div>
+
+            <!-- 트래커 (타이머 바로 아래) -->
+            <div class="card" style="padding:.7rem .75rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+                <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;">트래커</div>
+                <div style="display:flex;align-items:center;gap:.18rem;">
+                  <button class="tracker-period-btn" data-period="week" onclick="setTimerPeriod('week')">주간</button>
+                  <button class="tracker-period-btn on" data-period="month" onclick="setTimerPeriod('month')">월간</button>
+                  <button class="tracker-period-btn" data-period="year" onclick="setTimerPeriod('year')">연간</button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
+                <div style="display:flex;gap:2px;">
+                  <button class="cal-nav" onclick="moveTimerMonth(-1)" style="font-size:.6rem;padding:.1rem .3rem;">◀</button>
+                  <span id="timer-month-label" style="font-size:.6rem;color:var(--tx2);font-weight:600;min-width:70px;text-align:center;"></span>
+                  <button class="cal-nav" onclick="moveTimerMonth(1)" style="font-size:.6rem;padding:.1rem .3rem;">▶</button>
+                </div>
+                <span id="tracker-summary" style="font-size:.58rem;color:var(--acc);font-weight:600;"></span>
+              </div>
+              <div id="timer-tracker-grid"></div>
+              <div style="display:flex;align-items:center;gap:.25rem;margin-top:.28rem;">
+                <span style="font-size:.48rem;color:var(--tx3);">적음</span>
+                <div style="display:flex;gap:1.5px;">
+                  <div style="width:7px;height:7px;border-radius:1px;background:#ede8df;"></div>
+                  <div style="width:7px;height:7px;border-radius:1px;background:#e8d4b0;"></div>
+                  <div style="width:7px;height:7px;border-radius:1px;background:#d4a870;"></div>
+                  <div style="width:7px;height:7px;border-radius:1px;background:#c08840;"></div>
+                  <div style="width:7px;height:7px;border-radius:1px;background:#a06820;"></div>
+                  <div style="width:7px;height:7px;border-radius:1px;background:#7a4a10;"></div>
+                  <div style="width:7px;height:7px;border-radius:1px;background:#4a2808;"></div>
+                </div>
+                <span style="font-size:.48rem;color:var(--tx3);">많음</span>
+              </div>
             </div>
-            <span style="font-size:.52rem;color:var(--tx3);">많음</span>
-            <span id="tracker-summary" style="font-size:.6rem;color:var(--acc);font-weight:600;margin-left:auto;"></span>
           </div>
         </div>
 
         <!-- 책별 독서 시간 -->
-        <div class="card" style="padding:.8rem .9rem;">
-          <div style="font-size:.65rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.5rem;">책별 누적 독서 시간</div>
+        <div class="card" style="margin-top:.6rem;padding:.7rem .85rem;">
+          <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem;">책별 누적 독서 시간</div>
           <div id="timer-book-list"></div>
         </div>
-
       </div>
 
       <!-- 게시판 -->
@@ -257,31 +252,30 @@
       <div class="panel" id="p-graph">
 
         <!-- ① 목표 + 핵심 지표 통합 헤더 -->
-        <div class="stats-hero card" style="margin-bottom:.7rem;padding:0;overflow:hidden;">
-          <!-- 그라데이션 배너 -->
-          <div style="background:linear-gradient(135deg,var(--acc2) 0%,var(--acc) 60%,var(--clay) 100%);padding:1.1rem 1.2rem .9rem;position:relative;overflow:hidden;">
-            <div style="position:absolute;top:-20px;right:-10px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.05);"></div>
-            <div style="position:absolute;bottom:-30px;right:60px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.04);"></div>
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <!-- 통계 상단 -->
+        <div style="margin-bottom:.7rem;">
+          <!-- 히어로 배너 -->
+          <div style="background:linear-gradient(135deg,var(--acc2) 0%,var(--acc) 60%,var(--clay) 100%);border-radius:var(--r) var(--r) 0 0;padding:.9rem 1.1rem .8rem;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:-15px;right:-5px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;">
               <div>
-                <div style="font-size:.65rem;color:rgba(255,255,255,.65);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">나의 독서 기록</div>
-                <div id="stats-hero-main" style="font-size:2rem;font-weight:700;color:#fff;font-family:var(--fs);line-height:1;">—</div>
-                <div style="font-size:.72rem;color:rgba(255,255,255,.7);margin-top:.2rem;">누적 완독</div>
+                <div style="font-size:.6rem;color:rgba(255,255,255,.6);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.15rem;">누적 완독</div>
+                <div id="stats-hero-main" style="font-size:1.8rem;font-weight:700;color:#fff;font-family:var(--fs);line-height:1;">—</div>
               </div>
-              <button onclick="openGoalModal()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:16px;padding:.3rem .75rem;font-size:.7rem;color:#fff;cursor:pointer;font-family:var(--ff);white-space:nowrap;">목표 설정</button>
+              <button onclick="openGoalModal()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);border-radius:14px;padding:.28rem .7rem;font-size:.68rem;color:#fff;cursor:pointer;font-family:var(--ff);position:relative;z-index:2;">목표 설정</button>
             </div>
           </div>
-          <!-- 목표 진행 바 -->
-          <div id="goal-display" style="padding:.65rem 1.2rem;background:var(--card);border-bottom:1px solid var(--border);"></div>
-          <!-- 핵심 지표 가로 스크롤 -->
-          <div id="stat-grid" class="stat-grid" style="padding:.7rem .8rem;margin:0;border:none;grid-template-columns:repeat(3,1fr);gap:.45rem;"></div>
+          <!-- 목표 진행 -->
+          <div id="goal-display" style="background:var(--card);border:1px solid var(--border);border-top:none;padding:.5rem 1rem;"></div>
+          <!-- 통계 카드 3x3 -->
+          <div id="stat-grid" class="stat-grid" style="background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:.6rem .7rem;margin:0;gap:.4rem;grid-template-columns:repeat(3,1fr);"></div>
         </div>
 
-        <!-- ② 그래프 (컴팩트) -->
-        <div class="card" style="margin-bottom:.7rem;padding:.8rem .9rem;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
-            <div style="font-size:.72rem;font-weight:600;color:var(--tx2);">독서 통계</div>
-            <div class="gtabs" style="gap:.2rem;">
+        <!-- 그래프 -->
+        <div class="card" style="margin-bottom:.7rem;padding:.7rem .8rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.3rem;">
+            <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">독서 통계</div>
+            <div class="gtabs" style="gap:.15rem;">
               <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
               <button class="gst" onclick="showGraph('genre',this)">장르</button>
               <button class="gst" onclick="showGraph('rating',this)">평점</button>
@@ -290,31 +284,31 @@
             </div>
           </div>
           <div id="g-monthly">
-            <div class="yr-row" id="yr-row-m" style="margin-bottom:.5rem;"></div>
-            <canvas id="chart-monthly" height="120"></canvas>
-            <div class="stat-row" id="monthly-stat"></div>
+            <div class="yr-row" id="yr-row-m" style="margin-bottom:.4rem;"></div>
+            <canvas id="chart-monthly" height="100"></canvas>
+            <div class="stat-row" id="monthly-stat" style="margin-top:.4rem;"></div>
           </div>
           <div id="g-genre" style="display:none;">
             <div class="donut-layout" id="donut-layout"></div>
             <div class="stat-row" id="genre-stat"></div>
           </div>
           <div id="g-rating" style="display:none;">
-            <div class="yr-row" id="yr-row-r" style="margin-bottom:.5rem;"></div>
+            <div class="yr-row" id="yr-row-r" style="margin-bottom:.4rem;"></div>
             <div class="rating-layout" id="rating-layout"></div>
           </div>
           <div id="g-author" style="display:none;">
             <div id="author-chart-wrap"></div>
           </div>
           <div id="g-pages" style="display:none;">
-            <div class="yr-row" id="yr-row-pages" style="margin-bottom:.5rem;"></div>
-            <canvas id="chart-pages" height="120"></canvas>
-            <div class="stat-row" id="pages-stat"></div>
+            <div class="yr-row" id="yr-row-pages" style="margin-bottom:.4rem;"></div>
+            <canvas id="chart-pages" height="100"></canvas>
+            <div class="stat-row" id="pages-stat" style="margin-top:.4rem;"></div>
           </div>
         </div>
 
-        <!-- ③ 평생 기록 (컴팩트) -->
-        <div class="card" style="padding:.8rem .9rem;">
-          <div style="font-size:.72rem;font-weight:600;color:var(--tx2);margin-bottom:.55rem;">📖 평생 독서 기록</div>
+        <!-- 평생 기록 -->
+        <div class="card" style="padding:.65rem .8rem;">
+          <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.45rem;">평생 독서 기록</div>
           <div class="ms-grid" id="ms-grid"></div>
         </div>
 
@@ -326,43 +320,52 @@
 
 <!-- 책 추가/수정 모달 -->
 <div id="modal-book" class="modal-overlay" style="display:none;">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modal-book-title">책 추가</div>
-      <button class="modal-close" onclick="closeModal('modal-book')">✕</button>
+  <div class="modal" style="max-width:440px;">
+    <!-- 헤더 -->
+    <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.85rem 1.1rem .75rem;border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <div id="modal-book-title" style="font-size:.88rem;font-weight:700;color:#fff;font-family:var(--fs);">책 추가</div>
+      <button class="modal-close" onclick="closeModal('modal-book')" style="color:rgba(255,255,255,.8);">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="padding:.85rem 1rem;">
+      <!-- 검색 -->
       <div class="search-section" id="search-section">
-        <div class="search-row">
-          <input type="text" id="book-search-input" class="search-input" placeholder="책 제목으로 검색..." onkeydown="if(event.key==='Enter')searchBook()">
-          <button class="search-btn" onclick="searchBook()">검색</button>
+        <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
+          <input type="text" id="book-search-input" class="search-input"
+            placeholder="책 제목으로 검색..."
+            style="flex:1;border-radius:20px;background:#f5f0e8;border-color:transparent;font-size:.78rem;"
+            onkeydown="if(event.key==='Enter')searchBook()">
+          <button onclick="searchBook()" style="background:var(--acc);border:none;border-radius:50%;width:34px;height:34px;color:#fff;cursor:pointer;font-size:.85rem;flex-shrink:0;">→</button>
         </div>
         <div id="search-results" class="search-results"></div>
       </div>
+      <!-- 폼 -->
       <div id="book-form" style="display:none;">
-        <div class="selected-book" id="selected-book-info"></div>
-        <div class="form-group">
-          <label class="form-label">읽기 상태</label>
-          <div class="status-btns">
+        <div class="selected-book" id="selected-book-info" style="margin-bottom:.8rem;"></div>
+        <!-- 상태 -->
+        <div style="margin-bottom:.7rem;">
+          <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.35rem;">읽기 상태</div>
+          <div class="status-btns" style="gap:.3rem;">
             <button class="status-btn" onclick="setStatus('읽고싶음',this)">읽고싶음</button>
             <button class="status-btn" onclick="setStatus('읽는중',this)">읽는중</button>
             <button class="status-btn on" onclick="setStatus('완독',this)">완독</button>
             <button class="status-btn" onclick="setStatus('중단',this)">중단</button>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">시작일</label>
-            <input type="date" id="book-start" class="form-input">
+        <!-- 날짜 + 평점 한 줄 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.7rem;">
+          <div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">시작일</div>
+            <input type="date" id="book-start" class="form-input" style="font-size:.75rem;padding:.3rem .5rem;">
           </div>
-          <div class="form-group">
-            <label class="form-label">완독일</label>
-            <input type="date" id="book-finish" class="form-input">
+          <div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">완독일</div>
+            <input type="date" id="book-finish" class="form-input" style="font-size:.75rem;padding:.3rem .5rem;">
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">평점</label>
-          <div class="star-input">
+        <!-- 평점 -->
+        <div style="margin-bottom:.7rem;">
+          <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">평점</div>
+          <div class="star-input" style="font-size:1.3rem;gap:.1rem;">
             <span class="star" onclick="setStar(1)">★</span>
             <span class="star" onclick="setStar(2)">★</span>
             <span class="star" onclick="setStar(3)">★</span>
@@ -370,60 +373,62 @@
             <span class="star" onclick="setStar(5)">★</span>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">총 페이지 수</label>
-            <input type="number" id="book-pages" class="form-input" placeholder="예: 320" min="1">
+        <!-- 페이지 + 입수 + 장르 + 카테고리 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.7rem;">
+          <div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">총 페이지</div>
+            <input type="number" id="book-pages" class="form-input" placeholder="예: 320" min="1" style="font-size:.75rem;padding:.3rem .5rem;">
           </div>
-          <div class="form-group">
-            <label class="form-label">입수 방법</label>
-            <select id="book-source" class="form-input">
+          <div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">입수 방법</div>
+            <select id="book-source" class="form-input" style="font-size:.75rem;padding:.3rem .5rem;">
               <option value="">선택</option>
-              <option>구매</option>
-              <option>도서관 대출</option>
-              <option>친구에게 빌림</option>
-              <option>전자책</option>
-              <option>선물</option>
+              <option>구매</option><option>도서관 대출</option><option>친구에게 빌림</option>
+              <option>전자책</option><option>선물</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">장르</div>
+            <select id="book-genre" class="form-input" style="font-size:.75rem;padding:.3rem .5rem;">
+              <option value="">선택</option>
+              <option>소설</option><option>한국소설</option><option>외국소설</option>
+              <option>SF/판타지</option><option>추리/스릴러</option>
+              <option>에세이</option><option>시/시집</option>
+              <option>인문</option><option>철학</option><option>역사</option><option>사회/정치</option>
+              <option>자기계발</option><option>경제/경영</option>
+              <option>과학</option><option>수학</option><option>기술/공학</option>
+              <option>예술/디자인</option><option>여행</option><option>요리</option>
+              <option>아동/청소년</option><option>만화/그래픽노블</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">카테고리</div>
+            <select id="book-category" class="form-input" style="font-size:.75rem;padding:.3rem .5rem;">
+              <option value="">선택 안함</option>
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">장르</label>
-          <select id="book-genre" class="form-input">
-            <option value="">선택</option>
-            <option>소설</option><option>한국소설</option><option>외국소설</option>
-            <option>SF/판타지</option><option>추리/스릴러</option>
-            <option>에세이</option><option>시/시집</option>
-            <option>인문</option><option>철학</option><option>역사</option><option>사회/정치</option>
-            <option>자기계발</option><option>경제/경영</option>
-            <option>과학</option><option>수학</option><option>기술/공학</option>
-            <option>예술/디자인</option><option>여행</option><option>요리</option>
-            <option>아동/청소년</option><option>만화/그래픽노블</option>
-          </select>
+        <!-- 감상 -->
+        <div style="margin-bottom:.7rem;">
+          <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">감상</div>
+          <textarea id="book-review" class="form-textarea"
+            placeholder="이 책을 읽고 느낀 점..."
+            rows="3" style="font-size:.78rem;resize:vertical;"></textarea>
         </div>
-        <div class="form-group">
-          <label class="form-label">카테고리 (폴더)</label>
-          <select id="book-category" class="form-input">
-            <option value="">선택 안함</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">감상</label>
-          <textarea id="book-review" class="form-textarea" placeholder="이 책을 읽고 느낀 점을 자유롭게 적어보세요..." rows="4"></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">인상 깊은 문장</label>
+        <!-- 문장 + 다시읽기 -->
+        <div style="margin-bottom:.7rem;">
+          <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">인상 깊은 문장</div>
           <div id="quotes-list"></div>
-          <button class="add-quote-btn" onclick="addQuoteField()">＋ 문장 추가</button>
+          <button class="add-quote-btn" onclick="addQuoteField()" style="font-size:.72rem;margin-top:.3rem;">＋ 문장 추가</button>
         </div>
-        <div class="form-group">
-          <label class="form-label">다시 읽고 싶음</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .65rem;background:#faf6ef;border-radius:var(--rs);margin-bottom:.7rem;">
+          <span style="font-size:.75rem;color:var(--tx2);">다시 읽고 싶음</span>
           <label class="toggle-wrap">
             <input type="checkbox" id="book-reread">
             <span class="toggle"></span>
           </label>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="padding-top:.5rem;border-top:1px solid var(--border);">
           <button class="btn-cancel" onclick="closeModal('modal-book')">취소</button>
           <button class="btn-save" onclick="saveBook()">저장</button>
         </div>
@@ -858,6 +863,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=400"></script>
+<script src="app.js?v=402"></script>
 </body>
 </html>

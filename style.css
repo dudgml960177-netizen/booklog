@@ -160,9 +160,9 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:.8rem;}
 @media(min-width:600px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
 @media(min-width:800px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
-.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.48rem .55rem;position:relative;overflow:hidden;transition:transform .15s;}
-.scard:hover{transform:translateY(-2px);}
-.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0;}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.38rem .45rem;position:relative;overflow:hidden;transition:transform .13s;}
+.scard:hover{transform:translateY(-1px);}
+.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--rs) var(--rs) 0 0;}
 .scard:nth-child(1)::before{background:linear-gradient(90deg,var(--clay),var(--gold));}
 .scard:nth-child(2)::before{background:linear-gradient(90deg,var(--gold),#e8c56a);}
 .scard:nth-child(3)::before{background:linear-gradient(90deg,var(--sage),#8ab58a);}
@@ -172,11 +172,11 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .scard:nth-child(7)::before{background:linear-gradient(90deg,var(--sage),var(--slate));}
 .scard:nth-child(8)::before{background:linear-gradient(90deg,var(--mauve),var(--clay));}
 .scard:nth-child(9)::before{background:linear-gradient(90deg,var(--gold),var(--clay));}
-.scard-n{font-family:var(--fs);font-size:1.1rem;color:var(--tx1);line-height:1.1;margin-bottom:.12rem;word-break:break-word;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
-.scard-l{font-size:.65rem;color:var(--tx3);}
-.scard-sub{font-size:.6rem;color:var(--acc);font-weight:500;margin-top:.05rem;}
+.scard-n{font-family:var(--fs);font-size:.82rem;color:var(--tx1);line-height:1.1;margin-bottom:.08rem;word-break:break-word;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.scard-l{font-size:.58rem;color:var(--tx3);}
+.scard-sub{font-size:.55rem;color:var(--acc);font-weight:500;margin-top:.04rem;}
 .gtabs{display:flex;gap:.25rem;flex-wrap:wrap;}
-.gst{font-size:.62rem;padding:.18rem .55rem;border:1px solid var(--border2);border-radius:3px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;}
+.gst{font-size:.6rem;padding:.13rem .4rem;border:1px solid var(--border2);border-radius:3px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;}
 .gst.on{background:var(--acc);color:#fff;border-color:var(--acc);}
 .yr-row{display:flex;gap:.28rem;flex-wrap:wrap;margin-bottom:.75rem;}
 .yr-btn{font-size:.6rem;padding:.15rem .48rem;border:1px solid var(--border2);border-radius:20px;cursor:pointer;background:none;font-family:var(--ff);transition:all .13s;}
@@ -216,9 +216,9 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .lpct{font-size:.64rem;font-weight:600;color:var(--tx2);}
 .lcnt{font-size:.57rem;color:var(--tx3);}
 .ms-title{font-size:.67rem;font-weight:600;color:var(--tx3);letter-spacing:.05em;margin-bottom:.5rem;}
-.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;}
-.ms-card{background:#ede4d0;border:1px solid var(--border2);border-radius:5px;padding:.5rem .65rem;text-align:center;}
-.ms-n{font-family:var(--fs);font-size:1.1rem;color:var(--tx1);line-height:1;}
+.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;}
+.ms-card{background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.35rem .5rem;text-align:center;}
+.ms-n{font-family:var(--fs);font-size:.9rem;color:var(--tx1);line-height:1;}
 .ms-l{font-size:.6rem;color:var(--tx3);margin-top:.1rem;}
 .ms-prog{height:3px;background:var(--border);border-radius:2px;margin-top:.4rem;overflow:hidden;}
 .ms-prog-fill{height:100%;border-radius:2px;background:var(--acc);}
