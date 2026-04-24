@@ -15,9 +15,8 @@ const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const { createClient } = supabase;
-// 싱글턴 보장 - 중복 인스턴스 방지
-if(window.__sb) { console.warn('sb already exists, reusing'); }
-const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+// Supabase 클라이언트 - 항상 새로 생성 (오염된 인스턴스 재사용 방지)
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,
     storageKey: 'booklog-auth',
@@ -26,8 +25,8 @@ const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY
     detectSessionInUrl: true,
     flowType: 'implicit',
   }
-}));
-// Supabase autoRefreshToken이 자동으로 처리함 - 수동 갱신 불필요
+});
+window.__sb = sb;
 
 
 // ── 커스텀 Alert/Confirm (브라우저 기본 팝업 대체)
@@ -146,10 +145,11 @@ function cleanupLocalStorage() {
         if(raw) JSON.parse(raw); // 파싱 실패하면 catch로
       }
     } catch(e) {
-      // 세션 데이터 손상 - Supabase 세션 키만 삭제 (로그인 화면으로)
-      console.warn('Corrupted session data, clearing...');
-      Object.keys(localStorage).filter(k => k.startsWith('booklog-auth') || k.startsWith('sb-'))
-        .forEach(k => localStorage.removeItem(k));
+      // 세션 데이터 손상 - 전체 localStorage 초기화 후 reload
+      console.warn('Corrupted session data - clearing all and reloading');
+      localStorage.clear();
+      location.reload();
+      return;
     }
   } catch(e) {}
 }
@@ -253,16 +253,14 @@ function init() {
   // Supabase 응답 타임아웃 감지 - 5초 안에 INITIAL_SESSION 안 오면 강제 auth 화면
   const initTimeout = setTimeout(() => {
     if(_appState === 'idle' || _appState === 'starting') {
-      console.warn('Supabase timeout - forcing auth screen');
-      if(_appState === 'starting') {
-        // startApp이 멈춘 경우 - localStorage 정리 후 재시도
-        Object.keys(localStorage)
-          .filter(k => !k.startsWith('booklog-auth') && !k.startsWith('bl_'))
-          .forEach(k => localStorage.removeItem(k));
-      }
-      _appState = 'auth';
-      showScreen('auth');
-      loadSavedEmail();
+      console.warn('Supabase timeout - clearing localStorage and reloading');
+      // Supabase가 멈춘 경우 세션 캐시 제거 후 새로고침
+      const savedEmail = localStorage.getItem('bl_saved_email');
+      const savedFont = localStorage.getItem('bl_font_size');
+      localStorage.clear();
+      if(savedEmail) localStorage.setItem('bl_saved_email', savedEmail);
+      if(savedFont) localStorage.setItem('bl_font_size', savedFont);
+      location.reload();
     }
   }, 5000);
   // INITIAL_SESSION 오면 타임아웃 취소
