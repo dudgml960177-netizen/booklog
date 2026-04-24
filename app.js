@@ -2248,27 +2248,48 @@ async function loadFriends() {
   `).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
 
   wrap.innerHTML = '';
-  if(!data?.length) { wrap.innerHTML='<div style="padding:.5rem;font-size:.75rem;color:var(--tx3);">아직 친구가 없어요.</div>'; return; }
+  if(!data?.length) {
+    wrap.innerHTML=`<div style="text-align:center;padding:1.5rem .5rem;color:var(--tx3);">
+      <div style="font-size:1.5rem;margin-bottom:.4rem;">👋</div>
+      <div style="font-size:.78rem;">아직 친구가 없어요</div>
+      <div style="font-size:.7rem;margin-top:.2rem;opacity:.7;">위에서 닉네임으로 검색해보세요</div>
+    </div>`;
+    return;
+  }
   data.forEach(f => {
     const isMine = f.requester_id === currentUser.id;
     const other = isMine ? f.receiver : f.requester;
     const name = other?.display_name || other?.username || '산책자';
+    const initial = name.slice(0,1).toUpperCase();
+    const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
+    const color = colors[name.charCodeAt(0) % colors.length];
     const el = document.createElement('div');
-    el.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.45rem .7rem;border-bottom:1px solid var(--border);font-size:.78rem;';
+    el.style.cssText = 'display:flex;align-items:center;gap:.7rem;padding:.55rem .2rem;border-bottom:1px solid var(--border);';
+    // 아바타
+    const avatar = `<div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">${initial}</div>`;
     if(f.status === 'accepted') {
-      el.innerHTML = `
-        <span style="flex:1;font-weight:500;">${name}</span>
-        <button onclick="openLibrary('${other.id}','${name}')" class="btn-cancel" style="font-size:.68rem;padding:.2rem .5rem;">📚 서재</button>
-        <button onclick="removeFriend('${f.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.68rem;">✕</button>`;
+      el.innerHTML = `${avatar}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;color:var(--tx1);">${name}</div>
+          <div style="font-size:.65rem;color:var(--tx3);">산책 친구</div>
+        </div>
+        <button onclick="openLibrary('${other.id}','${name}')" style="font-size:.7rem;padding:.25rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);">서재 보기</button>
+        <button onclick="removeFriend('${f.id}')" style="width:28px;height:28px;border:none;background:#f5f0e8;border-radius:50%;cursor:pointer;color:var(--tx3);font-size:.75rem;display:flex;align-items:center;justify-content:center;" title="친구 삭제">✕</button>`;
     } else if(f.status === 'pending' && !isMine) {
-      el.innerHTML = `
-        <span style="flex:1;font-weight:500;">${name} <span style="font-size:.65rem;color:var(--acc);">친구 요청</span></span>
-        <button onclick="acceptFriend('${f.id}')" class="btn-save" style="font-size:.68rem;padding:.2rem .5rem;">수락</button>
-        <button onclick="removeFriend('${f.id}')" class="btn-cancel" style="font-size:.68rem;padding:.2rem .5rem;">거절</button>`;
+      el.innerHTML = `${avatar}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;color:var(--tx1);">${name}</div>
+          <div style="font-size:.65rem;color:var(--acc);">친구 요청이 왔어요</div>
+        </div>
+        <button onclick="acceptFriend('${f.id}')" style="font-size:.7rem;padding:.25rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);">수락</button>
+        <button onclick="removeFriend('${f.id}')" style="font-size:.7rem;padding:.25rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx3);font-family:var(--ff);">거절</button>`;
     } else {
-      el.innerHTML = `
-        <span style="flex:1;font-weight:500;color:var(--tx3);">${name} <span style="font-size:.65rem;">(요청 중)</span></span>
-        <button onclick="removeFriend('${f.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.68rem;">취소</button>`;
+      el.innerHTML = `${avatar}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;color:var(--tx3);">${name}</div>
+          <div style="font-size:.65rem;color:var(--tx3);">요청 대기 중...</div>
+        </div>
+        <button onclick="removeFriend('${f.id}')" style="font-size:.7rem;padding:.25rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx3);font-family:var(--ff);">취소</button>`;
     }
     wrap.appendChild(el);
   });
@@ -2282,14 +2303,24 @@ async function searchFriend() {
     .or(`display_name.ilike.%${q}%,username.ilike.%${q}%`)
     .neq('id', currentUser.id).limit(5);
   resultEl.innerHTML = '';
-  if(!data?.length) { resultEl.innerHTML='<div style="font-size:.73rem;color:var(--tx3);padding:.3rem 0;">검색 결과가 없어요.</div>'; return; }
+  if(!data?.length) {
+    resultEl.innerHTML='<div style="padding:.6rem .8rem;font-size:.75rem;color:var(--tx3);text-align:center;">검색 결과가 없어요.</div>';
+    return;
+  }
   data.forEach(u => {
     const name = u.display_name || u.username;
+    const initial = name.slice(0,1).toUpperCase();
+    const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
+    const color = colors[name.charCodeAt(0) % colors.length];
     const el = document.createElement('div');
-    el.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-bottom:1px solid var(--border);font-size:.78rem;cursor:pointer;';
-    el.innerHTML = `<span style="flex:1;">${name}</span>
-      <button onclick="sendFriendRequest('${u.id}','${name}')" class="btn-save" style="font-size:.68rem;padding:.2rem .5rem;">친구 추가</button>
-      <button onclick="openLibrary('${u.id}','${name}')" class="btn-cancel" style="font-size:.68rem;padding:.2rem .5rem;">📚 서재</button>`;
+    el.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-bottom:1px solid var(--border);background:#fff;';
+    el.onmouseenter = () => el.style.background = '#faf6ef';
+    el.onmouseleave = () => el.style.background = '#fff';
+    el.innerHTML = `
+      <div style="width:30px;height:30px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">${initial}</div>
+      <span style="flex:1;font-size:.82rem;font-weight:500;color:var(--tx1);">${name}</span>
+      <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);">+ 친구</button>
+      <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);">서재</button>`;
     resultEl.appendChild(el);
   });
 }
