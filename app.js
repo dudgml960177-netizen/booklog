@@ -571,15 +571,15 @@ function buildQuotes() {
   filterEl.innerHTML = '';
   // 검색 + 선택 삭제 툴바
   const toolbar = document.createElement('div');
-  toolbar.style.cssText = 'display:flex;gap:.4rem;margin-bottom:.7rem;align-items:center;flex-wrap:wrap;';
+  toolbar.style.cssText = 'display:flex;gap:.4rem;margin-bottom:.6rem;align-items:center;';
   toolbar.innerHTML = `
-    <div style="position:relative;flex:1;min-width:160px;">
-      <span style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--tx3);">🔍</span>
-      <input id="quote-search-input" type="text" class="search-input" placeholder="책 제목 또는 작가 이름으로 검색..."
-        style="padding-left:2rem;font-size:.78rem;width:100%;" value="${quoteSearchQ}">
+    <div style="position:relative;flex:1;">
+      <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--tx3);">🔍</span>
+      <input id="quote-search-input" type="text" class="search-input" placeholder="책 제목 또는 작가로 검색..."
+        style="padding-left:1.8rem;font-size:.75rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;" value="${quoteSearchQ}">
     </div>
-    <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.72rem;">${quoteSelectMode?'✕ 취소':'☑ 선택'}</button>
-    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.72rem;">🗑 삭제</button>`;
+    <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.7rem;border-radius:12px;">${quoteSelectMode?'✕':'☑ 선택'}</button>
+    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.7rem;border-radius:12px;">🗑</button>`;
   filterEl.appendChild(toolbar);
   const inp = document.getElementById('quote-search-input');
   if(inp) inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
@@ -641,12 +641,15 @@ function renderQuotes() {
       text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
     }
     el.innerHTML = `
-      ${quoteSelectMode ? `<div style="position:absolute;top:.5rem;right:.5rem;width:16px;height:16px;border:2px solid ${isSelected?'var(--acc)':'var(--border2)'};border-radius:3px;background:${isSelected?'var(--acc)':'#fff'};display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:.6rem;">${isSelected?'✓':''}</span></div>` : ''}
+      ${quoteSelectMode ? `<div style="position:absolute;top:.5rem;right:.5rem;width:15px;height:15px;border:2px solid ${isSelected?'var(--acc)':'var(--border2)'};border-radius:3px;background:${isSelected?'var(--acc)':'#fff'};display:flex;align-items:center;justify-content:center;z-index:1;"><span style="color:#fff;font-size:.55rem;">${isSelected?'✓':''}</span></div>` : ''}
       <div class="qcard-bar" style="background:${color}"></div>
-      <div class="qcard-text">${text}</div>
+      <div style="padding-left:.65rem;">
+        <div style="font-size:1.1rem;color:${color};opacity:.35;line-height:1;margin-bottom:.05rem;font-family:Georgia,serif;">"</div>
+        <div class="qcard-text" style="margin-top:0;">${text}</div>
+      </div>
       <div class="qcard-meta">
         <span class="qcard-book">${book?.title||''}</span>
-        ${book?.author?`<span class="qcard-page">${book.author}</span>`:''}
+        ${book?.author?`<span style="font-size:.58rem;color:var(--tx3);">— ${book.author}</span>`:''}
         ${qt.page?`<span class="qcard-page">p.${qt.page}</span>`:''}
         ${qt.tag?`<span class="qcard-comment">${qt.tag}</span>`:''}
       </div>`;

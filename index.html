@@ -143,90 +143,96 @@
         </div>
       </div>
 
-      <!-- 기록 (달력 + 타이머 통합) -->
+      <!-- 기록 탭 -->
       <div class="panel" id="p-record">
-        <div class="record-top">
 
-          <!-- 달력 (좌) -->
-          <div class="card record-cal-card">
-            <div class="cal-hd">
+        <!-- 상단: 달력 + 타이머 나란히 -->
+        <div class="record-top" style="margin-bottom:.7rem;">
+
+          <!-- 달력 -->
+          <div class="card record-cal-card" style="padding:.8rem;">
+            <div class="cal-hd" style="margin-bottom:.5rem;">
               <button class="cal-nav" onclick="moveCal(-1)">◀</button>
-              <div class="cal-ttl" id="cal-ttl"></div>
+              <div class="cal-ttl" id="cal-ttl" style="font-size:.82rem;"></div>
               <button class="cal-nav" onclick="moveCal(1)">▶</button>
             </div>
             <div class="cal-grid" id="cal-grid">
               <div class="dow">일</div><div class="dow">월</div><div class="dow">화</div>
               <div class="dow">수</div><div class="dow">목</div><div class="dow">금</div><div class="dow">토</div>
             </div>
-            <div class="cal-list">
-              <div class="cal-list-ttl">이 달의 완독</div>
+            <div class="cal-list" style="margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--border);">
+              <div class="cal-list-ttl" style="font-size:.62rem;color:var(--tx3);margin-bottom:.3rem;">이 달의 완독</div>
               <div id="cal-list"></div>
             </div>
           </div>
 
-          <!-- 타이머 + 트래커 (우) -->
-          <div style="display:flex;flex-direction:column;gap:.7rem;">
-            <div class="card record-timer-card">
-              <div class="sec" style="margin-bottom:.55rem;">⏱ 독서 타이머</div>
-              <select id="timer-book-select" class="form-input" style="font-size:.75rem;margin-bottom:.6rem;">
-                <option value="">읽는 중인 책 선택...</option>
-              </select>
-              <div style="text-align:center;margin:.3rem 0 .6rem;">
-                <div id="timer-display" class="timer-display">00:00:00</div>
-                <div style="font-size:.6rem;color:var(--tx3);margin-top:.12rem;">오늘 독서 시간</div>
-              </div>
-              <div class="timer-btns" style="justify-content:center;">
-                <button class="tbtn" id="timer-btn" onclick="toggleTimer()">▶ 시작</button>
-                <button class="tbtn tbtn-sec" onclick="resetTimer()">↺</button>
-                <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
-              </div>
-              <div style="display:flex;align-items:center;gap:.4rem;margin-top:.55rem;justify-content:center;">
-                <span style="font-size:.68rem;color:var(--tx3);">현재 페이지</span>
-                <input type="number" id="timer-current-page" min="1" placeholder="쪽"
-                  style="width:64px;padding:.25rem .4rem;border:1px solid var(--border2);border-radius:4px;font-size:.78rem;font-family:var(--ff);text-align:center;">
-                <span style="font-size:.65rem;color:var(--tx3);">(선택)</span>
-              </div>
+          <!-- 타이머 -->
+          <div class="card record-timer-card" style="padding:.85rem;display:flex;flex-direction:column;">
+            <!-- 타이머 헤더 -->
+            <div style="font-size:.65rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.5rem;">⏱ 독서 타이머</div>
+            <!-- 책 선택 -->
+            <select id="timer-book-select" class="form-input" style="font-size:.73rem;margin-bottom:.6rem;background:#f5f0e8;border-color:transparent;border-radius:8px;">
+              <option value="">읽는 중인 책 선택...</option>
+            </select>
+            <!-- 시계 -->
+            <div style="text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:.3rem 0;">
+              <div id="timer-display" class="timer-display" style="font-size:2.2rem;letter-spacing:.05em;">00:00:00</div>
+              <div style="font-size:.6rem;color:var(--tx3);margin-top:.15rem;">오늘 독서 시간</div>
             </div>
-
-            <!-- 트래커 (타이머 바로 아래) -->
-            <div class="card" style="padding:.8rem;">
-              <div class="row-hd" style="margin-bottom:.45rem;">
-                <div class="sec" style="margin:0;font-size:.68rem;">독서 트래커</div>
-                <div style="display:flex;gap:.2rem;align-items:center;">
-                  <button class="cal-nav" onclick="moveTimerMonth(-1)">◀</button>
-                  <span id="timer-month-label" style="font-size:.63rem;color:var(--tx2);font-weight:600;min-width:80px;text-align:center;"></span>
-                  <button class="cal-nav" onclick="moveTimerMonth(1)">▶</button>
-                </div>
-              </div>
-              <div style="display:flex;gap:.22rem;margin-bottom:.45rem;align-items:center;">
-                <button class="tracker-period-btn" data-period="week" onclick="setTimerPeriod('week')">주간</button>
-                <button class="tracker-period-btn on" data-period="month" onclick="setTimerPeriod('month')">월간</button>
-                <button class="tracker-period-btn" data-period="year" onclick="setTimerPeriod('year')">연간</button>
-                <span id="tracker-summary" style="font-size:.6rem;color:var(--tx3);margin-left:auto;"></span>
-              </div>
-              <div id="timer-tracker-grid"></div>
-              <div style="display:flex;align-items:center;gap:.3rem;margin-top:.3rem;">
-                <span style="font-size:.52rem;color:var(--tx3);">적음</span>
-                <div style="display:flex;gap:2px;">
-                  <div style="width:9px;height:9px;border-radius:2px;background:#ede8df;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#e8d4b0;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#d4a870;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#c08840;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#a06820;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#7a4a10;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#4a2808;"></div>
-                </div>
-                <span style="font-size:.52rem;color:var(--tx3);">많음</span>
-              </div>
+            <!-- 버튼 -->
+            <div class="timer-btns" style="justify-content:center;gap:.35rem;margin-bottom:.55rem;">
+              <button class="tbtn" id="timer-btn" onclick="toggleTimer()">▶ 시작</button>
+              <button class="tbtn tbtn-sec" onclick="resetTimer()">↺</button>
+              <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
+            </div>
+            <!-- 현재 페이지 -->
+            <div style="display:flex;align-items:center;gap:.4rem;justify-content:center;padding-top:.5rem;border-top:1px solid var(--border);">
+              <span style="font-size:.65rem;color:var(--tx3);">현재 쪽</span>
+              <input type="number" id="timer-current-page" min="1" placeholder="—"
+                style="width:56px;padding:.22rem .4rem;border:1px solid var(--border2);border-radius:6px;font-size:.78rem;font-family:var(--ff);text-align:center;background:#faf6ef;">
             </div>
           </div>
         </div>
 
-        <!-- 하단: 책별 누적 독서 시간 -->
-        <div class="card" style="margin-top:.7rem;">
-          <div class="sec" style="margin-bottom:.45rem;">책별 누적 독서 시간</div>
+        <!-- 트래커 -->
+        <div class="card" style="margin-bottom:.7rem;padding:.8rem .9rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+            <div style="font-size:.65rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">독서 트래커</div>
+            <div style="display:flex;align-items:center;gap:.25rem;">
+              <div style="display:flex;gap:.2rem;margin-right:.4rem;">
+                <button class="tracker-period-btn" data-period="week" onclick="setTimerPeriod('week')">주간</button>
+                <button class="tracker-period-btn on" data-period="month" onclick="setTimerPeriod('month')">월간</button>
+                <button class="tracker-period-btn" data-period="year" onclick="setTimerPeriod('year')">연간</button>
+              </div>
+              <button class="cal-nav" onclick="moveTimerMonth(-1)">◀</button>
+              <span id="timer-month-label" style="font-size:.62rem;color:var(--tx2);font-weight:600;min-width:75px;text-align:center;"></span>
+              <button class="cal-nav" onclick="moveTimerMonth(1)">▶</button>
+            </div>
+          </div>
+          <div id="timer-tracker-grid"></div>
+          <!-- 레전드 -->
+          <div style="display:flex;align-items:center;gap:.35rem;margin-top:.35rem;">
+            <span style="font-size:.52rem;color:var(--tx3);">적음</span>
+            <div style="display:flex;gap:2px;">
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#ede8df;"></div>
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#e8d4b0;"></div>
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#d4a870;"></div>
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#c08840;"></div>
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#a06820;"></div>
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#7a4a10;"></div>
+              <div style="width:8px;height:8px;border-radius:1.5px;background:#4a2808;"></div>
+            </div>
+            <span style="font-size:.52rem;color:var(--tx3);">많음</span>
+            <span id="tracker-summary" style="font-size:.6rem;color:var(--acc);font-weight:600;margin-left:auto;"></span>
+          </div>
+        </div>
+
+        <!-- 책별 독서 시간 -->
+        <div class="card" style="padding:.8rem .9rem;">
+          <div style="font-size:.65rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.5rem;">책별 누적 독서 시간</div>
           <div id="timer-book-list"></div>
         </div>
+
       </div>
 
       <!-- 게시판 -->
@@ -852,6 +858,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=306"></script>
+<script src="app.js?v=400"></script>
 </body>
 </html>
