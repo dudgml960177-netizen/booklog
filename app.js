@@ -155,51 +155,50 @@ function initFontSize(sizeFromDB) {
   applyFontSize(size, false); // 초기화 시엔 DB 재저장 안 함
 }
 
-let _appInitialized = false;
+// ── 앱 상태 관리
+let _appState = 'idle'; // idle | starting | running | auth
 
 async function startApp(user) {
-  if(_appInitialized) return;
-  _appInitialized = true;
+  if(_appState === 'running' || _appState === 'starting') return;
+  _appState = 'starting';
   currentUser = user;
   try { await loadData(); } catch(e) { console.warn('loadData:', e); }
   try { await loadGoals(); } catch(e) { console.warn('loadGoals:', e); }
   try { loadUserRole(); } catch(e) {}
-  // 프로필에서 font_size 로드
   try {
     const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
     if(pf?.font_size) initFontSize(String(pf.font_size));
   } catch(e) {}
+  _appState = 'running';
   showScreen('app');
   buildBooks();
   setTimeout(loadNotifications, 500);
 }
 
-// ── onAuthStateChange를 가장 먼저 등록 (sb 생성 직후)
-// 이렇게 해야 캐시/에러 상황에서도 세션 이벤트를 항상 받을 수 있음
+function resetToAuth() {
+  _appState = 'auth';
+  currentUser = null; allBooks = []; allQuotes = [];
+  showScreen('auth');
+  loadSavedEmail();
+}
+
+// onAuthStateChange - sb 생성 직후 등록
 sb.auth.onAuthStateChange(async (event, session) => {
   try {
     if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
       if(session?.user) {
-        if(!_appInitialized) {
+        if(_appState !== 'running') {
           await startApp(session.user);
         } else {
-          // 이미 앱 실행 중 - 세션 정보만 업데이트 (재로드 없음)
-          currentUser = session.user;
+          currentUser = session.user; // 세션 갱신만
         }
-      } else if(!session && event === 'INITIAL_SESSION') {
-        // 세션 없음 - 로그인 화면 유지 (이미 표시됨)
+      } else if(event === 'INITIAL_SESSION') {
+        _appState = 'auth'; // 세션 없음 확정
       }
     }
     if(event === 'SIGNED_OUT') {
-      // 다른 탭에서 로그아웃 시 무시 (동시 접속 허용)
-      // 명시적 로그아웃(doLogout)에서만 처리
-      if(window._manualSignOut) {
-        window._manualSignOut = false;
-        _appInitialized = false;
-        currentUser = null; allBooks = []; allQuotes = [];
-        showScreen('auth');
-        loadSavedEmail();
-      }
+      // doLogout에서 직접 resetToAuth 호출하므로 여기선 상태만 리셋
+      _appState = 'idle';
     }
     if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
     if(event === 'PASSWORD_RECOVERY') {
@@ -211,35 +210,25 @@ sb.auth.onAuthStateChange(async (event, session) => {
 });
 
 function init() {
-  initFontSize(); // 로그인 전 localStorage로만
+  initFontSize();
   cleanupLocalStorage();
-
-  // DOM 이벤트 등록
   document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', e => { if(e.target===el) el.style.display='none'; });
   });
-
-  // 비밀번호 재설정 토큰 처리 (URL 해시)
+  // URL 해시 토큰 처리 (비밀번호 재설정)
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
     try {
       const params = new URLSearchParams(hash.replace('#',''));
       const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
       if(accessToken) {
-        sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken||'' })
-          .then(() => {
-            window.history.replaceState(null, '', window.location.pathname);
-            showScreen('auth'); authSwitch('newpw', null);
-            showAuthError('새 비밀번호를 입력해주세요.', true);
-          }).catch(() => { showScreen('auth'); loadSavedEmail(); });
+        sb.auth.setSession({ access_token: accessToken, refresh_token: params.get('refresh_token')||'' })
+          .then(() => { window.history.replaceState(null,'',window.location.pathname); showScreen('auth'); authSwitch('newpw',null); showAuthError('새 비밀번호를 입력해주세요.',true); })
+          .catch(() => { showScreen('auth'); loadSavedEmail(); });
         return;
       }
     } catch(e) {}
   }
-
-  // 로그인 화면 즉시 표시
-  // onAuthStateChange(INITIAL_SESSION)이 세션 있으면 자동으로 startApp 호출
   showScreen('auth');
   loadSavedEmail();
 }
@@ -353,19 +342,14 @@ async function doSignup() {
   showAuthError('가입 완료! 이메일 인증 후 로그인해주세요.', true);
 }
 async function doLogout() {
+  closeModal('modal-profile');
   try {
-    closeModal('modal-profile');
-    window._manualSignOut = true; // 명시적 로그아웃 플래그
-    _appInitialized = false;
     await sb.auth.signOut();
-    currentUser = null; allBooks = []; allQuotes = [];
-    showScreen('auth');
-    loadSavedEmail();
   } catch(e) {
-    window._manualSignOut = false;
+    console.warn('signOut error:', e);
     localStorage.removeItem('booklog-auth');
-    location.reload();
   }
+  resetToAuth();
 }
 function showAuthError(msg, success=false) {
   const el = document.getElementById('auth-error');
@@ -2025,6 +2009,8 @@ async function loadAllMembers() {
       return;
     }
     allMembers = data || [];
+    const countEl = document.getElementById('admin-member-count');
+    if(countEl) countEl.textContent = `총 ${allMembers.length}명`;
     renderMemberList();
   } catch(e) {
     console.error('loadAllMembers exception:', e);
