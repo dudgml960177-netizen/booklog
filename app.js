@@ -1967,7 +1967,8 @@ async function loadAllMembers() {
   try {
     const { data, error } = await sb.from('profiles')
       .select('id,display_name,username,role,is_banned,created_at')
-      .order('created_at', {ascending:false});
+      .order('created_at', {ascending:false})
+      .not('display_name', 'is', null); // 닉네임 없는 고아 계정 제외
     if(error) {
       console.error('members load error:', error);
       const wrap = document.getElementById('admin-member-list');
@@ -2011,12 +2012,33 @@ function renderMemberList(filter='') {
       </div>
       <button onclick="event.stopPropagation();toggleMemberBan('${m.id}',${!m.is_banned})" style="font-size:.62rem;padding:2px 6px;border:1px solid ${m.is_banned?'#a8d8a8':'#f5c6cb'};border-radius:3px;background:none;cursor:pointer;color:${m.is_banned?'#2e7d32':'#c0392b'};">
         ${m.is_banned?'해제':'제한'}
+      </button>
+      <button onclick="event.stopPropagation();deleteMember('${m.id}','${(m.display_name||m.username||'').replace(/'/g,'')}')" style="font-size:.62rem;padding:2px 6px;border:1px solid #f5c6cb;border-radius:3px;background:none;cursor:pointer;color:#8b0000;" title="계정 삭제">
+        🗑
       </button>`;
     wrap.appendChild(row);
   });
   // 선택 인원 표시
   const countEl = document.getElementById('admin-selected-count');
   if(countEl) countEl.textContent = selectedMemberIds.size > 0 ? `${selectedMemberIds.size}명 선택됨` : '';
+}
+
+async function deleteMember(userId, userName) {
+  if(userId === currentUser.id) { alert('자기 자신은 삭제할 수 없어요.'); return; }
+  if(!confirm(`"${userName}" 계정을 삭제할까요?
+
+⚠️ 해당 계정의 모든 데이터(책, 문장, 댓글 등)가 삭제됩니다.
+이 작업은 되돌릴 수 없어요.`)) return;
+  try {
+    // profiles 삭제 (cascade로 관련 데이터 삭제)
+    const { error } = await sb.from('profiles').delete().eq('id', userId);
+    if(error) throw error;
+    await loadAllMembers();
+    alert(`"${userName}" 계정을 삭제했어요.`);
+  } catch(e) {
+    alert('삭제 오류: '+(e.message||'관리자 권한을 확인해주세요'));
+    console.error('deleteMember error:', e);
+  }
 }
 
 async function toggleMemberBan(userId, ban) {
