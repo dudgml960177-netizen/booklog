@@ -42,13 +42,24 @@ let timerTrackY = new Date().getFullYear(), timerTrackM = new Date().getMonth(),
 let goals = { books: 0, minutes: 0, pages: 0 };
 
 const YC = {
-  2022:{line:'#7a9e7e',rgb:'122,158,126'}, 2023:{line:'#5a8a8a',rgb:'90,138,138'},
-  2024:{line:'#c4714a',rgb:'196,113,74'}, 2025:{line:'#9a7090',rgb:'154,112,144'},
-  2026:{line:'#c8a87a',rgb:'200,168,122'}, 2027:{line:'#8a8aaa',rgb:'138,138,170'},
+  2021:{line:'#8b6b5a',rgb:'139,107,90'},
+  2022:{line:'#6b8f6b',rgb:'107,143,107'},
+  2023:{line:'#5a7a8a',rgb:'90,122,138'},
+  2024:{line:'#c4714a',rgb:'196,113,74'},
+  2025:{line:'#8b6b8b',rgb:'139,107,139'},
+  2026:{line:'#c8a050',rgb:'200,160,80'},
+  2027:{line:'#4a7a6a',rgb:'74,122,106'},
+  2028:{line:'#7a6aaa',rgb:'122,106,170'},
 };
-const GCOLS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040','#6a8a6a'];
+const GCOLS = ['#c4714a','#6b8f6b','#5a7a8a','#c8a050','#8b6b8b','#4a7a6a','#c8704a','#7a8a6a','#7a6aaa','#5a8a7a'];
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
-const TRACKER_COLORS = ['#f0e6cc','#d4a870','#b07030','#7a3e18','#4a2008'];
+const TRACKER_COLORS = [
+  '#eef2f5',  // 0: 비어있음 - 연한 슬레이트
+  '#b8d4c8',  // 1: 적음 - 세이지 라이트
+  '#7aaa8a',  // 2: 보통 - 세이지
+  '#5a8a6a',  // 3: 많음 - 딥 세이지
+  '#3a6a4a',  // 4: 아주 많음 - 포레스트
+];
 
 // ── 초기화
 function showScreen(name) {
@@ -828,21 +839,25 @@ function buildStats() {
   const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1]||(aRating[b[0]]||0)-(aRating[a[0]]||0))[0];
   const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1]||(pRating[b[0]]||0)-(pRating[a[0]]||0))[0];
   const items=[
-    {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체'},
-    {n:avg,   l:'평균 평점', sub:avg+' / 5.0'},
-    {n:Math.floor(totalMins/60)+'h', l:'총 독서 시간', sub:totalMins+'분'},
-    {n:thisYear.length, l:'올해 완독', sub:new Date().getFullYear()+'년'},
-    {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권'},
-    {n:allQuotes.length, l:'수집 문장', sub:'인상 깊은 구절'},
-    {n:topA?topA[0]:'—', l:'👑 최애 작가', sub:topA?topA[1]+'권':''},
-    {n:topP?topP[0]:'—', l:'📚 최애 출판사', sub:topP?topP[1]+'권':''},
-    {n:totalPages>0?totalPages.toLocaleString()+'p':'—', l:'누적 페이지', sub:'완독 기준'},
+    {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체', ic:'📖'},
+    {n:avg,   l:'평균 평점', sub:avg+' / 5.0', ic:'⭐'},
+    {n:Math.floor(totalMins/60)+'h', l:'총 독서 시간', sub:totalMins+'분', ic:'⏱'},
+    {n:thisYear.length, l:'올해 완독', sub:new Date().getFullYear()+'년', ic:'🌿'},
+    {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권', ic:'📌'},
+    {n:allQuotes.length, l:'수집 문장', sub:'인상 깊은 구절', ic:'✍️'},
+    {n:topA?topA[0]:'—', l:'최애 작가', sub:topA?topA[1]+'권':'', ic:'👑'},
+    {n:topP?topP[0]:'—', l:'최애 출판사', sub:topP?topP[1]+'권':'', ic:'📚'},
+    {n:totalPages>0?totalPages.toLocaleString()+'p':'—', l:'누적 페이지', sub:'완독 기준', ic:'📄'},
   ];
   items.forEach(it=>{
     const el=document.createElement('div'); el.className='scard';
-    // 작가/출판사는 긴 이름 대비 작은 폰트
-    const nStyle=(it.l.includes('작가')||it.l.includes('출판사'))?' style="font-size:.75rem;"':'';
-    el.innerHTML=`<div class="scard-n"${nStyle}>${it.n}</div><div class="scard-l">${it.l}</div><div class="scard-sub">${it.sub}</div>`;
+    const isLong=(it.l.includes('작가')||it.l.includes('출판사'));
+    const nStyle=isLong?' style="font-size:.75rem;line-height:1.3;"':'';
+    el.innerHTML=`
+      <div style="font-size:.9rem;margin-bottom:.18rem;opacity:.7;">${it.ic||''}</div>
+      <div class="scard-n"${nStyle}>${it.n}</div>
+      <div class="scard-l">${it.l}</div>
+      <div class="scard-sub">${it.sub}</div>`;
     sg.appendChild(el);
   });
 }
@@ -986,7 +1001,8 @@ function buildAuthorChart() {
   const MEDAL=['🥇','🥈','🥉'];
   aList.forEach(([name,cnt],i)=>{
     const pct=Math.round(cnt/maxA*100);
-    const bg=i===0?'#7a3e18':i===1?'#b07030':i===2?'#c4714a':'#c8a87a';
+    const ratingColors=['#3a6a4a','#6b8f6b','#c8a050','#c4714a','#8b4a8b'];
+    const bg=ratingColors[i]||'#c8a87a';
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;';
     row.innerHTML=`<span style="font-size:.64rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${MEDAL[i]||''} ${name}</span>
@@ -1094,9 +1110,17 @@ function buildPagesChart() {
       datasets: [{
         label: '페이지',
         data: vals,
-        backgroundColor: vals.map(v => {
+        backgroundColor: vals.map((v,i) => {
           const ratio = v/maxV;
-          return ratio > 0.7 ? 'rgba(122,62,24,.85)' : ratio > 0.4 ? 'rgba(176,112,48,.8)' : ratio > 0 ? 'rgba(196,168,122,.75)' : 'rgba(237,228,208,.5)';
+          const palettes = [
+            ['rgba(196,113,74,.9)','rgba(196,113,74,.65)','rgba(196,113,74,.35)'],
+            ['rgba(107,143,107,.9)','rgba(107,143,107,.65)','rgba(107,143,107,.35)'],
+            ['rgba(90,122,138,.9)','rgba(90,122,138,.65)','rgba(90,122,138,.35)'],
+            ['rgba(200,160,80,.9)','rgba(200,160,80,.65)','rgba(200,160,80,.35)'],
+            ['rgba(139,107,139,.9)','rgba(139,107,139,.65)','rgba(139,107,139,.35)'],
+          ];
+          const pal = palettes[i % palettes.length];
+          return ratio > 0.6 ? pal[0] : ratio > 0.2 ? pal[1] : ratio > 0 ? pal[2] : 'rgba(220,210,195,.4)';
         }),
         borderColor: 'transparent',
         borderRadius: 5,
@@ -2320,8 +2344,18 @@ function renderLibCal() {
       ${Array(firstDay).fill('<div></div>').join('')}
       ${Array.from({length:daysInMonth},(_,i)=>{
         const d=i+1, cnt=finishMap[d]||0;
-        return `<div style="aspect-ratio:1;border-radius:3px;background:${cnt?'var(--acc)':'var(--border)'};display:flex;align-items:center;justify-content:center;" title="${d}일${cnt?' 완독'+cnt+'권':''}">
-          <span style="font-size:.48rem;color:${cnt?'#fff':'var(--tx3)'};">${d}</span>
+        // 해당 날 완독 책 중 표지 있는 첫 번째
+        const finishedBook = cnt ? _libBooks.find(b=>{
+          const fd = b.date_finish;
+          return fd && parseInt(fd.slice(8,10))===d &&
+            fd.startsWith(`${y}-${String(m+1).padStart(2,'0')}`);
+        }) : null;
+        const coverImg = finishedBook?.cover
+          ? `<img src="${finishedBook.cover}" style="width:100%;height:100%;object-fit:cover;border-radius:3px;" title="${finishedBook.title}">`
+          : '';
+        return `<div style="aspect-ratio:1;border-radius:3px;background:${cnt?'var(--acc)':'var(--border)'};display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;" title="${d}일${cnt?' 완독'+cnt+'권':''}">
+          ${coverImg || `<span style="font-size:.48rem;color:${cnt?'#fff':'var(--tx3)'};">${d}</span>`}
+          ${cnt>1?`<span style="position:absolute;bottom:0;right:0;background:rgba(0,0,0,.5);color:#fff;font-size:.38rem;padding:0 2px;border-radius:2px 0 3px 0;">+${cnt}</span>`:''}
         </div>`;
       }).join('')}
     </div>`;
