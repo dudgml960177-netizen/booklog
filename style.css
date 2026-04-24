@@ -156,7 +156,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:.8rem;}
 @media(min-width:600px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
 @media(min-width:800px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
-.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.65rem .8rem;position:relative;overflow:hidden;transition:transform .15s;}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.5rem .6rem;position:relative;overflow:hidden;transition:transform .15s;}
 .scard:hover{transform:translateY(-2px);}
 .scard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0;}
 .scard:nth-child(1)::before{background:linear-gradient(90deg,var(--clay),var(--gold));}

@@ -89,13 +89,13 @@ const YC = {
 const GCOLS = ['#c4714a','#6b8f6b','#5a7a8a','#c8a050','#8b6b8b','#4a7a6a','#c8704a','#7a8a6a','#7a6aaa','#5a8a7a'];
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 const TRACKER_COLORS = [
-  '#edf4ee',  // 0: 없음
-  '#c6e6c8',  // 1: 아주 적음
-  '#96d09a',  // 2: 적음
-  '#5cb860',  // 3: 보통
-  '#3a9e40',  // 4: 많음
-  '#2a7a2e',  // 5: 아주 많음
-  '#1a5a1e',  // 6: 최대
+  '#ede8df',  // 0: 없음 - 배경과 자연스럽게
+  '#e8d4b0',  // 1: 아주 적음 - 연한 웜베이지
+  '#d4a870',  // 2: 적음 - 골드베이지
+  '#c08840',  // 3: 보통 - 웜골드
+  '#a06820',  // 4: 많음 - 딥골드
+  '#7a4a10',  // 5: 아주 많음 - 브라운
+  '#4a2808',  // 6: 최대 - 딥브라운
 ];
 
 // ── 초기화
@@ -935,6 +935,9 @@ function buildStats() {
   const sg=document.getElementById('stat-grid'); sg.innerHTML='';
   const done=allBooks.filter(b=>b.status==='완독');
   const total=done.length;
+  // 히어로 숫자 업데이트
+  const heroEl = document.getElementById('stats-hero-main');
+  if(heroEl) heroEl.textContent = total || '0';
   const avg=total>0?(done.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(1):'—';
   const years=new Set(done.map(b=>b.date_finish?.slice(0,4)).filter(Boolean));
   const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
@@ -963,12 +966,13 @@ function buildStats() {
   items.forEach(it=>{
     const el=document.createElement('div'); el.className='scard';
     const isLong=(it.l.includes('작가')||it.l.includes('출판사'));
-    const nStyle=isLong?' style="font-size:.75rem;line-height:1.3;"':'';
     el.innerHTML=`
-      <div style="font-size:.9rem;margin-bottom:.18rem;opacity:.7;">${it.ic||''}</div>
-      <div class="scard-n"${nStyle}>${it.n}</div>
-      <div class="scard-l">${it.l}</div>
-      <div class="scard-sub">${it.sub}</div>`;
+      <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.2rem;">
+        <span style="font-size:.72rem;opacity:.65;">${it.ic||''}</span>
+        <span class="scard-l" style="font-size:.6rem;">${it.l}</span>
+      </div>
+      <div class="scard-n" style="${isLong?'font-size:.72rem;line-height:1.3;':'font-size:.95rem;'}">${it.n}</div>
+      ${it.sub?`<div class="scard-sub" style="font-size:.58rem;">${it.sub}</div>`:''}`;
     sg.appendChild(el);
   });
 }
@@ -1343,18 +1347,23 @@ function buildGoalDisplay() {
   const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
   const totalPages=done.reduce((a,b)=>a+(b.pages||0),0);
   const items=[];
-  if(goals.books>0){const pct=Math.min(Math.round(thisYear.length/goals.books*100),100);items.push({label:'올해 독서 목표',cur:thisYear.length,goal:goals.books,pct,unit:'권'});}
-  if(goals.minutes>0){const pct=Math.min(Math.round(totalMins/goals.minutes*100),100);items.push({label:'독서 시간 목표',cur:Math.floor(totalMins/60)+'h',goal:Math.floor(goals.minutes/60)+'h',pct,unit:''});}
-  if(goals.pages>0){const pct=Math.min(Math.round(totalPages/goals.pages*100),100);items.push({label:'누적 페이지 목표',cur:totalPages.toLocaleString(),goal:goals.pages.toLocaleString(),pct,unit:'p'});}
-  if(!items.length){wrap.innerHTML='<div style="font-size:.75rem;color:var(--tx3);">목표를 설정하면 진행률을 볼 수 있어요.</div>';return;}
-  wrap.innerHTML=items.map(it=>`<div class="goal-item">
-    <span class="goal-label">${it.label}</span>
-    <div class="goal-bar-wrap">
-      <div class="goal-bar"><div class="goal-bar-fill" style="width:${it.pct}%;background:${it.pct>=100?'#7a9e7e':'var(--acc)'}"></div></div>
-      <div class="goal-progress">${it.cur} / ${it.goal}${it.unit} (${it.pct}%)</div>
-    </div>
-    ${it.pct>=100?'<span class="goal-badge">🏅 달성!</span>':''}
-  </div>`).join('');
+  if(goals.books>0){const pct=Math.min(Math.round(thisYear.length/goals.books*100),100);items.push({label:'완독',cur:thisYear.length,goal:goals.books,pct,unit:'권',color:'var(--sage)'});}
+  if(goals.minutes>0){const pct=Math.min(Math.round(totalMins/goals.minutes*100),100);items.push({label:'독서 시간',cur:Math.floor(totalMins/60)+'h',goal:Math.floor(goals.minutes/60)+'h',pct,unit:'',color:'var(--slate)'});}
+  if(goals.pages>0){const pct=Math.min(Math.round(totalPages/goals.pages*100),100);items.push({label:'페이지',cur:totalPages.toLocaleString(),goal:goals.pages.toLocaleString(),pct,unit:'p',color:'var(--mauve)'});}
+  if(!items.length){
+    wrap.style.cssText='padding:.5rem 1.2rem;';
+    wrap.innerHTML='<div style="font-size:.7rem;color:var(--tx3);">목표를 설정하면 진행률을 볼 수 있어요.</div>';
+    return;
+  }
+  wrap.style.cssText='padding:.6rem 1.2rem;';
+  wrap.innerHTML=items.map(it=>`
+    <div style="margin-bottom:.35rem;display:flex;align-items:center;gap:.6rem;">
+      <div style="font-size:.65rem;color:var(--tx3);width:55px;flex-shrink:0;">${it.label}</div>
+      <div style="flex:1;height:4px;background:#ede4d0;border-radius:2px;overflow:hidden;">
+        <div style="width:${it.pct}%;height:100%;background:${it.pct>=100?'var(--sage)':it.color};border-radius:2px;transition:width .5s;"></div>
+      </div>
+      <div style="font-size:.63rem;color:var(--tx3);min-width:80px;text-align:right;">${it.cur}/${it.goal}${it.unit} ${it.pct>=100?'🏅':it.pct+'%'}</div>
+    </div>`).join('');
 }
 
 // ── 카테고리

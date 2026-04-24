@@ -208,13 +208,13 @@
               <div style="display:flex;align-items:center;gap:.3rem;margin-top:.3rem;">
                 <span style="font-size:.52rem;color:var(--tx3);">적음</span>
                 <div style="display:flex;gap:2px;">
-                  <div style="width:9px;height:9px;border-radius:2px;background:#edf4ee;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#c6e6c8;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#96d09a;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#5cb860;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#3a9e40;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#2a7a2e;"></div>
-                  <div style="width:9px;height:9px;border-radius:2px;background:#1a5a1e;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#ede8df;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#e8d4b0;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#d4a870;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#c08840;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#a06820;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#7a4a10;"></div>
+                  <div style="width:9px;height:9px;border-radius:2px;background:#4a2808;"></div>
                 </div>
                 <span style="font-size:.52rem;color:var(--tx3);">많음</span>
               </div>
@@ -249,30 +249,43 @@
 
       <!-- 통계 -->
       <div class="panel" id="p-graph">
-        <!-- 목표 설정 -->
-        <div class="card goal-card" style="margin-bottom:.8rem;">
-          <div class="row-hd" style="margin-bottom:.7rem;">
-            <div class="sec" style="margin:0;">📌 독서 목표</div>
-            <button class="add-quote-btn" onclick="openGoalModal()">목표 설정</button>
+
+        <!-- ① 목표 + 핵심 지표 통합 헤더 -->
+        <div class="stats-hero card" style="margin-bottom:.7rem;padding:0;overflow:hidden;">
+          <!-- 그라데이션 배너 -->
+          <div style="background:linear-gradient(135deg,var(--acc2) 0%,var(--acc) 60%,var(--clay) 100%);padding:1.1rem 1.2rem .9rem;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:-20px;right:-10px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.05);"></div>
+            <div style="position:absolute;bottom:-30px;right:60px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.04);"></div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+              <div>
+                <div style="font-size:.65rem;color:rgba(255,255,255,.65);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.2rem;">나의 독서 기록</div>
+                <div id="stats-hero-main" style="font-size:2rem;font-weight:700;color:#fff;font-family:var(--fs);line-height:1;">—</div>
+                <div style="font-size:.72rem;color:rgba(255,255,255,.7);margin-top:.2rem;">누적 완독</div>
+              </div>
+              <button onclick="openGoalModal()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:16px;padding:.3rem .75rem;font-size:.7rem;color:#fff;cursor:pointer;font-family:var(--ff);white-space:nowrap;">목표 설정</button>
+            </div>
           </div>
-          <div id="goal-display"></div>
+          <!-- 목표 진행 바 -->
+          <div id="goal-display" style="padding:.65rem 1.2rem;background:var(--card);border-bottom:1px solid var(--border);"></div>
+          <!-- 핵심 지표 가로 스크롤 -->
+          <div id="stat-grid" class="stat-grid" style="padding:.7rem .8rem;margin:0;border:none;grid-template-columns:repeat(3,1fr);gap:.45rem;"></div>
         </div>
-        <!-- 핵심 통계 -->
-        <div class="stat-grid" id="stat-grid"></div>
-        <div class="card" style="margin-bottom:.8rem;">
-          <div class="row-hd">
-            <div class="sec" style="margin:0;">독서 통계</div>
-            <div class="gtabs">
+
+        <!-- ② 그래프 (컴팩트) -->
+        <div class="card" style="margin-bottom:.7rem;padding:.8rem .9rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+            <div style="font-size:.72rem;font-weight:600;color:var(--tx2);">독서 통계</div>
+            <div class="gtabs" style="gap:.2rem;">
               <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
-              <button class="gst" onclick="showGraph('genre',this)">장르별</button>
-              <button class="gst" onclick="showGraph('rating',this)">평점별</button>
-              <button class="gst" onclick="showGraph('author',this)">작가/출판사</button>
+              <button class="gst" onclick="showGraph('genre',this)">장르</button>
+              <button class="gst" onclick="showGraph('rating',this)">평점</button>
+              <button class="gst" onclick="showGraph('author',this)">작가</button>
               <button class="gst" onclick="showGraph('pages',this)">페이지</button>
             </div>
           </div>
           <div id="g-monthly">
-            <div class="yr-row" id="yr-row-m"></div>
-            <canvas id="chart-monthly" height="150"></canvas>
+            <div class="yr-row" id="yr-row-m" style="margin-bottom:.5rem;"></div>
+            <canvas id="chart-monthly" height="120"></canvas>
             <div class="stat-row" id="monthly-stat"></div>
           </div>
           <div id="g-genre" style="display:none;">
@@ -280,22 +293,25 @@
             <div class="stat-row" id="genre-stat"></div>
           </div>
           <div id="g-rating" style="display:none;">
-            <div class="yr-row" id="yr-row-r"></div>
+            <div class="yr-row" id="yr-row-r" style="margin-bottom:.5rem;"></div>
             <div class="rating-layout" id="rating-layout"></div>
           </div>
           <div id="g-author" style="display:none;">
             <div id="author-chart-wrap"></div>
           </div>
           <div id="g-pages" style="display:none;">
-            <div class="yr-row" id="yr-row-pages" style="margin-bottom:.75rem;"></div>
-            <canvas id="chart-pages" height="150"></canvas>
+            <div class="yr-row" id="yr-row-pages" style="margin-bottom:.5rem;"></div>
+            <canvas id="chart-pages" height="120"></canvas>
             <div class="stat-row" id="pages-stat"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="ms-title">평생 독서 기록</div>
+
+        <!-- ③ 평생 기록 (컴팩트) -->
+        <div class="card" style="padding:.8rem .9rem;">
+          <div style="font-size:.72rem;font-weight:600;color:var(--tx2);margin-bottom:.55rem;">📖 평생 독서 기록</div>
           <div class="ms-grid" id="ms-grid"></div>
         </div>
+
       </div>
 
     </div>
@@ -836,6 +852,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=305"></script>
+<script src="app.js?v=306"></script>
 </body>
 </html>
