@@ -90,11 +90,11 @@ const YC = {
 const GCOLS = ['#c4714a','#6b8f6b','#5a7a8a','#c8a050','#8b6b8b','#4a7a6a','#c8704a','#7a8a6a','#7a6aaa','#5a8a7a'];
 const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
 const TRACKER_COLORS = [
-  '#eef2f5',  // 0: 비어있음 - 연한 슬레이트
-  '#b8d4c8',  // 1: 적음 - 세이지 라이트
-  '#7aaa8a',  // 2: 보통 - 세이지
-  '#5a8a6a',  // 3: 많음 - 딥 세이지
-  '#3a6a4a',  // 4: 아주 많음 - 포레스트
+  '#e8e0d4',  // 0: 비어있음 - 따뜻한 베이지 (배경과 대비)
+  '#f0c070',  // 1: 적음 - 골드 옐로우
+  '#e08840',  // 2: 보통 - 오렌지
+  '#c05830',  // 3: 많음 - 딥 오렌지
+  '#7a2010',  // 4: 아주 많음 - 다크 레드브라운
 ];
 
 // ── 초기화
@@ -809,7 +809,7 @@ function buildTrackerGrid() {
     const MN2=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
     for(let mo=0;mo<12;mo++){
       const card=document.createElement('div');
-      card.style.cssText='background:#faf6ef;border:1px solid var(--border);border-radius:6px;padding:.4rem .45rem;';
+      card.style.cssText='background:#fff;border:1px solid var(--border);border-radius:6px;padding:.4rem .45rem;box-shadow:0 1px 4px rgba(0,0,0,.06);';
       const days=new Date(y,mo+1,0).getDate();
       const fd=new Date(y,mo,1).getDay();
       const moTotal=Object.entries(dayMap).filter(([k])=>k.startsWith(`${y}-${String(mo+1).padStart(2,'0')}`)).reduce((a,[,v])=>a+v,0);
@@ -819,7 +819,7 @@ function buildTrackerGrid() {
       card.appendChild(moLabel);
       const miniGrid=document.createElement('div');
       miniGrid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:1px;';
-      for(let i=0;i<fd;i++){const e=document.createElement('div');e.style.cssText='aspect-ratio:1;';miniGrid.appendChild(e);}
+      for(let i=0;i<fd;i++){const e=document.createElement('div');e.style.cssText='aspect-ratio:1;background:transparent;';miniGrid.appendChild(e);}
       for(let d=1;d<=days;d++){
         const key=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const mins=dayMap[key]||0;
@@ -1995,6 +1995,11 @@ async function openAdminPanel() {
 
 async function loadAllMembers() {
   try {
+    // 전체 회원 수 별도 쿼리 (고아 계정 포함 전체)
+    const { count: totalCount } = await sb.from('profiles').select('*', {count:'exact', head:true});
+    const totalCountEl = document.getElementById('admin-total-count');
+    if(totalCountEl) totalCountEl.textContent = `전체 가입자 ${totalCount||0}명`;
+
     const { data, error } = await sb.from('profiles')
       .select('id,display_name,username,role,is_banned,created_at')
       .order('created_at', {ascending:false})
