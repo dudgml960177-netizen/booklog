@@ -123,10 +123,15 @@ async function startApp(user) {
 sb.auth.onAuthStateChange(async (event, session) => {
   try {
     if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-      if(session?.user && !_appInitialized) {
-        await startApp(session.user);
-      } else if(session?.user && _appInitialized) {
-        currentUser = session.user;
+      if(session?.user) {
+        if(!_appInitialized) {
+          await startApp(session.user);
+        } else {
+          // 이미 앱 실행 중 - 세션 정보만 업데이트 (재로드 없음)
+          currentUser = session.user;
+        }
+      } else if(!session && event === 'INITIAL_SESSION') {
+        // 세션 없음 - 로그인 화면 유지 (이미 표시됨)
       }
     }
     if(event === 'SIGNED_OUT') {
@@ -436,17 +441,48 @@ function buildList(list) {
 
 // ── 문장 수집
 let quoteSearchQ = '';
+let quoteSelectMode = false;
+let selectedQuoteIds = new Set();
+
 function buildQuotes() {
-  const filterEl = document.getElementById('q-filter'); filterEl.innerHTML = '';
-  const searchWrap = document.createElement('div');
-  searchWrap.style.cssText = 'position:relative;margin-bottom:.7rem;';
-  searchWrap.innerHTML = `<span style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--tx3);">🔍</span>
-    <input id="quote-search-input" type="text" class="search-input" placeholder="책 제목 또는 작가 이름으로 검색..."
-      style="padding-left:2rem;font-size:.78rem;width:100%;" value="${quoteSearchQ}">`;
-  filterEl.appendChild(searchWrap);
+  const filterEl = document.getElementById('q-filter');
+  filterEl.innerHTML = '';
+  // 검색 + 선택 삭제 툴바
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = 'display:flex;gap:.4rem;margin-bottom:.7rem;align-items:center;flex-wrap:wrap;';
+  toolbar.innerHTML = `
+    <div style="position:relative;flex:1;min-width:160px;">
+      <span style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--tx3);">🔍</span>
+      <input id="quote-search-input" type="text" class="search-input" placeholder="책 제목 또는 작가 이름으로 검색..."
+        style="padding-left:2rem;font-size:.78rem;width:100%;" value="${quoteSearchQ}">
+    </div>
+    <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.72rem;">${quoteSelectMode?'✕ 취소':'☑ 선택'}</button>
+    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.72rem;">🗑 삭제</button>`;
+  filterEl.appendChild(toolbar);
   const inp = document.getElementById('quote-search-input');
-  inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
+  if(inp) inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
   renderQuotes();
+}
+
+function toggleQuoteSelect() {
+  quoteSelectMode = !quoteSelectMode;
+  selectedQuoteIds.clear();
+  buildQuotes();
+}
+
+async function bulkDeleteQuotes() {
+  if(!selectedQuoteIds.size) { alert('삭제할 문장을 선택해주세요.'); return; }
+  if(!confirm(`선택한 ${selectedQuoteIds.size}개의 문장을 삭제할까요?`)) return;
+  try {
+    const ids = [...selectedQuoteIds];
+    for(const id of ids) {
+      await sb.from('quotes').delete().eq('id', id).eq('user_id', currentUser.id);
+    }
+    selectedQuoteIds.clear();
+    quoteSelectMode = false;
+    await loadData();
+    buildQuotes();
+  } catch(e) { alert('삭제 오류: '+e.message); }
 }
 function renderQuotes() {
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
@@ -465,13 +501,26 @@ function renderQuotes() {
   list.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
     const color = randomQuoteColor(qt.book_id);
-    const el = document.createElement('div'); el.className='qcard';
+    const isSelected = selectedQuoteIds.has(qt.id);
+    const el = document.createElement('div');
+    el.className='qcard';
+    if(quoteSelectMode) {
+      el.style.outline = isSelected ? '2px solid var(--acc)' : '2px solid transparent';
+      el.style.cursor = 'pointer';
+      el.onclick = () => {
+        if(selectedQuoteIds.has(qt.id)) selectedQuoteIds.delete(qt.id);
+        else selectedQuoteIds.add(qt.id);
+        renderQuotes();
+      };
+    }
     let text = qt.text;
     if(q) {
       const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
       text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
     }
-    el.innerHTML = `<div class="qcard-bar" style="background:${color}"></div>
+    el.innerHTML = `
+      ${quoteSelectMode ? `<div style="position:absolute;top:.5rem;right:.5rem;width:16px;height:16px;border:2px solid ${isSelected?'var(--acc)':'var(--border2)'};border-radius:3px;background:${isSelected?'var(--acc)':'#fff'};display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:.6rem;">${isSelected?'✓':''}</span></div>` : ''}
+      <div class="qcard-bar" style="background:${color}"></div>
       <div class="qcard-text">${text}</div>
       <div class="qcard-meta">
         <span class="qcard-book">${book?.title||''}</span>
@@ -479,6 +528,7 @@ function renderQuotes() {
         ${qt.page?`<span class="qcard-page">p.${qt.page}</span>`:''}
         ${qt.tag?`<span class="qcard-comment">${qt.tag}</span>`:''}
       </div>`;
+    el.style.position = 'relative';
     feed.appendChild(el);
   });
 }
