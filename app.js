@@ -112,21 +112,45 @@ function showScreen(name) {
 function cleanupLocalStorage() {
   try {
     const keys = Object.keys(localStorage);
-    // 좋아요 키 정리 (50개 초과 시)
-    const likedKeys = keys.filter(k => k.startsWith('liked_'));
-    if(likedKeys.length > 50) likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
-    // 오래된 goals 키 정리 (DB로 이전됨)
-    keys.filter(k => k.startsWith('bl_goals_')).forEach(k => localStorage.removeItem(k));
-    // localStorage 용량 체크
+    
+    // 허용 키 목록 (이것만 남기고 나머지 삭제)
+    const ALLOWED = new Set([
+      'bl_font_size',
+      'bl_saved_email',
+    ]);
+    // booklog-auth로 시작하는 Supabase 세션 키는 항상 유지
+    
+    keys.forEach(k => {
+      // Supabase 세션 키 - 절대 건드리지 않음
+      if(k.startsWith('booklog-auth')) return;
+      if(k.startsWith('sb-')) return;
+      // bl_ 접두사 허용 키
+      if(ALLOWED.has(k)) return;
+      // liked_ 키는 50개까지만
+      if(k.startsWith('liked_')) return; // 아래서 별도 처리
+      // 나머지 전부 삭제 (오염 방지)
+      localStorage.removeItem(k);
+    });
+
+    // 좋아요 키 50개 초과 시 정리
+    const likedKeys = Object.keys(localStorage).filter(k => k.startsWith('liked_'));
+    if(likedKeys.length > 50) {
+      likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
+    }
+
+    // Supabase 내부 상태 검증 - 세션 데이터 손상 체크
     try {
-      const total = JSON.stringify(localStorage).length;
-      if(total > 3 * 1024 * 1024) {
-        // 세션/폰트 크기/이메일 외 전부 정리
-        keys.filter(k => !k.startsWith('booklog-auth') && k !== 'bl_font_size' && k !== 'bl_saved_email')
-            .forEach(k => localStorage.removeItem(k));
-        console.log('localStorage cleaned due to size limit');
+      const sessionKey = Object.keys(localStorage).find(k => k.startsWith('booklog-auth'));
+      if(sessionKey) {
+        const raw = localStorage.getItem(sessionKey);
+        if(raw) JSON.parse(raw); // 파싱 실패하면 catch로
       }
-    } catch(e) {}
+    } catch(e) {
+      // 세션 데이터 손상 - Supabase 세션 키만 삭제 (로그인 화면으로)
+      console.warn('Corrupted session data, clearing...');
+      Object.keys(localStorage).filter(k => k.startsWith('booklog-auth') || k.startsWith('sb-'))
+        .forEach(k => localStorage.removeItem(k));
+    }
   } catch(e) {}
 }
 
@@ -161,18 +185,27 @@ let _appState = 'idle'; // idle | starting | running | auth
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
   _appState = 'starting';
-  currentUser = user;
-  try { await loadData(); } catch(e) { console.warn('loadData:', e); }
-  try { await loadGoals(); } catch(e) { console.warn('loadGoals:', e); }
-  try { loadUserRole(); } catch(e) {}
   try {
-    const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
-    if(pf?.font_size) initFontSize(String(pf.font_size));
-  } catch(e) {}
-  _appState = 'running';
-  showScreen('app');
-  buildBooks();
-  setTimeout(loadNotifications, 500);
+    currentUser = user;
+    try { await loadData(); } catch(e) { console.warn('loadData:', e); }
+    try { await loadGoals(); } catch(e) { console.warn('loadGoals:', e); }
+    try { loadUserRole(); } catch(e) {}
+    try {
+      const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
+      if(pf?.font_size) initFontSize(String(pf.font_size));
+    } catch(e) {}
+    _appState = 'running';
+    showScreen('app');
+    buildBooks();
+    setTimeout(loadNotifications, 500);
+  } catch(e) {
+    // 어떤 에러든 상태 복구 - 로그인 버튼이 다시 작동하게
+    console.error('startApp error:', e);
+    _appState = 'idle';
+    currentUser = null;
+    showScreen('auth');
+    loadSavedEmail();
+  }
 }
 
 function resetToAuth() {
@@ -187,13 +220,15 @@ sb.auth.onAuthStateChange(async (event, session) => {
   try {
     if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
       if(session?.user) {
-        if(_appState !== 'running') {
-          await startApp(session.user);
-        } else {
+        if(_appState === 'running') {
           currentUser = session.user; // 세션 갱신만
+        } else if(_appState !== 'starting') {
+          // idle 또는 auth 상태일 때만 startApp 호출
+          await startApp(session.user);
         }
+        // starting 상태면 무시 (이미 진행 중)
       } else if(event === 'INITIAL_SESSION') {
-        _appState = 'auth'; // 세션 없음 확정
+        _appState = 'auth';
       }
     }
     if(event === 'SIGNED_OUT') {
@@ -214,6 +249,25 @@ function init() {
   cleanupLocalStorage();
   document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', e => { if(e.target===el) el.style.display='none'; });
+  });
+  // Supabase 응답 타임아웃 감지 - 5초 안에 INITIAL_SESSION 안 오면 강제 auth 화면
+  const initTimeout = setTimeout(() => {
+    if(_appState === 'idle' || _appState === 'starting') {
+      console.warn('Supabase timeout - forcing auth screen');
+      if(_appState === 'starting') {
+        // startApp이 멈춘 경우 - localStorage 정리 후 재시도
+        Object.keys(localStorage)
+          .filter(k => !k.startsWith('booklog-auth') && !k.startsWith('bl_'))
+          .forEach(k => localStorage.removeItem(k));
+      }
+      _appState = 'auth';
+      showScreen('auth');
+      loadSavedEmail();
+    }
+  }, 5000);
+  // INITIAL_SESSION 오면 타임아웃 취소
+  const unsub = sb.auth.onAuthStateChange((event) => {
+    if(event === 'INITIAL_SESSION') { clearTimeout(initTimeout); unsub.data?.subscription?.unsubscribe(); }
   });
   // URL 해시 토큰 처리 (비밀번호 재설정)
   const hash = window.location.hash;
