@@ -804,8 +804,21 @@
   </div>
 </div>
 
+<!-- 커스텀 Alert/Confirm 모달 -->
+<div id="modal-confirm" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:320px;">
+    <div class="modal-body" style="padding:1.3rem 1.2rem .8rem;">
+      <div id="confirm-message" style="font-size:.85rem;line-height:1.75;color:var(--tx1);white-space:pre-line;"></div>
+    </div>
+    <div class="modal-footer" style="gap:.5rem;">
+      <button id="confirm-cancel" class="btn-cancel" style="display:none;" onclick="closeModal('modal-confirm')">취소</button>
+      <button id="confirm-ok" class="btn-save" onclick="_confirmResolve(true)">확인</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=291"></script>
+<script src="app.js?v=292"></script>
 </body>
 </html>

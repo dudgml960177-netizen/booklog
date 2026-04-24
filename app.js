@@ -29,6 +29,42 @@ const sb = window.__sb || (window.__sb = createClient(SUPABASE_URL, SUPABASE_KEY
 }));
 // Supabase autoRefreshToken이 자동으로 처리함 - 수동 갱신 불필요
 
+
+// ── 커스텀 Alert/Confirm (브라우저 기본 팝업 대체)
+let _confirmResolveFunc = null;
+function _confirmResolve(val) {
+  closeModal('modal-confirm');
+  if(_confirmResolveFunc) { _confirmResolveFunc(val); _confirmResolveFunc = null; }
+}
+function showAlert(msg) {
+  return new Promise(resolve => {
+    const el = document.getElementById('confirm-message');
+    const ok = document.getElementById('confirm-ok');
+    const cancel = document.getElementById('confirm-cancel');
+    if(!el) { window.alert(msg); resolve(true); return; }
+    el.textContent = msg;
+    if(cancel) cancel.style.display = 'none';
+    if(ok) ok.textContent = '확인';
+    _confirmResolveFunc = resolve;
+    openModal('modal-confirm');
+  });
+}
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const el = document.getElementById('confirm-message');
+    const ok = document.getElementById('confirm-ok');
+    const cancel = document.getElementById('confirm-cancel');
+    if(!el) { resolve(window.confirm(msg)); return; }
+    el.textContent = msg;
+    if(cancel) { cancel.style.display = ''; cancel.textContent = '취소'; }
+    if(ok) ok.textContent = '확인';
+    _confirmResolveFunc = resolve;
+    openModal('modal-confirm');
+    // 취소 버튼은 false 반환
+    if(cancel) cancel.onclick = () => { closeModal('modal-confirm'); resolve(false); _confirmResolveFunc = null; };
+  });
+}
+
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
 let curFilter = '전체', curCatFilter = null, curView = 'gallery';
@@ -391,8 +427,8 @@ function toggleSelectMode() {
   buildBooks();
 }
 async function bulkDelete() {
-  if(!selectedIds.size){alert('삭제할 책을 선택해주세요.');return;}
-  if(!confirm(`선택한 ${selectedIds.size}권을 삭제할까요?`))return;
+  if(!selectedIds.size){await showAlert('삭제할 책을 선택해주세요.');return;}
+  if(!await showConfirm(`선택한 ${selectedIds.size}권을 삭제할까요?`))return;
   try {
     const ids = [...selectedIds];
     for(const id of ids){
@@ -498,8 +534,8 @@ function toggleQuoteSelect() {
 }
 
 async function bulkDeleteQuotes() {
-  if(!selectedQuoteIds.size) { alert('삭제할 문장을 선택해주세요.'); return; }
-  if(!confirm(`선택한 ${selectedQuoteIds.size}개의 문장을 삭제할까요?`)) return;
+  if(!selectedQuoteIds.size) { await showAlert('삭제할 문장을 선택해주세요.'); return; }
+  if(!await showConfirm(`선택한 ${selectedQuoteIds.size}개의 문장을 삭제할까요?`)) return;
   try {
     const ids = [...selectedQuoteIds];
     for(const id of ids) {
@@ -1290,8 +1326,8 @@ function addCategory() {
   input.value='';buildCatList();buildCatFilterList();
   updateBookCategorySelect();
 }
-function deleteCategory(idx) {
-  if(!confirm(`'${allCategories[idx]}' 카테고리를 삭제할까요?`))return;
+async function deleteCategory(idx) {
+  if(!await showConfirm(`'${allCategories[idx]}' 카테고리를 삭제할까요?`))return;
   allCategories.splice(idx,1);
   localStorage.setItem('bl_cats_'+currentUser.id,JSON.stringify(allCategories));
   sb.from('profiles').update({categories:allCategories}).eq('id',currentUser.id).then().catch(e=>console.warn('cats save:',e));
@@ -1676,7 +1712,7 @@ async function toggleBlindPost(postId, authorId, hide) {
       });
     }
     closeModal('modal-post-detail');
-    alert(hide ? '블라인드 처리됐어요.' : '블라인드가 해제됐어요.');
+    await showAlert(hide ? '블라인드 처리됐어요.' : '블라인드가 해제됐어요.');
     safeBoardRefresh();
   } catch(e) { alert('처리 오류: '+(e.message||JSON.stringify(e))); }
 }
@@ -1696,7 +1732,7 @@ async function banUser(userId, ban) {
       is_read:false, created_at:new Date().toISOString()
     });
     closeModal('modal-post-detail');
-    alert(ban ? '사용자를 제한했어요.' : '제한을 해제했어요.');
+    await showAlert(ban ? '사용자를 제한했어요.' : '제한을 해제했어요.');
     safeBoardRefresh();
   } catch(e) { alert('처리 오류: '+(e.message||JSON.stringify(e))); }
 }
@@ -2025,7 +2061,7 @@ function renderMemberList(filter='') {
 
 async function deleteMember(userId, userName) {
   if(userId === currentUser.id) { alert('자기 자신은 삭제할 수 없어요.'); return; }
-  if(!confirm(`"${userName}" 계정을 삭제할까요?
+  if(!await showConfirm(`"${userName}" 계정을 삭제할까요?
 
 ⚠️ 해당 계정의 모든 데이터(책, 문장, 댓글 등)가 삭제됩니다.
 이 작업은 되돌릴 수 없어요.`)) return;
@@ -2119,7 +2155,7 @@ async function restoreBackup(file) {
     const text = await file.text();
     const data = JSON.parse(text);
     if(!data.version || !data.books) { alert('올바른 백업 파일이 아니에요.'); return; }
-    if(!confirm(`백업 파일을 복원할까요?
+    if(!await showConfirm(`백업 파일을 복원할까요?
 책 ${data.books.length}권, 문장 ${data.quotes.length}개
 ⚠️ 기존 데이터와 병합됩니다.`)) return;
     // 책 복원 (isbn 기준 중복 제외)
@@ -2227,7 +2263,7 @@ async function acceptFriend(friendshipId) {
 }
 
 async function removeFriend(friendshipId) {
-  if(!confirm('친구를 삭제할까요?')) return;
+  if(!await showConfirm('친구를 삭제할까요?')) return;
   await sb.from('friendships').delete().eq('id', friendshipId);
   loadFriends();
 }
@@ -2780,7 +2816,7 @@ async function openBanModal(userId) {
   const isBanned = profile?.is_banned;
   const name = profile?.display_name || profile?.username || '산책자';
   const action = isBanned ? '제한 해제' : '계정 제한';
-  if(confirm(`${name}님을 ${action}할까요?`)) {
+  if(await showConfirm(`${name}님을 ${action}할까요?`)) {
     await banUser(userId, !isBanned);
   }
 }
@@ -2855,13 +2891,13 @@ async function submitReply(postId, parentId) {
 }
 
 async function deleteComment(commentId, postId) {
-  if(!confirm('댓글을 삭제할까요?'))return;
+  if(!await showConfirm('댓글을 삭제할까요?'))return;
   await sb.from('comments').delete().eq('id',commentId);
   openPostDetail(postId);
 }
 
 async function deletePost(postId) {
-  if(!confirm('게시글을 삭제할까요?'))return;
+  if(!await showConfirm('게시글을 삭제할까요?'))return;
   closeModal('modal-post-detail');
   try {
     await sb.from('comments').delete().eq('post_id',postId);
