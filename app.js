@@ -1255,13 +1255,23 @@ async function saveGoal() {
   goals.minutes = parseInt(document.getElementById('goal-minutes').value)||0;
   goals.pages   = parseInt(document.getElementById('goal-pages').value)||0;
   try {
-    const { error } = await sb.from('user_goals').upsert({
-      user_id:currentUser.id, books:goals.books, minutes:goals.minutes, pages:goals.pages,
-      updated_at:new Date().toISOString()
-    });
-    if(error) throw error;
+    // 기존 행 있으면 UPDATE, 없으면 INSERT
+    const { data: existing } = await sb.from('user_goals').select('id').eq('user_id', currentUser.id).single();
+    if(existing) {
+      const { error } = await sb.from('user_goals').update({
+        books:goals.books, minutes:goals.minutes, pages:goals.pages,
+        updated_at:new Date().toISOString()
+      }).eq('user_id', currentUser.id);
+      if(error) throw error;
+    } else {
+      const { error } = await sb.from('user_goals').insert({
+        user_id:currentUser.id, books:goals.books, minutes:goals.minutes, pages:goals.pages,
+        updated_at:new Date().toISOString()
+      });
+      if(error) throw error;
+    }
   } catch(e) {
-    alert('목표 저장 오류: '+(e.message||'다시 시도해주세요'));
+    await showAlert('목표 저장 오류: '+(e.message||'다시 시도해주세요'));
     return;
   }
   closeModal('modal-goal');
