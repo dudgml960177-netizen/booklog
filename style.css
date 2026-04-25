@@ -304,8 +304,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .selected-change{font-size:.63rem;color:var(--acc);cursor:pointer;text-decoration:underline;margin-top:.28rem;display:inline-block;}
 /* 상세 */
 .detail-head{display:flex;gap:1rem;align-items:flex-start;margin-bottom:.95rem;}
-.detail-cover{width:75px;height:107px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:2px 4px 12px rgba(70,40,10,.2);}
-.detail-cover-ph{width:75px;height:107px;border-radius:3px;flex-shrink:0;background:linear-gradient(150deg,#a07040,#5c3010);display:flex;align-items:center;justify-content:center;font-size:.52rem;color:rgba(255,255,255,.8);text-align:center;padding:.3rem;font-style:italic;}
+.detail-cover{width:72px;height:104px;object-fit:cover;border-radius:5px;flex-shrink:0;box-shadow:3px 5px 16px rgba(70,40,10,.22);}
+.detail-cover-ph{width:72px;height:104px;border-radius:5px;flex-shrink:0;background:linear-gradient(150deg,#a07040,#5c3010);display:flex;align-items:center;justify-content:center;font-size:.48rem;color:rgba(255,255,255,.8);text-align:center;padding:.3rem;font-style:italic;}
 .detail-title{font-family:var(--fs);font-size:1.25rem;color:var(--tx1);border-bottom:1px solid var(--border);padding-bottom:.25rem;margin-bottom:.18rem;}
 .detail-sub{font-size:.73rem;color:var(--tx3);margin-bottom:.3rem;}
 .detail-stars{font-size:.8rem;color:var(--acc);}
@@ -409,3 +409,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .q-filter{margin-bottom:.55rem;}
 #q-feed{columns:1;gap:.5rem;column-gap:.55rem;}
 @media(min-width:560px){#q-feed{columns:2;}}
+
+/* 문장 추가 버튼 */
+/* 평생 기록 카드 */
+/* 상세 모달 헤더 */
+#modal-detail .modal-header{background:linear-gradient(135deg,#f8f2e8,#f0e6d0);border-bottom:1px solid var(--border);}

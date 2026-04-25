@@ -701,6 +701,54 @@ function renderCal() {
 }
 
 // ── 타이머
+
+function showTimerBookDetail(bookId) {
+  const wrap = document.getElementById('timer-book-detail');
+  if(!wrap) return;
+  if(!bookId) {
+    wrap.innerHTML = '<div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.8rem 0;">책을 선택하면 독서 현황이 표시됩니다.</div>';
+    return;
+  }
+  const book = allBooks.find(b=>b.id===bookId);
+  if(!book) return;
+  const mins = book.reading_time || 0;
+  const hours = Math.floor(mins/60);
+  const restMins = mins % 60;
+  const pages = book.pages || 0;
+  const curPage = book.current_page || 0;
+  const pct = pages && curPage ? Math.min(100, Math.round(curPage/pages*100)) : 0;
+  // 독서 기록 날짜별 집계 (allBooks에서 reading_time은 총합이므로 날짜별 데이터는 없음)
+  // 진행률 + 시간 표시
+  wrap.innerHTML = `
+    <div style="display:flex;gap:.7rem;align-items:center;margin-bottom:.7rem;">
+      ${book.cover ? `<img src="${book.cover}" style="width:36px;height:52px;object-fit:cover;border-radius:3px;box-shadow:1px 2px 6px rgba(0,0,0,.15);">` :
+        `<div style="width:36px;height:52px;border-radius:3px;background:linear-gradient(150deg,#a07040,#5c3010);flex-shrink:0;"></div>`}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.72rem;font-weight:600;color:var(--tx1);line-height:1.3;margin-bottom:.15rem;word-break:keep-all;">${book.title}</div>
+        <div style="font-size:.6rem;color:var(--tx3);">${book.author||''}</div>
+      </div>
+    </div>
+    <!-- 독서 시간 -->
+    <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+      <div style="flex:1;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .6rem;text-align:center;">
+        <div style="font-size:.88rem;font-weight:700;color:var(--acc2);font-family:var(--fs);">${hours}h ${restMins}m</div>
+        <div style="font-size:.55rem;color:var(--tx3);">누적 독서 시간</div>
+      </div>
+      ${pages ? `<div style="flex:1;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .6rem;text-align:center;">
+        <div style="font-size:.88rem;font-weight:700;color:var(--sage);font-family:var(--fs);">${curPage||0}p</div>
+        <div style="font-size:.55rem;color:var(--tx3);">현재 페이지</div>
+      </div>` : ''}
+    </div>
+    <!-- 진행 바 -->
+    ${pages && curPage ? `
+    <div style="margin-bottom:.15rem;">
+      <div style="height:6px;background:#e0d8cc;border-radius:3px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:3px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:.58rem;color:var(--tx3);margin-top:.2rem;text-align:right;">${pct}% 완료 · ${pages-curPage}p 남음</div>
+    </div>` : ''}`;
+}
+
 function buildTimer() {
   const sel = document.getElementById('timer-book-select');
   sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
@@ -1564,25 +1612,42 @@ function openDetail(bookId) {
       descHTML=`<div class="detail-sec">줄거리</div><div class="detail-body">${b.description}</div><div class="detail-divhr"></div>`;
     }
   }
-  let html=`<div class="detail-head">${coverHTML}<div style="flex:1;min-width:0;">
-    <div class="detail-title">${b.title}</div>
-    <div class="detail-sub">${b.author||''}${b.publisher?' · '+b.publisher:''}</div>
-    <div class="detail-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
-    <div class="detail-chips">
-      ${genre?`<span class="detail-chip">${genre}</span>`:''}
-      ${b.status?`<span class="detail-chip">${b.status}</span>`:''}
-      ${b.date_finish?`<span class="detail-chip">${b.date_finish}</span>`:''}
-      ${b.pages?`<span class="detail-chip">${b.pages}p</span>`:''}
-      ${b.status==='읽는중'&&b.show_progress!==false&&b.current_page?
-        `<span class="detail-chip" style="background:#e8f5e9;color:#2e7d32;border-color:#a8d8a8;">
-          📖 ${b.current_page}p${b.pages?' / '+b.pages+'p':''}
-          ${b.pages?` (${Math.round(b.current_page/b.pages*100)}%)`:''}</span>`:''}
-      ${readingTime}
-      ${b.source?`<span class="detail-chip">${b.source}</span>`:''}
-      ${b.category?`<span class="detail-chip">📁 ${b.category}</span>`:''}
-      ${b.reread?`<span class="detail-chip">다시 읽고 싶음</span>`:''}
+  // 별점 표시 (0.5 단위)
+  const starStr = (rating) => {
+    let s=''; for(let i=1;i<=5;i++){s+=rating>=i?'★':rating>=i-.5?'⯨':'☆';} return s;
+  };
+  const statusColor = {완독:'#2e7d32',읽는중:'#1565c0',읽고싶음:'#7b1fa2',중단:'#c62828'}[b.status]||'var(--tx3)';
+  const statusBg = {완독:'#e8f5e9',읽는중:'#e3f2fd',읽고싶음:'#f3e5f5',중단:'#ffebee'}[b.status]||'#f5f5f5';
+  let html=`
+  <!-- 커버 + 기본정보 -->
+  <div style="display:flex;gap:.9rem;align-items:flex-start;margin-bottom:.9rem;">
+    <div style="flex-shrink:0;position:relative;">
+      ${coverHTML}
     </div>
-  </div></div>`;
+    <div style="flex:1;min-width:0;padding-top:.1rem;">
+      <div style="font-size:.72rem;font-weight:700;color:var(--tx1);line-height:1.35;margin-bottom:.25rem;word-break:keep-all;">${b.title}</div>
+      <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.4rem;">${b.author||''}${b.publisher?'<span style="margin:0 .25rem;opacity:.4;">·</span>'+b.publisher:''}</div>
+      <div style="font-size:.9rem;color:var(--gold);letter-spacing:.05rem;margin-bottom:.4rem;">${starStr(b.rating||0)}<span style="font-size:.6rem;color:var(--tx3);margin-left:.3rem;">${b.rating||0}점</span></div>
+      <!-- 상태 + 주요 정보 -->
+      <div style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;">
+        ${b.status?`<span style="font-size:.6rem;font-weight:600;padding:.15rem .5rem;border-radius:10px;background:${statusBg};color:${statusColor};">${b.status}</span>`:''}
+        ${genre?`<span class="detail-chip">${genre}</span>`:''}
+        ${b.pages?`<span class="detail-chip">${b.pages}p</span>`:''}
+        ${b.date_finish?`<span class="detail-chip">📅 ${b.date_finish}</span>`:''}
+        ${b.source?`<span class="detail-chip">${b.source}</span>`:''}
+        ${b.category?`<span class="detail-chip">📁 ${b.category}</span>`:''}
+        ${b.reread?`<span class="detail-chip">🔁 다시 읽고 싶음</span>`:''}
+      </div>
+      ${b.status==='읽는중'&&b.show_progress!==false&&b.current_page&&b.pages?`
+      <div style="margin-top:.5rem;">
+        <div style="height:4px;background:#e0d8cc;border-radius:2px;overflow:hidden;margin-bottom:.18rem;">
+          <div style="width:${Math.min(100,Math.round(b.current_page/b.pages*100))}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:2px;"></div>
+        </div>
+        <div style="font-size:.58rem;color:var(--tx3);">${b.current_page}p / ${b.pages}p (${Math.round(b.current_page/b.pages*100)}%)</div>
+      </div>`:''}
+      ${readingTime?`<div style="margin-top:.3rem;font-size:.6rem;color:var(--tx3);">⏱ ${readingTime.replace(/<[^>]+>/g,'')}</div>`:''}
+    </div>
+  </div>`;
   html+=descHTML;
   if(b.review)html+=`<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
   if(quotes.length){
