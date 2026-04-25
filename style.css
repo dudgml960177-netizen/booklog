@@ -311,12 +311,12 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .detail-stars{font-size:.8rem;color:var(--acc);}
 .detail-chips{display:flex;flex-wrap:wrap;gap:.28rem;margin-top:.45rem;}
 .detail-chip{display:inline-flex;align-items:center;background:#ede4d0;border:1px solid var(--border2);border-radius:3px;font-size:.66rem;color:var(--tx2);padding:2px 6px;}
-.detail-sec{font-size:.73rem;font-weight:600;color:var(--acc2);margin:1rem 0 .38rem;letter-spacing:.06em;}
-.detail-sec::before{content:'§ ';color:var(--acc);font-weight:300;}
+.detail-sec{font-size:.62rem;font-weight:600;color:var(--tx3);margin:.75rem 0 .3rem;letter-spacing:.07em;text-transform:uppercase;}
+
 .detail-body{font-size:.8rem;line-height:1.88;color:var(--tx1);}
 .detail-divhr{border:none;border-top:1px solid var(--border);margin:.8rem 0;position:relative;text-align:center;}
 .detail-divhr::after{content:'✦';position:absolute;top:-.6em;left:50%;transform:translateX(-50%);background:var(--card);padding:0 .32rem;color:var(--acc);font-size:.58rem;}
-.detail-quote{border-left:2px solid var(--acc);background:#ede4d0;padding:.58rem .9rem;border-radius:0 4px 4px 0;margin:.6rem 0;font-style:italic;font-family:var(--fs);font-size:.88rem;line-height:1.7;color:var(--tx2);}
+.detail-quote{border-left:2px solid var(--acc);background:#fdf8f0;padding:.5rem .85rem;border-radius:0 6px 6px 0;margin:.45rem 0;font-style:italic;font-family:var(--fs);font-size:.8rem;line-height:1.75;color:var(--tx2);}
 .detail-qsrc{font-size:.62rem;color:var(--tx3);text-align:right;margin-top:.18rem;font-style:normal;}
 .desc-toggle{font-size:.7rem;color:var(--acc);cursor:pointer;text-decoration:underline;margin-left:.28rem;}
 /* 카테고리 */

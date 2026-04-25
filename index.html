@@ -168,10 +168,12 @@
             <!-- 타이머 -->
             <div class="card record-timer-card" style="padding:.8rem;">
               <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem;">⏱ 독서 타이머</div>
-              <select id="timer-book-select" class="form-input" style="font-size:.72rem;margin-bottom:.5rem;background:#f5f0e8;border-color:transparent;border-radius:6px;">
+              <select id="timer-book-select" class="form-input" style="font-size:.72rem;margin-bottom:.4rem;background:#f5f0e8;border-color:transparent;border-radius:6px;">
                 <option value="">읽는 중인 책 선택...</option>
               </select>
-              <div style="text-align:center;margin:.25rem 0 .5rem;">
+              <!-- 선택한 책 독서 현황 -->
+              <div id="timer-book-detail" style="margin-bottom:.4rem;"></div>
+              <div style="text-align:center;margin:.15rem 0 .45rem;">
                 <div id="timer-display" class="timer-display" style="font-size:1.8rem;">00:00:00</div>
                 <div style="font-size:.58rem;color:var(--tx3);margin-top:.1rem;">오늘 독서 시간</div>
               </div>
@@ -223,13 +225,7 @@
           </div>
         </div>
 
-        <!-- 선택한 책 독서 현황 -->
-        <div class="card" style="margin-top:.6rem;padding:.7rem .85rem;">
-          <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem;">📚 독서 현황</div>
-          <div id="timer-book-detail">
-            <div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.8rem 0;">책을 선택하면 독서 현황이 표시됩니다.</div>
-          </div>
-        </div>
+
       </div>
 
       <!-- 게시판 -->
@@ -262,16 +258,16 @@
           </div>
           <div id="goal-display" style="padding:0 .85rem .6rem;"></div>
         </div>
-        <!-- 통계 카드 + 전리품 -->
-        <div style="margin-bottom:.6rem;display:flex;gap:.5rem;align-items:flex-start;">
-          <div style="flex:1;overflow-x:auto;padding:.05rem;">
-            <div id="stat-grid" style="display:flex;gap:.35rem;padding:.05rem;flex-wrap:wrap;"></div>
-          </div>
-          <!-- 전리품 칸 -->
-          <div style="flex-shrink:0;width:90px;background:var(--card);border:1px dashed var(--border2);border-radius:var(--r);padding:.6rem .5rem;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.3rem;">
-            <div style="font-size:1.2rem;opacity:.25;">🏅</div>
-            <div style="font-size:.6rem;font-weight:600;color:var(--tx2);opacity:.6;">전리품</div>
-            <div style="font-size:.52rem;color:var(--tx3);font-style:italic;opacity:.5;letter-spacing:.03em;">Coming Soon</div>
+        <!-- 통계 카드 -->
+        <div style="margin-bottom:.5rem;overflow-x:auto;padding:.05rem;">
+          <div id="stat-grid" style="display:flex;gap:.35rem;padding:.05rem;flex-wrap:wrap;"></div>
+        </div>
+        <!-- 전리품 칸 - 가로 배치 -->
+        <div style="margin-bottom:.6rem;background:var(--card);border:1px dashed var(--border2);border-radius:var(--r);padding:.55rem .8rem;display:flex;align-items:center;gap:.7rem;">
+          <div style="font-size:1.3rem;opacity:.2;">🏅</div>
+          <div>
+            <div style="font-size:.65rem;font-weight:600;color:var(--tx2);opacity:.55;">전리품</div>
+            <div style="font-size:.58rem;color:var(--tx3);font-style:italic;opacity:.45;letter-spacing:.04em;">Coming Soon — 퀘스트를 완료하면 뱃지를 획득할 수 있어요</div>
           </div>
         </div>
 
@@ -507,15 +503,15 @@
 
 <!-- 책 상세 모달 -->
 <div id="modal-detail" class="modal-overlay" style="display:none;">
-  <div class="modal modal-wide">
-    <div class="modal-header">
-      <div class="modal-title" id="detail-title"></div>
-      <button class="modal-close" onclick="closeModal('modal-detail')">✕</button>
+  <div class="modal modal-wide" style="padding:0;overflow:hidden;">
+    <div style="position:relative;">
+      <button class="modal-close" onclick="closeModal('modal-detail')" style="position:absolute;top:.7rem;right:.8rem;z-index:10;background:rgba(255,255,255,.85);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:.75rem;border:none;cursor:pointer;color:var(--tx2);">✕</button>
+      <div id="detail-title" style="display:none;"></div>
     </div>
-    <div class="modal-body" id="detail-body"></div>
-    <div class="modal-footer">
-      <button class="btn-cancel btn-delete" onclick="deleteBook()">삭제</button>
-      <button class="btn-save" onclick="editBook()">수정</button>
+    <div class="modal-body" id="detail-body" style="padding:.9rem 1rem;overflow-y:auto;max-height:78vh;"></div>
+    <div class="modal-footer" style="border-top:1px solid var(--border);padding:.6rem 1rem;">
+      <button class="btn-cancel btn-delete" onclick="deleteBook()" style="font-size:.72rem;">삭제</button>
+      <button class="btn-save" onclick="editBook()" style="font-size:.72rem;">수정</button>
     </div>
   </div>
 </div>
@@ -867,6 +863,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=404"></script>
+<script src="app.js?v=405"></script>
 </body>
 </html>

@@ -705,48 +705,24 @@ function renderCal() {
 function showTimerBookDetail(bookId) {
   const wrap = document.getElementById('timer-book-detail');
   if(!wrap) return;
-  if(!bookId) {
-    wrap.innerHTML = '<div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.8rem 0;">책을 선택하면 독서 현황이 표시됩니다.</div>';
-    return;
-  }
+  if(!bookId) { wrap.innerHTML=''; return; }
   const book = allBooks.find(b=>b.id===bookId);
   if(!book) return;
   const mins = book.reading_time || 0;
-  const hours = Math.floor(mins/60);
-  const restMins = mins % 60;
   const pages = book.pages || 0;
   const curPage = book.current_page || 0;
-  const pct = pages && curPage ? Math.min(100, Math.round(curPage/pages*100)) : 0;
-  // 독서 기록 날짜별 집계 (allBooks에서 reading_time은 총합이므로 날짜별 데이터는 없음)
-  // 진행률 + 시간 표시
+  const pct = pages && curPage ? Math.min(100,Math.round(curPage/pages*100)) : 0;
   wrap.innerHTML = `
-    <div style="display:flex;gap:.7rem;align-items:center;margin-bottom:.7rem;">
-      ${book.cover ? `<img src="${book.cover}" style="width:36px;height:52px;object-fit:cover;border-radius:3px;box-shadow:1px 2px 6px rgba(0,0,0,.15);">` :
-        `<div style="width:36px;height:52px;border-radius:3px;background:linear-gradient(150deg,#a07040,#5c3010);flex-shrink:0;"></div>`}
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:.72rem;font-weight:600;color:var(--tx1);line-height:1.3;margin-bottom:.15rem;word-break:keep-all;">${book.title}</div>
-        <div style="font-size:.6rem;color:var(--tx3);">${book.author||''}</div>
+    <div style="background:#f5f0e8;border-radius:6px;padding:.45rem .6rem;border:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${pages&&curPage?'.35rem':'0'};">
+        <span style="font-size:.62rem;color:var(--tx3);">⏱ 누적 ${Math.floor(mins/60)}h ${mins%60}m</span>
+        ${pages&&curPage?`<span style="font-size:.62rem;color:var(--tx3);">${curPage}/${pages}p</span>`:''}
       </div>
-    </div>
-    <!-- 독서 시간 -->
-    <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
-      <div style="flex:1;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .6rem;text-align:center;">
-        <div style="font-size:.88rem;font-weight:700;color:var(--acc2);font-family:var(--fs);">${hours}h ${restMins}m</div>
-        <div style="font-size:.55rem;color:var(--tx3);">누적 독서 시간</div>
+      ${pages&&curPage?`<div style="height:4px;background:#ddd5c5;border-radius:2px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:2px;"></div>
       </div>
-      ${pages ? `<div style="flex:1;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .6rem;text-align:center;">
-        <div style="font-size:.88rem;font-weight:700;color:var(--sage);font-family:var(--fs);">${curPage||0}p</div>
-        <div style="font-size:.55rem;color:var(--tx3);">현재 페이지</div>
-      </div>` : ''}
-    </div>
-    <!-- 진행 바 -->
-    ${pages && curPage ? `
-    <div style="margin-bottom:.15rem;">
-      <div style="height:6px;background:#e0d8cc;border-radius:3px;overflow:hidden;">
-        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:3px;transition:width .4s;"></div>
-      </div>
-      <div style="font-size:.58rem;color:var(--tx3);margin-top:.2rem;text-align:right;">${pct}% 완료 · ${pages-curPage}p 남음</div>
-    </div>` : ''}`;
+      <div style="font-size:.55rem;color:var(--tx3);margin-top:.15rem;text-align:right;">${pct}% 완료</div>`:''}
+    </div>`;
 }
 
 function buildTimer() {
@@ -1328,15 +1304,29 @@ function buildMilestone() {
   const yrs=years.size||1,totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
   const totalPages=done.reduce((a,b)=>a+(b.pages||0),0);
   const items=[
-    {n:total,l:'총 완독 권수',prog:Math.min(total/200,1),target:'목표 200권'},
-    {n:yrs+'년',l:'독서 기록 기간',prog:Math.min(yrs/10,1),target:'10년 독서가'},
-    {n:Math.round(total/yrs*10)/10+'권',l:'연평균 독서량',prog:Math.min(total/yrs/20,1),target:'연 20권'},
-    {n:Math.floor(totalMins/60)+'h',l:'총 독서 시간',prog:Math.min(totalMins/60/500,1),target:'500h 목표'},
-    {n:totalPages.toLocaleString()+'p',l:'누적 페이지',prog:Math.min(totalPages/50000,1),target:'5만 페이지'},
-    {n:done.filter(b=>b.rating>=4).length+'권',l:'★★★★ 이상',prog:Math.min(done.filter(b=>b.rating>=4).length/100,1),target:'명작 100권'},
+    {n:total,l:'총 완독',ic:'📖',c:'#c4714a',bg:'#fdf0ea',prog:Math.min(total/200,1),target:'200권'},
+    {n:yrs+'년',l:'독서 기간',ic:'🌱',c:'#6b8f6b',bg:'#eef4ee',prog:Math.min(yrs/10,1),target:'10년'},
+    {n:Math.round(total/yrs*10)/10+'권',l:'연평균',ic:'📅',c:'#5a7a8a',bg:'#eef2f5',prog:Math.min(total/yrs/20,1),target:'20권/년'},
+    {n:Math.floor(totalMins/60)+'h',l:'독서 시간',ic:'⏱',c:'#8b6b8b',bg:'#f3eef3',prog:Math.min(totalMins/60/500,1),target:'500h'},
+    {n:totalPages?totalPages.toLocaleString():'0',l:'누적 페이지',ic:'📄',c:'#7a5a3a',bg:'#f5f0e8',prog:Math.min(totalPages/50000,1),target:'50,000p'},
+    {n:done.filter(b=>b.rating>=4).length+'권',l:'명작 수집',ic:'⭐',c:'#b07030',bg:'#fdf7e8',prog:Math.min(done.filter(b=>b.rating>=4).length/100,1),target:'100권'},
   ];
-  const g=document.getElementById('ms-grid');g.innerHTML='';
-  items.forEach(it=>{const el=document.createElement('div');el.className='ms-card';el.innerHTML=`<div class="ms-n">${it.n}</div><div class="ms-l">${it.l}</div>`+(it.prog>0?`<div class="ms-prog"><div class="ms-prog-fill" style="width:${Math.round(it.prog*100)}%"></div></div><div class="ms-target">${it.target}</div>`:'');g.appendChild(el);});
+  const g=document.getElementById('ms-grid'); g.innerHTML='';
+  items.forEach(it=>{
+    const pct=Math.round(it.prog*100);
+    const el=document.createElement('div');
+    el.style.cssText=`background:${it.bg};border:1px solid rgba(0,0,0,.06);border-radius:8px;padding:.5rem .45rem;text-align:center;position:relative;overflow:hidden;`;
+    el.innerHTML=`
+      <div style="position:absolute;top:-10px;right:-8px;font-size:2rem;opacity:.07;">${it.ic}</div>
+      <div style="font-size:.75rem;margin-bottom:.1rem;">${it.ic}</div>
+      <div style="font-family:var(--fs);font-size:.95rem;font-weight:700;color:${it.c};line-height:1.1;">${it.n}</div>
+      <div style="font-size:.5rem;color:var(--tx3);margin:.1rem 0 .3rem;letter-spacing:.01em;">${it.l}</div>
+      <div style="height:3px;background:rgba(0,0,0,.08);border-radius:2px;overflow:hidden;margin-bottom:.15rem;">
+        <div style="width:${pct}%;height:100%;background:${it.c};border-radius:2px;transition:width .5s;opacity:.7;"></div>
+      </div>
+      <div style="font-size:.48rem;color:${it.c};opacity:.7;">목표 ${it.target}</div>`;
+    g.appendChild(el);
+  });
 }
 
 // ── 목표
@@ -1566,12 +1556,15 @@ function setStatus(s,btn){
 }
 function addQuoteField(text='',page='',comment='') {
   const list=document.getElementById('quotes-list');
-  const el=document.createElement('div');el.className='quote-field';
-  el.innerHTML=`<button class="quote-remove" onclick="this.parentElement.remove()">✕</button>
-    <textarea class="form-input" placeholder="인상 깊은 문장을 입력하세요..." rows="2" data-qtext>${text}</textarea>
-    <div class="quote-field-row">
-      <input type="text" class="form-input" placeholder="코멘트 (느낀 점, 메모...)" data-qtag value="${comment}">
-      <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="max-width:80px;">
+  const el=document.createElement('div');
+  el.style.cssText='background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;margin-bottom:.4rem;position:relative;';
+  el.innerHTML=`
+    <button onclick="this.parentElement.remove()" style="position:absolute;top:.4rem;right:.5rem;background:none;border:none;font-size:.75rem;color:var(--tx3);cursor:pointer;line-height:1;">✕</button>
+    <div style="font-size:.58rem;color:var(--acc);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">✍️ 문장</div>
+    <textarea class="form-input" placeholder="인상 깊은 문장..." rows="2" data-qtext style="font-size:.78rem;font-style:italic;font-family:var(--fs);background:#fff;border-radius:5px;margin-bottom:.35rem;resize:vertical;">${text}</textarea>
+    <div style="display:flex;gap:.35rem;">
+      <input type="text" class="form-input" placeholder="💬 코멘트 (느낀 점, 메모...)" data-qtag value="${comment}" style="flex:1;font-size:.73rem;background:#fff;border-radius:5px;">
+      <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:60px;font-size:.73rem;background:#fff;border-radius:5px;text-align:center;">
     </div>`;
   list.appendChild(el);
 }
