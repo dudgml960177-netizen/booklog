@@ -938,9 +938,6 @@ function buildStats() {
   const sg=document.getElementById('stat-grid'); sg.innerHTML='';
   const done=allBooks.filter(b=>b.status==='완독');
   const total=done.length;
-  // 히어로 숫자 업데이트
-  const heroEl = document.getElementById('stats-hero-main');
-  if(heroEl) heroEl.textContent = total || '0';
   const avg=total>0?(done.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(1):'—';
   const years=new Set(done.map(b=>b.date_finish?.slice(0,4)).filter(Boolean));
   const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
@@ -967,15 +964,13 @@ function buildStats() {
     {n:totalPages>0?totalPages.toLocaleString()+'p':'—', l:'누적 페이지', sub:'완독 기준', ic:'📄'},
   ];
   items.forEach(it=>{
-    const el=document.createElement('div'); el.className='scard';
+    const el=document.createElement('div');
+    el.style.cssText='flex-shrink:0;width:72px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;position:relative;overflow:hidden;';
     const isLong=(it.l.includes('작가')||it.l.includes('출판사'));
     el.innerHTML=`
-      <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.2rem;">
-        <span style="font-size:.72rem;opacity:.65;">${it.ic||''}</span>
-        <span class="scard-l" style="font-size:.6rem;">${it.l}</span>
-      </div>
-      <div class="scard-n" style="${isLong?'font-size:.72rem;line-height:1.3;':'font-size:.95rem;'}">${it.n}</div>
-      ${it.sub?`<div class="scard-sub" style="font-size:.58rem;">${it.sub}</div>`:''}`;
+      <div style="font-size:.75rem;opacity:.6;margin-bottom:.1rem;">${it.ic||''}</div>
+      <div style="font-family:var(--fs);font-size:${isLong?'.65rem':'.85rem'};color:var(--tx1);line-height:1.15;word-break:break-all;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${it.n}</div>
+      <div style="font-size:.55rem;color:var(--tx3);margin-top:.08rem;">${it.l}</div>`;
     sg.appendChild(el);
   });
 }
@@ -1424,6 +1419,7 @@ function updateBookCategorySelect() {
 // ── 책 추가/수정
 function openAddBook() {
   editingBookId=null;selectedBook=null;curRating=0;curStatus='완독';
+  setTimeout(()=>renderStars(0), 50);
   document.getElementById('modal-book-title').textContent='책 추가';
   document.getElementById('search-section').style.display='';
   document.getElementById('book-form').style.display='none';
@@ -1485,9 +1481,41 @@ function changeBook() {
   selectedBook=null;document.getElementById('search-section').style.display='';
   document.getElementById('book-form').style.display='none';document.getElementById('search-results').innerHTML='';document.getElementById('book-search-input').value='';
 }
-function setStar(n){curRating=n;updateStars(n);}
-function updateStars(n){document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('on',i<n));}
-function setStatus(s,btn){curStatus=s;document.querySelectorAll('.status-btn').forEach(b=>b.classList.toggle('on',b===btn));}
+function setStar(n) {
+  curRating = n;
+  renderStars(n);
+}
+function renderStars(rating) {
+  const wrap = document.querySelector('.star-input');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  for(let i=1; i<=5; i++) {
+    const full = document.createElement('span');
+    full.className = 'star' + (rating >= i ? ' on' : '');
+    full.style.cssText = 'position:relative;cursor:pointer;font-size:1.4rem;';
+    // 왼쪽 절반 클릭 = i-0.5, 오른쪽 절반 클릭 = i
+    full.innerHTML = `
+      <span style="position:absolute;left:0;top:0;width:50%;height:100%;z-index:2;" onclick="setStar(${i-0.5})"></span>
+      <span style="position:absolute;right:0;top:0;width:50%;height:100%;z-index:2;" onclick="setStar(${i})"></span>
+      ${rating >= i ? '★' : rating >= i-0.5 ? '⯨' : '☆'}`;
+    wrap.appendChild(full);
+  }
+  // 현재 점수 표시
+  let label = wrap.nextElementSibling;
+  if(!label || !label.classList.contains('star-label')) {
+    label = document.createElement('span');
+    label.className = 'star-label';
+    label.style.cssText = 'font-size:.68rem;color:var(--tx3);margin-left:.3rem;';
+    wrap.after(label);
+  }
+  label.textContent = rating > 0 ? `${rating}점` : '';
+}
+function updateStars(n) { renderStars(n); }
+function setStatus(s,btn){
+  curStatus=s;
+  document.querySelectorAll('.status-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+}
 function addQuoteField(text='',page='',comment='') {
   const list=document.getElementById('quotes-list');
   const el=document.createElement('div');el.className='quote-field';
@@ -1661,7 +1689,7 @@ function editBook() {
     document.getElementById('search-section').style.display='none';
     document.getElementById('book-form').style.display='';
     selectBook(selectedBook);
-    curRating=b.rating||0; curStatus=b.status||'완독'; updateStars(curRating);
+    curRating=b.rating||0; curStatus=b.status||'완독'; setTimeout(()=>renderStars(curRating),50);
     document.querySelectorAll('.status-btn').forEach(btn=>btn.classList.toggle('on',btn.textContent===curStatus));
     document.getElementById('book-genre').value=Array.isArray(b.genre)?b.genre[0]:(b.genre||'');
     document.getElementById('book-review').value=b.review||'';
@@ -2404,7 +2432,7 @@ async function openLibrary(userId, userName) {
 
   // 프로필 + 책 동시 로드
   const [profileRes, booksRes] = await Promise.all([
-    sb.from('profiles').select('library_public,category_visibility,categories').eq('id',userId).single(),
+    sb.from('profiles').select('library_public,library_visibility,category_visibility,categories').eq('id',userId).single(),
     sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false})
   ]);
   const targetProfile = profileRes.data;

@@ -252,23 +252,17 @@
       <div class="panel" id="p-graph">
 
         <!-- ① 목표 + 핵심 지표 통합 헤더 -->
-        <!-- 통계 상단 -->
-        <div style="margin-bottom:.7rem;">
-          <!-- 히어로 배너 -->
-          <div style="background:linear-gradient(135deg,var(--acc2) 0%,var(--acc) 60%,var(--clay) 100%);border-radius:var(--r) var(--r) 0 0;padding:.9rem 1.1rem .8rem;position:relative;overflow:hidden;">
-            <div style="position:absolute;top:-15px;right:-5px;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none;"></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;">
-              <div>
-                <div style="font-size:.6rem;color:rgba(255,255,255,.6);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.15rem;">누적 완독</div>
-                <div id="stats-hero-main" style="font-size:1.8rem;font-weight:700;color:#fff;font-family:var(--fs);line-height:1;">—</div>
-              </div>
-              <button onclick="openGoalModal()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);border-radius:14px;padding:.28rem .7rem;font-size:.68rem;color:#fff;cursor:pointer;font-family:var(--ff);position:relative;z-index:2;">목표 설정</button>
-            </div>
+        <!-- 목표 진행 -->
+        <div class="card" style="margin-bottom:.6rem;padding:0;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .85rem .5rem;">
+            <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">독서 목표</div>
+            <button onclick="openGoalModal()" style="font-size:.62rem;padding:.18rem .6rem;border:1px solid var(--border2);border-radius:10px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);">설정</button>
           </div>
-          <!-- 목표 진행 -->
-          <div id="goal-display" style="background:var(--card);border:1px solid var(--border);border-top:none;padding:.5rem 1rem;"></div>
-          <!-- 통계 카드 3x3 -->
-          <div id="stat-grid" class="stat-grid" style="background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:.6rem .7rem;margin:0;gap:.4rem;grid-template-columns:repeat(3,1fr);"></div>
+          <div id="goal-display" style="padding:0 .85rem .6rem;"></div>
+        </div>
+        <!-- 통계 카드 - 가로 스크롤 가능한 한 줄 -->
+        <div style="margin-bottom:.6rem;overflow-x:auto;padding:.05rem;">
+          <div id="stat-grid" style="display:flex;gap:.4rem;padding:.05rem;min-width:max-content;"></div>
         </div>
 
         <!-- 그래프 -->
@@ -863,6 +857,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=402"></script>
+<script src="app.js?v=403"></script>
 </body>
 </html>
