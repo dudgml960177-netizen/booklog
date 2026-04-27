@@ -1592,7 +1592,7 @@ async function saveBook() {
 function openDetail(bookId) {
   curBookId=bookId;
   const b=allBooks.find(b=>b.id===bookId);if(!b)return;
-  document.getElementById('detail-title').textContent=b.title;
+  // detail-title은 숨겨진 요소 - 오류 방지를 위해 제거
   const quotes=allQuotes.filter(q=>q.book_id===bookId);
   const genre=Array.isArray(b.genre)?b.genre.join(', '):(b.genre||'');
   const coverHTML=b.cover?`<img class="detail-cover" src="${b.cover}" alt="${b.title}">`:`<div class="detail-cover-ph">${b.title}</div>`;
