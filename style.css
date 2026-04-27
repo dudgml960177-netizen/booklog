@@ -315,12 +315,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 
 .detail-body{
   font-size:.78rem;
-  line-height:1.85;
+  line-height:1.88;
   color:var(--tx1);
-  background:#fafaf8;
-  border:1px solid var(--border);
-  border-radius:6px;
-  padding:.6rem .75rem;
   white-space:pre-line;
 }
 .detail-divhr{border:none;border-top:1px solid var(--border);margin:.8rem 0;position:relative;text-align:center;}

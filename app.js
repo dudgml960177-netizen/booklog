@@ -1651,29 +1651,33 @@ function openDetail(bookId) {
   }
   // 읽는중 책: 페이지 진행 업데이트 섹션
   if(b.status === '읽는중') {
+    const cp = b.current_page||0, tp = b.pages||0;
+    const pct2 = tp&&cp ? Math.min(100,Math.round(cp/tp*100)) : 0;
     html += `<div class="detail-divhr"></div>
-    <div class="detail-sec">📖 독서 진행</div>
-    <div style="padding:.5rem 0;">
-      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;">
-        <label style="display:flex;align-items:center;gap:.35rem;font-size:.75rem;cursor:pointer;">
-          <input type="checkbox" id="show-progress-chk" ${b.show_progress!==false?'checked':''} style="accent-color:var(--acc);">
-          <span>페이지 표시</span>
+    <div style="background:linear-gradient(135deg,#fdf8f0,#f5ece0);border:1px solid var(--border);border-radius:10px;padding:.7rem .85rem;margin-top:.2rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+        <div style="font-size:.65rem;font-weight:600;color:var(--acc2);letter-spacing:.05em;">📖 독서 진행</div>
+        <label style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx3);cursor:pointer;">
+          <input type="checkbox" id="show-progress-chk" ${b.show_progress!==false?'checked':''} style="accent-color:var(--acc);width:11px;height:11px;">
+          <span>표시</span>
         </label>
       </div>
-      <div id="progress-input-wrap" style="${b.show_progress===false?'display:none;':''}display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:.3rem;">
-          <span style="font-size:.75rem;color:var(--tx3);">현재</span>
+      <div id="progress-input-wrap" style="${b.show_progress===false?'display:none;':''}">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
           <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}"
-            placeholder="쪽" style="width:70px;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:4px;font-size:.8rem;font-family:var(--ff);">
-          <span style="font-size:.75rem;color:var(--tx3);">쪽${b.pages?' / '+b.pages+'p':''}</span>
+            placeholder="현재 쪽" style="flex:1;padding:.35rem .55rem;border:1px solid var(--border2);border-radius:8px;font-size:.8rem;font-family:var(--ff);background:#fff;text-align:center;">
+          ${tp?`<span style="font-size:.68rem;color:var(--tx3);">/ ${tp}p</span>`:''}
+          <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:.32rem .75rem;font-size:.7rem;cursor:pointer;font-family:var(--ff);">저장</button>
         </div>
-        <button onclick="saveReadingProgress('${b.id}')" class="btn-save" style="padding:.3rem .8rem;font-size:.75rem;">저장</button>
+        ${tp&&cp?`
+        <div style="height:5px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden;margin-bottom:.25rem;">
+          <div style="width:${pct2}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:3px;transition:width .4s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--tx3);">
+          <span>${cp}p 읽음</span>
+          <span>${pct2}% · ${tp-cp}p 남음</span>
+        </div>`:''}
       </div>
-      ${b.pages&&b.current_page&&b.show_progress!==false?`
-      <div style="margin-top:.5rem;background:#ede4d0;border-radius:4px;overflow:hidden;height:6px;">
-        <div style="width:${Math.min(100,Math.round(b.current_page/b.pages*100))}%;height:100%;background:var(--acc);border-radius:4px;transition:width .3s;"></div>
-      </div>
-      <div style="font-size:.65rem;color:var(--tx3);margin-top:.2rem;">${Math.round(b.current_page/b.pages*100)}% 완료</div>`:''}
     </div>`;
     // 체크박스 이벤트는 html 삽입 후 연결
   }
@@ -2437,13 +2441,69 @@ async function importFromBookmori(file) {
 
     if(!newBooks.length) { await showAlert('모든 책이 이미 서재에 있어요!'); return; }
 
+    // 책 업로드
+    let insertedIds = [];
     for(let i=0; i<newBooks.length; i+=50) {
-      const { error } = await sb.from('books').insert(newBooks.slice(i,i+50));
+      const { data: inserted, error } = await sb.from('books').insert(newBooks.slice(i,i+50)).select('id,title,isbn');
       if(error) throw error;
+      if(inserted) insertedIds.push(...inserted);
     }
+
+    // 표지 자동 검색 (네이버 책 API via Edge Function)
+    if(insertedIds.length > 0) {
+      const updatePromises = insertedIds.map(async (book) => {
+        try {
+          const res = await fetch(`https://xowlwzpoxrudgaoavkbr.supabase.co/functions/v1/naver-book?query=${encodeURIComponent(book.title)}`, {
+            headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ` }
+          });
+          if(res.ok) {
+            const data = await res.json();
+            const item = data.items?.[0];
+            if(item?.image) {
+              await sb.from('books').update({
+                cover: item.image,
+                description: item.description||''
+              }).eq('id', book.id);
+            }
+          }
+        } catch(e) { /* 표지 검색 실패는 무시 */ }
+      });
+      // 10개씩 병렬 처리
+      for(let i=0; i<updatePromises.length; i+=10) {
+        await Promise.all(updatePromises.slice(i,i+10));
+      }
+    }
+
+    // 문장(노트) 가져오기 - 북모리 노트 시트 파싱
+    let quoteCount = 0;
+    const bookTitleToId = Object.fromEntries(insertedIds.map(b=>[b.title, b.id]));
+    // 북모리 노트 시트: "노트 (책제목)" 형식
+    for(const sheetName of wb.SheetNames.slice(1)) {
+      const match = sheetName.match(/노트\s*\((.+)\)/);
+      if(!match) continue;
+      const bookTitle = match[1].trim();
+      const bookId = bookTitleToId[bookTitle] ||
+        insertedIds.find(b=>b.title.includes(bookTitle)||bookTitle.includes(b.title))?.id;
+      if(!bookId) continue;
+      const noteWs = wb.Sheets[sheetName];
+      const noteRows = XLSX.utils.sheet_to_json(noteWs, {defval:'', header:1});
+      for(const row of noteRows) {
+        const text = String(row[0]||'').trim();
+        if(text && text.length > 2 && !/^(페이지|문장|메모|날짜|태그)$/i.test(text)) {
+          await sb.from('quotes').insert({
+            book_id: bookId,
+            user_id: currentUser.id,
+            text,
+            created_at: new Date().toISOString()
+          });
+          quoteCount++;
+        }
+      }
+    }
+
     await loadData(); buildBooks();
     closeModal('modal-backup');
-    await showAlert(`✅ ${newBooks.length}권을 가져왔어요!${dup>0?`\n(중복 ${dup}권 제외)`:''}`);
+    await showAlert(`✅ ${newBooks.length}권을 가져왔어요!${dup>0?`\n(중복 ${dup}권 제외)`:''}\n표지 자동 검색 완료\n${quoteCount>0?`문장 ${quoteCount}개 가져옴`:''}`);
   } catch(e) {
     await showAlert('가져오기 오류: '+e.message);
     console.error('excel import error:', e);
