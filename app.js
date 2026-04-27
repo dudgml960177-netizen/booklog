@@ -2294,111 +2294,110 @@ async function sendMsgToSelected() {
 
 
 // ══════════════════════════════════════
-// 북모리 CSV 이전
+// 엑셀 가져오기 (북모리 등)
 // ══════════════════════════════════════
 async function importFromBookmori(file) {
   if(!file) return;
   try {
-    const text = await file.text();
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if(lines.length < 2) { await showAlert('파일이 비어있거나 형식이 맞지 않아요.'); return; }
+    // SheetJS 동적 로드
+    if(!window.XLSX) {
+      await new Promise((res,rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
 
-    // 헤더 파싱
-    const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
-    console.log('Bookmori headers:', headers);
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
 
-    // 북모리 컬럼 매핑 (한글/영문 모두 지원)
-    const colMap = {
-      title: headers.findIndex(h => h.includes('제목') || h.includes('title')),
-      author: headers.findIndex(h => h.includes('작가') || h.includes('저자') || h.includes('author')),
-      publisher: headers.findIndex(h => h.includes('출판') || h.includes('publisher')),
-      status: headers.findIndex(h => h.includes('상태') || h.includes('status') || h.includes('읽기상태')),
-      rating: headers.findIndex(h => h.includes('평점') || h.includes('별점') || h.includes('rating')),
-      start: headers.findIndex(h => h.includes('시작') || h.includes('start')),
-      finish: headers.findIndex(h => h.includes('완독') || h.includes('완료') || h.includes('finish') || h.includes('end')),
-      pages: headers.findIndex(h => h.includes('페이지') || h.includes('pages') || h.includes('쪽수')),
-      review: headers.findIndex(h => h.includes('리뷰') || h.includes('감상') || h.includes('메모') || h.includes('review')),
-      isbn: headers.findIndex(h => h.includes('isbn')),
-      cover: headers.findIndex(h => h.includes('표지') || h.includes('이미지') || h.includes('cover')),
+    if(!rows.length) { await showAlert('파일이 비어있거나 읽을 수 없어요.'); return; }
+
+    console.log('Excel headers:', Object.keys(rows[0]));
+
+    // 컬럼 매핑 함수
+    const findCol = (row, keys) => {
+      const cols = Object.keys(row);
+      return cols.find(c => keys.some(k => c.toLowerCase().includes(k))) || null;
+    };
+    const sample = rows[0];
+    const C = {
+      title:    findCol(sample, ['제목','title','book']),
+      author:   findCol(sample, ['작가','저자','author','글쓴이']),
+      publisher:findCol(sample, ['출판','publisher']),
+      status:   findCol(sample, ['상태','status','읽기']),
+      rating:   findCol(sample, ['평점','별점','rating','점수']),
+      start:    findCol(sample, ['시작','start']),
+      finish:   findCol(sample, ['완독','완료','finish','end','종료']),
+      pages:    findCol(sample, ['페이지','쪽수','pages','총페이지']),
+      review:   findCol(sample, ['리뷰','감상','메모','review','노트']),
+      isbn:     findCol(sample, ['isbn']),
     };
 
-    // 상태 변환
-    const statusMap = (s) => {
+    const statusConv = s => {
       if(!s) return '읽고싶음';
-      const v = s.trim();
-      if(v.includes('완독') || v.includes('읽은') || v === '3' || v.toLowerCase().includes('read')) return '완독';
-      if(v.includes('읽는') || v.includes('reading') || v === '2') return '읽는중';
-      if(v.includes('중단') || v.includes('stop') || v === '4') return '중단';
+      const v = String(s).trim();
+      if(/완독|읽은|read/i.test(v)||v==='3') return '완독';
+      if(/읽는중|읽고있|reading/i.test(v)||v==='2') return '읽는중';
+      if(/중단|포기|stop/i.test(v)||v==='4') return '중단';
       return '읽고싶음';
     };
+    const dateConv = v => {
+      if(!v) return null;
+      if(v instanceof Date) return v.toISOString().slice(0,10);
+      const s = String(v).trim().replace(/[./]/g,'-');
+      const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+      return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null;
+    };
 
-    const rows = lines.slice(1).map(l => parseCSVLine(l));
-    const books = rows.filter(r => r.length > 1 && colMap.title >= 0 && r[colMap.title]?.trim()).map(r => ({
-      title: r[colMap.title]?.trim() || '',
-      author: colMap.author >= 0 ? r[colMap.author]?.trim() : '',
-      publisher: colMap.publisher >= 0 ? r[colMap.publisher]?.trim() : '',
-      status: statusMap(colMap.status >= 0 ? r[colMap.status] : ''),
-      rating: colMap.rating >= 0 ? (parseFloat(r[colMap.rating]) || null) : null,
-      date_start: colMap.start >= 0 ? formatDate(r[colMap.start]) : null,
-      date_finish: colMap.finish >= 0 ? formatDate(r[colMap.finish]) : null,
-      pages: colMap.pages >= 0 ? (parseInt(r[colMap.pages]) || null) : null,
-      review: colMap.review >= 0 ? r[colMap.review]?.trim() : '',
-      isbn: colMap.isbn >= 0 ? r[colMap.isbn]?.trim() : '',
-      cover: colMap.cover >= 0 ? r[colMap.cover]?.trim() : '',
-      user_id: currentUser.id,
+    const books = rows.map(r => ({
+      title:      C.title ? String(r[C.title]||'').trim() : '',
+      author:     C.author ? String(r[C.author]||'').trim() : '',
+      publisher:  C.publisher ? String(r[C.publisher]||'').trim() : '',
+      status:     statusConv(C.status ? r[C.status] : ''),
+      rating:     C.rating ? (parseFloat(r[C.rating])||null) : null,
+      date_start: C.start ? dateConv(r[C.start]) : null,
+      date_finish:C.finish ? dateConv(r[C.finish]) : null,
+      pages:      C.pages ? (parseInt(r[C.pages])||null) : null,
+      review:     C.review ? String(r[C.review]||'').trim() : '',
+      isbn:       C.isbn ? String(r[C.isbn]||'').trim() : '',
+      user_id:    currentUser.id,
       created_at: new Date().toISOString(),
     })).filter(b => b.title);
 
-    if(!books.length) { await showAlert('가져올 책이 없어요. CSV 형식을 확인해주세요.'); return; }
+    if(!books.length) { await showAlert('가져올 책이 없어요.\n컬럼명을 확인해주세요.\n(제목·작가·상태 등 포함 필요)'); return; }
 
-    const confirmed = await showConfirm(`북모리에서 ${books.length}권을 가져올까요?\n(기존 책과 제목 기준으로 중복 체크 후 추가해요)`);
+    const confirmed = await showConfirm(`${books.length}권을 가져올까요?\n(제목 기준 중복 제외 후 추가)`);
     if(!confirmed) return;
 
-    // 중복 체크
-    const existingTitles = new Set(allBooks.map(b => b.title.trim()));
-    const newBooks = books.filter(b => !existingTitles.has(b.title));
-    const dupCount = books.length - newBooks.length;
+    const existingTitles = new Set(allBooks.map(b=>b.title.trim()));
+    const newBooks = books.filter(b=>!existingTitles.has(b.title));
+    const dup = books.length - newBooks.length;
 
     if(!newBooks.length) { await showAlert('모든 책이 이미 서재에 있어요!'); return; }
 
-    // 50개씩 배치 업로드
-    for(let i = 0; i < newBooks.length; i += 50) {
-      const batch = newBooks.slice(i, i+50);
-      const { error } = await sb.from('books').insert(batch);
+    for(let i=0; i<newBooks.length; i+=50) {
+      const { error } = await sb.from('books').insert(newBooks.slice(i,i+50));
       if(error) throw error;
     }
-
     await loadData(); buildBooks();
     closeModal('modal-backup');
-    await showAlert(`✅ ${newBooks.length}권을 가져왔어요!${dupCount > 0 ? `\n(중복 ${dupCount}권 제외)` : ''}`);
+    await showAlert(`✅ ${newBooks.length}권을 가져왔어요!${dup>0?`\n(중복 ${dup}권 제외)`:''}`);
   } catch(e) {
-    await showAlert('가져오기 오류: ' + e.message);
-    console.error('bookmori import error:', e);
+    await showAlert('가져오기 오류: '+e.message);
+    console.error('excel import error:', e);
   }
-}
-
-function parseCSVLine(line) {
-  const result = []; let cur = ''; let inQuote = false;
-  for(let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if(c === '"') {
-      if(inQuote && line[i+1] === '"') { cur += '"'; i++; }
-      else inQuote = !inQuote;
-    } else if(c === ',' && !inQuote) {
-      result.push(cur); cur = '';
-    } else cur += c;
-  }
-  result.push(cur);
-  return result;
 }
 
 function formatDate(s) {
   if(!s) return null;
-  const v = s.trim().replace(/[./]/g, '-');
-  // YYYY-MM-DD or YYYY-M-D
+  if(s instanceof Date) return s.toISOString().slice(0,10);
+  const v = String(s).trim().replace(/[./]/g,'-');
   const m = v.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-  return null;
+  return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null;
 }
 
 // ══════════════════════════════════════
