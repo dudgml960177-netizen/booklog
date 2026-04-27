@@ -2292,6 +2292,115 @@ async function sendMsgToSelected() {
 }
 
 
+
+// ══════════════════════════════════════
+// 북모리 CSV 이전
+// ══════════════════════════════════════
+async function importFromBookmori(file) {
+  if(!file) return;
+  try {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if(lines.length < 2) { await showAlert('파일이 비어있거나 형식이 맞지 않아요.'); return; }
+
+    // 헤더 파싱
+    const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+    console.log('Bookmori headers:', headers);
+
+    // 북모리 컬럼 매핑 (한글/영문 모두 지원)
+    const colMap = {
+      title: headers.findIndex(h => h.includes('제목') || h.includes('title')),
+      author: headers.findIndex(h => h.includes('작가') || h.includes('저자') || h.includes('author')),
+      publisher: headers.findIndex(h => h.includes('출판') || h.includes('publisher')),
+      status: headers.findIndex(h => h.includes('상태') || h.includes('status') || h.includes('읽기상태')),
+      rating: headers.findIndex(h => h.includes('평점') || h.includes('별점') || h.includes('rating')),
+      start: headers.findIndex(h => h.includes('시작') || h.includes('start')),
+      finish: headers.findIndex(h => h.includes('완독') || h.includes('완료') || h.includes('finish') || h.includes('end')),
+      pages: headers.findIndex(h => h.includes('페이지') || h.includes('pages') || h.includes('쪽수')),
+      review: headers.findIndex(h => h.includes('리뷰') || h.includes('감상') || h.includes('메모') || h.includes('review')),
+      isbn: headers.findIndex(h => h.includes('isbn')),
+      cover: headers.findIndex(h => h.includes('표지') || h.includes('이미지') || h.includes('cover')),
+    };
+
+    // 상태 변환
+    const statusMap = (s) => {
+      if(!s) return '읽고싶음';
+      const v = s.trim();
+      if(v.includes('완독') || v.includes('읽은') || v === '3' || v.toLowerCase().includes('read')) return '완독';
+      if(v.includes('읽는') || v.includes('reading') || v === '2') return '읽는중';
+      if(v.includes('중단') || v.includes('stop') || v === '4') return '중단';
+      return '읽고싶음';
+    };
+
+    const rows = lines.slice(1).map(l => parseCSVLine(l));
+    const books = rows.filter(r => r.length > 1 && colMap.title >= 0 && r[colMap.title]?.trim()).map(r => ({
+      title: r[colMap.title]?.trim() || '',
+      author: colMap.author >= 0 ? r[colMap.author]?.trim() : '',
+      publisher: colMap.publisher >= 0 ? r[colMap.publisher]?.trim() : '',
+      status: statusMap(colMap.status >= 0 ? r[colMap.status] : ''),
+      rating: colMap.rating >= 0 ? (parseFloat(r[colMap.rating]) || null) : null,
+      date_start: colMap.start >= 0 ? formatDate(r[colMap.start]) : null,
+      date_finish: colMap.finish >= 0 ? formatDate(r[colMap.finish]) : null,
+      pages: colMap.pages >= 0 ? (parseInt(r[colMap.pages]) || null) : null,
+      review: colMap.review >= 0 ? r[colMap.review]?.trim() : '',
+      isbn: colMap.isbn >= 0 ? r[colMap.isbn]?.trim() : '',
+      cover: colMap.cover >= 0 ? r[colMap.cover]?.trim() : '',
+      user_id: currentUser.id,
+      created_at: new Date().toISOString(),
+    })).filter(b => b.title);
+
+    if(!books.length) { await showAlert('가져올 책이 없어요. CSV 형식을 확인해주세요.'); return; }
+
+    const confirmed = await showConfirm(`북모리에서 ${books.length}권을 가져올까요?\n(기존 책과 제목 기준으로 중복 체크 후 추가해요)`);
+    if(!confirmed) return;
+
+    // 중복 체크
+    const existingTitles = new Set(allBooks.map(b => b.title.trim()));
+    const newBooks = books.filter(b => !existingTitles.has(b.title));
+    const dupCount = books.length - newBooks.length;
+
+    if(!newBooks.length) { await showAlert('모든 책이 이미 서재에 있어요!'); return; }
+
+    // 50개씩 배치 업로드
+    for(let i = 0; i < newBooks.length; i += 50) {
+      const batch = newBooks.slice(i, i+50);
+      const { error } = await sb.from('books').insert(batch);
+      if(error) throw error;
+    }
+
+    await loadData(); buildBooks();
+    closeModal('modal-backup');
+    await showAlert(`✅ ${newBooks.length}권을 가져왔어요!${dupCount > 0 ? `\n(중복 ${dupCount}권 제외)` : ''}`);
+  } catch(e) {
+    await showAlert('가져오기 오류: ' + e.message);
+    console.error('bookmori import error:', e);
+  }
+}
+
+function parseCSVLine(line) {
+  const result = []; let cur = ''; let inQuote = false;
+  for(let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if(c === '"') {
+      if(inQuote && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if(c === ',' && !inQuote) {
+      result.push(cur); cur = '';
+    } else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function formatDate(s) {
+  if(!s) return null;
+  const v = s.trim().replace(/[./]/g, '-');
+  // YYYY-MM-DD or YYYY-M-D
+  const m = v.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return null;
+}
+
 // ══════════════════════════════════════
 // 백업 & 복원
 // ══════════════════════════════════════
@@ -2490,39 +2599,36 @@ let _libBooks = [], _libFilter = '전체', _libCatFilter = null, _libUserId = nu
 async function openLibrary(userId, userName) {
   closeModal('modal-social');
 
-  // 프로필 + 책 동시 로드
-  const [profileRes, booksRes] = await Promise.all([
-    sb.from('profiles').select('library_public,library_visibility,category_visibility,categories').eq('id',userId).single(),
-    sb.from('books').select('*').eq('user_id', userId).order('created_at',{ascending:false})
-  ]);
-  const targetProfile = profileRes.data;
-  // 공개 범위 확인
-  const visibility = targetProfile?.library_visibility || (targetProfile?.library_public === false ? 'private' : 'public');
-  if(visibility === 'private') { alert(`${userName}님의 서재는 비공개예요.`); return; }
-  if(visibility === 'friends') {
-    // 친구 여부 먼저 확인
-    const { data: fCheck } = await sb.from('friendships').select('id').eq('status','accepted')
-      .or(`and(requester_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(requester_id.eq.${userId},receiver_id.eq.${currentUser.id})`)
-      .limit(1);
-    if(!fCheck?.length) { alert(`${userName}님의 서재는 친구에게만 공개돼 있어요.`); return; }
-  }
+  // 1단계: 프로필 먼저 확인 (공개 범위 체크)
+  const { data: targetProfile } = await sb.from('profiles')
+    .select('library_public,library_visibility,category_visibility,categories')
+    .eq('id',userId).single();
+  const visibility = targetProfile?.library_visibility ||
+    (targetProfile?.library_public === false ? 'private' : 'public');
 
-  // 친구 여부 (friendship 쿼리 개선)
-  const { data: friendship } = await sb.from('friendships')
-    .select('status').eq('status','accepted')
+  if(visibility === 'private') { await showAlert(`${userName}님의 서재는 비공개예요.`); return; }
+
+  // 친구 여부 확인
+  const { data: fData } = await sb.from('friendships').select('id').eq('status','accepted')
     .or(`and(requester_id.eq.${currentUser.id},receiver_id.eq.${userId}),and(requester_id.eq.${userId},receiver_id.eq.${currentUser.id})`)
     .limit(1);
-  const isFriend = !!friendship?.length;
+  const isFriend = !!fData?.length;
+
+  if(visibility === 'friends' && !isFriend) {
+    await showAlert(`${userName}님의 서재는 친구에게만 공개돼 있어요.`); return;
+  }
+
+  // 2단계: 공개 확인 후 books 로드
+  const { data: books, error: booksErr } = await sb.from('books')
+    .select('*').eq('user_id', userId).order('created_at',{ascending:false});
+
+  if(booksErr || !books) {
+    await showAlert('서재를 불러올 수 없어요. 잠시 후 다시 시도해주세요.');
+    return;
+  }
   const canSeeCat = !targetProfile?.category_visibility ||
     targetProfile.category_visibility === 'public' ||
     (targetProfile.category_visibility === 'friends' && isFriend);
-
-  const { data: books } = booksRes;
-  if(!books) {
-    alert('서재를 불러올 수 없어요. 해당 사용자의 서재가 비공개이거나 오류가 발생했어요.');
-    return;
-  }
-  console.log('Library books loaded:', books?.length, 'for user:', userId);
   _libBooks = books || [];
   _libFilter = '전체';
   _libCatFilter = null;
