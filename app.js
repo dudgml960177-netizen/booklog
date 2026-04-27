@@ -2316,51 +2316,75 @@ async function importFromBookmori(file) {
 
     if(!rows.length) { await showAlert('파일이 비어있거나 읽을 수 없어요.'); return; }
 
-    console.log('Excel headers:', Object.keys(rows[0]));
+    const allCols = Object.keys(rows[0]);
+    console.log('북모리 컬럼명:', allCols);
 
-    // 컬럼 매핑 함수
-    const findCol = (row, keys) => {
-      const cols = Object.keys(row);
-      return cols.find(c => keys.some(k => c.toLowerCase().includes(k))) || null;
-    };
-    const sample = rows[0];
+    // 컬럼 매핑 - 공백 무시, 부분 일치
+    const findCol = (keys) => allCols.find(c => {
+      const lc = c.replace(/\s/g,'').toLowerCase();
+      return keys.some(k => lc.includes(k.replace(/\s/g,'').toLowerCase()));
+    }) || null;
+
     const C = {
-      title:    findCol(sample, ['제목','title','book']),
-      author:   findCol(sample, ['작가','저자','author','글쓴이']),
-      publisher:findCol(sample, ['출판','publisher']),
-      status:   findCol(sample, ['상태','status','읽기']),
-      rating:   findCol(sample, ['평점','별점','rating','점수']),
-      start:    findCol(sample, ['시작','start']),
-      finish:   findCol(sample, ['완독','완료','finish','end','종료']),
-      pages:    findCol(sample, ['페이지','쪽수','pages','총페이지']),
-      review:   findCol(sample, ['리뷰','감상','메모','review','노트']),
-      isbn:     findCol(sample, ['isbn']),
+      // 북모리 실제 컬럼: "책 제목", "저자", "출판사", "전체 페이지", "별점"
+      title:    findCol(['책제목','제목','title','도서명','book']),
+      author:   findCol(['저자','작가','author','글쓴이','지은이']),
+      publisher:findCol(['출판사','출판','publisher']),
+      // 북모리 상태: "1 회차 읽은 기록" 안에 날짜 있고, 별도 상태 컬럼 없을 수 있음
+      status:   findCol(['상태','읽기상태','status','읽은기록']),
+      rating:   findCol(['별점','평점','rating','점수']),
+      // 북모리: "읽기 시작", "읽은 기간" 컬럼
+      start:    findCol(['읽기시작','시작일','시작','start','읽기기간']),
+      finish:   findCol(['읽은기간','완독일','완료일','완독','finish','end','읽은날']),
+      pages:    findCol(['전체페이지','총페이지','페이지수','페이지','쪽수','pages']),
+      review:   findCol(['의견','리뷰','감상','메모','review','노트','comment']),
+      isbn:     findCol(['isbn']),
+      collection: findCol(['컬렉션','collection','#']),
     };
+    console.log('컬럼 매핑 결과:', C);
 
-    const statusConv = s => {
-      if(!s) return '읽고싶음';
-      const v = String(s).trim();
-      if(/완독|읽은|read/i.test(v)||v==='3') return '완독';
-      if(/읽는중|읽고있|reading/i.test(v)||v==='2') return '읽는중';
-      if(/중단|포기|stop/i.test(v)||v==='4') return '중단';
+    // 상태 컬럼이 없으면 "읽은 기간" 컬럼으로 완독 판단
+    const finishCol2 = findCol(['1회차','회차']);
+
+    const statusConv = (s, row) => {
+      // 상태 컬럼이 있으면 사용
+      if(s) {
+        const v = String(s).trim();
+        if(/완독|읽은|read/i.test(v)||v==='3') return '완독';
+        if(/읽는중|읽고있|reading/i.test(v)||v==='2') return '읽는중';
+        if(/중단|포기|stop/i.test(v)||v==='4') return '중단';
+        if(/읽을예정|읽고싶|want/i.test(v)||v==='1') return '읽고싶음';
+      }
+      // 상태 컬럼 없으면: "읽은 기간"/"완독일" 있으면 완독, 아니면 읽고싶음
+      const finishVal = C.finish ? row[C.finish] : (finishCol2 ? row[finishCol2] : null);
+      if(finishVal && String(finishVal).trim()) return '완독';
       return '읽고싶음';
     };
     const dateConv = v => {
       if(!v) return null;
       if(v instanceof Date) return v.toISOString().slice(0,10);
-      const s = String(v).trim().replace(/[./]/g,'-');
-      const m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+      const s = String(v).trim();
+      // "2023. 1. 14" 또는 "2023.1.14" 또는 "2023-1-14"
+      const m = s.match(/(\d{4})[.\-\s]+(\d{1,2})[.\-\s]+(\d{1,2})/);
       return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null;
+    };
+    // 북모리 "읽은 기간" 파싱 (예: "2023. 1. 14 ~ 2023. 1. 17")
+    const parsePeriodDate = (v, which) => {
+      if(!v) return null;
+      const s = String(v);
+      const parts = s.split(/[~\-]+/);
+      const part = which==='start' ? parts[0] : (parts[1]||parts[0]);
+      return dateConv(part.trim());
     };
 
     const books = rows.map(r => ({
       title:      C.title ? String(r[C.title]||'').trim() : '',
       author:     C.author ? String(r[C.author]||'').trim() : '',
       publisher:  C.publisher ? String(r[C.publisher]||'').trim() : '',
-      status:     statusConv(C.status ? r[C.status] : ''),
-      rating:     C.rating ? (parseFloat(r[C.rating])||null) : null,
-      date_start: C.start ? dateConv(r[C.start]) : null,
-      date_finish:C.finish ? dateConv(r[C.finish]) : null,
+      status:     statusConv(C.status ? r[C.status] : null, r),
+      rating:     C.rating ? (parseFloat(String(r[C.rating]).replace(/[^0-9.]/g,''))||null) : null,
+      date_start: C.start ? dateConv(r[C.start]) : (finishCol2 ? parsePeriodDate(r[finishCol2],'start') : null),
+      date_finish:C.finish ? dateConv(r[C.finish]) : (finishCol2 ? parsePeriodDate(r[finishCol2],'end') : null),
       pages:      C.pages ? (parseInt(r[C.pages])||null) : null,
       review:     C.review ? String(r[C.review]||'').trim() : '',
       isbn:       C.isbn ? String(r[C.isbn]||'').trim() : '',
@@ -2368,7 +2392,11 @@ async function importFromBookmori(file) {
       created_at: new Date().toISOString(),
     })).filter(b => b.title);
 
-    if(!books.length) { await showAlert('가져올 책이 없어요.\n컬럼명을 확인해주세요.\n(제목·작가·상태 등 포함 필요)'); return; }
+    if(!books.length) {
+      const cols = allCols.slice(0,8).join(', ');
+      await showAlert(`인식된 컬럼: ${cols}\n\n"책 제목" 컬럼을 찾지 못했어요.\n엑셀 파일의 첫 번째 시트에 책 목록이 있는지 확인해주세요.`);
+      return;
+    }
 
     const confirmed = await showConfirm(`${books.length}권을 가져올까요?\n(제목 기준 중복 제외 후 추가)`);
     if(!confirmed) return;
