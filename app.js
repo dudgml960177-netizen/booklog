@@ -729,10 +729,11 @@ function buildTimer() {
   const sel = document.getElementById('timer-book-select');
   sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
   allBooks.filter(b=>b.status==='읽는중').forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
+  // 책 선택 시 독서 현황 표시
+  sel.onchange = () => showTimerBookDetail(sel.value);
   updateTimerDisplay();
   updateTrackerPeriodBtns();
   buildTrackerGrid();
-  buildTimerBookList();
 }
 function updateTrackerPeriodBtns() {
   document.querySelectorAll('.tracker-period-btn').forEach(b=>{
@@ -1605,43 +1606,44 @@ function openDetail(bookId) {
       descHTML=`<div class="detail-sec">줄거리</div><div class="detail-body">${b.description}</div><div class="detail-divhr"></div>`;
     }
   }
-  // 별점 표시 (0.5 단위)
-  const starStr = (rating) => {
-    let s=''; for(let i=1;i<=5;i++){s+=rating>=i?'★':rating>=i-.5?'⯨':'☆';} return s;
-  };
+  // 상태 색상
   const statusColor = {완독:'#2e7d32',읽는중:'#1565c0',읽고싶음:'#7b1fa2',중단:'#c62828'}[b.status]||'var(--tx3)';
   const statusBg = {완독:'#e8f5e9',읽는중:'#e3f2fd',읽고싶음:'#f3e5f5',중단:'#ffebee'}[b.status]||'#f5f5f5';
-  let html=`
-  <!-- 커버 + 기본정보 -->
-  <div style="display:flex;gap:.9rem;align-items:flex-start;margin-bottom:.9rem;">
-    <div style="flex-shrink:0;position:relative;">
-      ${coverHTML}
-    </div>
-    <div style="flex:1;min-width:0;padding-top:.1rem;">
-      <div style="font-size:.72rem;font-weight:700;color:var(--tx1);line-height:1.35;margin-bottom:.25rem;word-break:keep-all;">${b.title}</div>
-      <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.4rem;">${b.author||''}${b.publisher?'<span style="margin:0 .25rem;opacity:.4;">·</span>'+b.publisher:''}</div>
-      <div style="font-size:.9rem;color:var(--gold);letter-spacing:.05rem;margin-bottom:.4rem;">${starStr(b.rating||0)}<span style="font-size:.6rem;color:var(--tx3);margin-left:.3rem;">${b.rating||0}점</span></div>
-      <!-- 상태 + 주요 정보 -->
-      <div style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;">
-        ${b.status?`<span style="font-size:.6rem;font-weight:600;padding:.15rem .5rem;border-radius:10px;background:${statusBg};color:${statusColor};">${b.status}</span>`:''}
+  // 반별점
+  const starStr = r => { let s=''; for(let i=1;i<=5;i++) s+=r>=i?'★':r>=i-.5?'⯨':'☆'; return s; };
+  // 진행률
+  const pct = b.pages&&b.current_page ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
+
+  let html = `
+  <div style="display:flex;gap:.8rem;align-items:flex-start;padding-bottom:.8rem;border-bottom:1px solid var(--border);margin-bottom:.75rem;">
+    <div style="flex-shrink:0;">${coverHTML}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:.82rem;font-weight:700;color:var(--tx1);line-height:1.35;margin-bottom:.2rem;">${b.title}</div>
+      ${b.author?`<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.3rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:''}
+      <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;">
+        <span style="font-size:.82rem;color:#c8a050;letter-spacing:.02rem;">${starStr(b.rating||0)}</span>
+        ${b.rating?`<span style="font-size:.6rem;color:var(--tx3);">${b.rating}점</span>`:''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;">
+        ${b.status?`<span style="font-size:.6rem;font-weight:600;padding:.12rem .5rem;border-radius:10px;background:${statusBg};color:${statusColor};">${b.status}</span>`:''}
         ${genre?`<span class="detail-chip">${genre}</span>`:''}
         ${b.pages?`<span class="detail-chip">${b.pages}p</span>`:''}
         ${b.date_finish?`<span class="detail-chip">📅 ${b.date_finish}</span>`:''}
         ${b.source?`<span class="detail-chip">${b.source}</span>`:''}
         ${b.category?`<span class="detail-chip">📁 ${b.category}</span>`:''}
         ${b.reread?`<span class="detail-chip">🔁 다시 읽고 싶음</span>`:''}
+        ${readingTime?`<span class="detail-chip">⏱ ${readingTime.replace(/<[^>]+>/g,'')}</span>`:''}
       </div>
-      ${b.status==='읽는중'&&b.show_progress!==false&&b.current_page&&b.pages?`
-      <div style="margin-top:.5rem;">
-        <div style="height:4px;background:#e0d8cc;border-radius:2px;overflow:hidden;margin-bottom:.18rem;">
-          <div style="width:${Math.min(100,Math.round(b.current_page/b.pages*100))}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:2px;"></div>
+      ${b.status==='읽는중'&&pct?`
+      <div style="margin-top:.45rem;">
+        <div style="height:4px;background:#e0d8cc;border-radius:2px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--acc),#c8a050);border-radius:2px;"></div>
         </div>
-        <div style="font-size:.58rem;color:var(--tx3);">${b.current_page}p / ${b.pages}p (${Math.round(b.current_page/b.pages*100)}%)</div>
+        <div style="font-size:.55rem;color:var(--tx3);margin-top:.15rem;">${b.current_page}p / ${b.pages}p · ${pct}%</div>
       </div>`:''}
-      ${readingTime?`<div style="margin-top:.3rem;font-size:.6rem;color:var(--tx3);">⏱ ${readingTime.replace(/<[^>]+>/g,'')}</div>`:''}
     </div>
   </div>`;
-  html+=descHTML;
+    html+=descHTML;
   if(b.review)html+=`<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
   if(quotes.length){
     html+=`<div class="detail-divhr"></div><div class="detail-sec">인상 깊은 문장</div>`;

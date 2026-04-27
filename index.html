@@ -262,13 +262,13 @@
         <div style="margin-bottom:.5rem;overflow-x:auto;padding:.05rem;">
           <div id="stat-grid" style="display:flex;gap:.35rem;padding:.05rem;flex-wrap:wrap;"></div>
         </div>
-        <!-- 전리품 칸 - 가로 배치 -->
-        <div style="margin-bottom:.6rem;background:var(--card);border:1px dashed var(--border2);border-radius:var(--r);padding:.55rem .8rem;display:flex;align-items:center;gap:.7rem;">
-          <div style="font-size:1.3rem;opacity:.2;">🏅</div>
-          <div>
-            <div style="font-size:.65rem;font-weight:600;color:var(--tx2);opacity:.55;">전리품</div>
-            <div style="font-size:.58rem;color:var(--tx3);font-style:italic;opacity:.45;letter-spacing:.04em;">Coming Soon — 퀘스트를 완료하면 뱃지를 획득할 수 있어요</div>
+        <!-- 전리품 칸 -->
+        <div style="margin-bottom:.6rem;background:var(--card);border:1.5px dashed var(--border2);border-radius:var(--r);padding:.45rem 1rem;display:flex;flex-direction:row;align-items:center;justify-content:space-between;min-height:0;width:100%;box-sizing:border-box;">
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <span style="font-size:1rem;opacity:.25;">🏅</span>
+            <span style="font-size:.65rem;font-weight:600;color:var(--tx2);opacity:.6;">전리품</span>
           </div>
+          <span style="font-size:.58rem;color:var(--tx3);font-style:italic;opacity:.5;letter-spacing:.04em;font-family:var(--ff);">Coming Soon</span>
         </div>
 
         <!-- 그래프 -->
@@ -307,9 +307,11 @@
         </div>
 
         <!-- 평생 기록 -->
-        <div class="card" style="padding:.65rem .8rem;">
-          <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.45rem;">평생 독서 기록</div>
-          <div class="ms-grid" id="ms-grid"></div>
+        <div style="padding:.65rem .8rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
+            <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">📖 평생 독서 기록</div>
+          </div>
+          <div id="ms-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;"></div>
         </div>
 
       </div>
@@ -508,7 +510,7 @@
       <button class="modal-close" onclick="closeModal('modal-detail')" style="position:absolute;top:.7rem;right:.8rem;z-index:10;background:rgba(255,255,255,.85);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:.75rem;border:none;cursor:pointer;color:var(--tx2);">✕</button>
       <div id="detail-title" style="display:none;"></div>
     </div>
-    <div class="modal-body" id="detail-body" style="padding:.9rem 1rem;overflow-y:auto;max-height:78vh;"></div>
+    <div class="modal-body" id="detail-body" style="padding:.8rem .95rem;overflow-y:auto;max-height:76vh;"></div>
     <div class="modal-footer" style="border-top:1px solid var(--border);padding:.6rem 1rem;">
       <button class="btn-cancel btn-delete" onclick="deleteBook()" style="font-size:.72rem;">삭제</button>
       <button class="btn-save" onclick="editBook()" style="font-size:.72rem;">수정</button>
@@ -863,6 +865,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=405"></script>
+<script src="app.js?v=406"></script>
 </body>
 </html>
