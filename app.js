@@ -721,6 +721,14 @@ function renderQuotes() {
 
     // 텍스트 처리 - HTML 서식 유지
     let text = qt.text || '';
+    // div/br 태그 → 줄바꿈 변환 후 순수 텍스트 여부 판단
+    text = text
+      .replace(/<div><br\s*\/?><\/div>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/div>\s*<div>/gi, '\n')
+      .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+      .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
+      .replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').trim();
     const hasHtml = /<[a-z]/i.test(text);
     if(!hasHtml) {
       text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
@@ -829,7 +837,16 @@ function openEditQuote(qt) {
 async function saveEditQuote(id, btn) {
   const overlay = btn.closest('.modal-overlay');
   const edEl = overlay.querySelector('#eq-text');
-  const text = edEl.isContentEditable ? edEl.innerHTML.trim() : edEl.value.trim();
+  const rawHtml = edEl.isContentEditable ? edEl.innerHTML : edEl.value;
+  const text = (h => h
+    .replace(/<div><br\s*\/?><\/div>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>\s*<div>/gi, '\n')
+    .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+    .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+/, '')
+    .trim())(rawHtml);
   const tag = overlay.querySelector('#eq-tag').value.trim();
   const page = overlay.querySelector('#eq-page').value.trim();
   if(!text) { await showAlert('문장을 입력해주세요.'); return; }
@@ -1812,6 +1829,15 @@ function addQuoteField(text='',page='',comment='') {
       <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:58px;font-size:.72rem;background:#fff;border-radius:5px;text-align:center;">
     </div>`;
   list.appendChild(el);
+  // 붙여넣기 시 서식 제거 (순수 텍스트로)
+  const editorEl = el.querySelector('.qeditor-body');
+  if(editorEl) {
+    editorEl.addEventListener('paste', e => {
+      e.preventDefault();
+      const plain = (e.clipboardData||window.clipboardData).getData('text/plain');
+      document.execCommand('insertText', false, plain);
+    });
+  }
 }
 
 function qfmt(cmd) {
@@ -1836,13 +1862,19 @@ async function saveBook() {
   const qf=document.getElementById('quotes-list')?.querySelectorAll('.quote-field')||[];
   const newQuotes=[...qf].map(f=>{
     const ed = f.querySelector('[data-qtext]');
-    // contenteditable이면 innerHTML, textarea면 value
     const raw = ed.isContentEditable ? ed.innerHTML : ed.value;
-    const text = raw.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim()
-      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');
-    // HTML 포함된 rich text 저장 (서식 유지)
-    const html = ed.isContentEditable ? ed.innerHTML.trim() : '';
-    return {text: html||text, tag:f.querySelector('[data-qtag]').value.trim(), page:f.querySelector('[data-qpage]').value.trim()};
+    // HTML 서식 정리 함수
+    const cleanHtml = h => h
+      .replace(/<div><br\s*\/?><\/div>/gi, '\n')  // 빈 div+br → 줄바꿈
+      .replace(/<br\s*\/?>/gi, '\n')                // br → 줄바꿈
+      .replace(/<\/div>\s*<div>/gi, '\n')           // div 경계 → 줄바꿈
+      .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+      .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
+      .replace(/\n{3,}/g, '\n\n')                   // 3줄 이상 공백 → 2줄로
+      .replace(/^\n+/, '')                            // 앞 공백 제거
+      .trim();
+    const cleaned = ed.isContentEditable ? cleanHtml(raw) : raw.trim();
+    return {text: cleaned, tag:f.querySelector('[data-qtag]').value.trim(), page:f.querySelector('[data-qpage]').value.trim()};
   }).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
   const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null};
