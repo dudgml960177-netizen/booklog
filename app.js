@@ -765,18 +765,24 @@ function renderQuotes() {
       <div class="qcard-bar" style="background:${color}"></div>
       ${quoteSelectMode ? `<div class="qcard-select-box" style="border-color:${isSelected?'var(--acc)':'var(--border2)'};background:${isSelected?'var(--acc)':'#fff'};">${isSelected?'<span style="color:#fff;font-size:.55rem;">✓</span>':''}</div>` : ''}
       <div class="qcard-inner">
-        <div class="qcard-quote-mark" style="color:${color};">"</div>
-        <div class="qcard-text${isLong?' collapsed':''}" id="qt-${qt.id}">${text}</div>
-        ${isLong ? `<button class="qcard-expand" onclick="event.stopPropagation();toggleQText('${qt.id}',this)">더 보기 ▾</button>` : ''}
-        <div class="qcard-footer">
-          <div class="qcard-source">
-            ${book?.cover ? `<img src="${book.cover}" style="width:18px;height:26px;object-fit:cover;border-radius:2px;flex-shrink:0;box-shadow:1px 1px 3px rgba(0,0,0,.15);">` : ''}
-            <div>
-              <div class="qcard-book">${book?.title||''}</div>
-              ${book?.author ? `<div class="qcard-author">— ${book.author}</div>` : ''}
+        <!-- 문장 -->
+        <div style="display:flex;gap:.35rem;align-items:flex-start;margin-bottom:.4rem;">
+          <div class="qcard-quote-mark" style="color:${color};flex-shrink:0;">"</div>
+          <div style="flex:1;min-width:0;">
+            <div class="qcard-text${isLong?' collapsed':''}" id="qt-${qt.id}">${text}</div>
+            ${isLong ? `<button class="qcard-expand" onclick="event.stopPropagation();toggleQText('${qt.id}',this)">더 보기 ▾</button>` : ''}
+          </div>
+        </div>
+        <!-- 출처 + 칩 한 줄 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding-top:.35rem;border-top:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:.35rem;min-width:0;flex:1;">
+            ${book?.cover ? `<img src="${book.cover}" style="width:14px;height:20px;object-fit:cover;border-radius:2px;flex-shrink:0;box-shadow:1px 1px 3px rgba(0,0,0,.12);">` : ''}
+            <div style="min-width:0;">
+              <span class="qcard-book">${book?.title||''}</span>
+              ${book?.author ? `<span class="qcard-author" style="margin-left:.3rem;">— ${book.author}</span>` : ''}
             </div>
           </div>
-          <div class="qcard-chips">
+          <div style="display:flex;gap:.2rem;flex-shrink:0;">
             ${qt.page ? `<span class="qcard-chip">p.${qt.page}</span>` : ''}
             ${qt.tag ? `<span class="qcard-chip qcard-tag">${qt.tag}</span>` : ''}
           </div>
