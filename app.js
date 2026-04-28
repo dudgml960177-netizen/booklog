@@ -796,12 +796,12 @@ function openEditQuote(qt) {
   overlay.className = 'modal-overlay';
   overlay.style.display = 'flex';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 수정</div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
       </div>
-      <div style="padding:.85rem .95rem;">
+      <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
         <!-- 에디터 툴바 -->
         <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;" onmousedown="event.preventDefault()">
@@ -841,12 +841,12 @@ function openAddQuoteFromDetail(bookId) {
   overlay.className = 'modal-overlay';
   overlay.style.display = 'flex';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 추가</div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
       </div>
-      <div style="padding:.85rem .95rem;">
+      <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
         <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;" onmousedown="event.preventDefault()">
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('bold')"><b>B</b></button>
