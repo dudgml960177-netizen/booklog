@@ -888,10 +888,7 @@ async function saveNewQuoteFromDetail(bookId, btn) {
   const overlay = btn.closest('.modal-overlay');
   const edEl = overlay.querySelector('#aq-text');
   const rawHtml = edEl.innerHTML;
-  const text = rawHtml
-    .replace(/<div><br\s*\/?><\/div>/gi,'\n').replace(/<br\s*\/?>/gi,'\n')
-    .replace(/<\/div>\s*<div>/gi,'\n').replace(/<div>/gi,'\n').replace(/<\/div>/gi,'')
-    .replace(/\n{3,}/g,'\n\n').replace(/^\n+/,'').trim();
+  const text = cleanEditorHtml(rawHtml);
   if(!text) { await showAlert('문장을 입력해주세요.'); return; }
   const tag = overlay.querySelector('#aq-tag').value.trim();
   const page = overlay.querySelector('#aq-page').value.trim();
@@ -908,15 +905,7 @@ async function saveEditQuote(id, btn) {
   const overlay = btn.closest('.modal-overlay');
   const edEl = overlay.querySelector('#eq-text');
   const rawHtml = edEl.isContentEditable ? edEl.innerHTML : edEl.value;
-  const text = (h => h
-    .replace(/<div><br\s*\/?><\/div>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>\s*<div>/gi, '\n')
-    .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
-    .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\n+/, '')
-    .trim())(rawHtml);
+  const text = cleanEditorHtml(rawHtml);
   const tag = overlay.querySelector('#eq-tag').value.trim();
   const page = overlay.querySelector('#eq-page').value.trim();
   if(!text) { await showAlert('문장을 입력해주세요.'); return; }
@@ -1052,9 +1041,14 @@ async function saveTimer() {
   if(!book){alert('책을 찾을 수 없어요.');return;}
   const mins=Math.round(timerSeconds/60);
   const today=new Date().toISOString().slice(0,10);
+  const cy = new Date().getFullYear();
   try {
+    // 연도별 독서 시간 누적
+    const yearData = book.reading_time_year || {};
+    yearData[cy] = (yearData[cy]||0) + mins;
     const updateData = {
       reading_time:(book.reading_time||0)+mins,
+      reading_time_year: yearData,
       last_read:today
     };
     // 타이머에서 현재 페이지 입력값 반영
@@ -1264,14 +1258,13 @@ function buildStats() {
   const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1]||(pRating[b[0]]||0)-(pRating[a[0]]||0))[0];
   const cy = new Date().getFullYear();
   // 올해 기준 통계 - dayMap에서 올해 날짜만 합산 (정확한 날짜별 기록 기반)
-  const dayMapForStats = {};
-  allBooks.forEach(b => {
-    if(!b.last_read || !b.reading_time) return;
-    dayMapForStats[b.last_read] = (dayMapForStats[b.last_read]||0) + b.reading_time;
-  });
-  const thisYearMins = Object.entries(dayMapForStats)
-    .filter(([k]) => k.startsWith(String(cy)))
-    .reduce((a,[,v]) => a+v, 0);
+  // 올해 독서 시간: reading_time_year 컬럼 우선, 없으면 last_read 기반 추정
+  const thisYearMins = allBooks.reduce((sum, b) => {
+    if(b.reading_time_year?.[cy]) return sum + b.reading_time_year[cy];
+    // 폴백: last_read가 올해면 reading_time의 일부로 추정
+    if(b.last_read?.startsWith(String(cy)) && b.reading_time) return sum + b.reading_time;
+    return sum;
+  }, 0);
   const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
@@ -1688,7 +1681,11 @@ function buildGoalDisplay() {
   const goalYear = goals.year || cy;
   const done=allBooks.filter(b=>b.status==='완독');
   const thisYear=done.filter(b=>b.date_finish?.startsWith(String(cy)));
-  const thisYearMins=allBooks.filter(b=>b.last_read?.startsWith(String(cy))).reduce((a,b)=>a+(b.reading_time||0),0);
+  const thisYearMins=allBooks.reduce((sum,b)=>{
+    if(b.reading_time_year?.[cy]) return sum+b.reading_time_year[cy];
+    if(b.last_read?.startsWith(String(cy))&&b.reading_time) return sum+b.reading_time;
+    return sum;
+  },0);
   const thisYearPages=thisYear.reduce((a,b)=>a+(b.pages||0),0);
 
   // 연도가 바뀐 경우 안내
@@ -1939,17 +1936,7 @@ async function saveBook() {
   const newQuotes=[...qf].map(f=>{
     const ed = f.querySelector('[data-qtext]');
     const raw = ed.isContentEditable ? ed.innerHTML : ed.value;
-    // HTML 서식 정리 함수
-    const cleanHtml = h => h
-      .replace(/<div><br\s*\/?><\/div>/gi, '\n')  // 빈 div+br → 줄바꿈
-      .replace(/<br\s*\/?>/gi, '\n')                // br → 줄바꿈
-      .replace(/<\/div>\s*<div>/gi, '\n')           // div 경계 → 줄바꿈
-      .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
-      .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
-      .replace(/\n{3,}/g, '\n\n')                   // 3줄 이상 공백 → 2줄로
-      .replace(/^\n+/, '')                            // 앞 공백 제거
-      .trim();
-    const cleaned = ed.isContentEditable ? cleanHtml(raw) : raw.trim();
+    const cleaned = ed.isContentEditable ? cleanEditorHtml(raw) : raw.trim();
     return {text: cleaned, tag:f.querySelector('[data-qtag]').value.trim(), page:f.querySelector('[data-qpage]').value.trim()};
   }).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
@@ -3068,6 +3055,24 @@ async function importFromBookmori(file) {
     await showAlert('가져오기 오류: '+e.message);
     console.error('excel import error:', e);
   }
+}
+
+
+// ── HTML → 순수 텍스트 정리 (모든 에디터에서 공통 사용)
+function cleanEditorHtml(h) {
+  return String(h||'')
+    .replace(/<div><br\s*\/?><\/div>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>\s*<div>/gi, '\n')
+    .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+    .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
+    .replace(/&nbsp;/gi, ' ')          // &nbsp; → 공백
+    .replace(/&amp;/gi, '&')           // HTML 엔티티 복원
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')      // 3줄 이상 → 2줄
+    .replace(/^\n+/, '')              // 앞 공백 제거
+    .trim();
 }
 
 function formatDate(s) {

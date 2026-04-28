@@ -95,7 +95,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 /* 문장 수집 */
 .q-filter{margin-bottom:.6rem;}
 #q-feed{columns:1;gap:.55rem;}
-.qcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.65rem .8rem .6rem 1rem;position:relative;transition:box-shadow .15s,transform .1s;break-inside:avoid;margin-bottom:.5rem;}
+.qcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.65rem .8rem .6rem 1rem;position:relative;transition:box-shadow .15s,transform .1s;margin-bottom:.5rem;}
 .qcard:hover{box-shadow:0 3px 14px rgba(0,0,0,.09);transform:translateY(-1px);}
 .qcard.qcard-selected{outline:2px solid var(--acc);background:#fdf8f2;}
 .qcard-bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
@@ -443,8 +443,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .post-editor ul,.post-editor ol{padding-left:1.4rem;margin:.3rem 0;}
 
 .q-filter{margin-bottom:.55rem;}
-#q-feed{columns:1;gap:.5rem;column-gap:.55rem;}
-@media(min-width:560px){#q-feed{columns:2;}}
+#q-feed{display:flex;flex-direction:column;gap:.4rem;}
+@media(min-width:560px){#q-feed{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;align-items:start;}}
 
 /* 문장 추가 버튼 */
 /* 평생 기록 카드 */
