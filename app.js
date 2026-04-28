@@ -1914,7 +1914,23 @@ function openDetail(bookId) {
   if(b.review)html+=`<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
   if(quotes.length){
     html+=`<div class="detail-divhr"></div><div class="detail-sec">인상 깊은 문장</div>`;
-    quotes.forEach(q=>{html+=`<div class="detail-quote">${q.text}<div class="detail-qsrc">${q.page?'p.'+q.page+' ':''}${q.tag?'💬 '+q.tag:''}</div></div>`;});
+    const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
+    quotes.forEach((q,i)=>{
+      const color = QCOLORS[i % QCOLORS.length];
+      const hasHtml = /<[a-z]/i.test(q.text||'');
+      const txt = hasHtml ? q.text : (q.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem .5rem 1rem;position:relative;margin-bottom:.4rem;">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${color};"></div>
+        <div style="padding-left:.5rem;">
+          <div style="font-size:1.3rem;color:${color};opacity:.22;line-height:1;font-family:Georgia,serif;margin-top:-.1rem;">"</div>
+          <div style="font-size:.72rem;font-family:var(--fs);line-height:1.78;color:var(--tx1);">${txt}</div>
+          ${(q.page||q.tag)?`<div style="display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap;">
+            ${q.page?`<span style="font-size:.57rem;color:var(--tx3);background:#f0ebe0;padding:.1rem .45rem;border-radius:8px;">p.${q.page}</span>`:''}
+            ${q.tag?`<span style="font-size:.57rem;color:var(--acc2);background:#f5f0e8;padding:.1rem .45rem;border-radius:8px;">${q.tag}</span>`:''}
+          </div>`:''}
+        </div>
+      </div>`;
+    });
   }
   // 읽는중 책: 페이지 진행 업데이트 섹션
   if(b.status === '읽는중') {
