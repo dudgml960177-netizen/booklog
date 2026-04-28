@@ -2667,6 +2667,21 @@ function formatDate(s) {
   return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null;
 }
 
+function parseCSVLine(line) {
+  const result = []; let cur = ''; let inQuote = false;
+  for(let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if(c === '"') {
+      if(inQuote && line[i+1] === '"') { cur += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if(c === ',' && !inQuote) {
+      result.push(cur); cur = '';
+    } else cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
 
 // ── 표지 없는 책 일괄 검색
 async function bulkFetchCovers() {
