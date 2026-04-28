@@ -3041,7 +3041,7 @@ async function importFromBookmori(file) {
     // 신규 + 업데이트 책 모두 포함
     const allImportedIds = Object.fromEntries([
       ...insertedIds.map(b=>[b.title, b.id]),
-      ...toUpdate.map(b=>[b.title, existingTitleMap[b.title]]).filter(([,id])=>id)
+      ...toUpdate.map(b=>[b.title, getBmExistingId(b.title)]).filter(([,id])=>id)
     ]);
     // 북모리 노트 시트: "노트 (책제목)" 형식
     for(const sheetName of wb.SheetNames.slice(1)) {
