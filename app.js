@@ -14,6 +14,48 @@ window.onerror = (msg, src, line) => {
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
+const NAVER_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
+
+// 표지 검색 - 제목+작가+출판사 기반 정확도 높은 매칭
+async function fetchBookCover(title, author='', publisher='') {
+  const clean = s => String(s||'').replace(/<[^>]+>/g,'').trim();
+  const normalize = s => clean(s).replace(/\s+/g,' ').toLowerCase();
+  try {
+    // 1차: 제목+작가 쿼리
+    const q1 = author ? `${title} ${author.split(',')[0].trim()}` : title;
+    const res = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q1)}`, {
+      headers: { 'Authorization': `Bearer ${NAVER_KEY}` }
+    });
+    if(!res.ok) return null;
+    const data = await res.json();
+    const items = data.items || [];
+    if(!items.length) return null;
+
+    // 정확도 점수 계산
+    const score = item => {
+      let s = 0;
+      const iTitle = normalize(item.title);
+      const iAuthor = normalize(item.author);
+      const iPublisher = normalize(item.publisher);
+      const tTitle = normalize(title);
+      const tAuthor = normalize(author);
+      const tPub = normalize(publisher);
+      // 제목 일치 (가장 중요)
+      if(iTitle === tTitle) s += 100;
+      else if(iTitle.includes(tTitle) || tTitle.includes(iTitle)) s += 60;
+      else if(tTitle.split(' ').some(w => w.length > 1 && iTitle.includes(w))) s += 30;
+      // 작가 일치
+      if(tAuthor && iAuthor.includes(tAuthor.split(',')[0].toLowerCase().replace(/\s/g,''))) s += 40;
+      // 출판사 일치
+      if(tPub && iPublisher.includes(tPub.toLowerCase().replace(/\s/g,''))) s += 20;
+      return s;
+    };
+
+    const best = items.reduce((a,b) => score(a) >= score(b) ? a : b);
+    if(score(best) < 20) return null; // 너무 낮으면 포기
+    return best.image || null;
+  } catch(e) { return null; }
+}
 const { createClient } = supabase;
 // Supabase 클라이언트 - 항상 새로 생성 (오염된 인스턴스 재사용 방지)
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -2419,15 +2461,9 @@ async function importFromBookit(file) {
         const book = insertedIds[i];
         if(prog) prog.textContent = `표지 검색 ${i+1}/${insertedIds.length}...`;
         try {
-          const res = await fetch(
-            `https://xowlwzpoxrudgaoavkbr.supabase.co/functions/v1/naver-book?query=${encodeURIComponent(book.title)}`,
-            { headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ` }
-          });
-          if(res.ok) {
-            const data = await res.json();
-            const item = data.items?.[0];
-            if(item?.image) await sb.from('books').update({cover: item.image}).eq('id', book.id);
-          }
+          const bk2 = toInsert.find(b=>b.title===book.title)||toUpdate.find(b=>b.title===book.title);
+          const cover2 = await fetchBookCover(book.title, bk2?.author, bk2?.publisher);
+          if(cover2) await sb.from('books').update({cover: cover2}).eq('id', book.id);
         } catch(e) {}
         await new Promise(r => setTimeout(r, 150));
       }
@@ -2617,28 +2653,19 @@ async function importFromBookmori(file) {
       if(!error) insertedIds.push({id: bookId, title: book.title});
     }
 
-    // 표지 자동 검색 (네이버 책 API via Edge Function)
+    // 표지 자동 검색
     if(insertedIds.length > 0) {
       const updatePromises = insertedIds.map(async (book) => {
         try {
-          const res = await fetch(`https://xowlwzpoxrudgaoavkbr.supabase.co/functions/v1/naver-book?query=${encodeURIComponent(book.title)}`, {
-            headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ` }
-          });
-          if(res.ok) {
-            const data = await res.json();
-            const item = data.items?.[0];
-            if(item?.image) {
-              await sb.from('books').update({
-                cover: item.image,
-                description: item.description||''
-              }).eq('id', book.id);
-            }
-          }
+          const bk = newBooks.find(b=>b.title===book.title)||toUpdate.find(b=>b.title===book.title);
+          const cover = await fetchBookCover(book.title, bk?.author, bk?.publisher);
+          if(cover) await sb.from('books').update({cover}).eq('id', book.id);
         } catch(e) { /* 표지 검색 실패는 무시 */ }
       });
-      // 10개씩 병렬 처리
-      for(let i=0; i<updatePromises.length; i+=10) {
-        await Promise.all(updatePromises.slice(i,i+10));
+      // 5개씩 처리 (API 부하 방지)
+      for(let i=0; i<updatePromises.length; i+=5) {
+        await Promise.all(updatePromises.slice(i,i+5));
+        await new Promise(r=>setTimeout(r,200));
       }
     }
 
@@ -2715,27 +2742,13 @@ async function bulkFetchCovers() {
     const book = noCoverBooks[i];
     if(progressEl) progressEl.textContent = `검색 중... ${i+1}/${noCoverBooks.length} (성공 ${success}개)`;
     try {
-      const res = await fetch(
-        `https://xowlwzpoxrudgaoavkbr.supabase.co/functions/v1/naver-book?query=${encodeURIComponent(book.title)}`,
-        { headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ` }
-      });
-      if(res.ok) {
-        const data = await res.json();
-        const item = data.items?.find(it =>
-          it.title?.replace(/<[^>]+>/g,'').includes(book.title.slice(0,6)) ||
-          book.title.includes(it.title?.replace(/<[^>]+>/g,'').slice(0,6))
-        ) || data.items?.[0];
-        if(item?.image) {
-          await sb.from('books').update({
-            cover: item.image,
-            description: item.description ? item.description.replace(/<[^>]+>/g,'') : (book.description||'')
-          }).eq('id', book.id);
-          success++;
-        } else fail++;
+      const cover = await fetchBookCover(book.title, book.author, book.publisher);
+      if(cover) {
+        await sb.from('books').update({cover}).eq('id', book.id);
+        success++;
       } else fail++;
     } catch(e) { fail++; }
-    // API 부하 방지
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 200));
   }
 
   await loadData();
