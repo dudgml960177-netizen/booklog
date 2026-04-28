@@ -477,10 +477,7 @@
           </select>
         </div>
       </div>
-      <!-- 백업 버튼 -->
-      <div style="margin-bottom:.7rem;">
-        <button class="btn-cancel" style="width:100%;font-size:.75rem;" onclick="openModal('modal-backup')">💾 데이터 백업/복원</button>
-      </div>
+
       <!-- 폰트 크기 설정 -->
       <div style="margin-bottom:.75rem;padding:.6rem .8rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
@@ -802,15 +799,38 @@
         <input type="file" id="restore-file" accept=".json" style="display:none;" onchange="restoreBackup(this.files[0])">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('restore-file').click()">복원 파일 선택</button>
       </div>
-      <!-- 엑셀 가져오기 -->
-      <div style="padding:.7rem .9rem;background:#f0f4ff;border:1px solid #c8d4f0;border-radius:var(--rs);">
-        <div style="font-size:.75rem;font-weight:600;color:#3a5a9a;margin-bottom:.3rem;">📊 엑셀에서 가져오기</div>
-        <div style="font-size:.7rem;color:#5a7a9a;margin-bottom:.5rem;line-height:1.6;">
-          북모리 앱 → 설정 → 백업 → <b>엑셀 내보내기</b> 후 파일을 업로드해주세요.<br>
-          <span style="opacity:.7;">제목·작가·출판사·상태·평점·날짜·페이지·감상 자동 인식</span>
+      <!-- 북적북적 CSV 가져오기 -->
+      <div style="padding:.7rem .9rem;background:#fff8f0;border:1px solid #f0d4b0;border-radius:var(--rs);margin-bottom:.6rem;">
+        <div style="font-size:.75rem;font-weight:600;color:#8a5a1a;margin-bottom:.3rem;">📚 북적북적에서 가져오기</div>
+        <div style="font-size:.7rem;color:#9a7a3a;margin-bottom:.3rem;line-height:1.6;">
+          북적북적 앱 → 설정 → 데이터 내보내기 → <b>CSV</b> 선택 후 파일을 업로드해주세요.
         </div>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:#8a5a1a;margin-bottom:.5rem;cursor:pointer;">
+          <input type="checkbox" id="bookit-upsert-mode" checked style="accent-color:#8a5a1a;">
+          <span>이미 있는 책은 덮어쓰기</span>
+        </label>
+        <input type="file" id="bookit-file" accept=".csv" style="display:none;" onchange="importFromBookit(this.files[0])">
+        <button style="width:100%;background:#8a5a1a;color:#fff;border:none;border-radius:var(--rs);padding:.4rem;font-size:.75rem;cursor:pointer;font-family:var(--ff);" onclick="document.getElementById('bookit-file').click()">북적북적 CSV 파일 선택</button>
+      </div>
+      <!-- 엑셀 가져오기 -->
+      <div style="padding:.7rem .9rem;background:#f0f4ff;border:1px solid #c8d4f0;border-radius:var(--rs);margin-bottom:.6rem;">
+        <div style="font-size:.75rem;font-weight:600;color:#3a5a9a;margin-bottom:.3rem;">📊 엑셀에서 가져오기</div>
+        <div style="font-size:.7rem;color:#5a7a9a;margin-bottom:.3rem;line-height:1.6;">
+          북모리 앱 → 설정 → 백업 → <b>엑셀 내보내기</b> 후 파일을 업로드해주세요.
+        </div>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:#3a5a9a;margin-bottom:.5rem;cursor:pointer;">
+          <input type="checkbox" id="excel-upsert-mode" checked style="accent-color:#3a5a9a;">
+          <span>이미 있는 책은 덮어쓰기 (재적용 모드)</span>
+        </label>
         <input type="file" id="bookmori-file" accept=".xlsx,.xls" style="display:none;" onchange="importFromBookmori(this.files[0])">
         <button style="width:100%;background:#3a5a9a;color:#fff;border:none;border-radius:var(--rs);padding:.4rem;font-size:.75rem;cursor:pointer;font-family:var(--ff);" onclick="document.getElementById('bookmori-file').click()">엑셀 파일 선택 (.xlsx)</button>
+      </div>
+      <!-- 표지 일괄 검색 -->
+      <div style="padding:.7rem .9rem;background:#f0fff4;border:1px solid #a8d8b0;border-radius:var(--rs);">
+        <div style="font-size:.75rem;font-weight:600;color:#2e7d32;margin-bottom:.3rem;">🖼️ 표지 없는 책 자동 검색</div>
+        <div style="font-size:.7rem;color:#4a8a4a;margin-bottom:.5rem;">표지가 없는 책들을 네이버에서 자동으로 찾아 채워요.</div>
+        <div id="cover-search-progress" style="display:none;font-size:.7rem;color:#2e7d32;margin-bottom:.4rem;"></div>
+        <button style="width:100%;background:#2e7d32;color:#fff;border:none;border-radius:var(--rs);padding:.4rem;font-size:.75rem;cursor:pointer;font-family:var(--ff);" onclick="bulkFetchCovers()">표지 자동 채우기</button>
       </div>
     </div>
   </div>
@@ -876,6 +896,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=413"></script>
+<script src="app.js?v=416"></script>
 </body>
 </html>

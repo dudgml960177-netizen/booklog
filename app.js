@@ -977,16 +977,23 @@ function buildStats() {
   });
   const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1]||(aRating[b[0]]||0)-(aRating[a[0]]||0))[0];
   const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1]||(pRating[b[0]]||0)-(pRating[a[0]]||0))[0];
+  const cy = new Date().getFullYear();
+  // 올해 기준 통계
+  const thisYearBooks = allBooks.filter(b => b.date_finish?.startsWith(String(cy)) || b.last_read?.startsWith(String(cy)));
+  const thisYearMins = thisYearBooks.reduce((a,b)=>a+(b.reading_time||0),0);
+  const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
+  // 올해 등록된 문장
+  const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
   const items=[
     {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체', ic:'📖'},
     {n:avg,   l:'평균 평점', sub:avg+' / 5.0', ic:'⭐'},
-    {n:Math.floor(totalMins/60)+'h', l:'총 독서 시간', sub:totalMins+'분', ic:'⏱'},
-    {n:thisYear.length, l:'올해 완독', sub:new Date().getFullYear()+'년', ic:'🌿'},
+    {n:Math.floor(thisYearMins/60)+'h', l:'올해 독서 시간', sub:thisYearMins+'분', ic:'⏱'},
+    {n:thisYear.length, l:'올해 완독', sub:cy+'년', ic:'🌿'},
     {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권', ic:'📌'},
-    {n:allQuotes.length, l:'수집 문장', sub:'인상 깊은 구절', ic:'✍️'},
+    {n:thisYearQuotes.length, l:'올해 문장', sub:'인상 깊은 구절', ic:'✍️'},
     {n:topA?topA[0]:'—', l:'최애 작가', sub:topA?topA[1]+'권':'', ic:'👑'},
     {n:topP?topP[0]:'—', l:'최애 출판사', sub:topP?topP[1]+'권':'', ic:'📚'},
-    {n:totalPages>0?totalPages.toLocaleString()+'p':'—', l:'누적 페이지', sub:'완독 기준', ic:'📄'},
+    {n:thisYearPages>0?thisYearPages.toLocaleString()+'p':'—', l:'올해 페이지', sub:'완독 기준', ic:'📄'},
   ];
   items.forEach(it=>{
     const el=document.createElement('div');
@@ -1379,6 +1386,12 @@ async function saveGoal() {
 }
 function buildGoalDisplay() {
   const wrap=document.getElementById('goal-display'); if(!wrap) return;
+  // goals가 비어있으면 DB에서 다시 로드
+  if(!goals.books && !goals.minutes && !goals.pages) {
+    loadGoals().then(()=>{
+      if(goals.books||goals.minutes||goals.pages) buildGoalDisplay();
+    });
+  }
   const done=allBooks.filter(b=>b.status==='완독');
   const thisYear=done.filter(b=>b.date_finish?.startsWith(String(new Date().getFullYear())));
   const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
@@ -2297,6 +2310,120 @@ async function sendMsgToSelected() {
 
 
 
+
+// ══════════════════════════════════════
+// 북적북적 CSV 가져오기
+// ══════════════════════════════════════
+async function importFromBookit(file) {
+  if(!file) return;
+  try {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if(lines.length < 2) { await showAlert('파일이 비어있어요.'); return; }
+
+    // CSV 헤더 파싱
+    const headers = parseCSVLine(lines[0]).map(h => h.trim());
+    const getIdx = (...keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
+
+    const C = {
+      title:   getIdx('제목','title'),
+      author:  getIdx('저자','author'),
+      publisher: getIdx('출판사','publisher'),
+      status:  getIdx('독서상태','상태','status'),
+      start:   getIdx('시작일','start'),
+      finish:  getIdx('읽은 날짜','완료','finish','읽은날'),
+      stop:    getIdx('중단일','중단'),
+    };
+
+    const statusConv = s => {
+      const v = String(s||'').trim();
+      if(/읽은|완독|read/i.test(v)) return '완독';
+      if(/읽는\s*중|reading/i.test(v)) return '읽는중';
+      if(/중단/i.test(v)) return '중단';
+      if(/읽고\s*싶|want/i.test(v)) return '읽고싶음';
+      return '읽고싶음';
+    };
+
+    const rows = lines.slice(1).map(l => parseCSVLine(l));
+    const books = rows.filter(r => r.length > 1 && C.title >= 0 && r[C.title]?.trim()).map(r => {
+      const status = statusConv(C.status >= 0 ? r[C.status] : '');
+      // 중단일이 있으면 중단으로 오버라이드
+      const stopDate = C.stop >= 0 ? r[C.stop]?.trim() : '';
+      return {
+        title:      r[C.title]?.trim() || '',
+        author:     C.author >= 0 ? r[C.author]?.trim() : '',
+        publisher:  C.publisher >= 0 ? r[C.publisher]?.trim() : '',
+        status:     stopDate ? '중단' : status,
+        date_start: C.start >= 0 ? formatDate(r[C.start]) : null,
+        date_finish:status === '완독' && C.finish >= 0 ? formatDate(r[C.finish]) : null,
+        user_id:    currentUser.id,
+        created_at: new Date().toISOString(),
+      };
+    }).filter(b => b.title);
+
+    if(!books.length) { await showAlert('가져올 책이 없어요.'); return; }
+
+    const upsertMode = document.getElementById('bookit-upsert-mode')?.checked;
+    const existingTitleMap = Object.fromEntries(allBooks.map(b=>[b.title.trim(), b.id]));
+    const toInsert = books.filter(b => !existingTitleMap[b.title]);
+    const toUpdate = upsertMode ? books.filter(b => existingTitleMap[b.title]) : [];
+
+    if(!toInsert.length && !toUpdate.length) { await showAlert('모든 책이 이미 서재에 있어요!'); return; }
+
+    const confirmed = await showConfirm(`북적북적에서 ${books.length}권을 가져올까요?\n신규 ${toInsert.length}권${toUpdate.length>0?' / 업데이트 '+toUpdate.length+'권':''}`);
+    if(!confirmed) return;
+
+    // 신규 삽입
+    let insertedIds = [];
+    for(let i=0; i<toInsert.length; i+=50) {
+      const { data: inserted, error } = await sb.from('books').insert(toInsert.slice(i,i+50)).select('id,title');
+      if(error) throw error;
+      if(inserted) insertedIds.push(...inserted);
+    }
+
+    // 업데이트
+    for(const book of toUpdate) {
+      const bookId = existingTitleMap[book.title];
+      await sb.from('books').update({
+        status: book.status,
+        date_start: book.date_start||undefined,
+        date_finish: book.date_finish||undefined,
+      }).eq('id', bookId);
+      insertedIds.push({id: bookId, title: book.title});
+    }
+
+    // 표지 자동 검색
+    if(insertedIds.length > 0) {
+      const prog = document.getElementById('cover-search-progress');
+      if(prog) prog.style.display = '';
+      for(let i=0; i<insertedIds.length; i++) {
+        const book = insertedIds[i];
+        if(prog) prog.textContent = `표지 검색 ${i+1}/${insertedIds.length}...`;
+        try {
+          const res = await fetch(
+            `https://xowlwzpoxrudgaoavkbr.supabase.co/functions/v1/naver-book?query=${encodeURIComponent(book.title)}`,
+            { headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ` }
+          });
+          if(res.ok) {
+            const data = await res.json();
+            const item = data.items?.[0];
+            if(item?.image) await sb.from('books').update({cover: item.image}).eq('id', book.id);
+          }
+        } catch(e) {}
+        await new Promise(r => setTimeout(r, 150));
+      }
+      if(prog) prog.style.display = 'none';
+    }
+
+    await loadData(); buildBooks();
+    closeModal('modal-backup');
+    await showAlert(`✅ 완료!\n신규: ${toInsert.length}권${toUpdate.length>0?' / 업데이트: '+toUpdate.length+'권':''}`);
+  } catch(e) {
+    await showAlert('가져오기 오류: '+e.message);
+    console.error('bookit import error:', e);
+  }
+}
+
 // ══════════════════════════════════════
 // 엑셀 가져오기 (북모리 등)
 // ══════════════════════════════════════
@@ -2435,18 +2562,40 @@ async function importFromBookmori(file) {
     const confirmed = await showConfirm(`${books.length}권을 가져올까요?\n(제목 기준 중복 제외 후 추가)`);
     if(!confirmed) return;
 
-    const existingTitles = new Set(allBooks.map(b=>b.title.trim()));
-    const newBooks = books.filter(b=>!existingTitles.has(b.title));
-    const dup = books.length - newBooks.length;
+    const upsertMode = document.getElementById('excel-upsert-mode')?.checked;
+    const existingBooks = allBooks;
+    const existingTitleMap = Object.fromEntries(existingBooks.map(b=>[b.title.trim(), b.id]));
 
-    if(!newBooks.length) { await showAlert('모든 책이 이미 서재에 있어요!'); return; }
+    const toInsert = books.filter(b => !existingTitleMap[b.title]);
+    const toUpdate = upsertMode ? books.filter(b => existingTitleMap[b.title]) : [];
+    const dup = books.length - toInsert.length;
 
-    // 책 업로드
+    if(!toInsert.length && !toUpdate.length) {
+      await showAlert('가져올 책이 없어요.'); return;
+    }
+
+    // 신규 책 업로드
     let insertedIds = [];
-    for(let i=0; i<newBooks.length; i+=50) {
-      const { data: inserted, error } = await sb.from('books').insert(newBooks.slice(i,i+50)).select('id,title,isbn');
+    for(let i=0; i<toInsert.length; i+=50) {
+      const { data: inserted, error } = await sb.from('books').insert(toInsert.slice(i,i+50)).select('id,title');
       if(error) throw error;
       if(inserted) insertedIds.push(...inserted);
+    }
+
+    // 기존 책 업데이트 (덮어쓰기 모드)
+    for(const book of toUpdate) {
+      const bookId = existingTitleMap[book.title];
+      const { error } = await sb.from('books').update({
+        author: book.author||undefined,
+        publisher: book.publisher||undefined,
+        status: book.status,
+        rating: book.rating,
+        date_start: book.date_start||undefined,
+        date_finish: book.date_finish||undefined,
+        pages: book.pages||undefined,
+        review: book.review||undefined,
+      }).eq('id', bookId);
+      if(!error) insertedIds.push({id: bookId, title: book.title});
     }
 
     // 표지 자동 검색 (네이버 책 API via Edge Function)
@@ -2503,7 +2652,7 @@ async function importFromBookmori(file) {
 
     await loadData(); buildBooks();
     closeModal('modal-backup');
-    await showAlert(`✅ ${newBooks.length}권을 가져왔어요!${dup>0?`\n(중복 ${dup}권 제외)`:''}\n표지 자동 검색 완료\n${quoteCount>0?`문장 ${quoteCount}개 가져옴`:''}`);
+    await showAlert(`✅ 완료!\n신규: ${toInsert.length}권${toUpdate.length>0?` / 업데이트: ${toUpdate.length}권`:''}\n표지 자동 검색 완료\n${quoteCount>0?`문장 ${quoteCount}개 가져옴`:''}`);
   } catch(e) {
     await showAlert('가져오기 오류: '+e.message);
     console.error('excel import error:', e);
@@ -2516,6 +2665,49 @@ function formatDate(s) {
   const v = String(s).trim().replace(/[./]/g,'-');
   const m = v.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
   return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : null;
+}
+
+
+// ── 표지 없는 책 일괄 검색
+async function bulkFetchCovers() {
+  const noCoverBooks = allBooks.filter(b => !b.cover || b.cover.trim() === '');
+  if(!noCoverBooks.length) { await showAlert('모든 책에 표지가 있어요! 🎉'); return; }
+
+  const progressEl = document.getElementById('cover-search-progress');
+  if(progressEl) progressEl.style.display = '';
+
+  let success = 0, fail = 0;
+  for(let i = 0; i < noCoverBooks.length; i++) {
+    const book = noCoverBooks[i];
+    if(progressEl) progressEl.textContent = `검색 중... ${i+1}/${noCoverBooks.length} (성공 ${success}개)`;
+    try {
+      const res = await fetch(
+        `https://xowlwzpoxrudgaoavkbr.supabase.co/functions/v1/naver-book?query=${encodeURIComponent(book.title)}`,
+        { headers: { 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ` }
+      });
+      if(res.ok) {
+        const data = await res.json();
+        const item = data.items?.find(it =>
+          it.title?.replace(/<[^>]+>/g,'').includes(book.title.slice(0,6)) ||
+          book.title.includes(it.title?.replace(/<[^>]+>/g,'').slice(0,6))
+        ) || data.items?.[0];
+        if(item?.image) {
+          await sb.from('books').update({
+            cover: item.image,
+            description: item.description ? item.description.replace(/<[^>]+>/g,'') : (book.description||'')
+          }).eq('id', book.id);
+          success++;
+        } else fail++;
+      } else fail++;
+    } catch(e) { fail++; }
+    // API 부하 방지
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  await loadData();
+  buildBooks();
+  if(progressEl) progressEl.style.display = 'none';
+  await showAlert(`✅ 표지 검색 완료!\n성공: ${success}권 / 실패: ${fail}권`);
 }
 
 // ══════════════════════════════════════
@@ -2757,6 +2949,7 @@ async function openLibrary(userId, userName) {
   if(!header || !body) return;
 
   const totalDone = _libBooks.filter(b=>b.status==='완독').length;
+  const totalDoneLib = _libBooks.filter(b=>b.status==='완독').length;
   const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
   const cats = canSeeCat ? (targetProfile.categories||[]) : [];
 
@@ -2788,7 +2981,7 @@ async function openLibrary(userId, userName) {
       <!-- 통계 칩 -->
       <div style="display:flex;gap:.5rem;">
         <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
-          <div style="font-size:.95rem;font-weight:700;color:#fff;">${totalDone}</div>
+          <div style="font-size:.95rem;font-weight:700;color:#fff;">${totalDoneLib}</div>
           <div style="font-size:.58rem;color:rgba(255,255,255,.7);">완독</div>
         </div>
         <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
@@ -2869,10 +3062,11 @@ function renderLibCal() {
   const firstDay = new Date(y,m,1).getDay();
   // 전체 통계
   const totalDone = _libBooks.filter(b=>b.status==='완독').length;
+  const totalDoneLib = _libBooks.filter(b=>b.status==='완독').length;
   const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
   // 이번달 완독 맵
   const finishMap = {};
-  _libBooks.filter(b=>b.date_finish?.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
+  _libBooks.filter(b=>b.status==='완독' && b.date_finish?.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
     .forEach(b=>{ const d=parseInt(b.date_finish.slice(8,10)); finishMap[d]=(finishMap[d]||0)+1; });
   const thisMonthDone = Object.values(finishMap).reduce((a,b)=>a+b,0);
   wrap.innerHTML = `
