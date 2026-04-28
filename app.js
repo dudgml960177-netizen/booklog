@@ -2630,7 +2630,7 @@ async function importFromBookit(file) {
         author:     C.author >= 0 ? r[C.author]?.trim() : '',
         publisher:  C.publisher >= 0 ? r[C.publisher]?.trim() : '',
         status:     stopDate ? '중단' : status,
-        rating:     C.rating >= 0 ? (parseFloat(String(r[C.rating]||'').replace(/[^0-9.]/g,''))||null) : null,
+        rating:     C.rating >= 0 ? (v=>{const n=parseFloat(String(v||'').replace(/[^0-9.]/g,''));return n&&n>=0&&n<=5?Math.round(n*2)/2:null;})(r[C.rating]) : null,
         date_start: C.start >= 0 ? formatDate(r[C.start]) : null,
         date_finish:status === '완독' && C.finish >= 0 ? formatDate(r[C.finish]) : null,
         user_id:    currentUser.id,
@@ -2814,7 +2814,7 @@ async function importFromBookmori(file) {
         author:     String(getVal(r,CI.author)||'').trim(),
         publisher:  String(getVal(r,CI.publisher)||'').trim(),
         status:     statusConv(getVal(r,CI.status), r),
-        rating:     CI.rating>=0?(parseFloat(String(getVal(r,CI.rating)||'').replace(/[^0-9.]/g,''))||null):null,
+        rating:     CI.rating>=0?(v=>{const n=parseFloat(String(v||'').replace(/[^0-9.]/g,''));return n&&n>=0&&n<=5?Math.round(n*2)/2:null;})(getVal(r,CI.rating)):null,
         date_start: dateStart,
         date_finish:dateFinish,
         pages:      CI.pages>=0?(parseInt(String(getVal(r,CI.pages)||'').replace(/[^0-9]/g,''))||null):null,
@@ -2856,11 +2856,12 @@ async function importFromBookmori(file) {
     // 기존 책 업데이트 (덮어쓰기 모드)
     for(const book of toUpdate) {
       const bookId = existingTitleMap[book.title];
+      const safeRating = book.rating!=null ? (v=>{const n=parseFloat(v);return n>=0&&n<=5?Math.round(n*2)/2:null;})(book.rating) : null;
       const { error } = await sb.from('books').update({
         author: book.author||undefined,
         publisher: book.publisher||undefined,
         status: book.status,
-        rating: book.rating,
+        rating: safeRating,
         date_start: book.date_start||undefined,
         date_finish: book.date_finish||undefined,
         pages: book.pages||undefined,
