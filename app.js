@@ -719,13 +719,20 @@ function renderQuotes() {
     const color = randomQuoteColor(qt.book_id);
     const isSelected = selectedQuoteIds.has(qt.id);
 
-    // 텍스트 처리
-    let text = qt.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // 텍스트 처리 - HTML 서식 유지
+    let text = qt.text || '';
+    const hasHtml = /<[a-z]/i.test(text);
+    if(!hasHtml) {
+      text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    }
     if(q) {
       const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-      text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
+      text = hasHtml
+        ? text.replace(/>([^<]*)</g, (_,t) => '>'+t.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>')+'<')
+        : text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
     }
-    const isLong = qt.text.length > 150;
+    const plainLen = (qt.text||'').replace(/<[^>]+>/g,'').length;
+    const isLong = plainLen > 150;
 
     const el = document.createElement('div');
     el.className = 'qcard' + (quoteSelectMode && isSelected ? ' qcard-selected' : '');
@@ -786,7 +793,22 @@ function openEditQuote(qt) {
       </div>
       <div style="padding:.85rem .95rem;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
-        <textarea id="eq-text" rows="5" class="form-input" style="font-size:.8rem;font-family:var(--fs);resize:vertical;white-space:pre-wrap;margin-bottom:.45rem;">${qt.text}</textarea>
+        <!-- 에디터 툴바 -->
+        <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;">
+          <button type="button" onclick="qfmt('bold')"><b>B</b></button>
+          <button type="button" onclick="qfmt('italic')"><i>I</i></button>
+          <button type="button" onclick="qfmt('underline')"><u>U</u></button>
+          <span class="qeditor-sep"></span>
+          <button type="button" onclick="qfmtSize('small')">A<sub>↓</sub></button>
+          <button type="button" onclick="qfmtSize('large')">A<sup>↑</sup></button>
+          <span class="qeditor-sep"></span>
+          <button type="button" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
+          <button type="button" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
+          <button type="button" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
+          <button type="button" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+        </div>
+        <div id="eq-text" class="qeditor-body" contenteditable="true" data-qtext
+          style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${qt.text}</div>
         <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
           <input id="eq-tag" type="text" class="form-input" placeholder="💬 코멘트" value="${qt.tag||''}" style="flex:1;font-size:.75rem;">
           <input id="eq-page" type="text" class="form-input" placeholder="p.42" value="${qt.page||''}" style="width:60px;font-size:.75rem;text-align:center;">
@@ -806,7 +828,8 @@ function openEditQuote(qt) {
 
 async function saveEditQuote(id, btn) {
   const overlay = btn.closest('.modal-overlay');
-  const text = overlay.querySelector('#eq-text').value.trim();
+  const edEl = overlay.querySelector('#eq-text');
+  const text = edEl.isContentEditable ? edEl.innerHTML.trim() : edEl.value.trim();
   const tag = overlay.querySelector('#eq-tag').value.trim();
   const page = overlay.querySelector('#eq-page').value.trim();
   if(!text) { await showAlert('문장을 입력해주세요.'); return; }
@@ -1762,15 +1785,47 @@ function addQuoteField(text='',page='',comment='') {
   const el=document.createElement('div');
   el.className='quote-field';
   el.style.cssText='background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;margin-bottom:.4rem;position:relative;';
+  const qid = 'qe-'+Date.now()+Math.random().toString(36).slice(2,6);
   el.innerHTML=`
-    <button onclick="this.parentElement.remove()" style="position:absolute;top:.4rem;right:.5rem;background:none;border:none;font-size:.75rem;color:var(--tx3);cursor:pointer;line-height:1;">✕</button>
-    <div style="font-size:.58rem;color:var(--acc);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">✍️ 문장</div>
-    <textarea class="form-input" placeholder="인상 깊은 문장이나 문단을 입력해주세요.&#10;(줄바꿈, 여러 문단 모두 가능)" rows="5" data-qtext style="font-size:.78rem;font-family:var(--fs);background:#fff;border-radius:5px;margin-bottom:.35rem;resize:vertical;white-space:pre-wrap;min-height:80px;">${text}</textarea>
-    <div style="display:flex;gap:.35rem;">
-      <input type="text" class="form-input" placeholder="💬 코멘트 (느낀 점, 메모...)" data-qtag value="${comment}" style="flex:1;font-size:.73rem;background:#fff;border-radius:5px;">
-      <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:60px;font-size:.73rem;background:#fff;border-radius:5px;text-align:center;">
+    <button onclick="this.parentElement.remove()" style="position:absolute;top:.45rem;right:.5rem;background:none;border:none;font-size:.75rem;color:var(--tx3);cursor:pointer;line-height:1;z-index:2;">✕</button>
+    <!-- 에디터 툴바 -->
+    <div class="qeditor-toolbar" data-for="${qid}">
+      <button type="button" title="굵게" onclick="qfmt('bold')"><b>B</b></button>
+      <button type="button" title="기울임" onclick="qfmt('italic')"><i>I</i></button>
+      <button type="button" title="밑줄" onclick="qfmt('underline')"><u>U</u></button>
+      <span class="qeditor-sep"></span>
+      <button type="button" title="작게" onclick="qfmtSize('small')">A<sub>↓</sub></button>
+      <button type="button" title="크게" onclick="qfmtSize('large')">A<sup>↑</sup></button>
+      <span class="qeditor-sep"></span>
+      <button type="button" title="형광펜 (노랑)" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
+      <button type="button" title="형광펜 (민트)" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
+      <button type="button" title="형광펜 (살구)" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
+      <button type="button" title="형광펜 해제" onclick="qfmtHL('transparent')" style="font-size:.55rem;color:var(--tx3);padding:0 4px;">✕HL</button>
+      <span class="qeditor-sep"></span>
+      <button type="button" title="서식 초기화" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+    </div>
+    <!-- contenteditable 에디터 -->
+    <div id="${qid}" class="qeditor-body" contenteditable="true" data-qtext
+      data-placeholder="인상 깊은 문장이나 문단을 입력해주세요...">${text ? text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') : ''}</div>
+    <div style="display:flex;gap:.35rem;margin-top:.4rem;">
+      <input type="text" class="form-input" placeholder="💬 코멘트" data-qtag value="${comment}" style="flex:1;font-size:.72rem;background:#fff;border-radius:5px;">
+      <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:58px;font-size:.72rem;background:#fff;border-radius:5px;text-align:center;">
     </div>`;
   list.appendChild(el);
+}
+
+function qfmt(cmd) {
+  document.execCommand(cmd, false, null);
+}
+function qfmtSize(size) {
+  const sel = window.getSelection();
+  if(!sel.rangeCount) return;
+  const tag = size==='large' ? 'big' : 'small';
+  document.execCommand('insertHTML', false, `<${tag}>${sel.toString()}</${tag}>`);
+}
+function qfmtHL(color) {
+  if(color==='transparent') { document.execCommand('removeFormat', false, null); return; }
+  document.execCommand('hiliteColor', false, color);
 }
 async function saveBook() {
   if(!selectedBook&&!editingBookId){alert('책을 검색해서 선택해주세요.');return;}
@@ -1779,7 +1834,16 @@ async function saveBook() {
   const reread=document.getElementById('book-reread').checked,pages=parseInt(document.getElementById('book-pages').value)||null;
   const source=document.getElementById('book-source').value,category=document.getElementById('book-category').value;
   const qf=document.getElementById('quotes-list')?.querySelectorAll('.quote-field')||[];
-  const newQuotes=[...qf].map(f=>({text:f.querySelector('[data-qtext]').value.trim(),tag:f.querySelector('[data-qtag]').value.trim(),page:f.querySelector('[data-qpage]').value.trim()})).filter(q=>q.text);
+  const newQuotes=[...qf].map(f=>{
+    const ed = f.querySelector('[data-qtext]');
+    // contenteditable이면 innerHTML, textarea면 value
+    const raw = ed.isContentEditable ? ed.innerHTML : ed.value;
+    const text = raw.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim()
+      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');
+    // HTML 포함된 rich text 저장 (서식 유지)
+    const html = ed.isContentEditable ? ed.innerHTML.trim() : '';
+    return {text: html||text, tag:f.querySelector('[data-qtag]').value.trim(), page:f.querySelector('[data-qpage]').value.trim()};
+  }).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
   const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null};
   try {
