@@ -2960,6 +2960,7 @@ async function surfLibrary() {
 
 // 서재 구경 상태
 let _libBooks = [], _libFilter = '전체', _libCatFilter = null, _libUserId = null, _libUserName = '';
+let _libCalY = new Date().getFullYear(), _libCalM = new Date().getMonth();
 
 async function openLibrary(userId, userName) {
   closeModal('modal-social');
@@ -2999,6 +3000,8 @@ async function openLibrary(userId, userName) {
   _libCatFilter = null;
   _libUserId = userId;
   _libUserName = userName;
+  _libCalY = new Date().getFullYear();
+  _libCalM = new Date().getMonth();
 
   const header = document.getElementById('library-modal-header');
   const body = document.getElementById('library-modal-body');
@@ -3056,7 +3059,9 @@ async function openLibrary(userId, userName) {
       <button class="filter-btn" id="lib-f-완독" onclick="libFilter('완독',this)">완독</button>
       <button class="filter-btn" id="lib-f-읽는중" onclick="libFilter('읽는중',this)">읽는중</button>
       <button class="filter-btn" id="lib-f-읽고싶음" onclick="libFilter('읽고싶음',this)">읽고싶음</button>
-      ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c}" onclick="libCatFilter('${c}',this)">📁 ${c}</button>`).join('')}
+      ${cats.length ? `<span style="font-size:.6rem;color:var(--border2);margin:0 .1rem;">│</span>
+        <button class="filter-btn on" id="lib-cat-all" onclick="libCatFilter(null,this)">📂 전체</button>
+        ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c.replace(/\s/g,'_')}" onclick="libCatFilter('${c}',this)">📁 ${c}</button>`).join('')}` : ''}
     </div>`;
 
   body.innerHTML = `
@@ -3072,15 +3077,26 @@ async function openLibrary(userId, userName) {
 
 function libFilter(f, btn) {
   _libFilter = f;
+  _libCatFilter = null; // 상태 필터 바꾸면 카테고리 필터도 초기화
   document.querySelectorAll('[id^="lib-f-"]').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  // lib-cat-all도 on으로
+  document.getElementById('lib-cat-all')?.classList.add('on');
   renderLibGallery();
 }
 
 function libCatFilter(cat, btn) {
-  _libCatFilter = cat;
-  document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  // 토글: 이미 선택된 카테고리면 해제
+  if(_libCatFilter === cat) {
+    _libCatFilter = null;
+    document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
+    document.getElementById('lib-cat-all')?.classList.add('on');
+  } else {
+    _libCatFilter = cat;
+    document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+  }
   renderLibGallery();
 }
 
@@ -3108,27 +3124,35 @@ function renderLibGallery() {
   });
 }
 
+function moveLibCal(dir) {
+  _libCalM += dir;
+  if(_libCalM > 11) { _libCalM = 0; _libCalY++; }
+  if(_libCalM < 0) { _libCalM = 11; _libCalY--; }
+  renderLibCal();
+}
+
 function renderLibCal() {
   const wrap = document.getElementById('lib-cal-wrap');
   if(!wrap) return;
-  const now = new Date();
-  const y = now.getFullYear(), m = now.getMonth();
+  const y = _libCalY, m = _libCalM;
   const MN=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   const daysInMonth = new Date(y,m+1,0).getDate();
   const firstDay = new Date(y,m,1).getDay();
-  // 전체 통계
-  const totalDone = _libBooks.filter(b=>b.status==='완독').length;
   const totalDoneLib = _libBooks.filter(b=>b.status==='완독').length;
   const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
-  // 이번달 완독 맵
+  // 해당 월 완독 맵
   const finishMap = {};
   _libBooks.filter(b=>b.status==='완독' && b.date_finish?.startsWith(`${y}-${String(m+1).padStart(2,'0')}`))
     .forEach(b=>{ const d=parseInt(b.date_finish.slice(8,10)); finishMap[d]=(finishMap[d]||0)+1; });
   const thisMonthDone = Object.values(finishMap).reduce((a,b)=>a+b,0);
   wrap.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-      <div style="font-size:.72rem;font-weight:600;color:var(--tx2);">📅 ${y}년 ${MN[m]}</div>
-      <div style="font-size:.68rem;color:var(--acc);font-weight:600;">${thisMonthDone > 0 ? `이달 ${thisMonthDone}권 완독 🎉` : '이달 완독 없음'}</div>
+      <button onclick="moveLibCal(-1)" style="background:none;border:1px solid var(--border2);border-radius:4px;padding:.1rem .4rem;cursor:pointer;font-size:.7rem;color:var(--tx3);">◀</button>
+      <div style="text-align:center;">
+        <div style="font-size:.7rem;font-weight:600;color:var(--tx2);">📅 ${y}년 ${MN[m]}</div>
+        <div style="font-size:.62rem;color:var(--acc);">${thisMonthDone > 0 ? `이달 ${thisMonthDone}권 완독 🎉` : '완독 없음'}</div>
+      </div>
+      <button onclick="moveLibCal(1)" style="background:none;border:1px solid var(--border2);border-radius:4px;padding:.1rem .4rem;cursor:pointer;font-size:.7rem;color:var(--tx3);">▶</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
       ${['일','월','화','수','목','금','토'].map(d=>`<div style="font-size:.52rem;color:var(--tx3);text-align:center;padding:.08rem 0;">${d}</div>`).join('')}
