@@ -16,45 +16,62 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const NAVER_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 
-// 표지 검색 - 제목+작가+출판사 기반 정확도 높은 매칭
+// 표지 검색 - 제목+작가+출판사 엄격 매칭
 async function fetchBookCover(title, author='', publisher='') {
   const clean = s => String(s||'').replace(/<[^>]+>/g,'').trim();
   const normalize = s => clean(s).replace(/\s+/g,' ').toLowerCase();
+  const normTitle = normalize(title);
+  const normAuthor = normalize(author).split(/[,·]/)[0].trim();
+  const normPub = normalize(publisher);
+
   try {
-    // 1차: 제목+작가 쿼리
-    const q1 = author ? `${title} ${author.split(',')[0].trim()}` : title;
-    const res = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q1)}`, {
+    const q = normAuthor ? `${title} ${author.split(/[,·]/)[0].trim()}` : title;
+    const res = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}`, {
       headers: { 'Authorization': `Bearer ${NAVER_KEY}` }
     });
     if(!res.ok) return null;
-    const data = await res.json();
-    const items = data.items || [];
+    const items = (await res.json()).items || [];
     if(!items.length) return null;
 
-    // 정확도 점수 계산
     const score = item => {
-      let s = 0;
       const iTitle = normalize(item.title);
-      const iAuthor = normalize(item.author);
-      const iPublisher = normalize(item.publisher);
-      const tTitle = normalize(title);
-      const tAuthor = normalize(author);
-      const tPub = normalize(publisher);
-      // 제목 일치 (가장 중요)
-      if(iTitle === tTitle) s += 100;
-      else if(iTitle.includes(tTitle) || tTitle.includes(iTitle)) s += 60;
-      else if(tTitle.split(' ').some(w => w.length > 1 && iTitle.includes(w))) s += 30;
-      // 작가 일치
-      if(tAuthor && iAuthor.includes(tAuthor.split(',')[0].toLowerCase().replace(/\s/g,''))) s += 40;
-      // 출판사 일치
-      if(tPub && iPublisher.includes(tPub.toLowerCase().replace(/\s/g,''))) s += 20;
+      const iAuthor = normalize(item.author).split(/[,·^]/)[0].trim();
+      const iPub = normalize(item.publisher);
+      let s = 0;
+
+      // ── 제목 일치
+      if(iTitle === normTitle) s += 100;
+      else if(iTitle.includes(normTitle) || normTitle.includes(iTitle)) s += 60;
+      else {
+        const words = normTitle.split(' ').filter(w=>w.length>1);
+        const matched = words.filter(w=>iTitle.includes(w));
+        if(matched.length < words.length * 0.7) return 0; // 제목 70% 미만 일치 → 즉시 탈락
+        s += 25;
+      }
+
+      // ── 작가 일치 (있으면 반드시 확인)
+      if(normAuthor) {
+        const authorMatch = iAuthor.includes(normAuthor) || normAuthor.includes(iAuthor) ||
+          iAuthor.replace(/\s/g,'').includes(normAuthor.replace(/\s/g,''));
+        if(!authorMatch) return 0; // 작가 불일치 → 즉시 탈락
+        s += 50;
+      }
+
+      // ── 출판사 일치 (보너스)
+      if(normPub && (iPub.includes(normPub) || normPub.includes(iPub))) s += 20;
+
       return s;
     };
 
-    const best = items.reduce((a,b) => score(a) >= score(b) ? a : b);
-    if(score(best) < 20) return null; // 너무 낮으면 포기
-    return best.image || null;
-  } catch(e) { return null; }
+    const best = items.map(item=>({item,s:score(item)})).reduce((a,b)=>a.s>=b.s?a:b);
+    // 최소 점수 70 이상 (제목+작가 둘 다 맞아야)
+    if(best.s < 70) {
+      console.log(`표지 거부 [${best.s}점]: "${title}" → "${clean(best.item.title)}" / "${clean(best.item.author)}"`);
+      return null;
+    }
+    console.log(`표지 채택 [${best.s}점]: "${title}" → "${clean(best.item.title)}"`);
+    return best.item.image || null;
+  } catch(e) { console.error('fetchBookCover:', e); return null; }
 }
 const { createClient } = supabase;
 // Supabase 클라이언트 - 항상 새로 생성 (오염된 인스턴스 재사용 방지)
@@ -2696,20 +2713,28 @@ async function importFromBookmori(file) {
         Object.entries(allImportedIds).find(([t])=>t.includes(bookTitle)||bookTitle.includes(t))?.[1];
       if(!bookId) continue;
       const noteWs = wb.Sheets[sheetName];
+      // header:1 → 배열 배열 형태로 파싱
       const noteRows = XLSX.utils.sheet_to_json(noteWs, {defval:'', header:1});
-      // 북모리 노트 구조: 1행=섹션헤더, 2행=컬럼명(날짜/페이지/노트타입/내용), 3행~=데이터
-      // "내용" 컬럼 인덱스 찾기
-      const headerRow = noteRows[1] || noteRows[0] || [];
-      const contentIdx = headerRow.findIndex(v => String(v).includes('내용') || String(v).includes('content') || String(v).includes('노트'));
-      const typeIdx = headerRow.findIndex(v => String(v).includes('타입') || String(v).includes('type'));
-      const dataStartIdx = headerRow.some(v => String(v).includes('내용')) ? 2 : 1;
+      // 북모리 노트 구조:
+      // 행0: ['노트 정보', '', '', '']  ← 섹션헤더
+      // 행1: ['날짜', '페이지', '노트 타입', '내용']  ← 컬럼명
+      // 행2~: ['날짜값', '페이지값', '책 속 문장', '실제문장내용']  ← 데이터
+
+      // "내용" 컬럼 인덱스 찾기 (2행에서)
+      let contentIdx = 3; // 기본값: 4번째 컬럼
+      if(noteRows.length >= 2) {
+        const headerRow = noteRows[1];
+        const found = headerRow.findIndex(v => String(v).trim() === '내용');
+        if(found >= 0) contentIdx = found;
+      }
+
+      // 3행(index 2)부터 데이터
       const quoteTexts = [];
-      for(const row of noteRows.slice(dataStartIdx)) {
-        // 내용 컬럼이 있으면 해당 컬럼, 없으면 마지막 컬럼 사용
-        const text = String(contentIdx >= 0 ? (row[contentIdx]||'') : (row[row.length-1]||'')).trim();
+      for(const row of noteRows.slice(2)) {
+        const text = String(row[contentIdx]||'').trim();
         if(!text || text.length < 3) continue;
-        // 헤더 행 스킵
-        if(text === '내용' || text === '노트' || text === '날짜') continue;
+        // 헤더 값이나 타입명이 들어오면 스킵
+        if(['내용','날짜','페이지','노트 타입','책 속 문장','하이라이트','메모'].includes(text)) continue;
         quoteTexts.push({book_id:bookId, user_id:currentUser.id, text, created_at:new Date().toISOString()});
       }
       if(quoteTexts.length) {
