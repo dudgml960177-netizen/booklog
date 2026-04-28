@@ -599,7 +599,7 @@ function buildGallery(list) {
     el.innerHTML = `<div class="gi-cover">${img}</div>
       <div class="gi-title">${b.title}</div>
       <div class="gi-author">${b.author||''}</div>
-      <div class="gi-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
+      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'⯨':'☆').join('')}</div>
       <span class="gi-status">${b.status||''}</span>`;
     g.appendChild(el);
   });
@@ -3350,7 +3350,7 @@ function renderLibGallery() {
     el.innerHTML = `<div class="gi-cover">${img}</div>
       <div class="gi-title">${b.title}</div>
       <div class="gi-author">${b.author||''}</div>
-      <div class="gi-stars">${'★'.repeat(b.rating||0)+'☆'.repeat(5-(b.rating||0))}</div>
+      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'⯨':'☆').join('')}</div>
       <span class="gi-status">${b.status||''}</span>`;
     g.appendChild(el);
   });
