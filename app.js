@@ -308,8 +308,13 @@ sb.auth.onAuthStateChange(async (event, session) => {
 function init() {
   initFontSize();
   cleanupLocalStorage();
+  let _mdTarget = null;
   document.querySelectorAll('.modal-overlay').forEach(el => {
-    el.addEventListener('click', e => { if(e.target===el) el.style.display='none'; });
+    el.addEventListener('mousedown', e => { _mdTarget = e.target; });
+    el.addEventListener('click', e => {
+      // 드래그(mousedown과 click target이 다름) 시 닫지 않음
+      if(e.target === el && _mdTarget === el) el.style.display='none';
+    });
   });
   // Supabase 응답 타임아웃 감지 - 5초 안에 INITIAL_SESSION 안 오면 강제 auth 화면
   const initTimeout = setTimeout(() => {
@@ -328,6 +333,15 @@ function init() {
   const unsub = sb.auth.onAuthStateChange((event) => {
     if(event === 'INITIAL_SESSION') { clearTimeout(initTimeout); unsub.data?.subscription?.unsubscribe(); }
   });
+  // 모바일 뒤로가기 → 열린 모달 닫기
+  window.addEventListener('popstate', () => {
+    const open = [...document.querySelectorAll('.modal-overlay')].find(m => m.style.display !== 'none');
+    if(open) {
+      open.style.display = 'none';
+      history.pushState(null, '', location.href); // 스택 유지
+    }
+  });
+  history.pushState(null, '', location.href);
   // URL 해시 토큰 처리 (비밀번호 재설정)
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
@@ -352,7 +366,7 @@ else init();
 async function loadData() {
   const [bR, qR] = await Promise.all([
     sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}),
-    sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}),
+    sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(5000),
   ]);
   allBooks = bR.data || []; allQuotes = qR.data || [];
   // 카테고리 로컬 스토리지에서 로드
@@ -501,7 +515,8 @@ function setView(v) {
 }
 function getFilteredBooks() {
   let list = [...allBooks];
-  if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
+  if (curFilter === '다시읽기') list = list.filter(b=>b.reread);
+  else if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
   if (curCatFilter) list = list.filter(b=>(b.category||'')=== curCatFilter);
   // 정렬
   if(curSort === 'recent') {
@@ -676,6 +691,17 @@ async function bulkDeleteQuotes() {
     buildQuotes();
   } catch(e) { alert('삭제 오류: '+e.message); }
 }
+function toggleQText(id, btn) {
+  const el = document.getElementById('qt-'+id);
+  if(!el) return;
+  if(el.classList.contains('collapsed')) {
+    el.classList.remove('collapsed');
+    btn.textContent = '접기 ▴';
+  } else {
+    el.classList.add('collapsed');
+    btn.textContent = '더 보기 ▾';
+  }
+}
 function renderQuotes() {
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
   if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.</div>'; return; }
@@ -717,7 +743,8 @@ function renderQuotes() {
       <div class="qcard-bar" style="background:${color}"></div>
       <div style="padding-left:.65rem;">
         <div style="font-size:1.1rem;color:${color};opacity:.35;line-height:1;margin-bottom:.05rem;font-family:Georgia,serif;">"</div>
-        <div class="qcard-text" style="margin-top:0;">${text}</div>
+        <div class="qcard-text${qt.text.length > 120 ? ' collapsed' : ''}" id="qt-${qt.id}" style="margin-top:0;">${text}</div>
+        ${qt.text.length > 120 ? `<button class="qcard-expand" onclick="toggleQText('${qt.id}',this)">더 보기 ▾</button>` : ''}
       </div>
       <div class="qcard-meta">
         <span class="qcard-book">${book?.title||''}</span>
@@ -1050,9 +1077,15 @@ function buildStats() {
   const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1]||(aRating[b[0]]||0)-(aRating[a[0]]||0))[0];
   const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1]||(pRating[b[0]]||0)-(pRating[a[0]]||0))[0];
   const cy = new Date().getFullYear();
-  // 올해 기준 통계
-  const thisYearBooks = allBooks.filter(b => b.date_finish?.startsWith(String(cy)) || b.last_read?.startsWith(String(cy)));
-  const thisYearMins = thisYearBooks.reduce((a,b)=>a+(b.reading_time||0),0);
+  // 올해 기준 통계 - dayMap에서 올해 날짜만 합산 (정확한 날짜별 기록 기반)
+  const dayMapForStats = {};
+  allBooks.forEach(b => {
+    if(!b.last_read || !b.reading_time) return;
+    dayMapForStats[b.last_read] = (dayMapForStats[b.last_read]||0) + b.reading_time;
+  });
+  const thisYearMins = Object.entries(dayMapForStats)
+    .filter(([k]) => k.startsWith(String(cy)))
+    .reduce((a,[,v]) => a+v, 0);
   const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
@@ -1657,11 +1690,12 @@ function setStatus(s,btn){
 function addQuoteField(text='',page='',comment='') {
   const list=document.getElementById('quotes-list');
   const el=document.createElement('div');
+  el.className='quote-field';
   el.style.cssText='background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;margin-bottom:.4rem;position:relative;';
   el.innerHTML=`
     <button onclick="this.parentElement.remove()" style="position:absolute;top:.4rem;right:.5rem;background:none;border:none;font-size:.75rem;color:var(--tx3);cursor:pointer;line-height:1;">✕</button>
     <div style="font-size:.58rem;color:var(--acc);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">✍️ 문장</div>
-    <textarea class="form-input" placeholder="인상 깊은 문장...&#10;(줄바꿈 가능)" rows="3" data-qtext style="font-size:.78rem;font-style:italic;font-family:var(--fs);background:#fff;border-radius:5px;margin-bottom:.35rem;resize:vertical;white-space:pre-wrap;">${text}</textarea>
+    <textarea class="form-input" placeholder="인상 깊은 문장이나 문단을 입력해주세요.&#10;(줄바꿈, 여러 문단 모두 가능)" rows="5" data-qtext style="font-size:.78rem;font-family:var(--fs);background:#fff;border-radius:5px;margin-bottom:.35rem;resize:vertical;white-space:pre-wrap;min-height:80px;">${text}</textarea>
     <div style="display:flex;gap:.35rem;">
       <input type="text" class="form-input" placeholder="💬 코멘트 (느낀 점, 메모...)" data-qtag value="${comment}" style="flex:1;font-size:.73rem;background:#fff;border-radius:5px;">
       <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:60px;font-size:.73rem;background:#fff;border-radius:5px;text-align:center;">
@@ -1674,7 +1708,7 @@ async function saveBook() {
   const dateStart=document.getElementById('book-start').value,dateFinish=document.getElementById('book-finish').value;
   const reread=document.getElementById('book-reread').checked,pages=parseInt(document.getElementById('book-pages').value)||null;
   const source=document.getElementById('book-source').value,category=document.getElementById('book-category').value;
-  const qf=document.querySelectorAll('.quote-field');
+  const qf=document.getElementById('quotes-list')?.querySelectorAll('.quote-field')||[];
   const newQuotes=[...qf].map(f=>({text:f.querySelector('[data-qtext]').value.trim(),tag:f.querySelector('[data-qtag]').value.trim(),page:f.querySelector('[data-qpage]').value.trim()})).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
   const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null};
@@ -2421,6 +2455,7 @@ async function importFromBookit(file) {
       author:  getIdx('저자','author'),
       publisher: getIdx('출판사','publisher'),
       status:  getIdx('독서상태','상태','status'),
+      rating:  getIdx('별점','평점','rating','score'),
       start:   getIdx('시작일','start'),
       finish:  getIdx('읽은 날짜','완료','finish','읽은날'),
       stop:    getIdx('중단일','중단'),
@@ -2445,6 +2480,7 @@ async function importFromBookit(file) {
         author:     C.author >= 0 ? r[C.author]?.trim() : '',
         publisher:  C.publisher >= 0 ? r[C.publisher]?.trim() : '',
         status:     stopDate ? '중단' : status,
+        rating:     C.rating >= 0 ? (parseFloat(String(r[C.rating]||'').replace(/[^0-9.]/g,''))||null) : null,
         date_start: C.start >= 0 ? formatDate(r[C.start]) : null,
         date_finish:status === '완독' && C.finish >= 0 ? formatDate(r[C.finish]) : null,
         user_id:    currentUser.id,
@@ -2737,7 +2773,7 @@ async function importFromBookmori(file) {
         if(!text || text.length < 3) continue;
         // 헤더 값이나 타입명이 들어오면 스킵
         if(['내용','날짜','페이지','노트 타입','책 속 문장','하이라이트','메모'].includes(text)) continue;
-        quoteTexts.push({book_id:bookId, user_id:currentUser.id, text, created_at:new Date().toISOString()});
+        if(text && text !== 'null' && text !== 'undefined') quoteTexts.push({book_id:bookId, user_id:currentUser.id, text, created_at:new Date().toISOString()});
       }
       if(quoteTexts.length) {
         // 기존 문장 중복 방지
@@ -3236,7 +3272,7 @@ async function saveLibraryPublic(val) {
 }
 
 // ── 모달 유틸
-function openModal(id){document.getElementById(id).style.display='flex';}
+function openModal(id){const el=document.getElementById(id);if(el){el.style.display='flex';history.pushState({modal:id},'',location.href);}}
 function closeModal(id){document.getElementById(id).style.display='none';}
 // modal overlay click-outside: init에서 등록
 
