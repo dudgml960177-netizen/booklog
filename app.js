@@ -1377,6 +1377,7 @@ async function saveGoal() {
       });
       if(error) throw error;
     }
+    goals.year = new Date().getFullYear();
   } catch(e) {
     await showAlert('목표 저장 오류: '+(e.message||'다시 시도해주세요'));
     return;
@@ -1392,27 +1393,40 @@ function buildGoalDisplay() {
       if(goals.books||goals.minutes||goals.pages) buildGoalDisplay();
     });
   }
+  const cy = new Date().getFullYear();
+  const goalYear = goals.year || cy;
   const done=allBooks.filter(b=>b.status==='완독');
-  const thisYear=done.filter(b=>b.date_finish?.startsWith(String(new Date().getFullYear())));
-  const totalMins=allBooks.reduce((a,b)=>a+(b.reading_time||0),0);
-  const totalPages=done.reduce((a,b)=>a+(b.pages||0),0);
+  const thisYear=done.filter(b=>b.date_finish?.startsWith(String(cy)));
+  const thisYearMins=allBooks.filter(b=>b.last_read?.startsWith(String(cy))).reduce((a,b)=>a+(b.reading_time||0),0);
+  const thisYearPages=thisYear.reduce((a,b)=>a+(b.pages||0),0);
+
+  // 연도가 바뀐 경우 안내
+  if((goals.books||goals.minutes||goals.pages) && goalYear < cy) {
+    wrap.style.cssText='padding:.5rem 1rem;';
+    wrap.innerHTML=`<div style="font-size:.7rem;color:var(--acc2);display:flex;align-items:center;justify-content:space-between;">
+      <span>🎉 ${goalYear}년 목표 완료! ${cy}년 새 목표를 설정해주세요.</span>
+      <button onclick="openGoalModal()" style="font-size:.62rem;padding:.18rem .55rem;border:1px solid var(--acc);border-radius:8px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);">설정</button>
+    </div>`;
+    return;
+  }
+
   const items=[];
   if(goals.books>0){const pct=Math.min(Math.round(thisYear.length/goals.books*100),100);items.push({label:'완독',cur:thisYear.length,goal:goals.books,pct,unit:'권',color:'var(--sage)'});}
-  if(goals.minutes>0){const pct=Math.min(Math.round(totalMins/goals.minutes*100),100);items.push({label:'독서 시간',cur:Math.floor(totalMins/60)+'h',goal:Math.floor(goals.minutes/60)+'h',pct,unit:'',color:'var(--slate)'});}
-  if(goals.pages>0){const pct=Math.min(Math.round(totalPages/goals.pages*100),100);items.push({label:'페이지',cur:totalPages.toLocaleString(),goal:goals.pages.toLocaleString(),pct,unit:'p',color:'var(--mauve)'});}
+  if(goals.minutes>0){const pct=Math.min(Math.round(thisYearMins/goals.minutes*100),100);items.push({label:'독서 시간',cur:Math.floor(thisYearMins/60)+'h',goal:Math.floor(goals.minutes/60)+'h',pct,unit:'',color:'var(--slate)'});}
+  if(goals.pages>0){const pct=Math.min(Math.round(thisYearPages/goals.pages*100),100);items.push({label:'페이지',cur:thisYearPages.toLocaleString(),goal:goals.pages.toLocaleString(),pct,unit:'p',color:'var(--mauve)'});}
   if(!items.length){
-    wrap.style.cssText='padding:.5rem 1.2rem;';
+    wrap.style.cssText='padding:.5rem 1rem;';
     wrap.innerHTML='<div style="font-size:.7rem;color:var(--tx3);">목표를 설정하면 진행률을 볼 수 있어요.</div>';
     return;
   }
-  wrap.style.cssText='padding:.6rem 1.2rem;';
-  wrap.innerHTML=items.map(it=>`
-    <div style="margin-bottom:.35rem;display:flex;align-items:center;gap:.6rem;">
-      <div style="font-size:.65rem;color:var(--tx3);width:55px;flex-shrink:0;">${it.label}</div>
+  wrap.style.cssText='padding:.5rem 1rem .55rem;';
+  wrap.innerHTML=`<div style="font-size:.58rem;color:var(--tx3);margin-bottom:.35rem;letter-spacing:.03em;">${cy}년 독서 목표</div>`+items.map(it=>`
+    <div style="margin-bottom:.3rem;display:flex;align-items:center;gap:.55rem;">
+      <div style="font-size:.62rem;color:var(--tx3);width:52px;flex-shrink:0;">${it.label}</div>
       <div style="flex:1;height:4px;background:#ede4d0;border-radius:2px;overflow:hidden;">
         <div style="width:${it.pct}%;height:100%;background:${it.pct>=100?'var(--sage)':it.color};border-radius:2px;transition:width .5s;"></div>
       </div>
-      <div style="font-size:.63rem;color:var(--tx3);min-width:80px;text-align:right;">${it.cur}/${it.goal}${it.unit} ${it.pct>=100?'🏅':it.pct+'%'}</div>
+      <div style="font-size:.6rem;color:var(--tx3);min-width:78px;text-align:right;">${it.cur}/${it.goal}${it.unit} ${it.pct>=100?'🏅':it.pct+'%'}</div>
     </div>`).join('');
 }
 
@@ -2321,9 +2335,14 @@ async function importFromBookit(file) {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     if(lines.length < 2) { await showAlert('파일이 비어있어요.'); return; }
 
-    // CSV 헤더 파싱
-    const headers = parseCSVLine(lines[0]).map(h => h.trim());
+    // BOM 제거 및 CSV 헤더 파싱
+    const cleanText = text.replace(/^\uFEFF/, ''); // UTF-8 BOM 제거
+    const cleanLines = cleanText.split(/\r?\n/).filter(l => l.trim());
+    if(cleanLines.length < 2) { await showAlert('파일이 비어있어요.'); return; }
+    const headers = parseCSVLine(cleanLines[0]).map(h => h.trim().replace(/"/g,''));
+    console.log('북적북적 헤더:', headers);
     const getIdx = (...keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
+    const rows2 = cleanLines.slice(1);
 
     const C = {
       title:   getIdx('제목','title'),
@@ -2344,7 +2363,7 @@ async function importFromBookit(file) {
       return '읽고싶음';
     };
 
-    const rows = lines.slice(1).map(l => parseCSVLine(l));
+    const rows = rows2.map(l => parseCSVLine(l));
     const books = rows.filter(r => r.length > 1 && C.title >= 0 && r[C.title]?.trim()).map(r => {
       const status = statusConv(C.status >= 0 ? r[C.status] : '');
       // 중단일이 있으면 중단으로 오버라이드
