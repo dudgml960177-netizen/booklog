@@ -3129,16 +3129,19 @@ async function importFromBookmori(file) {
 
 // ── HTML → 순수 텍스트 정리 (모든 에디터에서 공통 사용)
 function cleanEditorHtml(h) {
+  // 서식 태그 목록 (유지할 태그)
+  const keepTags = ['span','b','strong','i','em','u','small','big','mark','sub','sup'];
+  const keepRe = keepTags.join('|');
   return String(h||'')
     .replace(/<div><br\s*\/?><\/div>/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/div>\s*<div>/gi, '\n')
     .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
     .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
-    // 형광펜 span은 유지 (background-color 또는 background 포함된 span)
-    .replace(/<span(?![^>]*background)[^>]*>([\s\S]*?)<\/span>/gi, '$1')  // 형광펜 없는 span 제거
-    .replace(/<(?!span|\/span)[a-z][^>]*>/gi, '')   // span 제외 나머지 태그 제거
-    .replace(/<\/(?!span)[a-z]+>/gi, '')             // span 제외 닫는 태그 제거
+    // span 중 서식 없는 것만 제거 (background 없는 span)
+    .replace(/<span(?![^>]*(?:background|color|font))[^>]*>([\s\S]*?)<\/span>/gi, '$1')
+    // 유지 태그 제외한 나머지 태그 제거
+    .replace(new RegExp(`<(?!/?(?:${keepRe})(?:\\s|>))[^>]+>`, 'gi'), '')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
