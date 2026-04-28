@@ -704,7 +704,7 @@ function toggleQText(id, btn) {
 }
 function renderQuotes() {
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
-  if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.</div>'; return; }
+  if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.<br><small style="color:var(--tx3);font-size:.72rem;">책을 추가할 때 인상 깊은 문장을 기록해보세요.</small></div>'; return; }
   const q = quoteSearchQ.trim().toLowerCase();
   const list = q ? allQuotes.filter(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
@@ -712,50 +712,120 @@ function renderQuotes() {
            (book?.author||'').toLowerCase().includes(q) ||
            qt.text.toLowerCase().includes(q);
   }) : allQuotes;
-  if (!list.length) {
-    feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`;
-    return;
-  }
+  if (!list.length) { feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`; return; }
+
   list.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
     const color = randomQuoteColor(qt.book_id);
     const isSelected = selectedQuoteIds.has(qt.id);
+
+    // 텍스트 처리
+    let text = qt.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if(q) {
+      const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
+    }
+    const isLong = qt.text.length > 150;
+
     const el = document.createElement('div');
-    el.className='qcard';
+    el.className = 'qcard' + (quoteSelectMode && isSelected ? ' qcard-selected' : '');
+
     if(quoteSelectMode) {
-      el.style.outline = isSelected ? '2px solid var(--acc)' : '2px solid transparent';
       el.style.cursor = 'pointer';
       el.onclick = () => {
         if(selectedQuoteIds.has(qt.id)) selectedQuoteIds.delete(qt.id);
         else selectedQuoteIds.add(qt.id);
         renderQuotes();
       };
+    } else {
+      // 클릭 시 수정 모달
+      el.style.cursor = 'pointer';
+      el.onclick = (e) => {
+        if(e.target.classList.contains('qcard-expand') || e.target.closest('.qcard-actions')) return;
+        openEditQuote(qt);
+      };
     }
-    // 줄바꿈 보존 (pre-line CSS로 처리, HTML 이스케이프 후 mark 적용)
-    let text = qt.text
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    if(q) {
-      const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-      text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
-    }
+
     el.innerHTML = `
-      ${quoteSelectMode ? `<div style="position:absolute;top:.5rem;right:.5rem;width:15px;height:15px;border:2px solid ${isSelected?'var(--acc)':'var(--border2)'};border-radius:3px;background:${isSelected?'var(--acc)':'#fff'};display:flex;align-items:center;justify-content:center;z-index:1;"><span style="color:#fff;font-size:.55rem;">${isSelected?'✓':''}</span></div>` : ''}
       <div class="qcard-bar" style="background:${color}"></div>
-      <div style="padding-left:.65rem;">
-        <div style="font-size:1.1rem;color:${color};opacity:.35;line-height:1;margin-bottom:.05rem;font-family:Georgia,serif;">"</div>
-        <div class="qcard-text${qt.text.length > 120 ? ' collapsed' : ''}" id="qt-${qt.id}" style="margin-top:0;">${text}</div>
-        ${qt.text.length > 120 ? `<button class="qcard-expand" onclick="toggleQText('${qt.id}',this)">더 보기 ▾</button>` : ''}
-      </div>
-      <div class="qcard-meta">
-        <span class="qcard-book">${book?.title||''}</span>
-        ${book?.author?`<span style="font-size:.58rem;color:var(--tx3);">— ${book.author}</span>`:''}
-        ${qt.page?`<span class="qcard-page">p.${qt.page}</span>`:''}
-        ${qt.tag?`<span class="qcard-comment">${qt.tag}</span>`:''}
+      ${quoteSelectMode ? `<div class="qcard-select-box" style="border-color:${isSelected?'var(--acc)':'var(--border2)'};background:${isSelected?'var(--acc)':'#fff'};">${isSelected?'<span style="color:#fff;font-size:.55rem;">✓</span>':''}</div>` : ''}
+      <div class="qcard-inner">
+        <div class="qcard-quote-mark" style="color:${color};">"</div>
+        <div class="qcard-text${isLong?' collapsed':''}" id="qt-${qt.id}">${text}</div>
+        ${isLong ? `<button class="qcard-expand" onclick="event.stopPropagation();toggleQText('${qt.id}',this)">더 보기 ▾</button>` : ''}
+        <div class="qcard-footer">
+          <div class="qcard-source">
+            ${book?.cover ? `<img src="${book.cover}" style="width:18px;height:26px;object-fit:cover;border-radius:2px;flex-shrink:0;box-shadow:1px 1px 3px rgba(0,0,0,.15);">` : ''}
+            <div>
+              <div class="qcard-book">${book?.title||''}</div>
+              ${book?.author ? `<div class="qcard-author">— ${book.author}</div>` : ''}
+            </div>
+          </div>
+          <div class="qcard-chips">
+            ${qt.page ? `<span class="qcard-chip">p.${qt.page}</span>` : ''}
+            ${qt.tag ? `<span class="qcard-chip qcard-tag">${qt.tag}</span>` : ''}
+          </div>
+        </div>
       </div>`;
+
     el.style.position = 'relative';
     feed.appendChild(el);
   });
 }
+
+function openEditQuote(qt) {
+  const book = allBooks.find(b=>b.id===qt.book_id);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 수정</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
+      </div>
+      <div style="padding:.85rem .95rem;">
+        ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
+        <textarea id="eq-text" rows="5" class="form-input" style="font-size:.8rem;font-family:var(--fs);resize:vertical;white-space:pre-wrap;margin-bottom:.45rem;">${qt.text}</textarea>
+        <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
+          <input id="eq-tag" type="text" class="form-input" placeholder="💬 코멘트" value="${qt.tag||''}" style="flex:1;font-size:.75rem;">
+          <input id="eq-page" type="text" class="form-input" placeholder="p.42" value="${qt.page||''}" style="width:60px;font-size:.75rem;text-align:center;">
+        </div>
+        <div style="display:flex;gap:.4rem;">
+          <button onclick="saveEditQuote('${qt.id}',this)" class="btn-save" style="flex:1;font-size:.75rem;">저장</button>
+          <button onclick="deleteSingleQuote('${qt.id}',this)" class="btn-cancel btn-delete" style="font-size:.75rem;">삭제</button>
+        </div>
+      </div>
+    </div>`;
+  // 배경 클릭 닫기
+  let mdTarget = null;
+  overlay.addEventListener('mousedown', e => { mdTarget = e.target; });
+  overlay.addEventListener('click', e => { if(e.target===overlay && mdTarget===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveEditQuote(id, btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const text = overlay.querySelector('#eq-text').value.trim();
+  const tag = overlay.querySelector('#eq-tag').value.trim();
+  const page = overlay.querySelector('#eq-page').value.trim();
+  if(!text) { await showAlert('문장을 입력해주세요.'); return; }
+  try {
+    await sb.from('quotes').update({text, tag: tag||null, page: page||null}).eq('id', id);
+    await loadData(); buildQuotes();
+    overlay.remove();
+  } catch(e) { await showAlert('저장 오류: '+e.message); }
+}
+
+async function deleteSingleQuote(id, btn) {
+  if(!await showConfirm('이 문장을 삭제할까요?')) return;
+  try {
+    await sb.from('quotes').delete().eq('id', id);
+    await loadData(); buildQuotes();
+    btn.closest('.modal-overlay').remove();
+  } catch(e) { await showAlert('삭제 오류: '+e.message); }
+}
+
 const QUOTE_COLORS = ['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040','#7a6e9e','#6a8a6a','#9e7a5a'];
 function genreColor(genre) {
   const g = Array.isArray(genre)?genre[0]:genre;
