@@ -705,7 +705,9 @@ function renderQuotes() {
         renderQuotes();
       };
     }
-    let text = qt.text;
+    // 줄바꿈 보존 (pre-line CSS로 처리, HTML 이스케이프 후 mark 적용)
+    let text = qt.text
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     if(q) {
       const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
       text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
@@ -1659,7 +1661,7 @@ function addQuoteField(text='',page='',comment='') {
   el.innerHTML=`
     <button onclick="this.parentElement.remove()" style="position:absolute;top:.4rem;right:.5rem;background:none;border:none;font-size:.75rem;color:var(--tx3);cursor:pointer;line-height:1;">✕</button>
     <div style="font-size:.58rem;color:var(--acc);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">✍️ 문장</div>
-    <textarea class="form-input" placeholder="인상 깊은 문장..." rows="2" data-qtext style="font-size:.78rem;font-style:italic;font-family:var(--fs);background:#fff;border-radius:5px;margin-bottom:.35rem;resize:vertical;">${text}</textarea>
+    <textarea class="form-input" placeholder="인상 깊은 문장...&#10;(줄바꿈 가능)" rows="3" data-qtext style="font-size:.78rem;font-style:italic;font-family:var(--fs);background:#fff;border-radius:5px;margin-bottom:.35rem;resize:vertical;white-space:pre-wrap;">${text}</textarea>
     <div style="display:flex;gap:.35rem;">
       <input type="text" class="form-input" placeholder="💬 코멘트 (느낀 점, 메모...)" data-qtag value="${comment}" style="flex:1;font-size:.73rem;background:#fff;border-radius:5px;">
       <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:60px;font-size:.73rem;background:#fff;border-radius:5px;text-align:center;">
