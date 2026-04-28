@@ -2870,7 +2870,7 @@ async function importFromBookmori(file) {
       pages:    findColIdx(['전체페이지수','페이지수','페이지','쪽수','pages']),
       review:   findColIdx(['의견','리뷰','감상','메모','review']),
       isbn:     findColIdx(['isbn']),
-      tags:     findColIdx(['태그','컬렉션','collection']),
+      tags:     findColIdx(['사용중인태그','태그들','태그','컬렉션','collection','tag']),
     };
     console.log('컬럼 인덱스:', CI);
 
@@ -2933,6 +2933,17 @@ async function importFromBookmori(file) {
         pages:      CI.pages>=0?(parseInt(String(getVal(r,CI.pages)||'').replace(/[^0-9]/g,''))||null):null,
         review:     String(getVal(r,CI.review)||'').trim(),
         isbn:       String(getVal(r,CI.isbn)||'').trim(),
+        genre:      (() => {
+          // 북모리 태그에서 장르 추출 (#SF/판타지 → SF/판타지)
+          const tagVal = String(getVal(r, CI.tags)||'').trim();
+          if(!tagVal) return [];
+          // # 으로 시작하는 태그들 분리
+          const tags = tagVal.split(/[,，\s]+/).map(t=>t.replace(/^#/,'').trim()).filter(t=>t);
+          // 장르 키워드 목록
+          const genreKeywords = ['소설','한국소설','외국소설','SF','판타지','추리','스릴러','에세이','시','인문','철학','역사','사회','정치','자기계발','경제','경영','과학','수학','기술','공학','예술','디자인','여행','요리','아동','청소년','만화','그래픽','문학'];
+          const matched = tags.find(t => genreKeywords.some(g => t.includes(g)));
+          return matched ? [matched] : (tags.length ? [tags[0]] : []);
+        })(),
         user_id:    currentUser.id,
         created_at: new Date().toISOString(),
       };
