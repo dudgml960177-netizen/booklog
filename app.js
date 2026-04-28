@@ -725,12 +725,17 @@ function renderQuotes() {
            (book?.author||'').toLowerCase().includes(q) ||
            qt.text.toLowerCase().includes(q);
   }) : allQuotes;
-  // 형광펜 필터 - background 또는 background-color 모두 검사
+  // 형광펜 필터 - hex(#f5e27a)와 rgb(245, 226, 122) 두 형식 모두 검사
   if(quoteHlFilter) {
-    const hlColor = quoteHlFilter.toLowerCase();
+    const hlMap = {
+      '#f5e27a': ['rgb(245, 226, 122)', 'rgb(245,226,122)', '#f5e27a'],
+      '#b8e8d4': ['rgb(184, 232, 212)', 'rgb(184,232,212)', '#b8e8d4'],
+      '#f5c4a0': ['rgb(245, 196, 160)', 'rgb(245,196,160)', '#f5c4a0'],
+    };
+    const targets = hlMap[quoteHlFilter] || [quoteHlFilter];
     list = list.filter(qt => {
       const t = (qt.text||'').toLowerCase();
-      return t.includes(`background:${hlColor}`) || t.includes(`background-color:${hlColor}`);
+      return targets.some(c => t.includes(c.toLowerCase()));
     });
   }
   if (!list.length) { feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`; return; }
