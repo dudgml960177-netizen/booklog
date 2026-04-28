@@ -638,6 +638,7 @@ function buildList(list) {
 // ── 문장 수집
 let quoteSearchQ = '';
 let quoteSelectMode = false;
+let quoteHlFilter = null;
 let selectedQuoteIds = new Set();
 
 function buildQuotes() {
@@ -646,11 +647,19 @@ function buildQuotes() {
   // 검색 + 선택 삭제 툴바
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display:flex;gap:.4rem;margin-bottom:.6rem;align-items:center;';
+  // 형광펜 필터 상태
   toolbar.innerHTML = `
-    <div style="position:relative;flex:1;">
-      <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--tx3);">🔍</span>
-      <input id="quote-search-input" type="text" class="search-input" placeholder="책 제목 또는 작가로 검색..."
-        style="padding-left:1.8rem;font-size:.75rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;" value="${quoteSearchQ}">
+    <!-- 형광펜 필터 버튼 -->
+    <button id="hl-btn-yellow" onclick="toggleHlFilter('#f5e27a',this)" title="노란 형광펜"
+      style="width:20px;height:20px;border-radius:50%;background:#f5e27a;border:2px solid ${quoteHlFilter==='#f5e27a'?'#8a6a00':'#e0c840'};cursor:pointer;flex-shrink:0;transition:all .15s;box-shadow:${quoteHlFilter==='#f5e27a'?'0 0 0 2px #f5e27a':'none'};"></button>
+    <button id="hl-btn-mint" onclick="toggleHlFilter('#b8e8d4',this)" title="민트 형광펜"
+      style="width:20px;height:20px;border-radius:50%;background:#b8e8d4;border:2px solid ${quoteHlFilter==='#b8e8d4'?'#2a7a5a':'#7acaaa'};cursor:pointer;flex-shrink:0;transition:all .15s;box-shadow:${quoteHlFilter==='#b8e8d4'?'0 0 0 2px #b8e8d4':'none'};"></button>
+    <button id="hl-btn-peach" onclick="toggleHlFilter('#f5c4a0',this)" title="살구 형광펜"
+      style="width:20px;height:20px;border-radius:50%;background:#f5c4a0;border:2px solid ${quoteHlFilter==='#f5c4a0'?'#8a4a1a':'#d8906a'};cursor:pointer;flex-shrink:0;transition:all .15s;box-shadow:${quoteHlFilter==='#f5c4a0'?'0 0 0 2px #f5c4a0':'none'};"></button>
+    <div style="position:relative;flex:1;min-width:80px;">
+      <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.68rem;color:var(--tx3);">🔍</span>
+      <input id="quote-search-input" type="text" class="search-input" placeholder="검색..."
+        style="padding-left:1.7rem;font-size:.73rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;" value="${quoteSearchQ}">
     </div>
     <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.7rem;border-radius:12px;">${quoteSelectMode?'✕':'☑ 선택'}</button>
     <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.7rem;border-radius:12px;">🗑</button>
@@ -661,6 +670,10 @@ function buildQuotes() {
   renderQuotes();
 }
 
+function toggleHlFilter(color, btn) {
+  quoteHlFilter = quoteHlFilter === color ? null : color;
+  buildQuotes(); // 버튼 상태 포함 재렌더
+}
 function toggleQuoteSelect() {
   quoteSelectMode = !quoteSelectMode;
   selectedQuoteIds.clear();
@@ -706,12 +719,16 @@ function renderQuotes() {
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
   if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.<br><small style="color:var(--tx3);font-size:.72rem;">책을 추가할 때 인상 깊은 문장을 기록해보세요.</small></div>'; return; }
   const q = quoteSearchQ.trim().toLowerCase();
-  const list = q ? allQuotes.filter(qt => {
+  let list = q ? allQuotes.filter(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
     return (book?.title||'').toLowerCase().includes(q) ||
            (book?.author||'').toLowerCase().includes(q) ||
            qt.text.toLowerCase().includes(q);
   }) : allQuotes;
+  // 형광펜 필터
+  if(quoteHlFilter) {
+    list = list.filter(qt => qt.text && qt.text.includes(`background:${quoteHlFilter}`));
+  }
   if (!list.length) { feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`; return; }
 
   list.forEach(qt => {
@@ -824,7 +841,13 @@ function openEditQuote(qt) {
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
         </div>
         <div id="eq-text" class="qeditor-body" contenteditable="true" data-qtext
-          style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${qt.text||''}</div>
+          style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${
+          (()=>{
+            const t = qt.text||'';
+            // 이미 HTML이면 그대로, 순수 텍스트면 줄바꿈→<br>
+            return /<[a-z]/i.test(t) ? t : t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+          })()
+        }</div>
         <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
           <input id="eq-tag" type="text" class="form-input" placeholder="💬 코멘트" value="${qt.tag||''}" style="flex:1;font-size:.75rem;">
           <input id="eq-page" type="text" class="form-input" placeholder="p.42" value="${qt.page||''}" style="width:60px;font-size:.75rem;text-align:center;">
