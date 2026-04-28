@@ -794,18 +794,18 @@ function openEditQuote(qt) {
       <div style="padding:.85rem .95rem;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
         <!-- 에디터 툴바 -->
-        <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;">
-          <button type="button" onclick="qfmt('bold')"><b>B</b></button>
-          <button type="button" onclick="qfmt('italic')"><i>I</i></button>
-          <button type="button" onclick="qfmt('underline')"><u>U</u></button>
+        <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;" onmousedown="event.preventDefault()">
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('bold')"><b>B</b></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('italic')"><i>I</i></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('underline')"><u>U</u></button>
           <span class="qeditor-sep"></span>
-          <button type="button" onclick="qfmtSize('small')">A<sub>↓</sub></button>
-          <button type="button" onclick="qfmtSize('large')">A<sup>↑</sup></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtSize('small')">A<sub>↓</sub></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtSize('large')">A<sup>↑</sup></button>
           <span class="qeditor-sep"></span>
-          <button type="button" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
-          <button type="button" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
-          <button type="button" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
-          <button type="button" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
         </div>
         <div id="eq-text" class="qeditor-body" contenteditable="true" data-qtext
           style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${qt.text}</div>
@@ -1789,20 +1789,20 @@ function addQuoteField(text='',page='',comment='') {
   el.innerHTML=`
     <button onclick="this.parentElement.remove()" style="position:absolute;top:.45rem;right:.5rem;background:none;border:none;font-size:.75rem;color:var(--tx3);cursor:pointer;line-height:1;z-index:2;">✕</button>
     <!-- 에디터 툴바 -->
-    <div class="qeditor-toolbar" data-for="${qid}">
-      <button type="button" title="굵게" onclick="qfmt('bold')"><b>B</b></button>
-      <button type="button" title="기울임" onclick="qfmt('italic')"><i>I</i></button>
-      <button type="button" title="밑줄" onclick="qfmt('underline')"><u>U</u></button>
+    <div class="qeditor-toolbar" data-for="${qid}" onmousedown="event.preventDefault()">
+      <button type="button" title="굵게" onmousedown="event.preventDefault()" onclick="qfmt('bold')"><b>B</b></button>
+      <button type="button" title="기울임" onmousedown="event.preventDefault()" onclick="qfmt('italic')"><i>I</i></button>
+      <button type="button" title="밑줄" onmousedown="event.preventDefault()" onclick="qfmt('underline')"><u>U</u></button>
       <span class="qeditor-sep"></span>
-      <button type="button" title="작게" onclick="qfmtSize('small')">A<sub>↓</sub></button>
-      <button type="button" title="크게" onclick="qfmtSize('large')">A<sup>↑</sup></button>
+      <button type="button" title="작게" onmousedown="event.preventDefault()" onclick="qfmtSize('small')">A<sub>↓</sub></button>
+      <button type="button" title="크게" onmousedown="event.preventDefault()" onclick="qfmtSize('large')">A<sup>↑</sup></button>
       <span class="qeditor-sep"></span>
-      <button type="button" title="형광펜 (노랑)" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
-      <button type="button" title="형광펜 (민트)" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
-      <button type="button" title="형광펜 (살구)" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
-      <button type="button" title="형광펜 해제" onclick="qfmtHL('transparent')" style="font-size:.55rem;color:var(--tx3);padding:0 4px;">✕HL</button>
+      <button type="button" title="형광펜 (노랑)" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
+      <button type="button" title="형광펜 (민트)" onmousedown="event.preventDefault()" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
+      <button type="button" title="형광펜 (살구)" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
+      <button type="button" title="형광펜 해제" onmousedown="event.preventDefault()" onclick="qfmtHL('transparent')" style="font-size:.55rem;color:var(--tx3);padding:0 4px;">✕HL</button>
       <span class="qeditor-sep"></span>
-      <button type="button" title="서식 초기화" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+      <button type="button" title="서식 초기화" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
     </div>
     <!-- contenteditable 에디터 -->
     <div id="${qid}" class="qeditor-body" contenteditable="true" data-qtext
