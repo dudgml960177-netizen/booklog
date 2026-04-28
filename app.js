@@ -789,6 +789,8 @@ function renderQuotes() {
 }
 
 function openEditQuote(qt) {
+  // qt가 문자열이면 파싱
+  if(typeof qt === 'string') { try { qt = JSON.parse(qt); } catch(e) { return; } }
   const book = allBooks.find(b=>b.id===qt.book_id);
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -816,7 +818,7 @@ function openEditQuote(qt) {
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
         </div>
         <div id="eq-text" class="qeditor-body" contenteditable="true" data-qtext
-          style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${qt.text}</div>
+          style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${qt.text||''}</div>
         <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
           <input id="eq-tag" type="text" class="form-input" placeholder="💬 코멘트" value="${qt.tag||''}" style="flex:1;font-size:.75rem;">
           <input id="eq-page" type="text" class="form-input" placeholder="p.42" value="${qt.page||''}" style="width:60px;font-size:.75rem;text-align:center;">
@@ -827,11 +829,79 @@ function openEditQuote(qt) {
         </div>
       </div>
     </div>`;
-  // 배경 클릭 닫기
   let mdTarget = null;
   overlay.addEventListener('mousedown', e => { mdTarget = e.target; });
   overlay.addEventListener('click', e => { if(e.target===overlay && mdTarget===overlay) overlay.remove(); });
   document.body.appendChild(overlay);
+}
+
+function openAddQuoteFromDetail(bookId) {
+  const book = allBooks.find(b=>b.id===bookId);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 추가</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
+      </div>
+      <div style="padding:.85rem .95rem;">
+        ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
+        <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;" onmousedown="event.preventDefault()">
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('bold')"><b>B</b></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('italic')"><i>I</i></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('underline')"><u>U</u></button>
+          <span class="qeditor-sep"></span>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtSize('small')">A<sub>↓</sub></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtSize('large')">A<sup>↑</sup></button>
+          <span class="qeditor-sep"></span>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5e27a')" style="background:#f5e27a;width:18px;height:14px;border-radius:3px;border:1px solid #e0c840;"></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+        </div>
+        <div id="aq-text" class="qeditor-body" contenteditable="true"
+          data-placeholder="인상 깊은 문장을 입력해주세요..."
+          style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;"></div>
+        <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
+          <input id="aq-tag" type="text" class="form-input" placeholder="💬 코멘트" style="flex:1;font-size:.75rem;">
+          <input id="aq-page" type="text" class="form-input" placeholder="p.42" style="width:60px;font-size:.75rem;text-align:center;">
+        </div>
+        <button onclick="saveNewQuoteFromDetail('${bookId}',this)" class="btn-save" style="width:100%;font-size:.75rem;">저장</button>
+      </div>
+    </div>`;
+  // paste 핸들러
+  const ed = overlay.querySelector('#aq-text');
+  ed.addEventListener('paste', e => {
+    e.preventDefault();
+    const plain = (e.clipboardData||window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, plain);
+  });
+  let mdTarget = null;
+  overlay.addEventListener('mousedown', e => { mdTarget = e.target; });
+  overlay.addEventListener('click', e => { if(e.target===overlay && mdTarget===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function saveNewQuoteFromDetail(bookId, btn) {
+  const overlay = btn.closest('.modal-overlay');
+  const edEl = overlay.querySelector('#aq-text');
+  const rawHtml = edEl.innerHTML;
+  const text = rawHtml
+    .replace(/<div><br\s*\/?><\/div>/gi,'\n').replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<\/div>\s*<div>/gi,'\n').replace(/<div>/gi,'\n').replace(/<\/div>/gi,'')
+    .replace(/\n{3,}/g,'\n\n').replace(/^\n+/,'').trim();
+  if(!text) { await showAlert('문장을 입력해주세요.'); return; }
+  const tag = overlay.querySelector('#aq-tag').value.trim();
+  const page = overlay.querySelector('#aq-page').value.trim();
+  try {
+    await sb.from('quotes').insert({book_id:bookId, user_id:currentUser.id, text, tag:tag||null, page:page||null, created_at:new Date().toISOString()});
+    await loadData();
+    overlay.remove();
+    // 책 상세 모달 새로고침
+    openDetail(bookId);
+  } catch(e) { await showAlert('저장 오류: '+e.message); }
 }
 
 async function saveEditQuote(id, btn) {
@@ -852,8 +922,11 @@ async function saveEditQuote(id, btn) {
   if(!text) { await showAlert('문장을 입력해주세요.'); return; }
   try {
     await sb.from('quotes').update({text, tag: tag||null, page: page||null}).eq('id', id);
-    await loadData(); buildQuotes();
+    await loadData();
     overlay.remove();
+    const detailOpen = document.getElementById('modal-detail')?.style.display !== 'none';
+    if(detailOpen && curBookId) openDetail(curBookId);
+    else buildQuotes();
   } catch(e) { await showAlert('저장 오류: '+e.message); }
 }
 
@@ -861,8 +934,11 @@ async function deleteSingleQuote(id, btn) {
   if(!await showConfirm('이 문장을 삭제할까요?')) return;
   try {
     await sb.from('quotes').delete().eq('id', id);
-    await loadData(); buildQuotes();
+    await loadData();
     btn.closest('.modal-overlay').remove();
+    const detailOpen = document.getElementById('modal-detail')?.style.display !== 'none';
+    if(detailOpen && curBookId) openDetail(curBookId);
+    else buildQuotes();
   } catch(e) { await showAlert('삭제 오류: '+e.message); }
 }
 
@@ -1944,16 +2020,21 @@ function openDetail(bookId) {
   </div>`;
     html+=descHTML;
   if(b.review)html+=`<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
-  if(quotes.length){
-    html+=`<div class="detail-divhr"></div><div class="detail-sec">인상 깊은 문장</div>`;
+  if(quotes.length || true) { // 항상 문장 섹션 표시 (추가 버튼 위해)
+    html+=`<div class="detail-divhr"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+      <div class="detail-sec" style="margin:0;">인상 깊은 문장</div>
+      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.65rem;padding:.2rem .55rem;border:1px solid var(--acc);border-radius:10px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);">＋ 문장 추가</button>
+    </div>`;
     const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
     quotes.forEach((q,i)=>{
       const color = QCOLORS[i % QCOLORS.length];
       const hasHtml = /<[a-z]/i.test(q.text||'');
       const txt = hasHtml ? q.text : (q.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-      html+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem .5rem 1rem;position:relative;margin-bottom:.4rem;">
+      html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem .5rem 1rem;position:relative;margin-bottom:.4rem;cursor:pointer;transition:box-shadow .15s;" onmouseenter="this.style.boxShadow='0 2px 10px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow='none'">
         <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${color};"></div>
-        <div style="padding-left:.5rem;">
+        <div style="position:absolute;top:.45rem;right:.55rem;font-size:.6rem;color:var(--tx3);opacity:.5;">✏️</div>
+        <div style="padding-left:.5rem;padding-right:1rem;">
           <div style="font-size:1.3rem;color:${color};opacity:.22;line-height:1;font-family:Georgia,serif;margin-top:-.1rem;">"</div>
           <div style="font-size:.72rem;font-family:var(--fs);line-height:1.78;color:var(--tx1);">${txt}</div>
           ${(q.page||q.tag)?`<div style="display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap;">
@@ -1963,6 +2044,7 @@ function openDetail(bookId) {
         </div>
       </div>`;
     });
+    if(!quotes.length) html+=`<div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.6rem 0;">아직 수집된 문장이 없어요.</div>`;
   }
   // 읽는중 책: 페이지 진행 업데이트 섹션
   if(b.status === '읽는중') {
@@ -2673,9 +2755,14 @@ async function importFromBookit(file) {
     if(!books.length) { await showAlert('가져올 책이 없어요.'); return; }
 
     const upsertMode = document.getElementById('bookit-upsert-mode')?.checked;
-    const existingTitleMap = Object.fromEntries(allBooks.map(b=>[b.title.trim(), b.id]));
-    const toInsert = books.filter(b => !existingTitleMap[b.title]);
-    const toUpdate = upsertMode ? books.filter(b => existingTitleMap[b.title]) : [];
+    // 제목 정규화: 공백/특수문자 제거 후 소문자 비교 (중복 방지 강화)
+    const normT = s => String(s||'').trim().replace(/\s+/g,' ').replace(/[\s·:：,]/g,'').toLowerCase();
+    const existingNormMap = {};
+    allBooks.forEach(b => { existingNormMap[normT(b.title)] = b.id; });
+    const toInsert = books.filter(b => !existingNormMap[normT(b.title)]);
+    const toUpdate = upsertMode ? books.filter(b => existingNormMap[normT(b.title)]) : [];
+    // 실제 bookId 찾기용
+    const getExistingId = title => existingNormMap[normT(title)];
 
     if(!toInsert.length && !toUpdate.length) { await showAlert('모든 책이 이미 서재에 있어요!'); return; }
 
@@ -2692,7 +2779,8 @@ async function importFromBookit(file) {
 
     // 업데이트
     for(const book of toUpdate) {
-      const bookId = existingTitleMap[book.title];
+      const bookId = getExistingId(book.title);
+      if(!bookId) continue;
       await sb.from('books').update({
         status: book.status,
         date_start: book.date_start||undefined,
@@ -2867,10 +2955,12 @@ async function importFromBookmori(file) {
 
     const upsertMode = document.getElementById('excel-upsert-mode')?.checked;
     const existingBooks = allBooks;
-    const existingTitleMap = Object.fromEntries(existingBooks.map(b=>[b.title.trim(), b.id]));
-
-    const toInsert = books.filter(b => !existingTitleMap[b.title]);
-    const toUpdate = upsertMode ? books.filter(b => existingTitleMap[b.title]) : [];
+    const normT2 = s => String(s||'').trim().replace(/\s+/g,' ').replace(/[\s·:：,]/g,'').toLowerCase();
+    const existingNormMap2 = {};
+    existingBooks.forEach(b => { existingNormMap2[normT2(b.title)] = b.id; });
+    const toInsert = books.filter(b => !existingNormMap2[normT2(b.title)]);
+    const toUpdate = upsertMode ? books.filter(b => existingNormMap2[normT2(b.title)]) : [];
+    const getBmExistingId = title => existingNormMap2[normT2(title)];
     const dup = books.length - toInsert.length;
 
     if(!toInsert.length && !toUpdate.length) {
@@ -2887,7 +2977,8 @@ async function importFromBookmori(file) {
 
     // 기존 책 업데이트 (덮어쓰기 모드)
     for(const book of toUpdate) {
-      const bookId = existingTitleMap[book.title];
+      const bookId = getBmExistingId(book.title);
+      if(!bookId) continue;
       const safeRating = book.rating!=null ? (v=>{const n=parseFloat(v);return n>=0&&n<=5?Math.round(n*2)/2:null;})(book.rating) : null;
       const { error } = await sb.from('books').update({
         author: book.author||undefined,
