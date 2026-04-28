@@ -2671,27 +2671,36 @@ async function importFromBookmori(file) {
 
     // 문장(노트) 가져오기 - 북모리 노트 시트 파싱
     let quoteCount = 0;
-    const bookTitleToId = Object.fromEntries(insertedIds.map(b=>[b.title, b.id]));
+    // 신규 + 업데이트 책 모두 포함
+    const allImportedIds = Object.fromEntries([
+      ...insertedIds.map(b=>[b.title, b.id]),
+      ...toUpdate.map(b=>[b.title, existingTitleMap[b.title]]).filter(([,id])=>id)
+    ]);
     // 북모리 노트 시트: "노트 (책제목)" 형식
     for(const sheetName of wb.SheetNames.slice(1)) {
       const match = sheetName.match(/노트\s*\((.+)\)/);
       if(!match) continue;
       const bookTitle = match[1].trim();
-      const bookId = bookTitleToId[bookTitle] ||
-        insertedIds.find(b=>b.title.includes(bookTitle)||bookTitle.includes(b.title))?.id;
+      const bookId = allImportedIds[bookTitle] ||
+        Object.entries(allImportedIds).find(([t])=>t.includes(bookTitle)||bookTitle.includes(t))?.[1];
       if(!bookId) continue;
       const noteWs = wb.Sheets[sheetName];
       const noteRows = XLSX.utils.sheet_to_json(noteWs, {defval:'', header:1});
+      const quoteTexts = [];
       for(const row of noteRows) {
         const text = String(row[0]||'').trim();
-        if(text && text.length > 2 && !/^(페이지|문장|메모|날짜|태그)$/i.test(text)) {
-          await sb.from('quotes').insert({
-            book_id: bookId,
-            user_id: currentUser.id,
-            text,
-            created_at: new Date().toISOString()
-          });
-          quoteCount++;
+        if(text && text.length > 2 && !/^(페이지|문장|메모|날짜|태그|하이라이트)$/i.test(text)) {
+          quoteTexts.push({book_id:bookId, user_id:currentUser.id, text, created_at:new Date().toISOString()});
+        }
+      }
+      if(quoteTexts.length) {
+        // 기존 문장 중복 방지
+        const {data: existing} = await sb.from('quotes').select('text').eq('book_id', bookId);
+        const existingTexts = new Set((existing||[]).map(q=>q.text.trim()));
+        const newQuotes = quoteTexts.filter(q=>!existingTexts.has(q.text.trim()));
+        if(newQuotes.length) {
+          await sb.from('quotes').insert(newQuotes);
+          quoteCount += newQuotes.length;
         }
       }
     }
