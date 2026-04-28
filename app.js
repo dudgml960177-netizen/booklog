@@ -2686,12 +2686,20 @@ async function importFromBookmori(file) {
       if(!bookId) continue;
       const noteWs = wb.Sheets[sheetName];
       const noteRows = XLSX.utils.sheet_to_json(noteWs, {defval:'', header:1});
+      // 북모리 노트 구조: 1행=섹션헤더, 2행=컬럼명(날짜/페이지/노트타입/내용), 3행~=데이터
+      // "내용" 컬럼 인덱스 찾기
+      const headerRow = noteRows[1] || noteRows[0] || [];
+      const contentIdx = headerRow.findIndex(v => String(v).includes('내용') || String(v).includes('content') || String(v).includes('노트'));
+      const typeIdx = headerRow.findIndex(v => String(v).includes('타입') || String(v).includes('type'));
+      const dataStartIdx = headerRow.some(v => String(v).includes('내용')) ? 2 : 1;
       const quoteTexts = [];
-      for(const row of noteRows) {
-        const text = String(row[0]||'').trim();
-        if(text && text.length > 2 && !/^(페이지|문장|메모|날짜|태그|하이라이트)$/i.test(text)) {
-          quoteTexts.push({book_id:bookId, user_id:currentUser.id, text, created_at:new Date().toISOString()});
-        }
+      for(const row of noteRows.slice(dataStartIdx)) {
+        // 내용 컬럼이 있으면 해당 컬럼, 없으면 마지막 컬럼 사용
+        const text = String(contentIdx >= 0 ? (row[contentIdx]||'') : (row[row.length-1]||'')).trim();
+        if(!text || text.length < 3) continue;
+        // 헤더 행 스킵
+        if(text === '내용' || text === '노트' || text === '날짜') continue;
+        quoteTexts.push({book_id:bookId, user_id:currentUser.id, text, created_at:new Date().toISOString()});
       }
       if(quoteTexts.length) {
         // 기존 문장 중복 방지
