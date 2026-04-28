@@ -621,7 +621,8 @@ function buildQuotes() {
         style="padding-left:1.8rem;font-size:.75rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;" value="${quoteSearchQ}">
     </div>
     <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.7rem;border-radius:12px;">${quoteSelectMode?'✕':'☑ 선택'}</button>
-    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.7rem;border-radius:12px;">🗑</button>`;
+    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.7rem;border-radius:12px;">🗑</button>
+    <button class="cat-btn" onclick="deleteAllQuotes()" style="font-size:.7rem;border-radius:12px;color:#c0392b;border-color:#e8b8a8;" title="전체 삭제">🗑 전체</button>`;
   filterEl.appendChild(toolbar);
   const inp = document.getElementById('quote-search-input');
   if(inp) inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
@@ -632,6 +633,16 @@ function toggleQuoteSelect() {
   quoteSelectMode = !quoteSelectMode;
   selectedQuoteIds.clear();
   buildQuotes();
+}
+
+async function deleteAllQuotes() {
+  if(!allQuotes.length) { await showAlert('삭제할 문장이 없어요.'); return; }
+  if(!await showConfirm(`수집된 문장 ${allQuotes.length}개를 전부 삭제할까요?\n이 작업은 되돌릴 수 없어요.`)) return;
+  try {
+    await sb.from('quotes').delete().eq('user_id', currentUser.id);
+    await loadData();
+    buildQuotes();
+  } catch(e) { alert('삭제 오류: '+e.message); }
 }
 
 async function bulkDeleteQuotes() {
