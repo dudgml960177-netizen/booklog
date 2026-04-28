@@ -102,7 +102,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .qcard-select-box{position:absolute;top:.55rem;right:.55rem;width:16px;height:16px;border:2px solid;border-radius:3px;display:flex;align-items:center;justify-content:center;z-index:1;}
 .qcard-inner{padding-left:.5rem;}
 .qcard-quote-mark{font-size:1.4rem;opacity:.25;line-height:1;margin-bottom:.05rem;font-family:Georgia,serif;margin-top:-.15rem;}
-.qcard-text{font-family:var(--fs);font-size:.7rem;line-height:1.76;color:var(--tx1);white-space:pre-line;}
+.qcard-text{font-family:var(--fs);font-size:.7rem;line-height:1.76;color:var(--tx1);}
 .qcard-text.collapsed{max-height:5rem;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent);mask-image:linear-gradient(to bottom,#000 55%,transparent);}
 .qcard-expand{font-size:.62rem;color:var(--acc);background:none;border:none;cursor:pointer;padding:0;font-family:var(--ff);margin-top:.2rem;display:block;}
 .qcard-footer{display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;gap:.4rem;flex-wrap:wrap;}
@@ -325,7 +325,6 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
   font-size:.78rem;
   line-height:1.88;
   color:var(--tx1);
-  white-space:pre-line;
 }
 .detail-divhr{border:none;border-top:1px solid var(--border);margin:.8rem 0;position:relative;text-align:center;}
 .detail-divhr::after{content:'✦';position:absolute;top:-.6em;left:50%;transform:translateX(-50%);background:var(--card);padding:0 .32rem;color:var(--acc);font-size:.58rem;}

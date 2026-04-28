@@ -725,9 +725,13 @@ function renderQuotes() {
            (book?.author||'').toLowerCase().includes(q) ||
            qt.text.toLowerCase().includes(q);
   }) : allQuotes;
-  // 형광펜 필터
+  // 형광펜 필터 - background 또는 background-color 모두 검사
   if(quoteHlFilter) {
-    list = list.filter(qt => qt.text && qt.text.includes(`background:${quoteHlFilter}`));
+    const hlColor = quoteHlFilter.toLowerCase();
+    list = list.filter(qt => {
+      const t = (qt.text||'').toLowerCase();
+      return t.includes(`background:${hlColor}`) || t.includes(`background-color:${hlColor}`);
+    });
   }
   if (!list.length) { feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`; return; }
 
@@ -736,9 +740,9 @@ function renderQuotes() {
     const color = randomQuoteColor(qt.book_id);
     const isSelected = selectedQuoteIds.has(qt.id);
 
-    // 텍스트 처리 - HTML 서식 유지
+    // 텍스트 처리 - 줄바꿈 + HTML 서식 유지
     let text = qt.text || '';
-    // div/br 태그 → 줄바꿈 변환 후 순수 텍스트 여부 판단
+    // 1. 줄바꿈 태그 정리
     text = text
       .replace(/<div><br\s*\/?><\/div>/gi, '\n')
       .replace(/<br\s*\/?>/gi, '\n')
@@ -746,9 +750,14 @@ function renderQuotes() {
       .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
       .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
       .replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').trim();
+    // 2. 순수 텍스트면 이스케이프 + \n→<br>
     const hasHtml = /<[a-z]/i.test(text);
     if(!hasHtml) {
-      text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                 .replace(/\n/g,'<br>');
+    } else {
+      // HTML 내 \n도 <br>로
+      text = text.replace(/\n/g,'<br>');
     }
     if(q) {
       const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
@@ -2035,7 +2044,22 @@ function openDetail(bookId) {
     </div>
   </div>`;
     html+=descHTML;
-  if(b.review)html+=`<div class="detail-sec">감상</div><div class="detail-body">${b.review}</div>`;
+  if(b.review) {
+    const MAX_REVIEW = 120;
+    const reviewText = b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    const reviewPlain = b.review;
+    if(reviewPlain.length > MAX_REVIEW) {
+      const shortReview = b.review.slice(0, MAX_REVIEW).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      html += `<div class="detail-sec">감상</div>
+        <div class="detail-body">
+          <span class="review-short">${shortReview}...</span>
+          <span class="review-full" style="display:none;">${reviewText}</span>
+          <span class="desc-toggle" onclick="this.previousElementSibling.style.display='inline';this.previousElementSibling.previousElementSibling.style.display='none';this.style.display='none';" style="cursor:pointer;color:var(--acc);font-size:.7rem;margin-left:.3rem;">더 보기</span>
+        </div>`;
+    } else {
+      html += `<div class="detail-sec">감상</div><div class="detail-body">${reviewText}</div>`;
+    }
+  }
   if(quotes.length || true) { // 항상 문장 섹션 표시 (추가 버튼 위해)
     html+=`<div class="detail-divhr"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
@@ -3106,12 +3130,16 @@ function cleanEditorHtml(h) {
     .replace(/<\/div>\s*<div>/gi, '\n')
     .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
     .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
-    .replace(/&nbsp;/gi, ' ')          // &nbsp; → 공백
-    .replace(/&amp;/gi, '&')           // HTML 엔티티 복원
+    // 형광펜 span은 유지 (background-color 또는 background 포함된 span)
+    .replace(/<span(?![^>]*background)[^>]*>([\s\S]*?)<\/span>/gi, '$1')  // 형광펜 없는 span 제거
+    .replace(/<(?!span|\/span)[a-z][^>]*>/gi, '')   // span 제외 나머지 태그 제거
+    .replace(/<\/(?!span)[a-z]+>/gi, '')             // span 제외 닫는 태그 제거
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    .replace(/\n{3,}/g, '\n\n')      // 3줄 이상 → 2줄
-    .replace(/^\n+/, '')              // 앞 공백 제거
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+/, '')
     .trim();
 }
 
