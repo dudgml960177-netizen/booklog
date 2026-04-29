@@ -2352,7 +2352,6 @@ async function openProfile() {
   await loadUserRole();
   console.log('curUserRole:', curUserRole);
   const adminBtn = document.getElementById('profile-admin-btn');
-  console.log('admin check - curUserRole:', curUserRole, 'show:', curUserRole==='admin');
   if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
 
   // 프로필 + 코드 로드
@@ -3522,12 +3521,17 @@ async function removeFriend(friendshipId) {
 // 파도타기 - 랜덤 서재 구경
 async function surfLibrary() {
   // library_public=true 또는 library_visibility=public인 서재
-  const { data } = await sb.from('profiles')
+  // 공개 서재 목록 (library_public=true 또는 library_visibility=public)
+  const { data: allProfiles } = await sb.from('profiles')
     .select('id,display_name,username,library_public,library_visibility')
     .neq('id', currentUser.id)
-    .or('library_public.eq.true,library_visibility.eq.public')
-    .limit(100);
-  if(!data?.length) { await showAlert('공개된 서재가 없어요.'); return; }
+    .limit(200);
+  const data = (allProfiles||[]).filter(p =>
+    p.library_public === true ||
+    p.library_visibility === 'public' ||
+    (!p.library_visibility && p.library_public !== false)
+  );
+  if(!data.length) { await showAlert('공개된 서재가 없어요.'); return; }
   const random = data[Math.floor(Math.random()*data.length)];
   const name = random.display_name || random.username || '산책자';
   openLibrary(random.id, name);
@@ -3778,12 +3782,12 @@ let curUserRole = 'user';
 
 async function loadUserRole() {
   if(!currentUser) return;
+  // 관리자 ID 직접 체크 (DB 오류 대비)
+  if(currentUser.id === '191744c3-0cdd-4c15-b08c-6ec82e9ab3f8') { curUserRole = 'admin'; return; }
   try {
-    const { data, error } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
-    if(error) { console.warn('loadUserRole error:', error); return; }
+    const { data } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
     curUserRole = data?.role || 'user';
-    console.log('curUserRole:', curUserRole, '/ id:', currentUser.id);
-  } catch(e) { console.warn('loadUserRole exception:', e); }
+  } catch(e) { curUserRole = 'user'; }
 }
 
 async function buildBoard() {
