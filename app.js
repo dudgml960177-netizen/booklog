@@ -2347,15 +2347,20 @@ async function openProfile() {
   const tempName=currentUser.email?.split('@')[0]||'독서가';
   document.getElementById('profile-email').textContent=currentUser.email;
   openModal('modal-profile');
-  // role + 프로필 동시 로드
-  const [,{data:profile},{data:myCodes}]=await Promise.all([
-    loadUserRole(),
+
+  // role 먼저 로드
+  await loadUserRole();
+  console.log('curUserRole:', curUserRole);
+  const adminBtn = document.getElementById('profile-admin-btn');
+  console.log('admin check - curUserRole:', curUserRole, 'show:', curUserRole==='admin');
+  if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
+
+  // 프로필 + 코드 로드
+  const [{data:profile},{data:myCodes}]=await Promise.all([
     sb.from('profiles').select('*').eq('id',currentUser.id).single(),
     sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
   ]);
-  // 관리자 버튼
-  const adminBtn = document.getElementById('profile-admin-btn');
-  if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
+
   // 닉네임 (DB에서 가져온 값 우선)
   const name = profile?.display_name||profile?.username||tempName;
   document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
@@ -3773,8 +3778,12 @@ let curUserRole = 'user';
 
 async function loadUserRole() {
   if(!currentUser) return;
-  const { data } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
-  curUserRole = data?.role || 'user';
+  try {
+    const { data, error } = await sb.from('profiles').select('role').eq('id', currentUser.id).single();
+    if(error) { console.warn('loadUserRole error:', error); return; }
+    curUserRole = data?.role || 'user';
+    console.log('curUserRole:', curUserRole, '/ id:', currentUser.id);
+  } catch(e) { console.warn('loadUserRole exception:', e); }
 }
 
 async function buildBoard() {
