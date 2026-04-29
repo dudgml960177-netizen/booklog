@@ -1070,6 +1070,8 @@ function openAddQuoteFromDetail(bookId) {
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+          <span class="qeditor-sep"></span>
+          <button type="button" onmousedown="event.preventDefault()" onclick="openImageOCR('aq-text')" title="사진에서 텍스트 추출" style="font-size:.75rem;">📷</button>
         </div>
         <div id="aq-text" class="qeditor-body" contenteditable="true"
           data-placeholder="인상 깊은 문장을 입력해주세요..."
@@ -2186,21 +2188,32 @@ async function openImageOCR(targetEditorId) {
         // Vercel API Route로 Google Vision 호출
         let extracted = '';
         try {
-          const resp = await fetch(`${SUPABASE_URL}/functions/v1/naver-ocr`, {
+          const resp = await fetch('https://icnzm1omhq.apigw.ntruss.com/custom/v1/52384/c90697f1e4289b9dae370b75bd5d60025d5ac2ae2065872d14b08409db3d25d0/general', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_KEY}`
+              'X-OCR-SECRET': 'cGhUd05xUFdkYnN2aEV1SlVwSmdIWHhWY1RSUE5MZk4='
             },
-            body: JSON.stringify({image: resized})
+            body: JSON.stringify({
+              version: 'V2',
+              requestId: String(Date.now()),
+              timestamp: Date.now(),
+              images: [{ format: 'jpeg', name: 'book', data: resized }]
+            })
           });
           if(resp.ok) {
             const data = await resp.json();
-            if(data.error) throw new Error(data.error);
-            extracted = (data.text||'').trim();
+            const fields = data.images?.[0]?.fields || [];
+            let txt = '';
+            for(let i=0; i<fields.length; i++) {
+              txt += fields[i].inferText;
+              if(fields[i].lineBreak) txt += '\n';
+              else if(i < fields.length-1) txt += ' ';
+            }
+            extracted = txt.trim();
           } else {
             const err = await resp.json().catch(()=>({error:'서버 오류'}));
-            throw new Error(err.error||'서버 오류 '+resp.status);
+            throw new Error(err.error||'OCR 오류 '+resp.status);
           }
         } catch(e) {
           loadOv.remove();
