@@ -761,7 +761,7 @@ function renderQuotes() {
 
     // 텍스트 처리 - 줄바꿈 + HTML 서식 유지
     let text = qt.text || '';
-    // 1. 줄바꿈 태그 정리
+    // 1. 줄바꿈 태그 → \n 변환
     text = text
       .replace(/<div><br\s*\/?><\/div>/gi, '\n')
       .replace(/<br\s*\/?>/gi, '\n')
@@ -769,13 +769,13 @@ function renderQuotes() {
       .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
       .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
       .replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').trim();
-    // 2. 순수 텍스트면 이스케이프 + \n→<br>
-    const hasHtml = /<[a-z]/i.test(text);
+    // 2. HTML 서식 있는지 확인
+    const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if(!hasHtml) {
-      text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                 .replace(/\n/g,'<br>');
+      // 순수 텍스트: 이스케이프 후 줄바꿈
+      text = text.replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;').replace(/\n/g,'<br>');
     } else {
-      // HTML 내 \n도 <br>로
+      // HTML 서식 있음: 줄바꿈만 변환
       text = text.replace(/\n/g,'<br>');
     }
     if(q) {
@@ -2336,7 +2336,6 @@ function editBook() {
 }
 
 // ── 프로필
-async 
 function saveGVisionKey() {
   const key = document.getElementById('gvision-key-input')?.value.trim();
   if(!key) { localStorage.removeItem('bl_gvision_key'); showAlert('API Key가 삭제됐어요.'); return; }
@@ -3267,28 +3266,23 @@ async function importFromBookmori(file) {
 // ── HTML → 순수 텍스트 정리 (모든 에디터에서 공통 사용)
 function cleanEditorHtml(h) {
   let s = String(h||'');
-  // 1. 줄바꿈 처리 (span 처리 전에 먼저)
+  // 1. div/br 줄바꿈 처리
   s = s.replace(/<div><br\s*\/?><\/div>/gi, '\n');
   s = s.replace(/<br\s*\/?>/gi, '\n');
   s = s.replace(/<\/div>\s*<div>/gi, '\n');
   s = s.replace(/<div>/gi, '\n').replace(/<\/div>/gi, '');
   s = s.replace(/<p>/gi, '\n').replace(/<\/p>/gi, '');
-  // 2. 유지할 태그: span(background/color포함), b, strong, i, em, u, small, big, sub, sup
-  // 나머지 태그만 제거 (속성 없는 span 포함)
-  // 먼저 서식 없는 span 제거
-  s = s.replace(/<span(?![^>]*(?:background|color|font-weight|font-style|text-decoration))[^>]*>([\s\S]*?)<\/span>/gi, '$1');
-  // div/p 외 불필요한 태그 제거 (b,strong,i,em,u,small,big,sub,sup,span 유지)
-  s = s.replace(/<(?!\/?(?:b|strong|i|em|u|small|big|sub|sup|span)(?:\s|>|\/))([a-zA-Z][^>]*)>/gi, '');
-  // 닫는 태그 중 유지 태그 외 제거
-  s = s.replace(/<\/(?!(?:b|strong|i|em|u|small|big|sub|sup|span)>)([a-zA-Z]+)>/gi, '');
-  // 3. 엔티티 복원
+  // 2. 서식 없는 span 제거
+  s = s.replace(/<span(?![^>]*(?:background|color|font))[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+  // 3. 유지 태그(b,strong,i,em,u,small,big,sub,sup,span) 외 제거
+  s = s.replace(/<(?!\/?(?:b|strong|i|em|u|small|big|sub|sup|span)(\s[^>]*)?>)[^>]+>/gi, '');
+  // 4. 엔티티 복원
   s = s.replace(/&nbsp;/gi, ' ');
   s = s.replace(/&amp;/gi, '&');
   s = s.replace(/&lt;/gi, '<');
   s = s.replace(/&gt;/gi, '>');
-  // 4. 줄바꿈 정리
-  s = s.replace(/\n{3,}/g, '\n\n');
-  s = s.replace(/^\n+/, '');
+  // 5. 줄바꿈 정리
+  s = s.replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
   return s.trim();
 }
 
