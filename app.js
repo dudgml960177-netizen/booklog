@@ -2348,11 +2348,16 @@ async function openProfile() {
   document.getElementById('profile-email').textContent=currentUser.email;
   openModal('modal-profile');
 
-  // role 먼저 로드
+  // role 로드
   await loadUserRole();
-  console.log('curUserRole:', curUserRole);
+  // 관리자 버튼 동적 처리
   const adminBtn = document.getElementById('profile-admin-btn');
-  if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
+  if(adminBtn) {
+    adminBtn.style.display = '';  // 일단 보이게
+    adminBtn.style.display = curUserRole === 'admin' ? '' : 'none';
+    // 혹시 display가 안먹히면 visibility로도 처리
+    adminBtn.hidden = curUserRole !== 'admin';
+  }
 
   // 프로필 + 코드 로드
   const [{data:profile},{data:myCodes}]=await Promise.all([
