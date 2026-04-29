@@ -2350,7 +2350,8 @@ async function openProfile() {
   document.getElementById('profile-email').textContent=currentUser.email;
   document.getElementById('profile-display-name').value=tempName;
   openModal('modal-profile');
-  // 관리자 버튼 표시
+  // role 최신 상태로 다시 로드 후 관리자 버튼 표시
+  await loadUserRole();
   const adminBtn = document.getElementById('profile-admin-btn');
   if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
   // 폰트 크기 슬라이더 현재값 반영
