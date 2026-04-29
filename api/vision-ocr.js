@@ -1,76 +1,60 @@
-export const config = {
-  runtime: 'edge',
-};
+const https = require('https');
 
-export default async function handler(req) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
-
-  const CLOVA_URL = process.env.CLOVA_OCR_URL;
-  const CLOVA_KEY = process.env.CLOVA_OCR_KEY;
-
-  if (!CLOVA_URL || !CLOVA_KEY) {
-    return new Response(
-      JSON.stringify({ error: 'OCR not configured', hasUrl: !!CLOVA_URL, hasKey: !!CLOVA_KEY }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const body = await req.json();
-    const { image } = body;
-    if (!image) {
-      return new Response(JSON.stringify({ error: 'No image' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    const { image } = req.body || {};
+    if (!image) return res.status(400).json({ error: 'No image' });
 
-    const url = CLOVA_URL.replace(/^http:\/\//, 'https://');
-
-    const clovaResp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-OCR-SECRET': CLOVA_KEY,
-      },
-      body: JSON.stringify({
-        version: 'V2',
-        requestId: String(Date.now()),
-        timestamp: Date.now(),
-        images: [{ format: 'jpeg', name: 'book', data: image }]
-      }),
+    const CLOVA_KEY = 'cGhUd05xUFdkYnN2aEV1SlVwSmdIWHhWY1RSUE5MZk4=';
+    const bodyStr = JSON.stringify({
+      version: 'V2',
+      requestId: String(Date.now()),
+      timestamp: Date.now(),
+      images: [{ format: 'jpeg', name: 'book', data: image }]
     });
 
-    if (!clovaResp.ok) {
-      const errText = await clovaResp.text();
-      return new Response(JSON.stringify({ error: `Clova ${clovaResp.status}: ${errText.slice(0,300)}` }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    const result = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'icnzm1omhq.apigw.ntruss.com',
+        port: 443,
+        path: '/custom/v1/52384/c90697f1e4289b9dae370b75bd5d60025d5ac2ae2065872d14b08409db3d25d0/general',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-OCR-SECRET': CLOVA_KEY,
+          'Content-Length': Buffer.byteLength(bodyStr)
+        }
+      };
+      const req2 = https.request(options, (r) => {
+        let data = '';
+        r.on('data', chunk => data += chunk);
+        r.on('end', () => resolve({ status: r.statusCode, body: data }));
       });
+      req2.on('error', reject);
+      req2.write(bodyStr);
+      req2.end();
+    });
+
+    if (result.status !== 200) {
+      return res.status(500).json({ error: `Clova ${result.status}: ${result.body.slice(0,200)}` });
     }
 
-    const data = await clovaResp.json();
+    const data = JSON.parse(result.body);
     const fields = data.images?.[0]?.fields || [];
-
     let text = '';
     for (let i = 0; i < fields.length; i++) {
       text += fields[i].inferText;
       if (fields[i].lineBreak) text += '\n';
       else if (i < fields.length - 1) text += ' ';
     }
-
-    return new Response(JSON.stringify({ text: text.trim() }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return res.status(200).json({ text: text.trim() });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return res.status(500).json({ error: e.message });
   }
 }
