@@ -719,7 +719,7 @@ async function bulkDeleteQuotes() {
   } catch(e) { alert('삭제 오류: '+e.message); }
 }
 
-// ── 문장 카드 이미지 공유
+// ── 문장 카드 이미지 공유 (분할 지원)
 async function shareQuoteCard(qtId, btn) {
   const qt = allQuotes.find(q=>q.id===qtId);
   if(!qt) return;
@@ -730,88 +730,113 @@ async function shareQuoteCard(qtId, btn) {
   flash.style.cssText = 'position:fixed;inset:0;background:#fff;opacity:0;z-index:9999;pointer-events:none;transition:opacity .08s';
   document.body.appendChild(flash);
   requestAnimationFrame(() => {
-    flash.style.opacity = '0.9';
-    setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 200); }, 80);
+    flash.style.opacity = '0.85';
+    setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 250); }, 100);
   });
 
-  // 공유 카드 생성
+  // 색상 테마
   const colors = ['#f5e8d0','#e8f0e8','#e8eef5','#f5ede8','#ede8f5'];
-  const accs = ['#c4714a','#5a8a5a','#4a6a8a','#8a5a3a','#6a4a8a'];
-  const ci = Math.abs(qtId.split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % colors.length;
+  const accs   = ['#c4714a','#5a8a5a','#4a6a8a','#8a5a3a','#6a4a8a'];
+  const ci = Math.abs((qtId||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)) % colors.length;
   const bg = colors[ci], acc = accs[ci];
 
-  // 텍스트 순수화
-  const plainText = (qt.text||'').replace(/<[^>]+>/g,'').replace(/&[a-z]+;/g,' ').trim();
+  // HTML 서식 보존 텍스트 준비
+  const rawText = qt.text || '';
+  // \n → <br> 변환 (이미 <br>이면 그대로)
+  const richText = rawText
+    .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
+    .replace(/<\/div>\s*<div>/gi, '<br>')
+    .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
+    .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
+    .replace(/\n/g, '<br>')
+    .replace(/(<br>){3,}/gi, '<br><br>');
+  const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
+  const lines = richText.split(/<br>/i);
 
-  const card = document.createElement('div');
-  card.style.cssText = `
-    position:fixed;left:-9999px;top:-9999px;
-    width:320px;min-height:200px;
-    background:${bg};
-    padding:28px 28px 20px;
-    font-family:'Nanum Myeongjo','Georgia',serif;
-    box-sizing:border-box;
-    border-radius:12px;
-  `;
-  card.innerHTML = `
-    <div style="font-size:11px;color:${acc};opacity:.6;margin-bottom:14px;letter-spacing:.1em;font-family:sans-serif;">BOOKLOG</div>
-    <div style="font-size:34px;color:${acc};opacity:.3;line-height:.8;margin-bottom:6px;font-family:Georgia,serif;">"</div>
-    <div style="font-size:14px;line-height:1.85;color:#2e1f0e;white-space:pre-line;margin-bottom:20px;">${plainText}</div>
-    <div style="border-top:1px solid ${acc}33;padding-top:12px;display:flex;align-items:center;gap:10px;">
-      ${book?.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width:28px;height:40px;object-fit:cover;border-radius:3px;flex-shrink:0;">` : ''}
-      <div>
-        <div style="font-size:11px;font-weight:700;color:#2e1f0e;font-family:sans-serif;">${book?.title||''}</div>
-        ${book?.author ? `<div style="font-size:10px;color:#7a6a5a;font-family:sans-serif;margin-top:2px;">${book.author}</div>` : ''}
-      </div>
-    </div>
-  `;
-  document.body.appendChild(card);
-
-  try {
-    // html2canvas 동적 로드
-    if(!window.html2canvas) {
-      await new Promise((res,rej) => {
-        const sc = document.createElement('script');
-        sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        sc.onload = res; sc.onerror = rej;
-        document.head.appendChild(sc);
-      });
-    }
-
-    const canvas = await html2canvas(card, {
-      scale: 3, useCORS: true, backgroundColor: bg,
-      width: 320, logging: false
+  // html2canvas 로드
+  if(!window.html2canvas) {
+    await new Promise((res,rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      sc.onload = res; sc.onerror = rej;
+      document.head.appendChild(sc);
     });
-    card.remove();
-
-    const dataUrl = canvas.toDataURL('image/png');
-
-    // 공유 모달
-    const ov = document.createElement('div');
-    ov.className = 'modal-overlay';
-    ov.style.display = 'flex';
-    ov.innerHTML = `
-      <div class="modal" style="max-width:360px;padding:0;overflow:hidden;">
-        <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;">
-          <div style="font-size:.8rem;font-weight:700;color:#fff;font-family:var(--fs);">📷 문장 카드</div>
-          <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;">✕</button>
-        </div>
-        <div style="padding:.8rem;text-align:center;">
-          <img src="${dataUrl}" style="width:100%;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.12);margin-bottom:.7rem;">
-          <div style="display:flex;gap:.4rem;">
-            <a href="${dataUrl}" download="booklog-quote.png" class="btn-save" style="flex:1;font-size:.75rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:.3rem;">⬇ 저장</a>
-            <button onclick="shareQuoteImage('${dataUrl}')" class="btn-cancel" style="flex:1;font-size:.75rem;">📤 공유</button>
-          </div>
-        </div>
-      </div>`;
-    let mt = null;
-    ov.addEventListener('mousedown', e => mt=e.target);
-    ov.addEventListener('click', e => { if(e.target===ov&&mt===ov) ov.remove(); });
-    document.body.appendChild(ov);
-  } catch(e) {
-    card.remove();
-    await showAlert('이미지 생성 오류: '+e.message);
   }
+
+  // 카드 분할 (줄 기준, 최대 4장)
+  const LINES_PER_CARD = plainText.length > 300 ? 6 : plainText.length > 150 ? 8 : 999;
+  const chunks = [];
+  if(lines.length <= LINES_PER_CARD) {
+    chunks.push(lines.join('<br>'));
+  } else {
+    for(let i = 0; i < lines.length && chunks.length < 4; i += LINES_PER_CARD) {
+      chunks.push(lines.slice(i, i + LINES_PER_CARD).join('<br>'));
+    }
+  }
+  const total = Math.min(chunks.length, 4);
+
+  // 폰트 크기 결정
+  const fontSize = plainText.length > 200 ? 11 : plainText.length > 100 ? 12 : 13;
+
+  // 카드 생성 및 캡처
+  const dataUrls = [];
+  for(let i = 0; i < total; i++) {
+    const card = document.createElement('div');
+    card.style.cssText = `position:fixed;left:-9999px;top:0;width:320px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
+    const isFirst = i === 0;
+    const isLast = i === total - 1;
+    const pageLabel = total > 1 ? `<div style="font-size:9px;color:${acc};opacity:.5;text-align:right;margin-bottom:8px;font-family:sans-serif;">${i+1} / ${total}</div>` : '';
+    card.innerHTML = `
+      ${isFirst ? `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:10px;color:${acc};opacity:.5;letter-spacing:.12em;font-family:sans-serif;">BOOKLOG</div>
+        ${book?.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width:20px;height:28px;object-fit:cover;border-radius:2px;box-shadow:1px 1px 4px rgba(0,0,0,.15);">` : ''}
+      </div>
+      <div style="font-size:30px;color:${acc};opacity:.25;line-height:.8;margin-bottom:4px;font-family:Georgia,serif;">"</div>` : pageLabel}
+      <div style="font-size:${fontSize}px;line-height:1.9;color:#2e1f0e;margin-bottom:${isLast?18:10}px;">${chunks[i]}</div>
+      ${isLast ? `<div style="border-top:1px solid ${acc}33;padding-top:10px;display:flex;align-items:center;gap:8px;">
+        ${book?.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width:24px;height:34px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : ''}
+        <div>
+          <div style="font-size:10px;font-weight:700;color:#2e1f0e;font-family:sans-serif;">${book?.title||''}</div>
+          ${book?.author ? `<div style="font-size:9px;color:#7a6a5a;font-family:sans-serif;margin-top:1px;">${book.author}</div>` : ''}
+        </div>
+      </div>` : `<div style="text-align:right;font-size:9px;color:${acc};opacity:.4;font-family:sans-serif;">계속 →</div>`}
+    `;
+    document.body.appendChild(card);
+    try {
+      const canvas = await html2canvas(card, {scale:3, useCORS:true, backgroundColor:bg, width:320, logging:false});
+      dataUrls.push(canvas.toDataURL('image/png'));
+    } finally {
+      card.remove();
+    }
+  }
+
+  if(!dataUrls.length) { await showAlert('이미지 생성 실패'); return; }
+
+  // 공유 모달
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.style.display = 'flex';
+  const imgHtml = dataUrls.map((u,i)=>`
+    <div style="margin-bottom:.5rem;position:relative;">
+      <img src="${u}" style="width:100%;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.1);">
+      <a href="${u}" download="booklog-quote-${i+1}.png" style="position:absolute;bottom:.4rem;right:.4rem;background:rgba(0,0,0,.5);color:#fff;border-radius:6px;font-size:.65rem;padding:.2rem .5rem;text-decoration:none;">⬇ 저장</a>
+    </div>`).join('');
+  ov.innerHTML = `
+    <div class="modal" style="max-width:360px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="font-size:.8rem;font-weight:700;color:#fff;font-family:var(--fs);">📷 문장 카드 ${total > 1 ? `(${total}장)` : ''}</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:.75rem;overflow-y:auto;flex:1;">
+        ${imgHtml}
+        <button onclick="shareQuoteImage('${dataUrls[0]}')" class="btn-cancel" style="width:100%;font-size:.75rem;margin-top:.2rem;">📤 공유</button>
+      </div>
+    </div>`;
+  let mt = null;
+  ov.addEventListener('mousedown', e => mt=e.target);
+  ov.addEventListener('click', e => { if(e.target===ov&&mt===ov) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 async function shareQuoteImage(dataUrl) {
