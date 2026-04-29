@@ -100,6 +100,14 @@
       <!-- 서재 (갤러리+테이블 통합) -->
       <div class="panel on" id="p-books">
         <div class="books-toolbar">
+          <!-- 책 검색 -->
+          <div style="position:relative;margin-bottom:.5rem;">
+            <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--tx3);">🔍</span>
+            <input id="books-search-input" type="text" class="search-input"
+              placeholder="제목, 작가, 출판사로 검색..."
+              style="padding-left:1.8rem;font-size:.75rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;box-sizing:border-box;"
+              oninput="filterBooksSearch(this.value)">
+          </div>
           <div class="filter-row">
             <button class="filter-btn on" onclick="filterStatus('전체',this)">전체</button>
             <button class="filter-btn" onclick="filterStatus('완독',this)">완독</button>
@@ -898,6 +906,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=454"></script>
+<script src="app.js?v=456"></script>
 </body>
 </html>

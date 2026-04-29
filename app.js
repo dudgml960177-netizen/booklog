@@ -500,6 +500,12 @@ function sw(name, btn) {
 }
 
 // ── 서재 (갤러리+리스트 통합)
+
+let booksSearchQ = '';
+function filterBooksSearch(q) {
+  booksSearchQ = q.trim().toLowerCase();
+  buildBooks();
+}
 function filterStatus(status, btn) {
   curFilter = status; curCatFilter = null;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
@@ -518,6 +524,14 @@ function getFilteredBooks() {
   if (curFilter === '다시읽기') list = list.filter(b=>b.reread);
   else if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
   if (curCatFilter) list = list.filter(b=>(b.category||'')=== curCatFilter);
+  // 검색 필터
+  if (booksSearchQ) {
+    list = list.filter(b =>
+      (b.title||'').toLowerCase().includes(booksSearchQ) ||
+      (b.author||'').toLowerCase().includes(booksSearchQ) ||
+      (b.publisher||'').toLowerCase().includes(booksSearchQ)
+    );
+  }
   // 정렬
   if(curSort === 'recent') {
     list.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
@@ -947,13 +961,17 @@ async function saveNewQuoteFromDetail(bookId, btn) {
 async function saveEditQuote(id, btn) {
   const overlay = btn.closest('.modal-overlay');
   const edEl = overlay.querySelector('#eq-text');
+  if(!edEl) { await showAlert('에디터를 찾을 수 없어요.'); return; }
   const rawHtml = edEl.isContentEditable ? edEl.innerHTML : edEl.value;
+  console.log('saveEditQuote - rawHtml:', rawHtml.slice(0,100));
   const text = cleanEditorHtml(rawHtml);
+  console.log('saveEditQuote - cleaned text:', text.slice(0,100));
   const tag = overlay.querySelector('#eq-tag').value.trim();
   const page = overlay.querySelector('#eq-page').value.trim();
   if(!text) { await showAlert('문장을 입력해주세요.'); return; }
   try {
-    await sb.from('quotes').update({text, tag: tag||null, page: page||null}).eq('id', id);
+    const { error } = await sb.from('quotes').update({text, tag: tag||null, page: page||null}).eq('id', id).eq('user_id', currentUser.id);
+    if(error) throw error;
     await loadData();
     overlay.remove();
     const detailOpen = document.getElementById('modal-detail')?.style.display !== 'none';
