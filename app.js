@@ -2188,29 +2188,15 @@ async function openImageOCR(targetEditorId) {
         // Vercel API Route로 Google Vision 호출
         let extracted = '';
         try {
-          const resp = await fetch('https://icnzm1omhq.apigw.ntruss.com/custom/v1/52384/c90697f1e4289b9dae370b75bd5d60025d5ac2ae2065872d14b08409db3d25d0/general', {
+          const resp = await fetch('/api/vision-ocr', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-OCR-SECRET': 'cGhUd05xUFdkYnN2aEV1SlVwSmdIWHhWY1RSUE5MZk4='
-            },
-            body: JSON.stringify({
-              version: 'V2',
-              requestId: String(Date.now()),
-              timestamp: Date.now(),
-              images: [{ format: 'jpeg', name: 'book', data: resized }]
-            })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({image: resized})
           });
           if(resp.ok) {
             const data = await resp.json();
-            const fields = data.images?.[0]?.fields || [];
-            let txt = '';
-            for(let i=0; i<fields.length; i++) {
-              txt += fields[i].inferText;
-              if(fields[i].lineBreak) txt += '\n';
-              else if(i < fields.length-1) txt += ' ';
-            }
-            extracted = txt.trim();
+            if(data.error) throw new Error(data.error);
+            extracted = (data.text||'').trim();
           } else {
             const err = await resp.json().catch(()=>({error:'서버 오류'}));
             throw new Error(err.error||'OCR 오류 '+resp.status);
