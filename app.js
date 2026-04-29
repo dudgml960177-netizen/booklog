@@ -794,7 +794,7 @@ async function shareQuoteCard(qtId, btn) {
   const dataUrls = [];
   for(let i = 0; i < total; i++) {
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:-9999px;top:0;width:320px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
+    card.style.cssText = `position:fixed;left:-9999px;top:0;width:320px;min-width:320px;max-width:320px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
     const isFirst = i === 0;
     const isLast = i === total - 1;
     const pageLabel = total > 1 ? `<div style="font-size:9px;color:${acc};opacity:.5;text-align:right;margin-bottom:8px;font-family:sans-serif;">${i+1} / ${total}</div>` : '';
@@ -816,7 +816,16 @@ async function shareQuoteCard(qtId, btn) {
     `;
     document.body.appendChild(card);
     try {
-      const canvas = await html2canvas(card, {scale:3, useCORS:true, allowTaint:true, backgroundColor:bg, width:320, logging:false, imageTimeout:8000});
+      const canvas = await html2canvas(card, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: bg,
+        width: 320,
+        windowWidth: 390,
+        logging: false,
+        imageTimeout: 8000,
+      });
       dataUrls.push(canvas.toDataURL('image/png'));
     } finally {
       card.remove();
