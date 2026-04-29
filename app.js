@@ -867,6 +867,8 @@ function openEditQuote(qt) {
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#b8e8d4')" style="background:#b8e8d4;width:18px;height:14px;border-radius:3px;border:1px solid #7acaaa;"></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmtHL('#f5c4a0')" style="background:#f5c4a0;width:18px;height:14px;border-radius:3px;border:1px solid #d8906a;"></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+          <span class="qeditor-sep"></span>
+          <button type="button" onmousedown="event.preventDefault()" onclick="openImageOCR('eq-text')" title="사진에서 텍스트 추출" style="font-size:.75rem;">📷</button>
         </div>
         <div id="eq-text" class="qeditor-body" contenteditable="true" data-qtext
           style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${
@@ -1954,6 +1956,8 @@ function addQuoteField(text='',page='',comment='') {
       <button type="button" title="형광펜 해제" onmousedown="event.preventDefault()" onclick="qfmtHL('transparent')" style="font-size:.55rem;color:var(--tx3);padding:0 4px;">✕HL</button>
       <span class="qeditor-sep"></span>
       <button type="button" title="서식 초기화" onmousedown="event.preventDefault()" onclick="qfmt('removeFormat')" style="font-size:.6rem;color:var(--tx3);">초기화</button>
+      <span class="qeditor-sep"></span>
+      <button type="button" title="사진에서 텍스트 추출" onmousedown="event.preventDefault()" onclick="openImageOCR('${qid}')" style="font-size:.75rem;">📷</button>
     </div>
     <!-- contenteditable 에디터 -->
     <div id="${qid}" class="qeditor-body" contenteditable="true" data-qtext
@@ -1972,6 +1976,73 @@ function addQuoteField(text='',page='',comment='') {
       document.execCommand('insertText', false, plain);
     });
   }
+}
+
+
+// ── 이미지에서 텍스트 추출 (Claude Vision)
+async function openImageOCR(targetEditorId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if(!file) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:360px;padding:1.2rem;text-align:center;">
+        <div style="font-size:.85rem;font-weight:600;color:var(--tx1);margin-bottom:.5rem;">📷 이미지 분석 중...</div>
+        <div style="font-size:.72rem;color:var(--tx3);">잠시만 기다려주세요</div>
+        <div style="margin-top:.8rem;font-size:1.5rem;">⏳</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    try {
+      // 이미지 → base64
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result.split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      const mediaType = file.type || 'image/jpeg';
+      // Claude API로 텍스트 추출
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {type: 'image', source: {type: 'base64', media_type: mediaType, data: base64}},
+              {type: 'text', text: '이 이미지에서 텍스트를 그대로 추출해주세요. 책의 문장이나 글귀가 있으면 정확하게 옮겨주세요. 텍스트만 출력하고 다른 설명은 하지 마세요.'}
+            ]
+          }]
+        })
+      });
+      const data = await resp.json();
+      const extracted = data.content?.[0]?.text?.trim() || '';
+      overlay.remove();
+      if(!extracted) { await showAlert('텍스트를 찾지 못했어요.'); return; }
+      // 에디터에 삽입
+      const editor = document.getElementById(targetEditorId);
+      if(editor && editor.isContentEditable) {
+        editor.focus();
+        // 기존 내용이 있으면 줄바꿈 후 추가
+        if(editor.innerHTML.trim()) {
+          document.execCommand('insertHTML', false, '<br><br>' + extracted.replace(/\n/g,'<br>'));
+        } else {
+          editor.innerHTML = extracted.replace(/\n/g,'<br>');
+        }
+      }
+    } catch(e) {
+      overlay.remove();
+      await showAlert('이미지 분석 오류: ' + e.message);
+    }
+  };
+  input.click();
 }
 
 function qfmt(cmd) {
@@ -3147,26 +3218,30 @@ async function importFromBookmori(file) {
 
 // ── HTML → 순수 텍스트 정리 (모든 에디터에서 공통 사용)
 function cleanEditorHtml(h) {
-  // 서식 태그 목록 (유지할 태그)
-  const keepTags = ['span','b','strong','i','em','u','small','big','mark','sub','sup'];
-  const keepRe = keepTags.join('|');
-  return String(h||'')
-    .replace(/<div><br\s*\/?><\/div>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>\s*<div>/gi, '\n')
-    .replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
-    .replace(/<p>/gi, '\n').replace(/<\/p>/gi, '')
-    // span 중 서식 없는 것만 제거 (background 없는 span)
-    .replace(/<span(?![^>]*(?:background|color|font))[^>]*>([\s\S]*?)<\/span>/gi, '$1')
-    // 유지 태그 제외한 나머지 태그 제거
-    .replace(new RegExp(`<(?!/?(?:${keepRe})(?:\\s|>))[^>]+>`, 'gi'), '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\n+/, '')
-    .trim();
+  let s = String(h||'');
+  // 1. 줄바꿈 처리 (span 처리 전에 먼저)
+  s = s.replace(/<div><br\s*\/?><\/div>/gi, '\n');
+  s = s.replace(/<br\s*\/?>/gi, '\n');
+  s = s.replace(/<\/div>\s*<div>/gi, '\n');
+  s = s.replace(/<div>/gi, '\n').replace(/<\/div>/gi, '');
+  s = s.replace(/<p>/gi, '\n').replace(/<\/p>/gi, '');
+  // 2. 유지할 태그: span(background/color포함), b, strong, i, em, u, small, big, sub, sup
+  // 나머지 태그만 제거 (속성 없는 span 포함)
+  // 먼저 서식 없는 span 제거
+  s = s.replace(/<span(?![^>]*(?:background|color|font-weight|font-style|text-decoration))[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+  // div/p 외 불필요한 태그 제거 (b,strong,i,em,u,small,big,sub,sup,span 유지)
+  s = s.replace(/<(?!\/?(?:b|strong|i|em|u|small|big|sub|sup|span)(?:\s|>|\/))([a-zA-Z][^>]*)>/gi, '');
+  // 닫는 태그 중 유지 태그 외 제거
+  s = s.replace(/<\/(?!(?:b|strong|i|em|u|small|big|sub|sup|span)>)([a-zA-Z]+)>/gi, '');
+  // 3. 엔티티 복원
+  s = s.replace(/&nbsp;/gi, ' ');
+  s = s.replace(/&amp;/gi, '&');
+  s = s.replace(/&lt;/gi, '<');
+  s = s.replace(/&gt;/gi, '>');
+  // 4. 줄바꿈 정리
+  s = s.replace(/\n{3,}/g, '\n\n');
+  s = s.replace(/^\n+/, '');
+  return s.trim();
 }
 
 function formatDate(s) {
