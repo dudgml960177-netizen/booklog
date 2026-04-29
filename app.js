@@ -753,6 +753,20 @@ async function shareQuoteCard(qtId, btn) {
   const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
   const lines = richText.split(/<br>/i);
 
+  // 책 표지 base64 변환 (CORS 우회)
+  let coverB64 = '';
+  if(book?.cover) {
+    try {
+      const cResp = await fetch(book.cover);
+      const cBlob = await cResp.blob();
+      coverB64 = await new Promise(res => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.readAsDataURL(cBlob);
+      });
+    } catch(e) { coverB64 = ''; }
+  }
+
   // html2canvas 로드
   if(!window.html2canvas) {
     await new Promise((res,rej) => {
@@ -763,20 +777,18 @@ async function shareQuoteCard(qtId, btn) {
     });
   }
 
-  // 카드 분할 (줄 기준, 최대 4장)
-  const LINES_PER_CARD = plainText.length > 300 ? 6 : plainText.length > 150 ? 8 : 999;
-  const chunks = [];
-  if(lines.length <= LINES_PER_CARD) {
-    chunks.push(lines.join('<br>'));
-  } else {
-    for(let i = 0; i < lines.length && chunks.length < 4; i += LINES_PER_CARD) {
-      chunks.push(lines.slice(i, i + LINES_PER_CARD).join('<br>'));
-    }
-  }
-  const total = Math.min(chunks.length, 4);
-
-  // 폰트 크기 결정
-  const fontSize = plainText.length > 200 ? 11 : plainText.length > 100 ? 12 : 13;
+  // 전체를 한 장에 담기 (분할 없음)
+  // 폰트 크기: 글자 수에 따라 자동 축소
+  const pLen = plainText.length;
+  const lineCount = lines.length;
+  const fontSize = pLen > 400 || lineCount > 20 ? 9
+                 : pLen > 250 || lineCount > 14 ? 10
+                 : pLen > 150 || lineCount > 9  ? 11
+                 : pLen > 80  || lineCount > 5  ? 12 : 13;
+  // 줄 간격도 조정
+  const lineH = fontSize <= 10 ? 1.75 : 1.9;
+  const chunks = [lines.join('<br>')];
+  const total = 1;
 
   // 카드 생성 및 캡처
   const dataUrls = [];
@@ -790,12 +802,12 @@ async function shareQuoteCard(qtId, btn) {
       ${isFirst ? `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div style="font-size:10px;color:${acc};opacity:.5;letter-spacing:.12em;font-family:sans-serif;">BOOKLOG</div>
-        ${book?.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width:20px;height:28px;object-fit:cover;border-radius:2px;box-shadow:1px 1px 4px rgba(0,0,0,.15);">` : ''}
+        ${coverB64 ? `<img src="${coverB64}" style="width:20px;height:28px;object-fit:cover;border-radius:2px;box-shadow:1px 1px 4px rgba(0,0,0,.15);">` : ''}
       </div>
       <div style="font-size:30px;color:${acc};opacity:.25;line-height:.8;margin-bottom:4px;font-family:Georgia,serif;">"</div>` : pageLabel}
-      <div style="font-size:${fontSize}px;line-height:1.9;color:#2e1f0e;margin-bottom:${isLast?18:10}px;">${chunks[i]}</div>
+      <div style="font-size:${fontSize}px;line-height:${lineH};color:#2e1f0e;margin-bottom:18px;">${chunks[i]}</div>
       ${isLast ? `<div style="border-top:1px solid ${acc}33;padding-top:10px;display:flex;align-items:center;gap:8px;">
-        ${book?.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width:24px;height:34px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : ''}
+        ${coverB64 ? `<img src="${coverB64}" style="width:24px;height:34px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : ''}
         <div>
           <div style="font-size:10px;font-weight:700;color:#2e1f0e;font-family:sans-serif;">${book?.title||''}</div>
           ${book?.author ? `<div style="font-size:9px;color:#7a6a5a;font-family:sans-serif;margin-top:1px;">${book.author}</div>` : ''}
@@ -804,7 +816,7 @@ async function shareQuoteCard(qtId, btn) {
     `;
     document.body.appendChild(card);
     try {
-      const canvas = await html2canvas(card, {scale:3, useCORS:true, backgroundColor:bg, width:320, logging:false});
+      const canvas = await html2canvas(card, {scale:3, useCORS:true, allowTaint:true, backgroundColor:bg, width:320, logging:false, imageTimeout:8000});
       dataUrls.push(canvas.toDataURL('image/png'));
     } finally {
       card.remove();
