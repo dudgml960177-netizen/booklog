@@ -2050,7 +2050,7 @@ async function openImageOCR(targetEditorId) {
           }
         } catch(e) {
           loadOv.remove();
-          await showAlert('OCR 오류: '+e.message+'\nVercel 환경변수 GOOGLE_VISION_KEY를 확인해주세요.');
+          await showAlert('OCR 오류: '+e.message);
           return;
         }
 
