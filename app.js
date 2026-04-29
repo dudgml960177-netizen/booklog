@@ -2345,34 +2345,28 @@ function saveGVisionKey() {
 }
 async function openProfile() {
   const tempName=currentUser.email?.split('@')[0]||'독서가';
-  document.getElementById('profile-avatar').textContent=tempName.slice(0,1).toUpperCase();
-  document.getElementById('profile-name').textContent=tempName;
   document.getElementById('profile-email').textContent=currentUser.email;
-  document.getElementById('profile-display-name').value=tempName;
   openModal('modal-profile');
-  // role 최신 상태로 다시 로드 후 관리자 버튼 표시
-  await loadUserRole();
+  // role + 프로필 동시 로드
+  const [,{data:profile},{data:myCodes}]=await Promise.all([
+    loadUserRole(),
+    sb.from('profiles').select('*').eq('id',currentUser.id).single(),
+    sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
+  ]);
+  // 관리자 버튼
   const adminBtn = document.getElementById('profile-admin-btn');
   if(adminBtn) adminBtn.style.display = curUserRole==='admin' ? '' : 'none';
-  // 폰트 크기 슬라이더 현재값 반영
+  // 닉네임 (DB에서 가져온 값 우선)
+  const name = profile?.display_name||profile?.username||tempName;
+  document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
+  document.getElementById('profile-name').textContent=name;
+  document.getElementById('profile-display-name').value=name;
+  // 폰트 크기
   const savedSize = localStorage.getItem('bl_font_size') || '100';
   const slider = document.getElementById('font-size-slider');
   const label = document.getElementById('font-size-label');
   if(slider) slider.value = savedSize;
   if(label) label.textContent = savedSize + '%';
-  // Google Vision API Key 표시
-  const gvEl = document.getElementById('gvision-key-input');
-  if(gvEl) gvEl.value = localStorage.getItem('bl_gvision_key') || '';
-  const[{data:profile},{data:myCodes}]=await Promise.all([
-    sb.from('profiles').select('*').eq('id',currentUser.id).single(),
-    sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
-  ]);
-  if(profile){
-    const name=profile.display_name||profile.username||tempName;
-    document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
-    document.getElementById('profile-name').textContent=name;
-    document.getElementById('profile-display-name').value=name;
-  }
   // 공개 설정 현재값 반영
   if(profile) {
     const libSel = document.getElementById('library-public-sel');
@@ -3522,12 +3516,13 @@ async function removeFriend(friendshipId) {
 
 // 파도타기 - 랜덤 서재 구경
 async function surfLibrary() {
+  // library_public=true 또는 library_visibility=public인 서재
   const { data } = await sb.from('profiles')
-    .select('id,display_name,username,library_public')
-    .eq('library_public', true)
+    .select('id,display_name,username,library_public,library_visibility')
     .neq('id', currentUser.id)
-    .limit(50);
-  if(!data?.length) { alert('공개된 서재가 없어요.'); return; }
+    .or('library_public.eq.true,library_visibility.eq.public')
+    .limit(100);
+  if(!data?.length) { await showAlert('공개된 서재가 없어요.'); return; }
   const random = data[Math.floor(Math.random()*data.length)];
   const name = random.display_name || random.username || '산책자';
   openLibrary(random.id, name);
