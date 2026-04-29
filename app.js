@@ -2186,9 +2186,12 @@ async function openImageOCR(targetEditorId) {
         // Vercel API Route로 Google Vision 호출
         let extracted = '';
         try {
-          const resp = await fetch('/api/vision-ocr', {
+          const resp = await fetch(`${SUPABASE_URL}/functions/v1/naver-ocr`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            },
             body: JSON.stringify({image: resized})
           });
           if(resp.ok) {
