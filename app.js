@@ -2015,27 +2015,47 @@ async function openImageOCR(targetEditorId) {
       </div>`;
       document.body.appendChild(loadOv);
       try {
-        const base64 = await new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result.split(',')[1]);
-          r.onerror = rej;
-          r.readAsDataURL(file);
+        // 이미지 리사이즈 (큰 이미지 최적화)
+        const resized = await new Promise((res) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const max = 1600;
+            let w = img.width, h = img.height;
+            if(w > max || h > max) { if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;} }
+            const canvas = document.createElement('canvas');
+            canvas.width=w; canvas.height=h;
+            canvas.getContext('2d').drawImage(img,0,0,w,h);
+            URL.revokeObjectURL(url);
+            res(canvas.toDataURL('image/jpeg',0.85).split(',')[1]);
+          };
+          img.src = url;
         });
-        const mediaType = file.type || 'image/jpeg';
-        // Supabase Edge Function으로 Google Vision 호출 (API Key 서버 관리)
-        const resp = await fetch(`${SUPABASE_URL}/functions/v1/vision-ocr`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_KEY}`
-          },
-          body: JSON.stringify({ image: base64, mediaType })
-        });
+
+        // Vercel API Route로 Google Vision 호출
+        let extracted = '';
+        try {
+          const resp = await fetch('/api/vision-ocr', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({image: resized})
+          });
+          if(resp.ok) {
+            const data = await resp.json();
+            if(data.error) throw new Error(data.error);
+            extracted = (data.text||'').trim();
+          } else {
+            const err = await resp.json().catch(()=>({error:'서버 오류'}));
+            throw new Error(err.error||'서버 오류 '+resp.status);
+          }
+        } catch(e) {
+          loadOv.remove();
+          await showAlert('OCR 오류: '+e.message+'\nVercel 환경변수 GOOGLE_VISION_KEY를 확인해주세요.');
+          return;
+        }
+
         loadOv.remove();
-        if(!resp.ok) { await showAlert('OCR 서비스 오류 ('+resp.status+'). 잠시 후 다시 시도해주세요.'); return; }
-        const data = await resp.json();
-        const extracted = (data.text || '').trim();
-        if(!extracted) { await showAlert('텍스트를 찾지 못했어요. 더 선명한 이미지를 사용해주세요.'); return; }
+        if(!extracted) { await showAlert('텍스트를 찾지 못했어요.\n더 선명하거나 텍스트가 잘 보이는 이미지를 사용해주세요.'); return; }
         const editor = document.getElementById(targetEditorId);
         if(editor && editor.isContentEditable) {
           editor.focus();

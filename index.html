@@ -500,7 +500,15 @@
           <span>작게</span><span>기본(100%)</span><span>크게</span>
         </div>
       </div>
-      <!-- Google Vision API Key 설명 제거 - 서버에서 관리 -->
+      <!-- Google Vision API Key (폴백용) -->
+      <div style="padding:.6rem .9rem;background:#f0f4ff;border:1px solid #c8d4f0;border-radius:var(--rs);margin-bottom:.6rem;">
+        <div style="font-size:.7rem;font-weight:600;color:#3a5a9a;margin-bottom:.25rem;">📷 OCR API Key (선택)</div>
+        <div style="font-size:.63rem;color:#5a7a9a;margin-bottom:.4rem;">서비스 오류 시 직접 Google Vision API Key를 등록해 사용할 수 있어요.</div>
+        <div style="display:flex;gap:.4rem;">
+          <input type="password" id="gvision-key-input" class="form-input" placeholder="Google Vision API Key (선택)" style="flex:1;font-size:.72rem;">
+          <button onclick="saveGVisionKey()" class="btn-save" style="font-size:.7rem;padding:.25rem .55rem;">저장</button>
+        </div>
+      </div>
       <div id="profile-admin-btn" style="display:none;margin-bottom:.6rem;">
         <button class="btn-save" style="width:100%;background:var(--acc2);" onclick="closeModal('modal-profile');openAdminPanel()">⚙️ 관리자 패널</button>
       </div>
@@ -907,6 +915,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=462"></script>
+<script src="app.js?v=464"></script>
 </body>
 </html>
