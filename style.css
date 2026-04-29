@@ -457,3 +457,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .qeditor-body{background:#fff;border:1px solid var(--border2);border-radius:0 0 6px 6px;padding:.5rem .6rem;font-size:.75rem;font-family:var(--fs);line-height:1.8;min-height:60px;height:130px;overflow-y:auto;overflow-x:hidden;outline:none;color:var(--tx1);resize:vertical;}
 .qeditor-body:focus{border-color:var(--acc);}
 .qeditor-body:empty::before{content:attr(data-placeholder);color:var(--tx3);font-style:italic;pointer-events:none;}
+
+.qcard-share-btn{position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:.8rem;cursor:pointer;opacity:0;transition:opacity .15s;padding:.15rem .3rem;border-radius:4px;z-index:2;}
+.qcard:hover .qcard-share-btn{opacity:.6;}
+.qcard-share-btn:hover{opacity:1!important;background:var(--border);}
