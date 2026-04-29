@@ -1,28 +1,39 @@
-export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
+export const config = {
+  runtime: 'edge',
+};
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
 
   const CLOVA_URL = process.env.CLOVA_OCR_URL;
   const CLOVA_KEY = process.env.CLOVA_OCR_KEY;
 
   if (!CLOVA_URL || !CLOVA_KEY) {
-    return res.status(500).json({ 
-      error: 'OCR not configured',
-      debug: { hasUrl: !!CLOVA_URL, hasKey: !!CLOVA_KEY }
-    });
+    return new Response(
+      JSON.stringify({ error: 'OCR not configured', hasUrl: !!CLOVA_URL, hasKey: !!CLOVA_KEY }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
-    const { image } = req.body || {};
-    if (!image) return res.status(400).json({ error: 'No image data' });
+    const body = await req.json();
+    const { image } = body;
+    if (!image) {
+      return new Response(JSON.stringify({ error: 'No image' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const url = CLOVA_URL.replace(/^http:\/\//, 'https://');
-    
+
     const clovaResp = await fetch(url, {
       method: 'POST',
       headers: {
@@ -37,15 +48,16 @@ export default async function handler(req, res) {
       }),
     });
 
-    const rawText = await clovaResp.text();
-    
     if (!clovaResp.ok) {
-      return res.status(500).json({ error: `Clova ${clovaResp.status}: ${rawText.slice(0, 200)}` });
+      const errText = await clovaResp.text();
+      return new Response(JSON.stringify({ error: `Clova ${clovaResp.status}: ${errText.slice(0,300)}` }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    const data = JSON.parse(rawText);
+    const data = await clovaResp.json();
     const fields = data.images?.[0]?.fields || [];
-    
+
     let text = '';
     for (let i = 0; i < fields.length; i++) {
       text += fields[i].inferText;
@@ -53,8 +65,12 @@ export default async function handler(req, res) {
       else if (i < fields.length - 1) text += ' ';
     }
 
-    return res.status(200).json({ text: text.trim() });
+    return new Response(JSON.stringify({ text: text.trim() }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   } catch (e) {
-    return res.status(500).json({ error: e.message, stack: e.stack?.slice(0, 300) });
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 }
