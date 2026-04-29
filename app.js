@@ -250,7 +250,7 @@ async function startApp(user) {
     currentUser = user;
     try { await loadData(); } catch(e) { console.warn('loadData:', e); }
     try { await loadGoals(); } catch(e) { console.warn('loadGoals:', e); }
-    try { loadUserRole(); } catch(e) {}
+    try { await loadUserRole(); } catch(e) {}
     try {
       const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
       if(pf?.font_size) initFontSize(String(pf.font_size));
