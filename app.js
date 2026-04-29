@@ -1979,70 +1979,84 @@ function addQuoteField(text='',page='',comment='') {
 }
 
 
-// ── 이미지에서 텍스트 추출 (Claude Vision)
+// ── 이미지에서 텍스트 추출
 async function openImageOCR(targetEditorId) {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = async () => {
-    const file = input.files[0];
-    if(!file) return;
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style.display = 'flex';
-    overlay.innerHTML = `
-      <div class="modal" style="max-width:360px;padding:1.2rem;text-align:center;">
-        <div style="font-size:.85rem;font-weight:600;color:var(--tx1);margin-bottom:.5rem;">📷 이미지 분석 중...</div>
-        <div style="font-size:.72rem;color:var(--tx3);">잠시만 기다려주세요</div>
-        <div style="margin-top:.8rem;font-size:1.5rem;">⏳</div>
+  // 카메라/갤러리 선택 모달
+  const choiceOv = document.createElement('div');
+  choiceOv.className = 'modal-overlay';
+  choiceOv.style.display = 'flex';
+  choiceOv.innerHTML = `
+    <div class="modal" style="max-width:280px;padding:1.1rem;text-align:center;">
+      <div style="font-size:.85rem;font-weight:600;color:var(--tx1);margin-bottom:.8rem;">📷 이미지 불러오기</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <button id="ocr-camera-btn" class="btn-save" style="font-size:.8rem;">📸 카메라로 촬영</button>
+        <button id="ocr-gallery-btn" class="btn-cancel" style="font-size:.8rem;">🖼️ 갤러리에서 선택</button>
+        <button onclick="this.closest('.modal-overlay').remove()" style="font-size:.72rem;color:var(--tx3);background:none;border:none;cursor:pointer;margin-top:.2rem;">취소</button>
+      </div>
+    </div>`;
+  document.body.appendChild(choiceOv);
+
+  const runOcr = (capture) => {
+    choiceOv.remove();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if(capture) input.capture = 'environment';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if(!file) return;
+      const loadOv = document.createElement('div');
+      loadOv.className = 'modal-overlay';
+      loadOv.style.display = 'flex';
+      loadOv.innerHTML = `<div class="modal" style="max-width:260px;padding:1.2rem;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:.5rem;">🔍</div>
+        <div style="font-size:.82rem;font-weight:600;color:var(--tx1);margin-bottom:.25rem;">텍스트 추출 중...</div>
+        <div style="font-size:.68rem;color:var(--tx3);">잠시만 기다려주세요</div>
       </div>`;
-    document.body.appendChild(overlay);
-    try {
-      // 이미지 → base64
-      const base64 = await new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = () => res(reader.result.split(',')[1]);
-        reader.onerror = rej;
-        reader.readAsDataURL(file);
-      });
-      const mediaType = file.type || 'image/jpeg';
-      // Claude API로 텍스트 추출
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: [
-              {type: 'image', source: {type: 'base64', media_type: mediaType, data: base64}},
-              {type: 'text', text: '이 이미지에서 텍스트를 그대로 추출해주세요. 책의 문장이나 글귀가 있으면 정확하게 옮겨주세요. 텍스트만 출력하고 다른 설명은 하지 마세요.'}
-            ]
-          }]
-        })
-      });
-      const data = await resp.json();
-      const extracted = data.content?.[0]?.text?.trim() || '';
-      overlay.remove();
-      if(!extracted) { await showAlert('텍스트를 찾지 못했어요.'); return; }
-      // 에디터에 삽입
-      const editor = document.getElementById(targetEditorId);
-      if(editor && editor.isContentEditable) {
-        editor.focus();
-        // 기존 내용이 있으면 줄바꿈 후 추가
-        if(editor.innerHTML.trim()) {
-          document.execCommand('insertHTML', false, '<br><br>' + extracted.replace(/\n/g,'<br>'));
-        } else {
-          editor.innerHTML = extracted.replace(/\n/g,'<br>');
+      document.body.appendChild(loadOv);
+      try {
+        const base64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result.split(',')[1]);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        const mediaType = file.type || 'image/jpeg';
+        // Supabase Edge Function으로 Google Vision 호출 (API Key 서버 관리)
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/vision-ocr`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_KEY}`
+          },
+          body: JSON.stringify({ image: base64, mediaType })
+        });
+        loadOv.remove();
+        if(!resp.ok) { await showAlert('OCR 서비스 오류 ('+resp.status+'). 잠시 후 다시 시도해주세요.'); return; }
+        const data = await resp.json();
+        const extracted = (data.text || '').trim();
+        if(!extracted) { await showAlert('텍스트를 찾지 못했어요. 더 선명한 이미지를 사용해주세요.'); return; }
+        const editor = document.getElementById(targetEditorId);
+        if(editor && editor.isContentEditable) {
+          editor.focus();
+          const ins = extracted.replace(/\n/g,'<br>');
+          if(editor.innerHTML.trim() && editor.innerHTML !== '<br>') {
+            document.execCommand('insertHTML', false, '<br><br>'+ins);
+          } else { editor.innerHTML = ins; }
         }
+      } catch(e) {
+        loadOv.remove();
+        await showAlert('오류: '+e.message);
       }
-    } catch(e) {
-      overlay.remove();
-      await showAlert('이미지 분석 오류: ' + e.message);
-    }
+    };
+    input.click();
   };
-  input.click();
+
+  choiceOv.querySelector('#ocr-camera-btn').onclick = () => runOcr(true);
+  choiceOv.querySelector('#ocr-gallery-btn').onclick = () => runOcr(false);
+  let mdT = null;
+  choiceOv.addEventListener('mousedown', e => { mdT = e.target; });
+  choiceOv.addEventListener('click', e => { if(e.target===choiceOv && mdT===choiceOv) choiceOv.remove(); });
 }
 
 function qfmt(cmd) {
@@ -2302,6 +2316,13 @@ function editBook() {
 }
 
 // ── 프로필
+async 
+function saveGVisionKey() {
+  const key = document.getElementById('gvision-key-input')?.value.trim();
+  if(!key) { localStorage.removeItem('bl_gvision_key'); showAlert('API Key가 삭제됐어요.'); return; }
+  localStorage.setItem('bl_gvision_key', key);
+  showAlert('✅ API Key가 저장됐어요!');
+}
 async function openProfile() {
   const tempName=currentUser.email?.split('@')[0]||'독서가';
   document.getElementById('profile-avatar').textContent=tempName.slice(0,1).toUpperCase();
@@ -2318,6 +2339,9 @@ async function openProfile() {
   const label = document.getElementById('font-size-label');
   if(slider) slider.value = savedSize;
   if(label) label.textContent = savedSize + '%';
+  // Google Vision API Key 표시
+  const gvEl = document.getElementById('gvision-key-input');
+  if(gvEl) gvEl.value = localStorage.getItem('bl_gvision_key') || '';
   const[{data:profile},{data:myCodes}]=await Promise.all([
     sb.from('profiles').select('*').eq('id',currentUser.id).single(),
     sb.from('invite_codes').select('*').eq('owner_id',currentUser.id)
