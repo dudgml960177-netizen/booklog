@@ -744,12 +744,13 @@ async function shareQuoteCard(qtId, btn) {
   const rawText = qt.text || '';
   // \n → <br> 변환 (이미 <br>이면 그대로)
   const richText = rawText
-    .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
-    .replace(/<\/div>\s*<div>/gi, '<br>')
-    .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
-    .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
-    .replace(/\n/g, '<br>')
-    .replace(/(<br>){3,}/gi, '<br><br>');
+    .replace(/<div><br\s*\/?><\/div>/gi, '\n')
+    .replace(/<\/div>\s*<div>/gi, '\n')
+    .replace(/<div>/gi, '').replace(/<\/div>/gi, '\n')
+    .replace(/<p>/gi, '').replace(/<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+/, '').trim();
   const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
   const lines = richText.split(/<br>/i);
 
@@ -801,7 +802,7 @@ async function shareQuoteCard(qtId, btn) {
                  : pLen > 80  || lineCount > 5  ? 12 : 13;
   // 줄 간격도 조정
   const lineH = fontSize <= 10 ? 1.75 : 1.9;
-  const chunks = [lines.join('<br>')];
+  const chunks = [richText];
   const total = 1;
 
   // 카드 생성 및 캡처
@@ -814,7 +815,7 @@ async function shareQuoteCard(qtId, btn) {
     const pageLabel = total > 1 ? `<div style="font-size:9px;color:${acc};opacity:.5;text-align:right;margin-bottom:8px;font-family:sans-serif;">${i+1} / ${total}</div>` : '';
     card.innerHTML = `
       ${isFirst ? `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 477.75 390.69" width="44" height="36" style="display:block;">
   <!-- Generator: Adobe Illustrator 30.5.0, SVG Export Plug-In . SVG Version: 2.1.4 Build 64)  -->
@@ -886,9 +887,8 @@ async function shareQuoteCard(qtId, btn) {
     <path class="st6" d="M278.35,167.56c-3.02,3.39-5.39,4.54-8.55,5.11-1.93,3.04-6.09,3.23-8.09-.2-4.96-.09-9.12-3.89-8.17-9.64-.57-3.86.74-6.48,3.84-8.78,4.66-.72,9.06-.68,13.7-.08,1.74,2.51,3.79,3.06,6.2,3.31,4.17,2.1,5.17,7.09,1.06,10.28Z"/>
   </g>
 </svg>
-        ${coverB64 ? `<img src="${coverB64}" style="width:20px;height:28px;object-fit:cover;border-radius:2px;box-shadow:1px 1px 4px rgba(0,0,0,.15);">` : ''}
       </div>` : pageLabel}
-      <div style="font-size:${fontSize}px;line-height:${lineH};color:#2e1f0e;margin-bottom:18px;">${chunks[i]}</div>
+      <div style="font-size:${fontSize}px;line-height:${lineH};color:#2e1f0e;margin-bottom:18px;white-space:pre-wrap;word-break:break-word;">${chunks[i]}</div>
       ${isLast ? `<div style="border-top:1px solid ${acc}33;padding-top:10px;display:flex;align-items:center;gap:8px;">
         ${coverB64 ? `<img src="${coverB64}" style="width:24px;height:34px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : ''}
         <div>
@@ -1013,11 +1013,13 @@ function renderQuotes() {
     // 2. HTML 서식 있는지 확인
     const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if(!hasHtml) {
-      // 순수 텍스트: 이스케이프 후 줄바꿈
-      text = text.replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;').replace(/\n/g,'<br>');
+      // 순수 텍스트: 이스케이프 후 줄바꿈 처리
+      text = text.replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;');
+      // 빈 줄(\n\n)은 여백이 있는 <br>로, 단일 줄바꿈은 일반 <br>로
+      text = text.replace(/\n\n/g,'<br><span style="display:block;height:.6em;"></span>').replace(/\n/g,'<br>');
     } else {
       // HTML 서식 있음: 줄바꿈만 변환
-      text = text.replace(/\n/g,'<br>');
+      text = text.replace(/\n\n/g,'<br><span style="display:block;height:.6em;"></span>').replace(/\n/g,'<br>');
     }
     if(q) {
       const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
