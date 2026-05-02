@@ -1005,24 +1005,17 @@ function renderQuotes() {
     // 서식 태그 유무를 원본에서 먼저 확인
     const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if (hasHtml) {
-      // 서식 있는 경우: DOM 파싱으로 정확하게 줄바꿈 추출
-      const tmp = document.createElement('div');
-      tmp.innerHTML = text;
-      // block 요소(div, p)들 사이에 줄바꿈 마커 삽입
-      tmp.querySelectorAll('div, p').forEach(el => {
-        // 빈 div(줄바꿈 전용)는 <br>로 교체
-        if (!el.textContent.trim() || el.innerHTML === '<br>' || el.innerHTML === '<br/>') {
-          el.replaceWith(document.createElement('br'));
-        } else {
-          // 내용 있는 블록 앞에 줄바꿈 삽입
-          el.insertAdjacentHTML('afterend', '');
-          el.outerHTML = el.innerHTML + '<br>';
-        }
-      });
-      text = tmp.innerHTML
+      // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환 (서식 태그 보존)
+      // contenteditable은 줄바꿈을 <div>...</div> 또는 <div><br></div>로 저장함
+      text = text
+        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')   // 빈 줄
+        .replace(/<\/div>\s*<div>/gi, '<br>')            // div 사이 경계
+        .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')  // div 래퍼
+        .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
+        .replace(/\n/g, '<br>')
         .replace(/(<br\s*\/?>){3,}/gi, '<br><br>')
-        .replace(/^(<br\s*\/?>)+/i, '')
-        .replace(/(<br\s*\/?>)+$/i, '');
+        .replace(/^(<br\s*\/?>)+/gi, '')
+        .replace(/(<br\s*\/?>)+$/gi, '');
     } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
@@ -1322,101 +1315,15 @@ function showTimerBookDetail(bookId) {
     </div>`;
 }
 
-// 타이머 목록 순서 저장 (localStorage)
-const TIMER_ORDER_KEY = 'booklog_timer_book_order';
-function getTimerOrder() {
-  try { return JSON.parse(localStorage.getItem(TIMER_ORDER_KEY)||'[]'); } catch { return []; }
-}
-function saveTimerOrder(ids) {
-  localStorage.setItem(TIMER_ORDER_KEY, JSON.stringify(ids));
-}
-
 function buildTimer() {
-  const reading = allBooks.filter(b=>b.status==='읽는중');
-  // 저장된 순서 적용
-  const savedOrder = getTimerOrder();
-  const ordered = [
-    ...savedOrder.map(id => reading.find(b=>b.id===id)).filter(Boolean),
-    ...reading.filter(b => !savedOrder.includes(b.id))
-  ];
-
-  // select 드롭다운 업데이트 (현재 선택값 유지)
   const sel = document.getElementById('timer-book-select');
-  const prevVal = sel?.value || '';
-  if(sel) {
-    sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
-    ordered.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
-    if(prevVal) sel.value = prevVal;
-    sel.onchange = () => showTimerBookDetail(sel.value);
-  }
-
-  // 드래그 순서 변경 UI 렌더
-  renderTimerOrderList(ordered);
+  sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
+  allBooks.filter(b=>b.status==='읽는중').forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
+  // 책 선택 시 독서 현황 표시
+  sel.onchange = () => showTimerBookDetail(sel.value);
   updateTimerDisplay();
   updateTrackerPeriodBtns();
   buildTrackerGrid();
-}
-
-function renderTimerOrderList(ordered) {
-  const wrap = document.getElementById('timer-order-list');
-  if(!wrap) return;
-  if(!ordered.length) { wrap.innerHTML=''; return; }
-  wrap.innerHTML = ordered.map((b,i) => `
-    <div class="timer-order-item" draggable="true" data-id="${b.id}"
-      style="display:flex;align-items:center;gap:.4rem;padding:.3rem .4rem;border-radius:5px;background:var(--card);border:1px solid var(--border);cursor:grab;font-size:.7rem;color:var(--tx2);margin-bottom:.25rem;user-select:none;"
-      ondragstart="timerDragStart(event)"
-      ondragover="timerDragOver(event)"
-      ondrop="timerDrop(event)"
-      ondragend="timerDragEnd(event)">
-      <span style="color:var(--tx3);font-size:.75rem;cursor:grab;">⠿</span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</span>
-      <span style="font-size:.58rem;color:var(--tx3);">${Math.floor((b.reading_time||0)/60)}h${(b.reading_time||0)%60}m</span>
-    </div>`).join('');
-}
-
-let _timerDragSrc = null;
-function timerDragStart(e) {
-  _timerDragSrc = e.currentTarget;
-  e.dataTransfer.effectAllowed = 'move';
-  e.currentTarget.style.opacity = '.45';
-}
-function timerDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  const wrap = document.getElementById('timer-order-list');
-  wrap.querySelectorAll('.timer-order-item').forEach(el => el.style.borderTop = '');
-  if(e.currentTarget !== _timerDragSrc) e.currentTarget.style.borderTop = '2px solid var(--acc)';
-}
-function timerDrop(e) {
-  e.preventDefault();
-  if(!_timerDragSrc || _timerDragSrc === e.currentTarget) return;
-  const wrap = document.getElementById('timer-order-list');
-  const items = [...wrap.querySelectorAll('.timer-order-item')];
-  const fromIdx = items.indexOf(_timerDragSrc);
-  const toIdx = items.indexOf(e.currentTarget);
-  if(fromIdx === -1 || toIdx === -1) return;
-  // DOM 재정렬
-  if(fromIdx < toIdx) wrap.insertBefore(_timerDragSrc, e.currentTarget.nextSibling);
-  else wrap.insertBefore(_timerDragSrc, e.currentTarget);
-  // 순서 저장
-  const newOrder = [...wrap.querySelectorAll('.timer-order-item')].map(el=>el.dataset.id);
-  saveTimerOrder(newOrder);
-  // select도 업데이트
-  const sel = document.getElementById('timer-book-select');
-  const prevVal = sel?.value||'';
-  if(sel) {
-    sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
-    newOrder.forEach(id=>{
-      const b=allBooks.find(x=>x.id===id);
-      if(!b) return;
-      const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);
-    });
-    if(prevVal) sel.value=prevVal;
-  }
-}
-function timerDragEnd(e) {
-  e.currentTarget.style.opacity='';
-  document.getElementById('timer-order-list')?.querySelectorAll('.timer-order-item').forEach(el=>el.style.borderTop='');
 }
 function updateTrackerPeriodBtns() {
   document.querySelectorAll('.tracker-period-btn').forEach(b=>{
@@ -1455,7 +1362,7 @@ async function saveTimer() {
     // 연도별 독서 시간 누적
     const yearData = book.reading_time_year || {};
     yearData[cy] = (yearData[cy]||0) + mins;
-    // 날짜별 독서 시간 로그 (트래커 + 통계용)
+    // 날짜별 독서 시간 로그 (통계용)
     const timeLog = book.reading_time_log || {};
     timeLog[today] = (timeLog[today]||0) + mins;
     const updateData = {
