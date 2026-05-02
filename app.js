@@ -1005,17 +1005,17 @@ function renderQuotes() {
     // 서식 태그 유무를 원본에서 먼저 확인
     const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if (hasHtml) {
-      // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환 (서식 태그 보존)
-      // contenteditable은 줄바꿈을 <div>...</div> 또는 <div><br></div>로 저장함
+      // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환, 서식 태그는 보존
+      // contenteditable 줄바꿈 패턴: <div><br></div> / </div><div> / \n
       text = text
-        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')   // 빈 줄
-        .replace(/<\/div>\s*<div>/gi, '<br>')            // div 사이 경계
-        .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')  // div 래퍼
+        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
+        .replace(/<\/div>\s*<div>/gi, '<br>')
+        .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
         .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
         .replace(/\n/g, '<br>')
         .replace(/(<br\s*\/?>){3,}/gi, '<br><br>')
-        .replace(/^(<br\s*\/?>)+/gi, '')
-        .replace(/(<br\s*\/?>)+$/gi, '');
+        .replace(/^(<br\s*\/?>\s*)+/gi, '')
+        .replace(/(<br\s*\/?>\s*)+$/gi, '');
     } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
@@ -1362,7 +1362,6 @@ async function saveTimer() {
     // 연도별 독서 시간 누적
     const yearData = book.reading_time_year || {};
     yearData[cy] = (yearData[cy]||0) + mins;
-    // 날짜별 독서 시간 로그 (통계용)
     const timeLog = book.reading_time_log || {};
     timeLog[today] = (timeLog[today]||0) + mins;
     const updateData = {
