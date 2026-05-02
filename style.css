@@ -102,7 +102,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .qcard-select-box{position:absolute;top:.55rem;right:.55rem;width:16px;height:16px;border:2px solid;border-radius:3px;display:flex;align-items:center;justify-content:center;z-index:1;}
 .qcard-inner{padding-left:.5rem;}
 .qcard-quote-mark{font-size:1.4rem;opacity:.25;line-height:1;margin-bottom:.05rem;font-family:Georgia,serif;margin-top:-.15rem;}
-.qcard-text{font-family:var(--fs);font-size:.7rem;line-height:1.76;color:var(--tx1);word-break:break-word;}
+.qcard-text{font-family:var(--fs);font-size:.7rem;line-height:1.76;color:var(--tx1);}
 .qcard-text.collapsed{max-height:5rem;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent);mask-image:linear-gradient(to bottom,#000 55%,transparent);}
 .qcard-expand{font-size:.62rem;color:var(--acc);background:none;border:none;cursor:pointer;padding:0;font-family:var(--ff);margin-top:.2rem;display:block;}
 .qcard-footer{display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;gap:.4rem;flex-wrap:wrap;}
@@ -196,7 +196,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .rbar-row{display:flex;align-items:center;gap:.65rem;}
 .rbar-label{font-size:.68rem;color:var(--tx2);min-width:60px;font-weight:500;}
 .rbar-outer{flex:1;height:18px;background:#ede4d0;border-radius:4px;overflow:hidden;position:relative;}
-.rbar-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;}
+.rbar-fill{height:100%;border-radius:0;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;}
 .rbar-val{font-size:.6rem;font-weight:600;color:#fff;}
 .rbar-val-out{position:absolute;font-size:.6rem;font-weight:600;color:var(--tx2);top:50%;transform:translateY(-50%);padding-left:5px;}
 .rating-summary{display:flex;flex-direction:column;gap:.45rem;min-width:85px;}
@@ -243,7 +243,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .author-bar-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.4rem;}
 .author-name{font-size:.68rem;color:var(--tx2);min-width:75px;max-width:75px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .author-bar-outer{flex:1;height:16px;background:#ede4d0;border-radius:3px;overflow:hidden;}
-.author-bar-fill{height:100%;border-radius:3px;background:var(--acc);display:flex;align-items:center;justify-content:flex-end;padding-right:5px;}
+.author-bar-fill{height:100%;border-radius:0;background:var(--acc);display:flex;align-items:center;justify-content:flex-end;padding-right:5px;}
 .author-bar-val{font-size:.58rem;font-weight:600;color:#fff;}
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(46,31,14,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center;user-select:none;}
