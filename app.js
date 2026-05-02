@@ -1005,17 +1005,24 @@ function renderQuotes() {
     // 서식 태그 유무를 원본에서 먼저 확인
     const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if (hasHtml) {
-      // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환, 서식 태그는 보존
-      // contenteditable 줄바꿈 패턴: <div><br></div> / </div><div> / \n
-      text = text
-        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
-        .replace(/<\/div>\s*<div>/gi, '<br>')
-        .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
-        .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
-        .replace(/\n/g, '<br>')
+      // 서식 있는 경우: DOM 파싱으로 정확하게 줄바꿈 추출
+      const tmp = document.createElement('div');
+      tmp.innerHTML = text;
+      // block 요소(div, p)들 사이에 줄바꿈 마커 삽입
+      tmp.querySelectorAll('div, p').forEach(el => {
+        // 빈 div(줄바꿈 전용)는 <br>로 교체
+        if (!el.textContent.trim() || el.innerHTML === '<br>' || el.innerHTML === '<br/>') {
+          el.replaceWith(document.createElement('br'));
+        } else {
+          // 내용 있는 블록 앞에 줄바꿈 삽입
+          el.insertAdjacentHTML('afterend', '');
+          el.outerHTML = el.innerHTML + '<br>';
+        }
+      });
+      text = tmp.innerHTML
         .replace(/(<br\s*\/?>){3,}/gi, '<br><br>')
-        .replace(/^(<br\s*\/?>\s*)+/gi, '')
-        .replace(/(<br\s*\/?>\s*)+$/gi, '');
+        .replace(/^(<br\s*\/?>)+/i, '')
+        .replace(/(<br\s*\/?>)+$/i, '');
     } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
@@ -1361,13 +1368,10 @@ async function saveTimer() {
   try {
     // 연도별 독서 시간 누적
     const yearData = book.reading_time_year || {};
-    yearData[cy] = (yearData[cy]||0) + mins;
-    const timeLog = book.reading_time_log || {};
-    timeLog[today] = (timeLog[today]||0) + mins;
+    yearData[String(cy)] = (yearData[String(cy)]||yearData[cy]||0) + mins; delete yearData[cy];
     const updateData = {
       reading_time:(book.reading_time||0)+mins,
       reading_time_year: yearData,
-      reading_time_log: timeLog,
       last_read:today
     };
     // 타이머에서 현재 페이지 입력값 반영
@@ -1587,7 +1591,7 @@ function buildStats() {
       if(logSum > 0) return sum + logSum;
     }
     // 2순위: 연도별 컬럼
-    if(b.reading_time_year?.[cy]) return sum + b.reading_time_year[cy];
+    if(b.reading_time_year?.[cy]||b.reading_time_year?.[String(cy)]) return sum + (b.reading_time_year[cy]||b.reading_time_year[String(cy)]);
     // 3순위: 올해 마지막으로 읽은 책이면 전체 시간 반영
     if(b.last_read?.startsWith(String(cy)) && b.reading_time) return sum + b.reading_time;
     return sum;
@@ -2013,7 +2017,7 @@ function buildGoalDisplay() {
       const ls=Object.entries(b.reading_time_log).filter(([d])=>d.startsWith(String(cy))).reduce((s,[,m])=>s+(m||0),0);
       if(ls>0) return sum+ls;
     }
-    if(b.reading_time_year?.[cy]) return sum+b.reading_time_year[cy];
+    if(b.reading_time_year?.[cy]||b.reading_time_year?.[String(cy)]) return sum+(b.reading_time_year[cy]||b.reading_time_year[String(cy)]);
     if(b.last_read?.startsWith(String(cy))&&b.reading_time) return sum+b.reading_time;
     return sum;
   },0);
@@ -2465,8 +2469,30 @@ function openDetail(bookId) {
     const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
     quotes.forEach((q,i)=>{
       const color = QCOLORS[i % QCOLORS.length];
-      const hasHtml = /<[a-z]/i.test(q.text||'');
-      const txt = hasHtml ? q.text : (q.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      // 서식+줄바꿈 동시 처리 (renderQuotes와 동일한 로직)
+      const _hasHtmlD = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(q.text||'');
+      let txt = q.text || '';
+      if (_hasHtmlD) {
+        // 서식 있음: 줄바꿈 태그만 <br>로 변환, 서식 태그 보존
+        txt = txt
+          .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
+          .replace(/<\/div>\s*<div>/gi, '<br>')
+          .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
+          .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
+          .replace(/\n/g, '<br>')
+          .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
+          .replace(/^(<br\s*\/?>\s*)+/gi, '')
+          .replace(/(<br\s*\/?>\s*)+$/gi, '');
+      } else {
+        txt = txt
+          .replace(/<div><br\s*\/?><\/div>/gi, '\n')
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/div>\s*<div>/gi, '\n')
+          .replace(/<div>/gi, '').replace(/<\/div>/gi, '\n')
+          .replace(/<p>/gi, '').replace(/<\/p>/gi, '\n')
+          .replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '').replace(/\n+$/, '').trim();
+        txt = txt.replace(/&(?!amp;|lt;|gt;|nbsp;)/g,'&amp;').replace(/\n/g,'<br>');
+      }
       html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem .5rem 1rem;position:relative;margin-bottom:.4rem;cursor:pointer;transition:box-shadow .15s;" onmouseenter="this.style.boxShadow='0 2px 10px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow='none'">
         <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${color};"></div>
         <div style="position:absolute;top:.45rem;right:.55rem;font-size:.6rem;color:var(--tx3);opacity:.5;">✏️</div>
@@ -3787,29 +3813,28 @@ async function removeFriend(friendshipId) {
 
 // 파도타기 - 관리자 서재 구경 (k_tenten@naver.com)
 async function surfLibrary() {
-  // 관리 계정의 서재만 표시
-  const ADMIN_EMAIL = 'k_tenten@naver.com';
-  const { data: adminUser } = await sb.from('profiles')
-    .select('id,display_name,username')
-    .eq('email', ADMIN_EMAIL)
-    .single()
-    .catch(() => ({ data: null }));
-  // profiles에 email이 없을 수 있으므로 auth.users 경유
-  if(!adminUser) {
-    // email로 직접 조회가 안 되면 username/display_name 기반 고정 표시
-    const { data: allP } = await sb.from('profiles')
-      .select('id,display_name,username,library_public,library_visibility')
-      .neq('id', currentUser.id)
-      .limit(200);
-    // 관리 계정 이메일로 등록된 유저 찾기 (Supabase auth uid 기반)
-    const target = (allP||[]).find(p =>
-      p.username === 'k_tenten' || p.display_name === 'k_tenten'
-    ) || (allP||[])[0];
-    if(!target) { await showAlert('서재를 불러올 수 없어요.'); return; }
-    openLibrary(target.id, target.display_name || target.username || '북로그');
-    return;
-  }
-  openLibrary(adminUser.id, adminUser.display_name || adminUser.username || '북로그');
+  // 관리 계정(k_tenten@naver.com) 서재만 표시
+  // profiles에 email 컬럼이 없으므로 username/display_name으로 탐색
+  const { data: allP } = await sb.from('profiles')
+    .select('id,display_name,username,library_public,library_visibility')
+    .neq('id', currentUser.id)
+    .limit(200);
+  const profiles = allP || [];
+  // 관리 계정 우선 탐색, 없으면 공개 서재 중 랜덤
+  const admin = profiles.find(p =>
+    p.username === 'k_tenten' ||
+    p.display_name === 'k_tenten' ||
+    (p.username||'').toLowerCase().includes('tenten') ||
+    (p.display_name||'').toLowerCase().includes('tenten')
+  );
+  const publicProfiles = profiles.filter(p =>
+    p.library_public === true ||
+    p.library_visibility === 'public' ||
+    (!p.library_visibility && p.library_public !== false)
+  );
+  const target = admin || publicProfiles[Math.floor(Math.random()*publicProfiles.length)];
+  if(!target) { await showAlert('공개된 서재가 없어요.'); return; }
+  openLibrary(target.id, target.display_name || target.username || '산책자');
 }
 
 // 서재 구경 상태
