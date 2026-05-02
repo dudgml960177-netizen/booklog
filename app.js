@@ -757,12 +757,26 @@ async function shareQuoteCard(qtId, btn) {
   let coverB64 = '';
   if(book?.cover) {
     try {
-      const cResp = await fetch(book.cover);
-      const cBlob = await cResp.blob();
-      coverB64 = await new Promise(res => {
-        const r = new FileReader();
-        r.onload = () => res(r.result);
-        r.readAsDataURL(cBlob);
+      // Image + canvas로 CORS 우회
+      coverB64 = await new Promise((res) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const c = document.createElement('canvas');
+            c.width = img.width; c.height = img.height;
+            c.getContext('2d').drawImage(img, 0, 0);
+            res(c.toDataURL('image/jpeg', 0.8));
+          } catch(e) { res(''); }
+        };
+        img.onerror = () => {
+          // crossOrigin 없이 재시도 (tainted canvas → html2canvas allowTaint)
+          const img2 = new Image();
+          img2.onload = () => res(img2.src);
+          img2.onerror = () => res('');
+          img2.src = book.cover + (book.cover.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        };
+        img.src = book.cover;
       });
     } catch(e) { coverB64 = ''; }
   }
