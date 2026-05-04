@@ -1366,12 +1366,12 @@ async function saveTimer() {
   const today=new Date().toISOString().slice(0,10);
   const cy = new Date().getFullYear();
   try {
-    // 연도별 독서 시간 누적 (키를 string으로 통일 — Supabase jsonb 왕복 후 키가 string이 됨)
     const cyStr = String(cy);
     const yearData = book.reading_time_year || {};
+    // Supabase jsonb 왕복 후 키가 string이 되므로 string 키로 통일
     yearData[cyStr] = (yearData[cyStr] || yearData[cy] || 0) + mins;
-    if(typeof yearData[cy] === 'number' && cy !== cyStr) delete yearData[cy];
-    // 날짜별 독서 시간 로그 (트래커 정확도 핵심)
+    if(yearData[cy] !== undefined && cy !== cyStr) delete yearData[cy];
+    // 날짜별 독서 시간 (트래커 정확도용)
     const timeLog = book.reading_time_log || {};
     timeLog[today] = (timeLog[today] || 0) + mins;
     const updateData = {
@@ -1426,13 +1426,11 @@ function buildTrackerGrid() {
 
   const dayMap = {};
   allBooks.forEach(b => {
-    // reading_time_log(날짜별 정확한 기록) 우선 사용
     if(b.reading_time_log && typeof b.reading_time_log === 'object') {
       Object.entries(b.reading_time_log).forEach(([date, mins]) => {
         if(date && mins > 0) dayMap[date] = (dayMap[date]||0) + mins;
       });
     } else if(b.last_read && b.reading_time) {
-      // 구버전 폴백: last_read 날짜에 전체 시간 표시
       dayMap[b.last_read] = (dayMap[b.last_read]||0) + b.reading_time;
     }
   });
@@ -1604,7 +1602,7 @@ function buildStats() {
       if(logSum > 0) return sum + logSum;
     }
     // 2순위: 연도별 컬럼
-    const cyStr2=String(cy); if(b.reading_time_year?.[cyStr2]||b.reading_time_year?.[cy]) return sum+(b.reading_time_year[cyStr2]||b.reading_time_year[cy]);
+    const _cyS=String(cy); const _yrV=b.reading_time_year?.[_cyS]??b.reading_time_year?.[cy]; if(_yrV) return sum+_yrV;
     // 3순위: 올해 마지막으로 읽은 책이면 전체 시간 반영
     if(b.last_read?.startsWith(String(cy)) && b.reading_time) return sum + b.reading_time;
     return sum;
@@ -2030,7 +2028,7 @@ function buildGoalDisplay() {
       const ls=Object.entries(b.reading_time_log).filter(([d])=>d.startsWith(String(cy))).reduce((s,[,m])=>s+(m||0),0);
       if(ls>0) return sum+ls;
     }
-    const cyS=String(cy); if(b.reading_time_year?.[cyS]||b.reading_time_year?.[cy]) return sum+(b.reading_time_year[cyS]||b.reading_time_year[cy]);
+    const _cyS2=String(cy); const _yrV2=b.reading_time_year?.[_cyS2]??b.reading_time_year?.[cy]; if(_yrV2) return sum+_yrV2;
     if(b.last_read?.startsWith(String(cy))&&b.reading_time) return sum+b.reading_time;
     return sum;
   },0);
@@ -3751,9 +3749,18 @@ async function searchFriend() {
   const q = document.getElementById('friend-search-input')?.value.trim();
   const resultEl = document.getElementById('friend-search-result');
   if(!q || !resultEl) return;
-  const { data } = await sb.from('profiles').select('id,display_name,username')
-    .or(`display_name.ilike.%${q}%,username.ilike.%${q}%`)
-    .neq('id', currentUser.id).limit(5);
+  // or + ilike 대신 두 쿼리 결합
+  const [r1, r2] = await Promise.all([
+    sb.from('profiles').select('id,display_name,username')
+      .ilike('display_name', `%${q}%`).neq('id', currentUser.id).limit(5),
+    sb.from('profiles').select('id,display_name,username')
+      .ilike('username', `%${q}%`).neq('id', currentUser.id).limit(5),
+  ]);
+  const seen = new Set();
+  const data = [...(r1.data||[]), ...(r2.data||[])].filter(u => {
+    if(seen.has(u.id)) return false;
+    seen.add(u.id); return true;
+  }).slice(0, 5);
   resultEl.innerHTML = '';
   if(!data?.length) {
     resultEl.innerHTML='<div style="padding:.6rem .8rem;font-size:.75rem;color:var(--tx3);text-align:center;">검색 결과가 없어요.</div>';
@@ -3804,29 +3811,37 @@ async function removeFriend(friendshipId) {
 
 // 파도타기 - 관리자 서재 구경 (k_tenten@naver.com)
 async function surfLibrary() {
-  // 관리 계정의 서재만 표시
-  const ADMIN_EMAIL = 'k_tenten@naver.com';
-  const { data: adminUser } = await sb.from('profiles')
-    .select('id,display_name,username')
-    .eq('email', ADMIN_EMAIL)
-    .single()
-    .catch(() => ({ data: null }));
-  // profiles에 email이 없을 수 있으므로 auth.users 경유
-  if(!adminUser) {
-    // email로 직접 조회가 안 되면 username/display_name 기반 고정 표시
+  // 관리 계정(k_tenten@naver.com) 서재 표시
+  // profiles 테이블에서 username 또는 display_name으로 탐색
+  try {
     const { data: allP } = await sb.from('profiles')
       .select('id,display_name,username,library_public,library_visibility')
-      .neq('id', currentUser.id)
-      .limit(200);
-    // 관리 계정 이메일로 등록된 유저 찾기 (Supabase auth uid 기반)
-    const target = (allP||[]).find(p =>
-      p.username === 'k_tenten' || p.display_name === 'k_tenten'
-    ) || (allP||[])[0];
-    if(!target) { await showAlert('서재를 불러올 수 없어요.'); return; }
-    openLibrary(target.id, target.display_name || target.username || '북로그');
-    return;
+      .limit(500);
+    const profiles = allP || [];
+    // k_tenten 계정 우선 탐색
+    const admin = profiles.find(p =>
+      (p.username||'').toLowerCase() === 'k_tenten' ||
+      (p.display_name||'').toLowerCase().includes('tenten') ||
+      (p.username||'').toLowerCase().includes('tenten')
+    );
+    if(admin) { openLibrary(admin.id, admin.display_name || admin.username || '북로그'); return; }
+    // 없으면 공개 서재 중 랜덤
+    const pub = profiles.filter(p =>
+      p.id !== currentUser.id && (
+        p.library_public === true ||
+        p.library_visibility === 'public' ||
+        (!p.library_visibility && p.library_public !== false)
+      )
+    );
+    if(pub.length) {
+      const r = pub[Math.floor(Math.random() * pub.length)];
+      openLibrary(r.id, r.display_name || r.username || '산책자');
+    } else {
+      await showAlert('아직 공개된 서재가 없어요.');
+    }
+  } catch(e) {
+    await showAlert('서재를 불러오는 중 오류가 발생했어요: ' + e.message);
   }
-  openLibrary(adminUser.id, adminUser.display_name || adminUser.username || '북로그');
 }
 
 // 서재 구경 상태
