@@ -1368,10 +1368,8 @@ async function saveTimer() {
   try {
     const cyStr = String(cy);
     const yearData = book.reading_time_year || {};
-    // Supabase jsonb 왕복 후 키가 string이 되므로 string 키로 통일
     yearData[cyStr] = (yearData[cyStr] || yearData[cy] || 0) + mins;
-    if(yearData[cy] !== undefined && cy !== cyStr) delete yearData[cy];
-    // 날짜별 독서 시간 (트래커 정확도용)
+    if(yearData[cy] !== undefined && String(cy) !== cy) delete yearData[cy];
     const timeLog = book.reading_time_log || {};
     timeLog[today] = (timeLog[today] || 0) + mins;
     const updateData = {
@@ -1602,7 +1600,7 @@ function buildStats() {
       if(logSum > 0) return sum + logSum;
     }
     // 2순위: 연도별 컬럼
-    const _cyS=String(cy); const _yrV=b.reading_time_year?.[_cyS]??b.reading_time_year?.[cy]; if(_yrV) return sum+_yrV;
+    const _yrS=String(cy); const _yrV=b.reading_time_year?.[_yrS]??b.reading_time_year?.[cy]; if(_yrV) return sum+_yrV;
     // 3순위: 올해 마지막으로 읽은 책이면 전체 시간 반영
     if(b.last_read?.startsWith(String(cy)) && b.reading_time) return sum + b.reading_time;
     return sum;
@@ -2028,7 +2026,7 @@ function buildGoalDisplay() {
       const ls=Object.entries(b.reading_time_log).filter(([d])=>d.startsWith(String(cy))).reduce((s,[,m])=>s+(m||0),0);
       if(ls>0) return sum+ls;
     }
-    const _cyS2=String(cy); const _yrV2=b.reading_time_year?.[_cyS2]??b.reading_time_year?.[cy]; if(_yrV2) return sum+_yrV2;
+    const _yrS2=String(cy); const _yrV2=b.reading_time_year?.[_yrS2]??b.reading_time_year?.[cy]; if(_yrV2) return sum+_yrV2;
     if(b.last_read?.startsWith(String(cy))&&b.reading_time) return sum+b.reading_time;
     return sum;
   },0);
@@ -2687,7 +2685,7 @@ async function saveProfile() {
     const {error} = await sb.from('profiles').update({display_name:name}).eq('id',currentUser.id);
     if(error) throw error;
     closeModal('modal-profile');
-    alert('닉네임이 변경됐어요!');
+    await showAlert('저장되었어요!');
   } catch(e){ alert('저장 오류: '+(e.message||JSON.stringify(e))); }
 }
 
@@ -3749,18 +3747,14 @@ async function searchFriend() {
   const q = document.getElementById('friend-search-input')?.value.trim();
   const resultEl = document.getElementById('friend-search-result');
   if(!q || !resultEl) return;
-  // or + ilike 대신 두 쿼리 결합
-  const [r1, r2] = await Promise.all([
-    sb.from('profiles').select('id,display_name,username')
-      .ilike('display_name', `%${q}%`).neq('id', currentUser.id).limit(5),
-    sb.from('profiles').select('id,display_name,username')
-      .ilike('username', `%${q}%`).neq('id', currentUser.id).limit(5),
+  const [_sr1, _sr2] = await Promise.all([
+    sb.from('profiles').select('id,display_name,username').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
+    sb.from('profiles').select('id,display_name,username').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);
-  const seen = new Set();
-  const data = [...(r1.data||[]), ...(r2.data||[])].filter(u => {
-    if(seen.has(u.id)) return false;
-    seen.add(u.id); return true;
-  }).slice(0, 5);
+  const _seen = new Set();
+  const data = [...(_sr1.data||[]), ...(_sr2.data||[])].filter(u => {
+    if(_seen.has(u.id)) return false; _seen.add(u.id); return true;
+  }).slice(0,5);
   resultEl.innerHTML = '';
   if(!data?.length) {
     resultEl.innerHTML='<div style="padding:.6rem .8rem;font-size:.75rem;color:var(--tx3);text-align:center;">검색 결과가 없어요.</div>';
@@ -3811,27 +3805,21 @@ async function removeFriend(friendshipId) {
 
 // 파도타기 - 관리자 서재 구경 (k_tenten@naver.com)
 async function surfLibrary() {
-  // 관리 계정(k_tenten@naver.com) 서재 표시
-  // profiles 테이블에서 username 또는 display_name으로 탐색
   try {
     const { data: allP } = await sb.from('profiles')
       .select('id,display_name,username,library_public,library_visibility')
-      .limit(500);
+      .neq('id', currentUser.id).limit(500);
     const profiles = allP || [];
-    // k_tenten 계정 우선 탐색
     const admin = profiles.find(p =>
       (p.username||'').toLowerCase() === 'k_tenten' ||
-      (p.display_name||'').toLowerCase().includes('tenten') ||
-      (p.username||'').toLowerCase().includes('tenten')
+      (p.username||'').toLowerCase().includes('tenten') ||
+      (p.display_name||'').toLowerCase().includes('tenten')
     );
     if(admin) { openLibrary(admin.id, admin.display_name || admin.username || '북로그'); return; }
-    // 없으면 공개 서재 중 랜덤
     const pub = profiles.filter(p =>
-      p.id !== currentUser.id && (
-        p.library_public === true ||
-        p.library_visibility === 'public' ||
-        (!p.library_visibility && p.library_public !== false)
-      )
+      p.library_public === true ||
+      p.library_visibility === 'public' ||
+      (!p.library_visibility && p.library_public !== false)
     );
     if(pub.length) {
       const r = pub[Math.floor(Math.random() * pub.length)];
@@ -3840,7 +3828,8 @@ async function surfLibrary() {
       await showAlert('아직 공개된 서재가 없어요.');
     }
   } catch(e) {
-    await showAlert('서재를 불러오는 중 오류가 발생했어요: ' + e.message);
+    console.error('surfLibrary error:', e);
+    await showAlert('서재를 불러오는 중 오류가 발생했어요.');
   }
 }
 

@@ -300,14 +300,9 @@
             <!-- 타이머 -->
             <div class="card record-timer-card" style="padding:.8rem;">
               <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem;">⏱ 독서 타이머</div>
-              <select id="timer-book-select" class="form-input" style="font-size:.72rem;margin-bottom:.3rem;background:#f5f0e8;border-color:transparent;border-radius:6px;">
+              <select id="timer-book-select" class="form-input" style="font-size:.72rem;margin-bottom:.4rem;background:#f5f0e8;border-color:transparent;border-radius:6px;">
                 <option value="">읽는 중인 책 선택...</option>
               </select>
-              <!-- 드래그 순서 변경 리스트 -->
-              <div id="timer-order-wrap" style="margin-bottom:.35rem;">
-                <div style="font-size:.58rem;color:var(--tx3);margin-bottom:.2rem;letter-spacing:.02em;">⠿ 드래그해서 순서 변경</div>
-                <div id="timer-order-list"></div>
-              </div>
               <!-- 선택한 책 독서 현황 -->
               <div id="timer-book-detail" style="margin-bottom:.4rem;"></div>
               <div style="text-align:center;margin:.15rem 0 .45rem;">
@@ -987,10 +982,25 @@
         🌊 랜덤 서재 파도타기
       </button>
     </div>
-    <!-- 검색/친구 추가 기능 비활성화 -->
-    <div id="friend-search-input" style="display:none;"></div>
-    <div id="friend-search-result" style="display:none;"></div>
-    <div id="friend-list" style="display:none;"></div>
+    <!-- 친구 검색 -->
+    <div style="padding:.9rem 1.1rem .5rem;border-bottom:1px solid var(--border);">
+      <div style="display:flex;gap:.4rem;align-items:center;">
+        <div style="position:relative;flex:1;">
+          <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--tx3);">🔍</span>
+          <input type="text" id="friend-search-input" class="form-input"
+            placeholder="닉네임으로 친구 찾기..."
+            style="padding-left:2rem;font-size:.78rem;border-radius:20px;background:#f5f0e8;"
+            onkeydown="if(event.key==='Enter')searchFriend()">
+        </div>
+        <button onclick="searchFriend()" style="width:36px;height:36px;border-radius:50%;background:var(--acc);border:none;color:#fff;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">→</button>
+      </div>
+      <div id="friend-search-result" style="margin-top:.5rem;border-radius:var(--r);overflow:hidden;"></div>
+    </div>
+    <!-- 친구 목록 -->
+    <div style="padding:.7rem 1.1rem;">
+      <div style="font-size:.68rem;font-weight:600;color:var(--tx3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;">친구 목록</div>
+      <div id="friend-list" style="max-height:280px;overflow-y:auto;"></div>
+    </div>
   </div>
 </div>
 
