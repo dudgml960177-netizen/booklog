@@ -3806,31 +3806,20 @@ async function removeFriend(friendshipId) {
   loadFriends();
 }
 
-// 파도타기 - 관리자 서재 구경 (k_tenten@naver.com)
+// 파도타기 - 공개 서재 랜덤
 async function surfLibrary() {
-  // 관리 계정(k_tenten) 서재 우선, 없으면 공개 서재 랜덤
   try {
     const { data: allP } = await sb.from('profiles')
       .select('id,display_name,username,library_public,library_visibility')
       .neq('id', currentUser.id).limit(500);
     const profiles = allP || [];
-    // k_tenten 계정 탐색
-    const admin = profiles.find(p =>
-      (p.username||'').toLowerCase() === 'k_tenten' ||
-      (p.username||'').toLowerCase().includes('tenten')
-    );
-    if(admin) { openLibrary(admin.id, admin.display_name || admin.username || '북로그'); return; }
-    // 공개 서재 랜덤
     const pub = profiles.filter(p =>
       p.library_public === true || p.library_visibility === 'public' ||
       (!p.library_visibility && p.library_public !== false)
     );
-    if(pub.length) {
-      const r = pub[Math.floor(Math.random() * pub.length)];
-      openLibrary(r.id, r.display_name || r.username || '산책자');
-    } else {
-      await showAlert('아직 공개된 서재가 없어요.');
-    }
+    if(!pub.length) { await showAlert('아직 공개된 서재가 없어요.'); return; }
+    const r = pub[Math.floor(Math.random() * pub.length)];
+    openLibrary(r.id, r.display_name || r.username || '산책자');
   } catch(e) {
     console.error('surfLibrary:', e);
     await showAlert('서재를 불러오는 중 오류가 발생했어요.');
