@@ -1366,10 +1366,13 @@ async function saveTimer() {
   const today=new Date().toISOString().slice(0,10);
   const cy = new Date().getFullYear();
   try {
+    // 연도별 독서 시간 누적
     const cyStr = String(cy);
     const yearData = book.reading_time_year || {};
-    yearData[cyStr] = (yearData[cyStr] || yearData[cy] || 0) + mins;
-    if(yearData[cy] !== undefined && String(cy) !== cy) delete yearData[cy];
+    // string 키로 통일 (Supabase jsonb 왕복 후 키가 string이 됨)
+    yearData[cyStr] = (yearData[cyStr] ?? yearData[cy] ?? 0) + mins;
+    if(yearData[cy] !== undefined && cy !== cyStr) delete yearData[cy];
+    // 날짜별 기록 (트래커 + 통계 정확도)
     const timeLog = book.reading_time_log || {};
     timeLog[today] = (timeLog[today] || 0) + mins;
     const updateData = {
@@ -1592,17 +1595,18 @@ function buildStats() {
   // 올해 기준 통계 - dayMap에서 올해 날짜만 합산 (정확한 날짜별 기록 기반)
   // 올해 독서 시간: reading_time_log(날짜별) > reading_time_year(연별) > last_read 폴백
   const thisYearMins = allBooks.reduce((sum, b) => {
-    // 1순위: 날짜별 로그에서 올해 합산
+    const cyStr = String(cy);
+    // 1순위: 날짜별 로그에서 올해 합산 (가장 정확)
     if(b.reading_time_log && typeof b.reading_time_log === 'object') {
       const logSum = Object.entries(b.reading_time_log)
-        .filter(([d]) => d.startsWith(String(cy)))
+        .filter(([d]) => d.startsWith(cyStr))
         .reduce((s, [, m]) => s + (m||0), 0);
       if(logSum > 0) return sum + logSum;
     }
-    // 2순위: 연도별 컬럼
-    const _yrS=String(cy); const _yrV=b.reading_time_year?.[_yrS]??b.reading_time_year?.[cy]; if(_yrV) return sum+_yrV;
-    // 3순위: 올해 마지막으로 읽은 책이면 전체 시간 반영
-    if(b.last_read?.startsWith(String(cy)) && b.reading_time) return sum + b.reading_time;
+    // 2순위: 연도별 컬럼 (string 키와 number 키 모두 처리)
+    const yrVal = b.reading_time_year?.[cyStr] ?? b.reading_time_year?.[cy];
+    if(yrVal > 0) return sum + yrVal;
+    // 폴백 없음 — last_read 기반 전체 reading_time은 과다 집계 유발
     return sum;
   }, 0);
   const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
@@ -2022,13 +2026,14 @@ function buildGoalDisplay() {
   const done=allBooks.filter(b=>b.status==='완독');
   const thisYear=done.filter(b=>b.date_finish?.startsWith(String(cy)));
   const thisYearMins=allBooks.reduce((sum,b)=>{
-    if(b.reading_time_log && typeof b.reading_time_log==='object'){
-      const ls=Object.entries(b.reading_time_log).filter(([d])=>d.startsWith(String(cy))).reduce((s,[,m])=>s+(m||0),0);
+    const _cyS=String(cy);
+    if(b.reading_time_log&&typeof b.reading_time_log==='object'){
+      const ls=Object.entries(b.reading_time_log).filter(([d])=>d.startsWith(_cyS)).reduce((s,[,m])=>s+(m||0),0);
       if(ls>0) return sum+ls;
     }
-    const _yrS2=String(cy); const _yrV2=b.reading_time_year?.[_yrS2]??b.reading_time_year?.[cy]; if(_yrV2) return sum+_yrV2;
-    if(b.last_read?.startsWith(String(cy))&&b.reading_time) return sum+b.reading_time;
-    return sum;
+    const _yrV=b.reading_time_year?.[_cyS]??b.reading_time_year?.[cy];
+    if(_yrV>0) return sum+_yrV;
+    return sum;  // 폴백 제거 — last_read 기반은 과다 집계 유발
   },0);
   const thisYearPages=thisYear.reduce((a,b)=>a+(b.pages||0),0);
 
@@ -3747,14 +3752,12 @@ async function searchFriend() {
   const q = document.getElementById('friend-search-input')?.value.trim();
   const resultEl = document.getElementById('friend-search-result');
   if(!q || !resultEl) return;
-  const [_sr1, _sr2] = await Promise.all([
+  const [_r1,_r2] = await Promise.all([
     sb.from('profiles').select('id,display_name,username').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
     sb.from('profiles').select('id,display_name,username').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);
-  const _seen = new Set();
-  const data = [...(_sr1.data||[]), ...(_sr2.data||[])].filter(u => {
-    if(_seen.has(u.id)) return false; _seen.add(u.id); return true;
-  }).slice(0,5);
+  const _seen=new Set();
+  const data=[...(_r1.data||[]),...(_r2.data||[])].filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
   resultEl.innerHTML = '';
   if(!data?.length) {
     resultEl.innerHTML='<div style="padding:.6rem .8rem;font-size:.75rem;color:var(--tx3);text-align:center;">검색 결과가 없어요.</div>';
@@ -3805,20 +3808,21 @@ async function removeFriend(friendshipId) {
 
 // 파도타기 - 관리자 서재 구경 (k_tenten@naver.com)
 async function surfLibrary() {
+  // 관리 계정(k_tenten) 서재 우선, 없으면 공개 서재 랜덤
   try {
     const { data: allP } = await sb.from('profiles')
       .select('id,display_name,username,library_public,library_visibility')
       .neq('id', currentUser.id).limit(500);
     const profiles = allP || [];
+    // k_tenten 계정 탐색
     const admin = profiles.find(p =>
       (p.username||'').toLowerCase() === 'k_tenten' ||
-      (p.username||'').toLowerCase().includes('tenten') ||
-      (p.display_name||'').toLowerCase().includes('tenten')
+      (p.username||'').toLowerCase().includes('tenten')
     );
     if(admin) { openLibrary(admin.id, admin.display_name || admin.username || '북로그'); return; }
+    // 공개 서재 랜덤
     const pub = profiles.filter(p =>
-      p.library_public === true ||
-      p.library_visibility === 'public' ||
+      p.library_public === true || p.library_visibility === 'public' ||
       (!p.library_visibility && p.library_public !== false)
     );
     if(pub.length) {
@@ -3828,7 +3832,7 @@ async function surfLibrary() {
       await showAlert('아직 공개된 서재가 없어요.');
     }
   } catch(e) {
-    console.error('surfLibrary error:', e);
+    console.error('surfLibrary:', e);
     await showAlert('서재를 불러오는 중 오류가 발생했어요.');
   }
 }
