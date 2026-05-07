@@ -213,7 +213,7 @@ function cleanupLocalStorage() {
       if(sessionKey) localStorage.removeItem(sessionKey);
       const sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
       sbKeys.forEach(k => localStorage.removeItem(k));
-      location.reload();
+      // reload 없이 그냥 진행 (reload 무한루프 방지)
       return;
     }
   } catch(e) {}
@@ -337,7 +337,10 @@ function init() {
       }
       localStorage.clear();
       Object.entries(keepKeys).forEach(([k,v]) => localStorage.setItem(k,v));
-      location.reload();
+      // reload 대신 로그인 화면으로 (reload 무한루프 방지)
+      _appState = 'auth';
+      showScreen('auth');
+      loadSavedEmail();
     }
   }, 5000);
   // INITIAL_SESSION 오면 타임아웃 취소
