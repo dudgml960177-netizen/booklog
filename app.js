@@ -1006,24 +1006,16 @@ function renderQuotes() {
     // 서식 태그 유무를 원본에서 먼저 확인
     const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if (hasHtml) {
-      // 서식 있는 경우: DOM 파싱으로 정확하게 줄바꿈 추출
-      const tmp = document.createElement('div');
-      tmp.innerHTML = text;
-      // block 요소(div, p)들 사이에 줄바꿈 마커 삽입
-      tmp.querySelectorAll('div, p').forEach(el => {
-        // 빈 div(줄바꿈 전용)는 <br>로 교체
-        if (!el.textContent.trim() || el.innerHTML === '<br>' || el.innerHTML === '<br/>') {
-          el.replaceWith(document.createElement('br'));
-        } else {
-          // 내용 있는 블록 앞에 줄바꿈 삽입
-          el.insertAdjacentHTML('afterend', '');
-          el.outerHTML = el.innerHTML + '<br>';
-        }
-      });
-      text = tmp.innerHTML
-        .replace(/(<br\s*\/?>){3,}/gi, '<br><br>')
-        .replace(/^(<br\s*\/?>)+/i, '')
-        .replace(/(<br\s*\/?>)+$/i, '');
+      // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환 (서식 태그 보존)
+      text = text
+        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
+        .replace(/<\/div>\s*<div>/gi, '<br>')
+        .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
+        .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
+        .replace(/\n/g, '<br>')
+        .replace(/(<br\s*\/?> *){3,}/gi, '<br><br>')
+        .replace(/^(<br\s*\/?> *)+/gi, '')
+        .replace(/(<br\s*\/?> *)+$/gi, '');
     } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
@@ -1596,25 +1588,29 @@ const QUESTS = [
       title: '📖 북로그의 시초',
       item: '🗝️',
       // 도트 아트 SVG (픽셀 스타일 열쇠)
-      dotArt: `<svg width="32" height="32" viewBox="0 0 16 16" style="image-rendering:pixelated;" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="4" width="2" height="2" fill="#c8a050"/>
-        <rect x="4" y="2" width="4" height="2" fill="#c8a050"/>
-        <rect x="8" y="2" width="2" height="2" fill="#c8a050"/>
-        <rect x="4" y="4" width="2" height="6" fill="#c8a050"/>
-        <rect x="6" y="4" width="2" height="2" fill="#c8a050"/>
-        <rect x="8" y="4" width="2" height="2" fill="#c8a050"/>
-        <rect x="2" y="6" width="2" height="2" fill="#c8a050"/>
-        <rect x="2" y="4" width="2" height="2" fill="#e8c060"/>
-        <rect x="4" y="2" width="4" height="2" fill="#e8c060"/>
-        <rect x="8" y="2" width="2" height="2" fill="#e8c060"/>
-        <rect x="4" y="8" width="2" height="2" fill="#c8a050"/>
-        <rect x="4" y="10" width="2" height="2" fill="#a07830"/>
-        <rect x="4" y="12" width="4" height="2" fill="#a07830"/>
-        <rect x="8" y="10" width="2" height="2" fill="#a07830"/>
-        <rect x="10" y="8" width="2" height="2" fill="#a07830"/>
-        <rect x="10" y="12" width="2" height="2" fill="#a07830"/>
-        <rect x="2" y="4" width="1" height="1" fill="#f0d080"/>
-        <rect x="5" y="3" width="1" height="1" fill="#f0d080"/>
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="kg" cx="40%" cy="30%">
+            <stop offset="0%" stop-color="#f5e070"/>
+            <stop offset="60%" stop-color="#d4a820"/>
+            <stop offset="100%" stop-color="#a07820"/>
+          </radialGradient>
+          <radialGradient id="rg" cx="35%" cy="30%">
+            <stop offset="0%" stop-color="#e8c870"/>
+            <stop offset="100%" stop-color="#c8a050"/>
+          </radialGradient>
+        </defs>
+        <!-- 열쇠 머리 (원형) -->
+        <circle cx="13" cy="13" r="8" fill="url(#kg)" stroke="#a07820" stroke-width="1"/>
+        <circle cx="13" cy="13" r="5" fill="none" stroke="#a07820" stroke-width="1.5"/>
+        <circle cx="13" cy="13" r="2" fill="#a07820"/>
+        <!-- 열쇠 몸통 -->
+        <rect x="19" y="11.5" width="12" height="3" rx="1.5" fill="url(#rg)" stroke="#a07820" stroke-width=".8"/>
+        <!-- 열쇠 이빨 -->
+        <rect x="26" y="14.5" width="2" height="3" rx="1" fill="url(#rg)" stroke="#a07820" stroke-width=".8"/>
+        <rect x="29" y="14.5" width="2" height="2" rx="1" fill="url(#rg)" stroke="#a07820" stroke-width=".8"/>
+        <!-- 반짝임 -->
+        <circle cx="10" cy="10" r="1.2" fill="rgba(255,255,255,.6)"/>
       </svg>`,
       itemName: '시초의 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
@@ -1701,10 +1697,13 @@ async function showQuestRewardPopup(quest) {
   });
 }
 
-// 전리품 패널 빌드 — 사물함 버튼 + 퀘스트 버튼
+// 전리품 패널 빌드 — 전리품 버튼 + 퀘스트 버튼
 function buildLoot(userTitle, completedIds) {
-  const panel = document.getElementById('loot-panel');
+  // stat-grid에 전리품·퀘스트 카드 추가 (기존 카드들과 나란히)
+  const panel = document.getElementById('stat-grid');
   if(!panel) return;
+  // 기존 전리품·퀘스트 카드 제거 (재빌드 시)
+  panel.querySelectorAll('.loot-card,.quest-card').forEach(el=>el.remove());
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
   const earnedCount = earned.length;
 
@@ -1713,12 +1712,14 @@ function buildLoot(userTitle, completedIds) {
   // 카드 공통 스타일
   const cardStyle = 'flex-shrink:0;width:72px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
 
-  // ① 전리품(사물함) 카드
+  // ① 전리품 카드
   const lootCard = document.createElement('div');
+  lootCard.className = 'loot-card';
   lootCard.style.cssText = cardStyle + (earnedCount > 0 ? 'border-color:#e8d4a0;background:#fdf8ee;' : '');
-  lootCard.title = '전리품 사물함';
+  lootCard.title = '전리품';
+  const firstItem = earned[0]?.reward;
   lootCard.innerHTML = earnedCount > 0
-    ? `<div style="font-size:1.1rem;">🗄️</div>
+    ? `<div style="font-size:1rem;line-height:1;">${firstItem?.dotArt||firstItem?.item||'🗄️'}</div>
        <div style="font-size:.55rem;font-weight:700;color:#c8a050;">전리품</div>
        <div style="font-size:.48rem;color:#a08c72;">${earnedCount}개 획득</div>`
     : `<div style="font-size:1.1rem;opacity:.3;">🗄️</div>
@@ -1731,6 +1732,7 @@ function buildLoot(userTitle, completedIds) {
 
   // ② 퀘스트 카드
   const questCard = document.createElement('div');
+  questCard.className = 'quest-card';
   const doneCount = completedIds?.length || 0;
   questCard.style.cssText = cardStyle;
   questCard.title = '독서 퀘스트';
@@ -1743,7 +1745,7 @@ function buildLoot(userTitle, completedIds) {
   panel.appendChild(questCard);
 }
 
-// ── 사물함 모달
+// ── 전리품 모달
 function openLootBox(userTitle, completedIds) {
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
   const overlay = document.createElement('div');
@@ -1768,7 +1770,7 @@ function openLootBox(userTitle, completedIds) {
       <div style="background:linear-gradient(135deg,#4a3520,#7a5030);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:1.1rem;">🗄️</span>
-          <span style="color:#fff;font-size:.88rem;font-weight:700;">전리품 사물함</span>
+          <span style="color:#fff;font-size:.88rem;font-weight:700;">전리품</span>
         </div>
         <button onclick="document.getElementById('lootbox-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
@@ -1813,7 +1815,7 @@ function showLootItemDetail(questId, userTitle) {
 function openQuestModal(completedIds) {
   const overlay = document.createElement('div');
   overlay.id = 'quest-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
   const questRows = QUESTS.map(q => {
     const achieved = completedIds?.includes(q.id);
@@ -1834,7 +1836,7 @@ function openQuestModal(completedIds) {
 
   const done = (completedIds||[]).length;
   overlay.innerHTML = `
-    <div style="background:#fdf8ee;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.2);">
+    <div style="background:#fdf8ee;border-radius:16px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 48px rgba(0,0,0,.25);">
       <div style="padding:1rem 1.1rem .7rem;border-bottom:1px solid #e8d4a0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div style="display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:1rem;">🗺️</span>
@@ -1896,7 +1898,9 @@ function buildQuestPanel(completedIds) {
 
 // ── 통계
 function buildStats() {
-  const sg=document.getElementById('stat-grid'); sg.innerHTML='';
+  const sg=document.getElementById('stat-grid');
+  // 통계 카드만 제거 (loot-card, quest-card는 buildLoot가 관리)
+  [...sg.children].filter(el=>!el.classList.contains('loot-card')&&!el.classList.contains('quest-card')).forEach(el=>el.remove());
   const done=allBooks.filter(b=>b.status==='완독');
   const total=done.length;
   const avg=total>0?(done.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(1):'—';

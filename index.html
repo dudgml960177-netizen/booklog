@@ -390,20 +390,10 @@
           </div>
           <div id="goal-display" style="padding:0 .85rem .6rem;"></div>
         </div>
-        <!-- 통계 카드 + 전리품 (가로 나란히) -->
-        <div style="margin-bottom:.6rem;display:flex;gap:.4rem;align-items:stretch;">
-          <!-- 통계 카드 -->
-          <div style="flex:1;overflow-x:auto;min-width:0;">
-            <div id="stat-grid" style="display:flex;gap:.32rem;flex-wrap:wrap;"></div>
-          </div>
-          <!-- 전리품 -->
-          <div id="loot-panel" style="flex-shrink:0;width:76px;display:flex;flex-direction:column;gap:.32rem;">
-            <!-- buildLoot()가 채움 -->
-          </div>
+        <!-- 통계 카드 + 전리품 + 퀘스트 (같은 flex) -->
+        <div id="stat-grid" style="display:flex;gap:.32rem;flex-wrap:wrap;margin-bottom:.6rem;">
+          <!-- buildStats()가 카드들 추가, buildLoot()가 전리품·퀘스트 카드 추가 -->
         </div>
-
-        <!-- 독서 퀘스트 -->
-        <div id="quest-panel" style="display:none;margin-bottom:.6rem;"></div>
 
         <!-- 그래프 -->
         <div class="card" style="margin-bottom:.7rem;padding:.7rem .8rem;">
@@ -587,13 +577,6 @@
       <div class="form-group" style="margin-top:1rem;">
         <label class="form-label">닉네임 변경</label>
         <input type="text" id="profile-display-name" class="form-input">
-        <!-- 칭호 선택 (퀘스트 달성 시 표시) -->
-        <div id="profile-title-wrap" style="display:none;margin-top:.5rem;">
-          <label style="font-size:.72rem;color:var(--tx2);display:block;margin-bottom:.2rem;">칭호</label>
-          <select id="profile-title-select" class="form-input" style="font-size:.78rem;">
-            <option value="">산책자 (기본)</option>
-          </select>
-        </div>
       </div>
       <div id="profile-invite-codes" style="margin-bottom:.8rem;"></div>
       <!-- 서재/카테고리 공개 설정 -->
