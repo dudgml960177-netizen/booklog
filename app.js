@@ -1590,6 +1590,7 @@ const QUESTS = [
     id: 'pioneer',
     name: '시초의 독자',
     hint: '북로그의 첫 번째 독자들에게 주어지는 특별한 칭호',
+    desc: '🎉 북로그의 테스트에 참여해주셨어요! 당신은 북로그의 시초 독자입니다. 감사해요.',
     secret: false,  // 힌트 공개
     // 조건: 가입일이 2026년 5월 31일 이전 (초기 사용자)
     condition: (books, profile) => {
@@ -1721,16 +1722,15 @@ function buildLoot(userTitle, completedIds) {
   const earnedCount = earned.length;
 
   // 카드 공통 스타일
-  const cardStyle = 'flex-shrink:0;width:72px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
+  const cardStyle = 'flex:1;min-width:68px;max-width:88px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
 
   // ① 전리품 카드
   const lootCard = document.createElement('div');
   lootCard.className = 'loot-card';
   lootCard.style.cssText = cardStyle + (earnedCount > 0 ? 'border-color:#e8d4a0;background:#fdf8ee;' : '');
   lootCard.title = '전리품';
-  const firstItem = earned[0]?.reward;
   lootCard.innerHTML = earnedCount > 0
-    ? `<div style="font-size:1rem;line-height:1;">${firstItem?.dotArt||firstItem?.item||'🗄️'}</div>
+    ? `<div style="font-size:1.1rem;">🗄️</div>
        <div style="font-size:.55rem;font-weight:700;color:#c8a050;">전리품</div>
        <div style="font-size:.48rem;color:#a08c72;">${earnedCount}개 획득</div>`
     : `<div style="font-size:1.1rem;opacity:.3;">🗄️</div>
@@ -1817,23 +1817,71 @@ function showLootItemDetail(questId, userTitle) {
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
-  overlay.innerHTML = `
-    <div style="background:#fdf8ee;border-radius:16px;padding:1.8rem 1.5rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid ${r.border||'#e8d4a0'};">
-      <div style="font-size:3rem;margin-bottom:.6rem;line-height:1;">${r.dotArt||r.item}</div>
-      <div style="font-size:1rem;font-weight:700;color:#2e1f0e;margin-bottom:.25rem;">${r.itemName}</div>
-      <div style="font-size:.72rem;color:#7a6a5a;margin-bottom:.9rem;">${r.itemDesc}</div>
-      <div style="background:${r.bg};border:1px solid ${r.border};border-radius:10px;padding:.7rem;margin-bottom:.9rem;">
-        <div style="font-size:.58rem;color:#a08c72;margin-bottom:.25rem;font-weight:600;letter-spacing:.05em;">획득 칭호</div>
-        <div style="font-size:.88rem;font-weight:700;color:${r.color||'#c8a050'};">${r.title}</div>
-        <div style="font-size:.6rem;color:#a08c72;margin-top:.3rem;">${isActive?'✓ 현재 사용 중':'설정에서 칭호를 변경할 수 있어요'}</div>
-      </div>
-      <button onclick="this.closest('.loot-detail-overlay').remove()" style="background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);">확인</button>
+  // 아이콘: SVG dotArt는 innerHTML로 따로 삽입
+  const detailBox = document.createElement('div');
+  detailBox.style.cssText = `background:#fdf8ee;border-radius:16px;padding:1.8rem 1.5rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid ${r.border||'#e8d4a0'};`;
+  const artDiv = document.createElement('div');
+  artDiv.style.cssText = 'font-size:3rem;margin-bottom:.6rem;line-height:1;';
+  if(r.dotArt) artDiv.innerHTML = r.dotArt;
+  else artDiv.textContent = r.item;
+  detailBox.appendChild(artDiv);
+  const infoHtml = document.createElement('div');
+  infoHtml.innerHTML = `
+    <div style="font-size:1rem;font-weight:700;color:#2e1f0e;margin-bottom:.25rem;">${r.itemName}</div>
+    <div style="font-size:.72rem;color:#7a6a5a;margin-bottom:.9rem;">${r.itemDesc}</div>
+    <div style="background:${r.bg||'#fdf8ee'};border:1px solid ${r.border||'#e8d4a0'};border-radius:10px;padding:.7rem;margin-bottom:.9rem;">
+      <div style="font-size:.58rem;color:#a08c72;margin-bottom:.25rem;font-weight:600;letter-spacing:.05em;">획득 칭호</div>
+      <div style="font-size:.88rem;font-weight:700;color:${r.color||'#c8a050'};">${r.title}</div>
+      <div style="font-size:.6rem;color:#a08c72;margin-top:.3rem;">${isActive?'✓ 현재 사용 중':'설정에서 칭호를 변경할 수 있어요'}</div>
     </div>`;
-  overlay.querySelector('div').classList.add('loot-detail-overlay');
-  overlay.querySelector('[style*="확인"]').closest('div[style]').classList.add('loot-detail-overlay');
-  // 닫기 버튼 수정
-  const btn = overlay.querySelector('button');
+  detailBox.appendChild(infoHtml);
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '확인';
+  closeBtn.style.cssText = 'background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);';
+  closeBtn.onclick = () => overlay.remove();
+  detailBox.appendChild(closeBtn);
+  overlay.appendChild(detailBox);
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+
+// 퀘스트 상세 팝업
+function showQuestDetail(questId, achieved) {
+  const q = QUESTS.find(x => x.id === questId);
+  if(!q) return;
+  const r = q.reward;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  const box = document.createElement('div');
+  box.style.cssText = `background:#fdf8ee;border-radius:16px;padding:1.6rem 1.4rem;max-width:300px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};`;
+  // 아이콘
+  const iconDiv = document.createElement('div');
+  iconDiv.style.cssText = 'font-size:2.5rem;margin-bottom:.6rem;line-height:1;';
+  if(achieved && r.dotArt) iconDiv.innerHTML = r.dotArt;
+  else if(achieved) iconDiv.textContent = r.item;
+  else iconDiv.textContent = '❓';
+  box.appendChild(iconDiv);
+  // 내용
+  const contentDiv = document.createElement('div');
+  contentDiv.innerHTML = `
+    <div style="font-size:.58rem;font-weight:700;color:${achieved?r.color||'#c8a050':'#a08c72'};letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;">${achieved?'달성 완료 ✓':'도전 중'}</div>
+    <div style="font-size:1rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${q.name}</div>
+    <div style="font-size:.78rem;color:#5c4a30;line-height:1.7;margin-bottom:.8rem;padding:.7rem .8rem;background:${achieved?r.bg||'#fdf8ee':'#f5f0e8'};border-radius:10px;border:1px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};">
+      ${achieved && q.desc ? q.desc : q.hint}
+    </div>
+    ${achieved ? `
+    <div style="font-size:.62rem;color:#a08c72;margin-bottom:.3rem;">획득 전리품</div>
+    <div style="font-size:.78rem;font-weight:700;color:#2e1f0e;margin-bottom:.2rem;">${r.itemName}</div>
+    <div style="font-size:.72rem;font-weight:600;color:${r.color||'#c8a050'};margin-bottom:.8rem;">${r.title}</div>
+    ` : ''}`;
+  box.appendChild(contentDiv);
+  const btn = document.createElement('button');
+  btn.textContent = '확인';
+  btn.style.cssText = `background:${achieved?r.color||'#c8a050':'#b09070'};color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);`;
   btn.onclick = () => overlay.remove();
+  box.appendChild(btn);
+  overlay.appendChild(box);
   overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
   document.body.appendChild(overlay);
 }
@@ -1847,7 +1895,7 @@ function openQuestModal(completedIds) {
   const questRows = QUESTS.map(q => {
     const achieved = completedIds?.includes(q.id);
     const r = q.reward;
-    return `<div style="display:flex;align-items:center;gap:.7rem;padding:.65rem .7rem;border-radius:10px;background:${achieved?r.bg||'#fdf8ee':'#f5f0e8'};border:1px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};margin-bottom:.4rem;">
+    return `<div onclick="showQuestDetail('${q.id}',${achieved})" style="display:flex;align-items:center;gap:.7rem;padding:.65rem .7rem;border-radius:10px;background:${achieved?r.bg||'#fdf8ee':'#f5f0e8'};border:1px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};margin-bottom:.4rem;cursor:pointer;transition:opacity .15s;" onmouseenter="this.style.opacity='.85'" onmouseleave="this.style.opacity='1'">
       <div style="width:36px;height:36px;border-radius:8px;background:${achieved?r.color+'22':'rgba(0,0,0,.06)'};display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">${achieved?r.dotArt||r.item:'❓'}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:.78rem;font-weight:700;color:${achieved?'#2e1f0e':'var(--tx2)'};">${q.name}</div>
@@ -1979,7 +2027,7 @@ function buildStats() {
   ];
   items.forEach(it=>{
     const el=document.createElement('div');
-    el.style.cssText='flex-shrink:0;width:72px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;position:relative;overflow:hidden;';
+    el.style.cssText='flex:1;min-width:68px;max-width:88px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;position:relative;overflow:hidden;';
     const isLong=(it.l.includes('작가')||it.l.includes('출판사'));
     el.innerHTML=`
       <div style="font-size:.75rem;opacity:.6;margin-bottom:.1rem;">${it.ic||''}</div>
