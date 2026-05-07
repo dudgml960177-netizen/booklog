@@ -1568,13 +1568,12 @@ function buildTimerBookList() {
 // 퀘스트 정의
 // condition(allBooks, profile): boolean — 달성 여부 판정
 const QUESTS = [
+  // ── 0. 시초의 독자 (기존)
   {
     id: 'pioneer',
     name: '시초의 독자',
     hint: '북로그의 첫 번째 독자들에게 주어지는 특별한 칭호',
     desc: '🎉 북로그의 테스트에 참여해주셨어요! 당신은 북로그의 시초 독자입니다. 감사해요.',
-    secret: false,  // 힌트 공개
-    // 조건: 가입일이 2026년 5월 31일 이전 (초기 사용자)
     condition: (books, profile) => {
       const joinedAt = profile?.created_at || '';
       if(!joinedAt) return false;
@@ -1583,41 +1582,542 @@ const QUESTS = [
     reward: {
       title: '📖 북로그의 시초',
       item: '🗝️',
-      // 도트 아트 SVG (픽셀 스타일 열쇠)
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <radialGradient id="kg" cx="40%" cy="30%">
-            <stop offset="0%" stop-color="#f5e070"/>
-            <stop offset="60%" stop-color="#d4a820"/>
-            <stop offset="100%" stop-color="#a07820"/>
-          </radialGradient>
-          <radialGradient id="rg" cx="35%" cy="30%">
-            <stop offset="0%" stop-color="#e8c870"/>
-            <stop offset="100%" stop-color="#c8a050"/>
-          </radialGradient>
-        </defs>
-        <!-- 열쇠 머리 (원형) -->
-        <circle cx="13" cy="13" r="8" fill="url(#kg)" stroke="#a07820" stroke-width="1"/>
-        <circle cx="13" cy="13" r="5" fill="none" stroke="#a07820" stroke-width="1.5"/>
-        <circle cx="13" cy="13" r="2" fill="#a07820"/>
-        <!-- 열쇠 몸통 -->
-        <rect x="19" y="11.5" width="12" height="3" rx="1.5" fill="url(#rg)" stroke="#a07820" stroke-width=".8"/>
-        <!-- 열쇠 이빨 -->
-        <rect x="26" y="14.5" width="2" height="3" rx="1" fill="url(#rg)" stroke="#a07820" stroke-width=".8"/>
-        <rect x="29" y="14.5" width="2" height="2" rx="1" fill="url(#rg)" stroke="#a07820" stroke-width=".8"/>
-        <!-- 반짝임 -->
-        <circle cx="10" cy="10" r="1.2" fill="rgba(255,255,255,.6)"/>
-      </svg>`,
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="kg" cx="40%" cy="30%"><stop offset="0%" stop-color="#f5e070"/><stop offset="60%" stop-color="#d4a820"/><stop offset="100%" stop-color="#a07820"/></radialGradient></defs><circle cx="13" cy="13" r="8" fill="url(#kg)" stroke="#a07820" stroke-width="1"/><circle cx="13" cy="13" r="5" fill="none" stroke="#a07820" stroke-width="1.5"/><circle cx="13" cy="13" r="2" fill="#a07820"/><rect x="19" y="11.5" width="12" height="3" rx="1.5" fill="url(#kg)" stroke="#a07820" stroke-width=".8"/><rect x="26" y="14.5" width="2" height="3" rx="1" fill="url(#kg)" stroke="#a07820" stroke-width=".8"/><rect x="29" y="14.5" width="2" height="2" rx="1" fill="url(#kg)" stroke="#a07820" stroke-width=".8"/><circle cx="10" cy="10" r="1.2" fill="rgba(255,255,255,.6)"/></svg>`,
       itemName: '시초의 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
-      color: '#c8a050',
-      bg: '#fdf8ee',
-      border: '#e8d4a0',
+      color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
     }
   },
-  // 향후 퀘스트 추가 예정
-  // { id: 'reader10', name: '입문 독서가', hint: '...', condition: (b)=>b.filter(x=>x.status==='완독').length>=10, reward: {...} },
+
+  // ── 1. 돌아온 독서가 (불러오기 100권 이상)
+  {
+    id: 'returnee',
+    name: '돌아온 독서가',
+    hint: '어디에서 오셨나요?',
+    desc: '과거 주름 잡던 독서가시죠? 받들어 모시겠습니다!',
+    condition: (books) => books.filter(b => b.source === 'import').length >= 100,
+    reward: {
+      title: '📚 돌아온 독서가',
+      item: '📕',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="20" height="28" rx="2" fill="#8B3A3A" stroke="#5c2020" stroke-width="1"/><rect x="4" y="4" width="4" height="28" rx="1" fill="#6B2A2A"/><rect x="8" y="8" width="12" height="1.5" rx=".7" fill="#f5d0a0" opacity=".8"/><rect x="8" y="12" width="12" height="1.5" rx=".7" fill="#f5d0a0" opacity=".8"/><rect x="8" y="16" width="9" height="1.5" rx=".7" fill="#f5d0a0" opacity=".6"/><text x="26" y="20" font-size="12" text-anchor="middle" fill="#c8a050">✨</text></svg>`,
+      itemName: '전설의 책',
+      itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
+      color: '#8B3A3A', bg: '#fdf5f5', border: '#e8c8c8',
+    }
+  },
+
+  // ── 2. 활자 중독자 (30권 완독)
+  {
+    id: 'bookworm30',
+    name: '활자 중독자',
+    hint: '그저 꾸준히 읽을 뿐이지요…',
+    desc: '30권이나 읽으셨다고요? 이미 활자 중독이군요!',
+    condition: (books) => books.filter(b => b.status === '완독').length >= 30,
+    reward: {
+      title: '📑 활자 중독자',
+      item: '🔖',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="3" width="10" height="22" rx="2" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><polygon points="10,25 15,20 20,25" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><rect x="13" y="7" width="4" height="1.2" rx=".6" fill="#f5d0a0"/><rect x="13" y="10" width="4" height="1.2" rx=".6" fill="#f5d0a0"/><rect x="13" y="13" width="3" height="1.2" rx=".6" fill="#f5d0a0" opacity=".7"/><rect x="22" y="6" width="8" height="22" rx="2" fill="#5A8B3A" stroke="#3a6b20" stroke-width="1" opacity=".85"/><rect x="4" y="9" width="8" height="22" rx="2" fill="#3A5A8B" stroke="#203a6b" stroke-width="1" opacity=".85"/></svg>`,
+      itemName: '나무 책갈피',
+      itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
+      color: '#6B4A20', bg: '#fdf8f0', border: '#e8d4a0',
+    }
+  },
+
+  // ── 3. 관상용 수집가 (30일 방치 책 읽기 시작)
+  {
+    id: 'dusty_reader',
+    name: '관상용 수집가',
+    hint: '어우, 설마 책 위에 그거 곰팡이에요?',
+    desc: '드디어 먼지를 털어내셨군요. 책이 감동해서 울고 있습니다.',
+    condition: (books) => {
+      return books.some(b => {
+        if(b.status !== '읽는중' && b.status !== '완독') return false;
+        const added = new Date(b.created_at);
+        const started = b.date_start ? new Date(b.date_start) : null;
+        if(!started) return false;
+        return (started - added) / 86400000 >= 30;
+      });
+    },
+    reward: {
+      title: '🧹 관상용 수집가',
+      item: '🪣',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="10" rx="8" ry="4" fill="#c8b090" stroke="#9a7a50" stroke-width="1"/><path d="M10 10 Q8 22 10 28 Q18 32 26 28 Q28 22 26 10" fill="#d4bc9a" stroke="#9a7a50" stroke-width="1"/><path d="M10 10 Q8 16 10 22" stroke="#9a7a50" stroke-width=".5" fill="none"/><path d="M26 10 Q28 16 26 22" stroke="#9a7a50" stroke-width=".5" fill="none"/><line x1="10" y1="10" x2="6" y2="4" stroke="#888" stroke-width="1.5" stroke-linecap="round"/><line x1="26" y1="10" x2="30" y2="4" stroke="#888" stroke-width="1.5" stroke-linecap="round"/><text x="18" y="23" text-anchor="middle" font-size="8" fill="#7a6a5a">먼지</text></svg>`,
+      itemName: '먼지떨이',
+      itemDesc: '30일 동안 묵혀둔 책을 드디어 펼친 수집가에게',
+      color: '#9a7a50', bg: '#fdf8f0', border: '#e8d4b0',
+    }
+  },
+
+  // ── 4. 활자 좀비 (새벽 2~5시 30분 이상 접속)
+  {
+    id: 'dawn_reader',
+    name: '활자 좀비',
+    hint: '나의 새벽 친구!',
+    desc: '나의 새벽 친구는 충혈된 눈과 책이겠지요.',
+    condition: (books, profile, extra) => {
+      // extra.dawnSessions: 서버가 세션 시간 기록 시 사용
+      // 클라이언트에서는 localStorage에 새벽 세션 카운트 저장
+      const dawnCount = parseInt(localStorage.getItem('bl_dawn_sessions') || '0');
+      return dawnCount >= 1;
+    },
+    reward: {
+      title: '🧟 활자 좀비',
+      item: '👁️',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="18" rx="14" ry="10" fill="#ffe8e8" stroke="#cc8888" stroke-width="1.5"/><ellipse cx="18" cy="18" rx="8" ry="6" fill="#ffcccc" stroke="#cc6666" stroke-width="1"/><circle cx="18" cy="18" r="4" fill="#cc2222"/><circle cx="18" cy="18" r="2" fill="#880000"/><ellipse cx="16" cy="16" rx="1" ry="1.5" fill="rgba(255,255,255,.5)" transform="rotate(-30 16 16)"/><path d="M4 18 Q8 12 12 18" fill="none" stroke="#cc8888" stroke-width="1"/><path d="M24 18 Q28 12 32 18" fill="none" stroke="#cc8888" stroke-width="1"/></svg>`,
+      itemName: '다크서클 패치',
+      itemDesc: '새벽에도 책을 놓지 않는 활자 좀비에게',
+      color: '#cc2222', bg: '#fff5f5', border: '#ffcccc',
+    }
+  },
+
+  // ── 5. 의지의 독서인 (연속 3일 접속)
+  {
+    id: 'streak3',
+    name: '의지의 독서인',
+    hint: '작심삼일?',
+    desc: '고비를 넘겼습니다! 당신의 의지는 3일은 넘기는군요.',
+    condition: (books, profile) => {
+      const streak = parseInt(localStorage.getItem('bl_login_streak') || '0');
+      return streak >= 3;
+    },
+    reward: {
+      title: '💪 의지의 독서인',
+      item: '🪢',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M6 18 Q6 10 14 10 Q22 10 22 18 Q22 26 14 26" fill="none" stroke="#8B6B3A" stroke-width="3" stroke-linecap="round"/><path d="M14 26 Q6 26 6 18" fill="none" stroke="#6B4A20" stroke-width="3" stroke-linecap="round"/><path d="M22 18 Q22 10 30 10 Q30 18 30 18 Q30 26 22 26" fill="none" stroke="#8B6B3A" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="18" r="3" fill="#c8a050" stroke="#9a7820" stroke-width="1"/></svg>`,
+      itemName: '튼튼한 동아줄',
+      itemDesc: '북로그를 3일 연속으로 방문한 의지의 독서인에게',
+      color: '#8B6B3A', bg: '#fdf8f0', border: '#e8d4a0',
+    }
+  },
+
+  // ── 6. 독서 기계 (연속 100일 로그인) + 초대권
+  {
+    id: 'streak100',
+    name: '독서 기계',
+    hint: '북로그는 이제 당신의 장기나 다름없습니다. 떼어낼 수 없죠.',
+    desc: '100일이라니! 당신의 뇌세포들이 기립박수를 칩니다.',
+    hasInvite: true,
+    condition: (books, profile) => {
+      const streak = parseInt(localStorage.getItem('bl_login_streak') || '0');
+      return streak >= 100;
+    },
+    reward: {
+      title: '⚙️ 독서 기계',
+      item: '🍡',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="6" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><rect x="8" y="12" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><rect x="8" y="18" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><rect x="8" y="24" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><line x1="18" y1="4" x2="18" y2="30" stroke="#c8a870" stroke-width="1.5"/><circle cx="18" cy="2" r="2" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="18" cy="32" r="2" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><text x="18" y="35" text-anchor="middle" font-size="6" fill="#c8a050">100</text></svg>`,
+      itemName: '백일떡',
+      itemDesc: '북로그 100일 연속 방문 달성! 뇌세포들이 경례합니다.',
+      color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
+    }
+  },
+
+  // ── 7. 방구석 현자 (4주 주말 독서 타이머)
+  {
+    id: 'weekend_sage',
+    name: '방구석 현자',
+    hint: '주말에 약속 없으시죠? 그냥 책이랑 노는 게 최고입니다.',
+    desc: '밖은 위험합니다. 종이 속에서 안전하게 살아남으셨군요.',
+    condition: (books, profile) => {
+      const weekendCount = parseInt(localStorage.getItem('bl_weekend_timer_weeks') || '0');
+      return weekendCount >= 4;
+    },
+    reward: {
+      title: '🛋️ 방구석 현자',
+      item: '🛋️',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="16" width="28" height="12" rx="4" fill="#b08060" stroke="#7a5a40" stroke-width="1"/><rect x="6" y="14" width="8" height="8" rx="3" fill="#c49070" stroke="#7a5a40" stroke-width="1"/><rect x="22" y="14" width="8" height="8" rx="3" fill="#c49070" stroke="#7a5a40" stroke-width="1"/><rect x="14" y="15" width="8" height="6" rx="2" fill="#d4a890" stroke="#9a7860" stroke-width=".8"/><rect x="8" y="28" width="4" height="4" rx="1" fill="#7a5a40"/><rect x="24" y="28" width="4" height="4" rx="1" fill="#7a5a40"/><circle cx="10" cy="12" r="2" fill="#e8c8a0" stroke="#c8a880" stroke-width=".8"/><rect x="12" y="10" width="12" height="2" rx="1" fill="#e8c8a0" opacity=".7"/></svg>`,
+      itemName: '푹신한 소파',
+      itemDesc: '4주 연속 주말을 책과 함께한 방구석 현자에게',
+      color: '#7a5a40', bg: '#fdf8f4', border: '#e8d0b8',
+    }
+  },
+
+  // ── 8. 벽돌 격파왕 (500p 이상 완독)
+  {
+    id: 'brick_buster',
+    name: '벽돌 격파왕',
+    hint: '과연 이 책의 운명은?',
+    desc: '라면 받침대는 아니네요! 이 벽돌을 부수다니! 당신의 손목 건강이 걱정될 정도입니다.',
+    condition: (books) => books.some(b => b.status === '완독' && (b.pages || 0) >= 500),
+    reward: {
+      title: '🧱 벽돌 격파왕',
+      item: '🧱',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><rect x="4" y="8" width="28" height="20" rx="2" fill="url(#gold)" stroke="#9a7820" stroke-width="1.5"/><rect x="4" y="8" width="28" height="7" rx="2" fill="#f0d060" stroke="#9a7820" stroke-width="1"/><line x1="18" y1="8" x2="18" y2="28" stroke="#9a7820" stroke-width=".8" opacity=".5"/><line x1="11" y1="15" x2="11" y2="28" stroke="#9a7820" stroke-width=".8" opacity=".5"/><line x1="25" y1="15" x2="25" y2="28" stroke="#9a7820" stroke-width=".8" opacity=".5"/><line x1="4" y1="15" x2="32" y2="15" stroke="#9a7820" stroke-width=".8" opacity=".5"/><circle cx="26" cy="10" r="1.5" fill="rgba(255,255,255,.5)"/></svg>`,
+      itemName: '황금 벽돌',
+      itemDesc: '500페이지 이상의 두꺼운 책을 완독한 격파왕에게',
+      color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
+    }
+  },
+
+  // ── 9. 밤샘 독서가 (하룻밤 완독) + 초대권
+  {
+    id: 'allnight',
+    name: '밤샘 독서가',
+    hint: '잠은 죽어서 자는 거야',
+    desc: '해가 뜨는 걸 보며 마지막 장을 덮는 그 짜릿함!',
+    hasInvite: true,
+    condition: (books, profile) => {
+      return parseInt(localStorage.getItem('bl_allnight_reads') || '0') >= 1;
+    },
+    reward: {
+      title: '🌃 밤샘 독서가',
+      item: '👁️‍🗨️',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="14" r="10" fill="#e8e0f8" stroke="#9880c0" stroke-width="1.5"/><path d="M12 14 Q18 20 24 14" fill="none" stroke="#9880c0" stroke-width="1.5"/><ellipse cx="18" cy="12" rx="3" ry="4" fill="#cc4444"/><circle cx="18" cy="12" r="1.5" fill="#880000"/><line x1="14" y1="25" x2="14" y2="32" stroke="#a0a0c0" stroke-width="2" stroke-linecap="round"/><line x1="22" y1="25" x2="22" y2="32" stroke="#a0a0c0" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="32" x2="26" y2="32" stroke="#a0a0c0" stroke-width="2" stroke-linecap="round"/><circle cx="28" cy="6" r="2" fill="#f5e060" opacity=".8"/></svg>`,
+      itemName: '빨간 눈 안약',
+      itemDesc: '밤새 책을 읽고 해를 맞이한 밤샘 독서가에게',
+      color: '#7760a0', bg: '#f8f5ff', border: '#d8ccee',
+    }
+  },
+
+  // ── 10. 활자폭주족 (10권 연달아 완독)
+  {
+    id: 'speed_reader',
+    name: '활자폭주족',
+    hint: '칙칙폭폭 폭주 기관차 갑니다!',
+    desc: '인정합니다! 당신은 브레이크가 고장난 폭주기관차네요!',
+    condition: (books) => {
+      const done = books.filter(b => b.status === '완독' && b.date_finish)
+        .sort((a,b) => new Date(a.date_finish) - new Date(b.date_finish));
+      if(done.length < 10) return false;
+      // 연속 완독: 완독일 기준 30일 내에 10권
+      for(let i = 0; i <= done.length - 10; i++) {
+        const start = new Date(done[i].date_finish);
+        const end = new Date(done[i+9].date_finish);
+        if((end - start) / 86400000 <= 30) return true;
+      }
+      return false;
+    },
+    reward: {
+      title: '🚂 활자폭주족',
+      item: '🚂',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="12" width="26" height="14" rx="3" fill="#5a5a7a" stroke="#3a3a5a" stroke-width="1.5"/><rect x="4" y="8" width="16" height="8" rx="2" fill="#6a6a8a" stroke="#3a3a5a" stroke-width="1"/><rect x="6" y="10" width="5" height="4" rx="1" fill="#a0d8ff" opacity=".8"/><rect x="13" y="10" width="5" height="4" rx="1" fill="#a0d8ff" opacity=".8"/><circle cx="8" cy="26" r="4" fill="#3a3a5a" stroke="#1a1a3a" stroke-width="1"/><circle cx="20" cy="26" r="4" fill="#3a3a5a" stroke="#1a1a3a" stroke-width="1"/><circle cx="8" cy="26" r="2" fill="#6a6a8a"/><circle cx="20" cy="26" r="2" fill="#6a6a8a"/><path d="M28 14 Q34 14 34 20 Q34 24 28 24" fill="none" stroke="#cc4444" stroke-width="2"/><line x1="28" y1="18" x2="34" y2="16" stroke="#ee8888" stroke-width="1" opacity=".7"/><line x1="28" y1="20" x2="36" y2="20" stroke="#ee8888" stroke-width="1" opacity=".6"/></svg>`,
+      itemName: '증기기관차',
+      itemDesc: '30일 내 10권을 연달아 완독한 폭주기관차에게',
+      color: '#5a5a7a', bg: '#f5f5ff', border: '#c8c8e8',
+    }
+  },
+
+  // ── 11. 프로 하차러 (타이머 5분 내 끄기)
+  {
+    id: 'quick_quit',
+    name: '프로 하차러',
+    hint: '제목만 읽는 것도 독서죠.',
+    desc: '칼 같은 포기! 맞지 않는 책에 시간을 낭비하지 않는 결단력!',
+    condition: (books, profile) => {
+      return parseInt(localStorage.getItem('bl_quick_quits') || '0') >= 1;
+    },
+    reward: {
+      title: '✂️ 프로 하차러',
+      item: '🔖',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="3" width="10" height="24" rx="2" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><polygon points="12,27 17,22 22,27" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><line x1="8" y1="10" x2="24" y2="10" stroke="#cc3333" stroke-width="2" stroke-linecap="round" transform="rotate(45 16 16)"/><line x1="8" y1="16" x2="24" y2="16" stroke="#cc3333" stroke-width="2" stroke-linecap="round" transform="rotate(-45 16 16)"/></svg>`,
+      itemName: '부러진 북마크',
+      itemDesc: '5분 만에 과감하게 하차를 결정한 결단력의 소유자에게',
+      color: '#6B4A20', bg: '#fdf8f0', border: '#e8d4a0',
+    }
+  },
+
+  // ── 12. 활자의 신 (총 1000권) + 초대권
+  {
+    id: 'book_god',
+    name: '활자의 신',
+    hint: '인간의 뇌 용량을 초과하신 것 같습니다.',
+    desc: '당신은 이제 걸어 다니는 도서관입니다. 인류의 보물입니다.',
+    hasInvite: true,
+    condition: (books) => books.length >= 1000,
+    reward: {
+      title: '👑 활자의 신',
+      item: '👑',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="crown" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><path d="M4 28 L4 16 L10 22 L18 8 L26 22 L32 16 L32 28 Z" fill="url(#crown)" stroke="#9a7820" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4" cy="16" r="2.5" fill="#ee4444"/><circle cx="18" cy="8" r="2.5" fill="#4444ee"/><circle cx="32" cy="16" r="2.5" fill="#44aa44"/><circle cx="11" cy="28" r="1.5" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="18" cy="28" r="1.5" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="25" cy="28" r="1.5" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="20" cy="11" r="1" fill="rgba(255,255,255,.6)"/></svg>`,
+      itemName: '전설의 왕관',
+      itemDesc: '총 1,000권을 기록한 걸어다니는 도서관에게',
+      color: '#c8a050', bg: '#fdf8e8', border: '#e8d490',
+    }
+  },
+
+  // ── 13. 욕망의 수집가 (읽고싶어요 100권)
+  {
+    id: 'wish_collector',
+    name: '욕망의 수집가',
+    hint: '일단 담으세요. 장바구니는 무겁지 않아요.',
+    desc: '언젠간 전부 읽으시겠지요?',
+    condition: (books) => books.filter(b => b.status === '읽고싶은').length >= 100,
+    reward: {
+      title: '🛒 욕망의 수집가',
+      item: '🛒',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M4 6 L8 6 L14 24 L28 24 L32 10 L10 10" fill="none" stroke="#5a8B3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="14" y="12" width="14" height="10" rx="1" fill="#a0d0a0" stroke="#5a8B3a" stroke-width=".8" opacity=".6"/><circle cx="16" cy="28" r="2.5" fill="#5a8B3a" stroke="#3a6a1a" stroke-width="1"/><circle cx="26" cy="28" r="2.5" fill="#5a8B3a" stroke="#3a6a1a" stroke-width="1"/><line x1="18" y1="14" x2="18" y2="22" stroke="#5a8B3a" stroke-width=".8"/><line x1="22" y1="14" x2="22" y2="22" stroke="#5a8B3a" stroke-width=".8"/><line x1="26" y1="14" x2="26" y2="22" stroke="#5a8B3a" stroke-width=".8"/></svg>`,
+      itemName: '쇼핑 수레',
+      itemDesc: '읽고 싶은 책 100권을 담아둔 욕망의 수집가에게',
+      color: '#5a8B3a', bg: '#f5faf0', border: '#c0e0b0',
+    }
+  },
+
+  // ── 14. 초보 산책가 (게시글 2개)
+  {
+    id: 'walker_novice',
+    name: '초보 산책가',
+    hint: '공원으로 마실을 나가볼까요?',
+    desc: '때때로 산책을 하는 것도 독서에 도움이 되죠!',
+    condition: (books, profile, extra) => (extra?.postCount || 0) >= 2,
+    reward: {
+      title: '🌿 초보 산책가',
+      item: '🪧',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="4" width="2" height="28" rx="1" fill="#8B6B3A" stroke="#6b4a20" stroke-width=".8"/><rect x="8" y="6" width="16" height="10" rx="2" fill="#c8a050" stroke="#9a7820" stroke-width="1"/><polygon points="8,11 6,11 8,16 24,16" fill="#c8a050" stroke="#9a7820" stroke-width="1"/><line x1="10" y1="9" x2="22" y2="9" stroke="#fdf8ee" stroke-width="1"/><line x1="10" y1="12" x2="18" y2="12" stroke="#fdf8ee" stroke-width="1"/></svg>`,
+      itemName: '나무 표지판',
+      itemDesc: '산책 게시판에 첫 발을 내딛은 초보 산책가에게',
+      color: '#8B6B3A', bg: '#fdf8f0', border: '#e8d4a0',
+    }
+  },
+
+  // ── 15. 고급 산책가 (게시글 5개)
+  {
+    id: 'walker_expert',
+    name: '고급 산책가',
+    hint: '마실만 나가실 거예요?',
+    desc: '이제는 아는 사람들도 생기셨죠?',
+    condition: (books, profile, extra) => (extra?.postCount || 0) >= 5,
+    reward: {
+      title: '🏅 고급 산책가',
+      item: '🪧',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="4" width="2" height="28" rx="1" fill="#8B6B3A" stroke="#6b4a20" stroke-width=".8"/><rect x="8" y="6" width="16" height="10" rx="2" fill="#f5e060" stroke="#c8a050" stroke-width="1.5"/><polygon points="8,11 6,11 8,16 24,16" fill="#f5e060" stroke="#c8a050" stroke-width="1.5"/><line x1="10" y1="9" x2="22" y2="9" stroke="#9a7820" stroke-width="1"/><line x1="10" y1="12" x2="18" y2="12" stroke="#9a7820" stroke-width="1"/><circle cx="24" cy="8" r="2" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/></svg>`,
+      itemName: '황금 표지판',
+      itemDesc: '산책 게시판에 활발히 참여하는 고급 산책가에게',
+      color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
+    }
+  },
+
+  // ── 16. 순애보 독자 (같은 책 5번)
+  {
+    id: 'loyal_reader',
+    name: '순애보 독자',
+    hint: '질리지 않으세요? 이 정도면 책이랑 연애하는 겁니다.',
+    desc: '진정한 팬심! 책의 모든 구절이 당신의 피와 살이 되었습니다.',
+    condition: (books) => {
+      // 같은 제목 책이 5번 이상 완독
+      const titleCount = {};
+      books.filter(b => b.status === '완독').forEach(b => {
+        titleCount[b.title] = (titleCount[b.title] || 0) + 1;
+      });
+      return Object.values(titleCount).some(c => c >= 5);
+    },
+    reward: {
+      title: '💌 순애보 독자',
+      item: '∞',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M18 22 C18 22 6 22 6 15 C6 10 10 8 14 10 C16 11 18 14 18 14 C18 14 20 11 22 10 C26 8 30 10 30 15 C30 22 18 22 18 22 Z" fill="#ee5577" stroke="#cc3355" stroke-width="1"/><text x="18" y="30" text-anchor="middle" font-size="10" fill="#9a7820" font-weight="bold">∞</text></svg>`,
+      itemName: '무한대 기호',
+      itemDesc: '같은 책을 5번 이상 읽어낸 진정한 순애보 독자에게',
+      color: '#ee5577', bg: '#fff5f8', border: '#ffc8d8',
+    }
+  },
+
+  // ── 17. 왕눈이 (폰트 크기 최대)
+  {
+    id: 'big_font',
+    name: '왕눈이',
+    hint: '시력이 좋지 않으신 모양이네요!',
+    desc: '시원시원한 독서! 이렇게 안구에게 평화를 주기도 하는 법이죠.',
+    condition: (books, profile) => {
+      const fontSize = parseInt(localStorage.getItem('bl_font_size') || '100');
+      return fontSize >= 150;
+    },
+    reward: {
+      title: '🔍 왕눈이',
+      item: '🔍',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="11" fill="none" stroke="#5a5a8a" stroke-width="2.5"/><circle cx="16" cy="16" r="8" fill="#e0e8ff" opacity=".6"/><circle cx="12" cy="12" r="3" fill="rgba(255,255,255,.5)"/><line x1="24" y1="24" x2="32" y2="32" stroke="#5a5a8a" stroke-width="3" stroke-linecap="round"/><text x="16" y="20" text-anchor="middle" font-size="10" fill="#5a5a8a" font-weight="bold">+</text></svg>`,
+      itemName: '돋보기',
+      itemDesc: '폰트 크기를 최대로 설정한 왕눈이에게',
+      color: '#5a5a8a', bg: '#f5f5ff', border: '#c8c8e8',
+    }
+  },
+
+  // ── 18. 프로 참견러 (댓글 30개) + 초대권
+  {
+    id: 'commenter',
+    name: '프로 참견러',
+    hint: '남의 이야기에 훈수 좀 두시겠습니까? 친절하게요!',
+    desc: '독서계의 오지랖 대장! 당신 덕분에 북로그가 시끌벅적합니다.',
+    hasInvite: true,
+    condition: (books, profile, extra) => (extra?.commentCount || 0) >= 30,
+    reward: {
+      title: '📢 프로 참견러',
+      item: '📣',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M6 14 L6 22 L14 22 L22 30 L22 6 L14 14 Z" fill="#e87030" stroke="#c05010" stroke-width="1.5" stroke-linejoin="round"/><path d="M26 10 Q32 18 26 26" fill="none" stroke="#e87030" stroke-width="2.5" stroke-linecap="round"/><path d="M28 6 Q38 18 28 30" fill="none" stroke="#e87030" stroke-width="1.5" stroke-linecap="round" opacity=".5"/></svg>`,
+      itemName: '확성기',
+      itemDesc: '산책 게시판에 댓글 30개를 달아준 오지랖 대장에게',
+      color: '#e87030', bg: '#fff8f0', border: '#f8d4b0',
+    }
+  },
+
+  // ── 19. 독서인러버 (친구 10명)
+  {
+    id: 'social_reader',
+    name: '독서인러버',
+    hint: '친구 만나러 오셨어요?',
+    desc: '독서하는 사람 치곤 친구가 많은데요?',
+    condition: (books, profile, extra) => (extra?.friendCount || 0) >= 10,
+    reward: {
+      title: '💌 독서인러버',
+      item: '💌',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="28" height="20" rx="3" fill="#f8e8f0" stroke="#d06080" stroke-width="1.5"/><path d="M4 13 L18 22 L32 13" fill="none" stroke="#d06080" stroke-width="1.5"/><path d="M4 10 L18 20 L32 10" fill="#ffd0e8" stroke="none"/><circle cx="24" cy="9" r="5" fill="#ee5577"/><text x="24" y="12" text-anchor="middle" font-size="8" fill="#fff">♥</text></svg>`,
+      itemName: '러브레터',
+      itemDesc: '북로그에서 친구 10명을 만든 독서인러버에게',
+      color: '#d06080', bg: '#fff5f8', border: '#f8c8d8',
+    }
+  },
+
+  // ── 20. 서재 탐정 (파도타기 100번)
+  {
+    id: 'surf100',
+    name: '서재 탐정',
+    hint: '북서퍼라기보다는 좀…',
+    desc: '남의 서재 구경하기, 참 좋아하시네요!',
+    condition: (books, profile) => {
+      return parseInt(localStorage.getItem('bl_surf_count') || '0') >= 100;
+    },
+    reward: {
+      title: '🕵️ 서재 탐정',
+      item: '🎩',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="26" rx="14" ry="4" fill="#3a3a5a" stroke="#1a1a3a" stroke-width="1"/><rect x="8" y="10" width="20" height="16" rx="10" fill="#5a5a8a" stroke="#3a3a5a" stroke-width="1.5"/><ellipse cx="18" cy="11" rx="8" ry="3" fill="#7a7aaa" stroke="#3a3a5a" stroke-width="1"/><line x1="26" y1="14" x2="30" y2="12" stroke="#c8c8e8" stroke-width="1"/><circle cx="31" cy="11" r="2" fill="#f5e060" opacity=".8"/></svg>`,
+      itemName: '탐정 모자',
+      itemDesc: '서재 파도타기를 100번 이용한 서재 탐정에게',
+      color: '#5a5a8a', bg: '#f5f5ff', border: '#c8c8e8',
+    }
+  },
+
+  // ── 21. 책발효 장인 (100일 전 담은 책 완독) + 초대권
+  {
+    id: 'vintage_reader',
+    name: '책발효 장인',
+    hint: '숙성된 지식입니다. 이제 썩기 전에 읽어보시죠.',
+    desc: '빈티지 도서 획득! 100일간의 고민 끝에 지갑이 열렸습니다.',
+    hasInvite: true,
+    condition: (books) => {
+      return books.some(b => {
+        if(b.status !== '완독' && b.status !== '읽는중') return false;
+        const added = new Date(b.created_at);
+        const started = b.date_start ? new Date(b.date_start) : (b.date_finish ? new Date(b.date_finish) : null);
+        if(!started) return false;
+        return (started - added) / 86400000 >= 100;
+      });
+    },
+    reward: {
+      title: '🍷 책발효 장인',
+      item: '🍷',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 4 L22 4 L24 16 Q28 20 28 26 Q28 32 18 32 Q8 32 8 26 Q8 20 12 16 Z" fill="#9a2060" stroke="#6a1040" stroke-width="1.5"/><path d="M14 4 L22 4 L22 8 L14 8 Z" fill="#b03070" stroke="#6a1040" stroke-width="1"/><ellipse cx="18" cy="26" rx="7" ry="4" fill="#b03070" opacity=".4"/><path d="M12 16 Q8 24 10 28" fill="none" stroke="#c84080" stroke-width="1" opacity=".6"/><circle cx="22" cy="12" r="1.5" fill="rgba(255,255,255,.4)"/></svg>`,
+      itemName: '숙성된 와인',
+      itemDesc: '100일 동안 묵혀뒀다 읽기 시작한 책발효 장인에게',
+      color: '#9a2060', bg: '#fff5f8', border: '#e8b0c8',
+    }
+  },
+
+  // ── 22. 책귀신과의 친구 (새벽 4:44 독서)
+  {
+    id: 'ghost_reader',
+    name: '책귀신과의 친구',
+    hint: '이 시간에 책을 보면 귀신이 옆에서 같이 읽어줄지도?',
+    desc: '오싹한 지적 탐구! 귀신도 감동해서 도망갈 열정입니다.',
+    condition: (books, profile) => {
+      return parseInt(localStorage.getItem('bl_ghost_hour') || '0') >= 1;
+    },
+    reward: {
+      title: '👻 책귀신과의 친구',
+      item: '🧻',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="14" rx="8" ry="10" fill="#f0f0f0" stroke="#c0c0c0" stroke-width="1"/><path d="M10 14 L10 30 Q14 34 18 30 Q22 34 26 30 L26 14" fill="#f0f0f0" stroke="#c0c0c0" stroke-width="1"/><circle cx="14" cy="14" r="2" fill="#333"/><circle cx="22" cy="14" r="2" fill="#333"/><path d="M14 20 Q18 24 22 20" fill="none" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="10" x2="4" y2="4" stroke="#ee4444" stroke-width="1.5" stroke-linecap="round"/><line x1="28" y1="10" x2="32" y2="4" stroke="#ee4444" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+      itemName: '빨간 두루마리 휴지',
+      itemDesc: '새벽 4시 44분에 독서를 기록한 오싹한 독서가에게',
+      color: '#8a2a8a', bg: '#faf5ff', border: '#d8c0e8',
+    }
+  },
+
+  // ── 23. 북로그 인테리어 업자 (메인 5분 바라보기)
+  {
+    id: 'design_lover',
+    name: '북로그 인테리어 업자',
+    hint: '개발자와 디자이너가 당신의 눈길에 감동해 눈물을 흘립니다.',
+    desc: '책은 안 읽고 북로그 디자인만 보셨네요. 저희 예쁘죠?',
+    condition: (books, profile) => {
+      return parseInt(localStorage.getItem('bl_main_stare') || '0') >= 1;
+    },
+    reward: {
+      title: '🎨 북로그 인테리어 업자',
+      item: '🖱️',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gold2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><rect x="10" y="6" width="16" height="24" rx="8" fill="url(#gold2)" stroke="#9a7820" stroke-width="1.5"/><line x1="18" y1="6" x2="18" y2="18" stroke="#9a7820" stroke-width="1" opacity=".6"/><circle cx="18" cy="14" r="3" fill="#fdf8ee" stroke="#9a7820" stroke-width="1"/><circle cx="18" cy="24" r="1.5" fill="#9a7820" opacity=".4"/></svg>`,
+      itemName: '황금 마우스패드',
+      itemDesc: '북로그 메인을 5분간 감상한 인테리어 업자에게',
+      color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
+    }
+  },
+
+  // ── 24. 독서 중독가 (50권 완독) + 초대권
+  {
+    id: 'bookworm50',
+    name: '독서 중독가',
+    hint: '우와, 벌써 북로그에서 이만큼?',
+    desc: '50권이나 읽으셨다고요? 이미 완벽한 독서가군요!',
+    hasInvite: true,
+    condition: (books) => books.filter(b => b.status === '완독').length >= 50,
+    reward: {
+      title: '🥇 독서 중독가',
+      item: '🔖',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gold3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><rect x="12" y="3" width="10" height="24" rx="2" fill="url(#gold3)" stroke="#9a7820" stroke-width="1.5"/><polygon points="12,27 17,22 22,27" fill="url(#gold3)" stroke="#9a7820" stroke-width="1.5"/><rect x="14" y="7" width="5" height="1.2" rx=".6" fill="#9a7820" opacity=".6"/><rect x="14" y="10" width="5" height="1.2" rx=".6" fill="#9a7820" opacity=".6"/><rect x="14" y="13" width="4" height="1.2" rx=".6" fill="#9a7820" opacity=".4"/><circle cx="20" cy="6" r="1.5" fill="rgba(255,255,255,.5)"/></svg>`,
+      itemName: '금색 책갈피',
+      itemDesc: '북로그에서 50권을 완독한 독서 중독가에게',
+      color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
+    }
+  },
+
+  // ── 25. 평점 테러리스트 (평점 1점 10권)
+  {
+    id: 'harsh_critic',
+    name: '평점 테러리스트',
+    hint: '세상 모든 작가들이 당신의 눈치를 보게 만드세요.',
+    desc: '독설의 연금술사! 당신의 평점 테러에 서재가 벌벌 떱니다.',
+    condition: (books) => books.filter(b => b.rating === 1).length >= 10,
+    reward: {
+      title: '💢 평점 테러리스트',
+      item: '🪑',
+      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="6" width="16" height="14" rx="2" fill="#8a5a5a" stroke="#6a3a3a" stroke-width="1.5"/><rect x="8" y="20" width="20" height="3" rx="1.5" fill="#8a5a5a" stroke="#6a3a3a" stroke-width="1"/><line x1="12" y1="23" x2="10" y2="32" stroke="#6a3a3a" stroke-width="2" stroke-linecap="round"/><line x1="24" y1="23" x2="26" y2="32" stroke="#6a3a3a" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="23" x2="14" y2="32" stroke="#6a3a3a" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="23" x2="22" y2="32" stroke="#6a3a3a" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="10" x2="22" y2="10" stroke="#ee4444" stroke-width="1.5"/><line x1="14" y1="13" x2="22" y2="13" stroke="#ee4444" stroke-width="1.5" opacity=".7"/></svg>`,
+      itemName: '가시 돋친 의자',
+      itemDesc: '별점 1점을 10번 이상 준 독설의 연금술사에게',
+      color: '#8a5a5a', bg: '#fff5f5', border: '#e8c8c8',
+    }
+  },
 ];
+
+
+
+// 초대권 자동 발급 (hasInvite:true 퀘스트 달성 시)
+async function grantInviteCode(quest) {
+  try {
+    const newCode = Math.random().toString(36).slice(2,8).toUpperCase() + '-' + quest.id.slice(0,4).toUpperCase();
+    await sb.from('invite_codes').insert({
+      code: newCode,
+      owner_id: currentUser.id,
+      created_at: new Date().toISOString(),
+      quest_reward: true,
+      quest_id: quest.id,
+    });
+    // 초대권 발급 알림 팝업
+    await new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#fdf8ee;border-radius:16px;padding:1.6rem 1.4rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid #e8d4a0;';
+      box.innerHTML = `
+        <div style="font-size:2rem;margin-bottom:.5rem;">🎟️</div>
+        <div style="font-size:.72rem;font-weight:700;color:#c8a050;letter-spacing:.08em;margin-bottom:.3rem;">북로그 초대권 발급!</div>
+        <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${quest.name} 달성 보상</div>
+        <div style="background:#f5f0e0;border-radius:8px;padding:.6rem;margin-bottom:.8rem;font-family:monospace;font-size:1rem;font-weight:700;color:#8B6B3A;letter-spacing:.1em;">${newCode}</div>
+        <div style="font-size:.65rem;color:#a08c72;margin-bottom:.9rem;">설정 메뉴에서 초대코드를 확인할 수 있어요</div>`;
+      const btn = document.createElement('button');
+      btn.textContent = '확인';
+      btn.style.cssText = 'background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);';
+      btn.onclick = () => { overlay.remove(); resolve(); };
+      box.appendChild(btn);
+      overlay.appendChild(box);
+      overlay.addEventListener('click', e => { if(e.target===overlay){ overlay.remove(); resolve(); } });
+      document.body.appendChild(overlay);
+    });
+  } catch(e) { console.warn('invite code grant failed:', e); }
+}
 
 // 퀘스트 달성 체크 및 자동 보상 적용
 async function checkAndGrantQuests() {
@@ -1627,12 +2127,61 @@ async function checkAndGrantQuests() {
     .eq('id', currentUser.id).single();
   if(!profile) return;
 
+  // 새벽 접속 체크 (새벽 2~5시)
+  const nowH = new Date().getHours();
+  if(nowH >= 2 && nowH < 5) {
+    localStorage.setItem('bl_dawn_sessions', String((parseInt(localStorage.getItem('bl_dawn_sessions')||'0')+1)));
+  }
+  // 새벽 4:44 체크
+  const nowM = new Date().getMinutes();
+  if(nowH === 4 && nowM === 44) {
+    localStorage.setItem('bl_ghost_hour', '1');
+  }
+
+  // 연속 로그인 체크
+  const today = new Date().toISOString().slice(0,10);
+  const lastLogin = localStorage.getItem('bl_last_login_date');
+  if(lastLogin) {
+    const diff = (new Date(today) - new Date(lastLogin)) / 86400000;
+    if(diff === 1) {
+      localStorage.setItem('bl_login_streak', String((parseInt(localStorage.getItem('bl_login_streak')||'0')+1)));
+    } else if(diff > 1) {
+      localStorage.setItem('bl_login_streak', '1');
+    }
+  } else {
+    localStorage.setItem('bl_login_streak', '1');
+  }
+  localStorage.setItem('bl_last_login_date', today);
+
+  // 주말 타이머 체크 (토/일)
+  const dayOfWeek = new Date().getDay();
+  if(dayOfWeek === 0 || dayOfWeek === 6) {
+    const weekKey = 'bl_weekend_' + new Date().toISOString().slice(0,7) + '_w' + Math.ceil(new Date().getDate()/7);
+    if(!localStorage.getItem(weekKey)) {
+      localStorage.setItem(weekKey, '1');
+      localStorage.setItem('bl_weekend_timer_weeks', String((parseInt(localStorage.getItem('bl_weekend_timer_weeks')||'0')+1)));
+    }
+  }
+
+  // 서버에서 extra 데이터 로드 (게시글 수, 댓글 수, 친구 수)
+  let extra = { postCount: 0, commentCount: 0, friendCount: 0 };
+  try {
+    const [postsR, commentsR, friendsR] = await Promise.all([
+      sb.from('posts').select('id', {count:'exact',head:true}).eq('user_id', currentUser.id),
+      sb.from('comments').select('id', {count:'exact',head:true}).eq('user_id', currentUser.id),
+      sb.from('friendships').select('id', {count:'exact',head:true}).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`).eq('status','accepted'),
+    ]);
+    extra.postCount = postsR.count || 0;
+    extra.commentCount = commentsR.count || 0;
+    extra.friendCount = friendsR.count || 0;
+  } catch(e) { console.warn('extra data load failed:', e); }
+
   const completed = profile.completed_quests || [];
   const newlyCompleted = [];
 
   for(const quest of QUESTS) {
     if(completed.includes(quest.id)) continue;
-    if(quest.condition(allBooks, profile)) {
+    if(quest.condition(allBooks, profile, extra)) {
       newlyCompleted.push(quest);
     }
   }
@@ -1653,6 +2202,12 @@ async function checkAndGrantQuests() {
   // 달성 팝업
   for(const quest of newlyCompleted) {
     await showQuestRewardPopup(quest);
+  }
+  // 초대권 보상
+  for(const quest of newlyCompleted) {
+    if(quest.hasInvite) {
+      await grantInviteCode(quest);
+    }
   }
 
   // 전리품 & 퀘스트 패널 새로고침
@@ -4239,7 +4794,9 @@ async function surfLibrary() {
     );
     if(pub.length) {
       const r = pub[Math.floor(Math.random() * pub.length)];
-      openLibrary(r.id, r.display_name || r.username || '산책자');
+      // 파도타기 카운트
+    localStorage.setItem('bl_surf_count', String((parseInt(localStorage.getItem('bl_surf_count')||'0')+1)));
+    openLibrary(r.id, r.display_name || r.username || '산책자');
     } else {
       await showAlert('아직 공개된 서재가 없어요.');
     }
