@@ -207,8 +207,12 @@ function cleanupLocalStorage() {
       }
     } catch(e) {
       // 세션 데이터 손상 - 전체 localStorage 초기화 후 reload
-      console.warn('Corrupted session data - clearing all and reloading');
-      localStorage.clear();
+      console.warn('Corrupted session data - clearing session keys only');
+      // 손상된 세션 키만 제거 (전체 초기화 방지 → 무한루프 예방)
+      const sessionKey = Object.keys(localStorage).find(k => k.startsWith('booklog-auth'));
+      if(sessionKey) localStorage.removeItem(sessionKey);
+      const sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+      sbKeys.forEach(k => localStorage.removeItem(k));
       location.reload();
       return;
     }
@@ -322,11 +326,17 @@ function init() {
     if(_appState === 'idle' || _appState === 'starting') {
       console.warn('Supabase timeout - clearing localStorage and reloading');
       // Supabase가 멈춘 경우 세션 캐시 제거 후 새로고침
-      const savedEmail = localStorage.getItem('bl_saved_email');
-      const savedFont = localStorage.getItem('bl_font_size');
+      // Supabase 세션 키, 사용자 설정 보존 후 나머지만 초기화
+      const keepKeys = {};
+      for(let i=0; i<localStorage.length; i++) {
+        const k = localStorage.key(i);
+        // Supabase 세션 키, 북로그 설정은 유지
+        if(k && (k.startsWith('sb-') || k.startsWith('booklog-auth') || k === 'bl_saved_email' || k === 'bl_font_size')) {
+          keepKeys[k] = localStorage.getItem(k);
+        }
+      }
       localStorage.clear();
-      if(savedEmail) localStorage.setItem('bl_saved_email', savedEmail);
-      if(savedFont) localStorage.setItem('bl_font_size', savedFont);
+      Object.entries(keepKeys).forEach(([k,v]) => localStorage.setItem(k,v));
       location.reload();
     }
   }, 5000);
@@ -1915,6 +1925,7 @@ function buildQuestPanel(completedIds) {
 // ── 통계
 function buildStats() {
   const sg=document.getElementById('stat-grid');
+  if(!sg) return; // 통계 탭이 아닐 때 안전하게 종료
   // 통계 카드만 제거 (loot-card, quest-card는 buildLoot가 관리)
   [...sg.children].filter(el=>!el.classList.contains('loot-card')&&!el.classList.contains('quest-card')).forEach(el=>el.remove());
   const done=allBooks.filter(b=>b.status==='완독');
