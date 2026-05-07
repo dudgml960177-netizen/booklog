@@ -578,6 +578,18 @@
         <label class="form-label">닉네임 변경</label>
         <input type="text" id="profile-display-name" class="form-input">
       </div>
+      <!-- 칭호 선택 (퀘스트 달성 시 표시) -->
+      <div id="profile-title-wrap" style="display:none;margin-bottom:.8rem;">
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;gap:.3rem;">
+            <span>칭호</span>
+            <span style="font-size:.6rem;color:var(--tx3);font-weight:400;">퀘스트 달성으로 획득한 칭호</span>
+          </label>
+          <select id="profile-title-select" class="form-input" style="font-size:.78rem;">
+            <option value="">산책자 (기본)</option>
+          </select>
+        </div>
+      </div>
       <div id="profile-invite-codes" style="margin-bottom:.8rem;"></div>
       <!-- 서재/카테고리 공개 설정 -->
       <div style="margin-bottom:.7rem;padding:.6rem .8rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">

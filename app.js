@@ -1707,8 +1707,6 @@ function buildLoot(userTitle, completedIds) {
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
   const earnedCount = earned.length;
 
-  panel.innerHTML = '';
-
   // 카드 공통 스타일
   const cardStyle = 'flex-shrink:0;width:72px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
 
@@ -1754,13 +1752,7 @@ function openLootBox(userTitle, completedIds) {
 
   const itemsHtml = earned.length === 0
     ? `<div style="text-align:center;padding:2rem;color:#a08c72;font-size:.78rem;">아직 획득한 전리품이 없어요.<br><span style="font-size:.68rem;opacity:.7;">퀘스트를 달성해 전리품을 모아보세요!</span></div>`
-    : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;padding:.2rem;">
-        ${earned.map(q => {
-          const r = q.reward;
-          return `<div onclick="showLootItemDetail('${q.id}','${userTitle}')" style="background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:10px;padding:.7rem .4rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;text-align:center;cursor:pointer;transition:transform .15s;" onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform=''">
-            <div style="font-size:2rem;line-height:1;">${r.dotArt||r.item}</div>
-            <div style="font-size:.58rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.3;">${r.itemName}</div>
-          </div>`;
+    : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;padding:.2rem;" id="loot-items-grid"></div>`;
         }).join('')}
       </div>`;
 
@@ -1779,6 +1771,30 @@ function openLootBox(userTitle, completedIds) {
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+
+  // earned 아이템을 DOM으로 직접 추가 (이스케이프 문제 방지)
+  const grid = overlay.querySelector('#loot-items-grid');
+  if(grid && earned.length > 0) {
+    earned.forEach(q => {
+      const r = q.reward;
+      const cell = document.createElement('div');
+      cell.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:10px;padding:.7rem .4rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;text-align:center;cursor:pointer;transition:transform .15s;`;
+      // dotArt SVG를 직접 삽입
+      const artDiv = document.createElement('div');
+      artDiv.style.cssText = 'font-size:2rem;line-height:1;';
+      if(r.dotArt) artDiv.innerHTML = r.dotArt;
+      else artDiv.textContent = r.item;
+      const nameDiv = document.createElement('div');
+      nameDiv.style.cssText = `font-size:.58rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.3;`;
+      nameDiv.textContent = r.itemName;
+      cell.appendChild(artDiv);
+      cell.appendChild(nameDiv);
+      cell.addEventListener('mouseenter', () => cell.style.transform = 'scale(1.04)');
+      cell.addEventListener('mouseleave', () => cell.style.transform = '');
+      cell.addEventListener('click', () => showLootItemDetail(q.id, userTitle));
+      grid.appendChild(cell);
+    });
+  }
 }
 
 // 전리품 아이템 상세
