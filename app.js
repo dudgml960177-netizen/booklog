@@ -259,6 +259,7 @@ async function startApp(user) {
     showScreen('app');
     buildBooks();
     setTimeout(loadNotifications, 500);
+    setTimeout(checkAndGrantQuests, 1500); // 퀘스트 체크 (약간 지연)
   } catch(e) {
     // 어떤 에러든 상태 복구 - 로그인 버튼이 다시 작동하게
     console.error('startApp error:', e);
@@ -1572,6 +1573,199 @@ function buildTimerBookList() {
   });
 }
 
+
+// ═══════════════════════════════════════════════
+// 독서 퀘스트 & 전리품 시스템
+// ═══════════════════════════════════════════════
+
+// 퀘스트 정의
+// condition(allBooks, profile): boolean — 달성 여부 판정
+const QUESTS = [
+  {
+    id: 'pioneer',
+    name: '시초의 독자',
+    hint: '북로그의 첫 번째 독자들에게 주어지는 특별한 칭호',
+    secret: false,  // 힌트 공개
+    // 조건: 가입일이 2026년 5월 31일 이전 (초기 사용자)
+    condition: (books, profile) => {
+      const joinedAt = profile?.created_at || '';
+      if(!joinedAt) return false;
+      return new Date(joinedAt) <= new Date('2026-05-31T23:59:59Z');
+    },
+    reward: {
+      title: '📖 북로그의 시초',        // 칭호 (profiles.user_title에 저장)
+      item: '🗝️',                       // 도트 아이템 이모지
+      itemName: '시초의 열쇠',
+      itemDesc: '북로그의 문을 처음 연 독자에게',
+      color: '#c8a050',
+      bg: '#fdf8ee',
+      border: '#e8d4a0',
+    }
+  },
+  // 향후 퀘스트 추가 예정
+  // { id: 'reader10', name: '입문 독서가', hint: '...', condition: (b)=>b.filter(x=>x.status==='완독').length>=10, reward: {...} },
+];
+
+// 퀘스트 달성 체크 및 자동 보상 적용
+async function checkAndGrantQuests() {
+  if(!currentUser) return;
+  const { data: profile } = await sb.from('profiles')
+    .select('created_at, user_title, completed_quests')
+    .eq('id', currentUser.id).single();
+  if(!profile) return;
+
+  const completed = profile.completed_quests || [];
+  const newlyCompleted = [];
+
+  for(const quest of QUESTS) {
+    if(completed.includes(quest.id)) continue;
+    if(quest.condition(allBooks, profile)) {
+      newlyCompleted.push(quest);
+    }
+  }
+
+  if(!newlyCompleted.length) return;
+
+  // 새로 달성한 퀘스트 보상 적용
+  const newCompleted = [...completed, ...newlyCompleted.map(q=>q.id)];
+  // 칭호: 가장 최근 달성 퀘스트의 칭호로 덮어씌우지 않고 최초만 적용
+  const updateData = { completed_quests: newCompleted };
+  // 칭호가 아직 없으면 첫 번째 달성 칭호 부여
+  if(!profile.user_title && newlyCompleted.length > 0) {
+    updateData.user_title = newlyCompleted[0].reward.title;
+  }
+
+  await sb.from('profiles').update(updateData).eq('id', currentUser.id);
+
+  // 달성 팝업
+  for(const quest of newlyCompleted) {
+    await showQuestRewardPopup(quest);
+  }
+
+  // 전리품 & 퀘스트 패널 새로고침
+  buildLoot(profile.user_title || updateData.user_title, newCompleted);
+  buildQuestPanel(newCompleted);
+}
+
+// 퀘스트 달성 팝업
+async function showQuestRewardPopup(quest) {
+  const r = quest.reward;
+  await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+      <div style="background:#fdf8ee;border-radius:16px;padding:2rem 1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);border:2px solid ${r.border||'#e8d4a0'};">
+        <div style="font-size:2.5rem;margin-bottom:.6rem;">🎉</div>
+        <div style="font-size:.65rem;font-weight:700;color:${r.color||'#c8a050'};letter-spacing:.1em;text-transform:uppercase;margin-bottom:.3rem;">퀘스트 달성!</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#2e1f0e;margin-bottom:.8rem;">${quest.name}</div>
+        <div style="background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:12px;padding:1rem;margin-bottom:1rem;">
+          <div style="font-size:2rem;margin-bottom:.4rem;">${r.item}</div>
+          <div style="font-size:.82rem;font-weight:700;color:#2e1f0e;">${r.itemName}</div>
+          <div style="font-size:.7rem;color:#7a6a5a;margin-top:.2rem;">${r.itemDesc}</div>
+          <div style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid ${r.border||'#e8d4a0'};">
+            <div style="font-size:.6rem;color:#a08c72;margin-bottom:.2rem;">칭호 획득</div>
+            <div style="font-size:.82rem;font-weight:700;color:${r.color||'#c8a050'};">${r.title}</div>
+          </div>
+        </div>
+        <button onclick="this.closest('[data-popup]').dispatchEvent(new Event('close'))" 
+          style="background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);">
+          확인
+        </button>
+      </div>`;
+    overlay.querySelector('[data-popup]')?.addEventListener('close', ()=>{overlay.remove();resolve();});
+    // 버튼에 data-popup 추가
+    overlay.firstElementChild.setAttribute('data-popup','');
+    overlay.querySelector('button').onclick = ()=>{overlay.remove();resolve();};
+    document.body.appendChild(overlay);
+  });
+}
+
+// 전리품 패널 빌드
+function buildLoot(userTitle, completedIds) {
+  const panel = document.getElementById('loot-panel');
+  if(!panel) return;
+
+  const earned = QUESTS.filter(q => completedIds?.includes(q.id));
+  panel.innerHTML = '';
+
+  if(!earned.length) {
+    // 빈 슬롯 — 통계 카드와 동일한 크기
+    const el = document.createElement('div');
+    el.style.cssText = 'flex-shrink:0;width:72px;background:var(--card);border:1.5px dashed var(--border2);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;';
+    el.innerHTML = `
+      <div style="font-size:1.1rem;opacity:.2;">🏅</div>
+      <div style="font-size:.55rem;font-weight:600;color:var(--tx2);opacity:.55;">전리품</div>
+      <div style="font-size:.48rem;color:var(--tx3);font-style:italic;opacity:.45;line-height:1.3;">Coming<br>Soon</div>`;
+    panel.appendChild(el);
+    return;
+  }
+
+  earned.forEach(quest => {
+    const r = quest.reward;
+    const el = document.createElement('div');
+    el.title = r.itemName + ' — ' + r.itemDesc;
+    el.style.cssText = `flex-shrink:0;width:72px;background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;`;
+    el.innerHTML = `
+      <div style="font-size:1.3rem;">${r.item}</div>
+      <div style="font-size:.55rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.2;">${r.itemName}</div>`;
+    el.onclick = () => showLootDetail(quest, userTitle);
+    panel.appendChild(el);
+  });
+}
+
+// 전리품 상세 팝업
+async function showLootDetail(quest, userTitle) {
+  const r = quest.reward;
+  const isActive = userTitle === r.title;
+  await showAlert(
+    `<div style="text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.4rem;">${r.item}</div>
+      <div style="font-size:.95rem;font-weight:700;color:#2e1f0e;margin-bottom:.25rem;">${r.itemName}</div>
+      <div style="font-size:.72rem;color:#7a6a5a;margin-bottom:.8rem;">${r.itemDesc}</div>
+      <div style="background:${r.bg};border:1px solid ${r.border};border-radius:8px;padding:.6rem;margin-bottom:.6rem;">
+        <div style="font-size:.6rem;color:#a08c72;margin-bottom:.2rem;">획득 칭호</div>
+        <div style="font-size:.85rem;font-weight:700;color:${r.color};">${r.title}</div>
+        <div style="font-size:.62rem;color:#a08c72;margin-top:.3rem;">${isActive?'현재 사용 중':'칭호 탭에서 변경 가능'}</div>
+      </div>
+    </div>`
+  );
+}
+
+// 퀘스트 패널 빌드
+function buildQuestPanel(completedIds) {
+  const panel = document.getElementById('quest-panel');
+  if(!panel) return;
+
+  const total = QUESTS.length;
+  const done = QUESTS.filter(q => completedIds?.includes(q.id)).length;
+
+  panel.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.6rem .8rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+        <div style="display:flex;align-items:center;gap:.35rem;">
+          <span style="font-size:.85rem;">🗺️</span>
+          <span style="font-size:.72rem;font-weight:700;color:var(--tx2);">독서 퀘스트</span>
+        </div>
+        <span style="font-size:.62rem;color:var(--tx3);">${done}/${total} 달성</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.35rem;">
+        ${QUESTS.map(q => {
+          const achieved = completedIds?.includes(q.id);
+          const r = q.reward;
+          return `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .5rem;border-radius:var(--r);background:${achieved ? r.bg||'#fdf8ee' : '#f5f0e8'};border:1px solid ${achieved ? r.border||'#e8d4a0' : 'var(--border)'};opacity:${achieved?1:0.7};">
+            <span style="font-size:1rem;flex-shrink:0;">${achieved ? r.item : '?'}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:.72rem;font-weight:${achieved?700:500};color:${achieved?'#2e1f0e':'var(--tx2)'};">${q.name}</div>
+              <div style="font-size:.62rem;color:var(--tx3);margin-top:.08rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${achieved ? r.title : q.hint}</div>
+            </div>
+            ${achieved ? `<span style="font-size:.6rem;font-weight:700;color:${r.color||'#c8a050'};flex-shrink:0;">달성✓</span>` : '<span style="font-size:.6rem;color:var(--tx3);flex-shrink:0;">도전중</span>'}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+
 // ── 통계
 function buildStats() {
   const sg=document.getElementById('stat-grid'); sg.innerHTML='';
@@ -1632,6 +1826,11 @@ function buildStats() {
       <div style="font-family:var(--fs);font-size:${isLong?'.65rem':'.85rem'};color:var(--tx1);line-height:1.15;word-break:break-all;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${it.n}</div>
       <div style="font-size:.55rem;color:var(--tx3);margin-top:.08rem;">${it.l}</div>`;
     sg.appendChild(el);
+  });
+  // 전리품 & 퀘스트 패널 초기 로드
+  sb.from('profiles').select('user_title,completed_quests').eq('id',currentUser.id).single().then(({data:pf})=>{
+    buildLoot(pf?.user_title, pf?.completed_quests||[]);
+    buildQuestPanel(pf?.completed_quests||[]);
   });
 }
 
@@ -2655,6 +2854,16 @@ async function openProfile() {
   document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
   document.getElementById('profile-name').textContent=name;
   document.getElementById('profile-display-name').value=name;
+  // 칭호 선택 드롭다운
+  const titleSel = document.getElementById('profile-title-select');
+  if(titleSel) {
+    const completed = profile?.completed_quests || [];
+    const earned = QUESTS.filter(q => completed.includes(q.id));
+    titleSel.innerHTML = '<option value="">산책자 (기본)</option>' +
+      earned.map(q => `<option value="${q.reward.title}" ${profile?.user_title===q.reward.title?'selected':''}>${q.reward.title}</option>`).join('');
+    const titleWrap = document.getElementById('profile-title-wrap');
+    if(titleWrap) titleWrap.style.display = earned.length ? '' : 'none';
+  }
   // 폰트 크기
   const savedSize = localStorage.getItem('bl_font_size') || '100';
   const slider = document.getElementById('font-size-slider');
@@ -2687,7 +2896,10 @@ async function saveProfile() {
   const name = document.getElementById('profile-display-name')?.value.trim();
   if(!name){alert('닉네임을 입력해주세요.');return;}
   try {
-    const {error} = await sb.from('profiles').update({display_name:name}).eq('id',currentUser.id);
+    const titleEl = document.getElementById('profile-title-select');
+    const updateData = {display_name:name};
+    if(titleEl) updateData.user_title = titleEl.value || null;
+    const {error} = await sb.from('profiles').update(updateData).eq('id',currentUser.id);
     if(error) throw error;
     closeModal('modal-profile');
     await showAlert('저장되었어요!');
@@ -3696,8 +3908,8 @@ async function loadFriends() {
   wrap.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">불러오는 중...</div>';
   const { data } = await sb.from('friendships').select(`
     id, status, requester_id, receiver_id,
-    requester:profiles!friendships_requester_id_fkey(id,display_name,username),
-    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username)
+    requester:profiles!friendships_requester_id_fkey(id,display_name,username,user_title),
+    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username,user_title)
   `).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
 
   wrap.innerHTML = '';
@@ -3724,7 +3936,7 @@ async function loadFriends() {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
           <div style="font-size:.82rem;font-weight:600;color:var(--tx1);">${name}</div>
-          <div style="font-size:.65rem;color:var(--tx3);">산책 친구</div>
+          <div style="font-size:.65rem;color:var(--tx3);">${other?.user_title||'산책자'}</div>
         </div>
         <button onclick="openLibrary('${other.id}','${name}')" style="font-size:.7rem;padding:.25rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);">서재 보기</button>
         <button onclick="removeFriend('${f.id}')" style="width:28px;height:28px;border:none;background:#f5f0e8;border-radius:50%;cursor:pointer;color:var(--tx3);font-size:.75rem;display:flex;align-items:center;justify-content:center;" title="친구 삭제">✕</button>`;
@@ -3806,20 +4018,31 @@ async function removeFriend(friendshipId) {
   loadFriends();
 }
 
-// 파도타기 - 공개 서재 랜덤
+// 파도타기 - 관리자 서재 구경 (k_tenten@naver.com)
 async function surfLibrary() {
+  // 관리 계정(k_tenten) 서재 우선, 없으면 공개 서재 랜덤
   try {
     const { data: allP } = await sb.from('profiles')
       .select('id,display_name,username,library_public,library_visibility')
       .neq('id', currentUser.id).limit(500);
     const profiles = allP || [];
+    // k_tenten 계정 탐색
+    const admin = profiles.find(p =>
+      (p.username||'').toLowerCase() === 'k_tenten' ||
+      (p.username||'').toLowerCase().includes('tenten')
+    );
+    if(admin) { openLibrary(admin.id, admin.display_name || admin.username || '북로그'); return; }
+    // 공개 서재 랜덤
     const pub = profiles.filter(p =>
       p.library_public === true || p.library_visibility === 'public' ||
       (!p.library_visibility && p.library_public !== false)
     );
-    if(!pub.length) { await showAlert('아직 공개된 서재가 없어요.'); return; }
-    const r = pub[Math.floor(Math.random() * pub.length)];
-    openLibrary(r.id, r.display_name || r.username || '산책자');
+    if(pub.length) {
+      const r = pub[Math.floor(Math.random() * pub.length)];
+      openLibrary(r.id, r.display_name || r.username || '산책자');
+    } else {
+      await showAlert('아직 공개된 서재가 없어요.');
+    }
   } catch(e) {
     console.error('surfLibrary:', e);
     await showAlert('서재를 불러오는 중 오류가 발생했어요.');
@@ -3835,7 +4058,7 @@ async function openLibrary(userId, userName) {
 
   // 1단계: 프로필 먼저 확인 (공개 범위 체크)
   const { data: targetProfile } = await sb.from('profiles')
-    .select('library_public,library_visibility,category_visibility,categories')
+    .select('library_public,library_visibility,category_visibility,categories,user_title')
     .eq('id',userId).single();
   const visibility = targetProfile?.library_visibility ||
     (targetProfile?.library_public === false ? 'private' : 'public');
@@ -3902,7 +4125,7 @@ async function openLibrary(userId, userName) {
         <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;font-family:var(--fs);">${initial}</div>
         <div>
           <div style="font-size:1rem;font-weight:700;color:#fff;font-family:var(--fs);">${userName}님의 서재</div>
-          <div style="font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem;">📚 함께 읽는 산책자</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem;">📚 ${targetProfile?.user_title||'함께 읽는 산책자'}</div>
         </div>
       </div>
       <!-- 통계 칩 -->
