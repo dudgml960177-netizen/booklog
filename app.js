@@ -172,49 +172,30 @@ function showScreen(name) {
 function cleanupLocalStorage() {
   try {
     const keys = Object.keys(localStorage);
-    
-    // 허용 키 목록 (이것만 남기고 나머지 삭제)
-    const ALLOWED = new Set([
-      'bl_font_size',
-      'bl_saved_email',
-    ]);
-    // booklog-auth로 시작하는 Supabase 세션 키는 항상 유지
-    
     keys.forEach(k => {
-      // Supabase 세션 키 - 절대 건드리지 않음
-      if(k.startsWith('booklog-auth')) return;
-      if(k.startsWith('sb-')) return;
-      // bl_ 접두사 허용 키
-      if(ALLOWED.has(k)) return;
-      // liked_ 키는 50개까지만
-      if(k.startsWith('liked_')) return; // 아래서 별도 처리
-      // 나머지 전부 삭제 (오염 방지)
+      // 보존 대상: Supabase 세션, bl_ 앱 데이터, liked_ 좋아요
+      if(k.startsWith('booklog-auth')) return; // Supabase 세션
+      if(k.startsWith('sb-')) return;           // Supabase 내부
+      if(k.startsWith('bl_')) return;           // 북로그 앱 데이터 전체 보존
+      if(k.startsWith('liked_')) return;        // 좋아요
+      // 그 외 알 수 없는 키만 삭제
       localStorage.removeItem(k);
     });
 
-    // 좋아요 키 50개 초과 시 정리
+    // liked_ 키 50개 초과 시 오래된 것부터 정리
     const likedKeys = Object.keys(localStorage).filter(k => k.startsWith('liked_'));
     if(likedKeys.length > 50) {
       likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
     }
 
-    // Supabase 내부 상태 검증 - 세션 데이터 손상 체크
+    // 세션 데이터 손상 체크 (손상됐으면 해당 키만 제거, reload 없음)
     try {
       const sessionKey = Object.keys(localStorage).find(k => k.startsWith('booklog-auth'));
-      if(sessionKey) {
-        const raw = localStorage.getItem(sessionKey);
-        if(raw) JSON.parse(raw); // 파싱 실패하면 catch로
-      }
+      if(sessionKey) { const raw = localStorage.getItem(sessionKey); if(raw) JSON.parse(raw); }
     } catch(e) {
-      // 세션 데이터 손상 - 전체 localStorage 초기화 후 reload
-      console.warn('Corrupted session data - clearing session keys only');
-      // 손상된 세션 키만 제거 (전체 초기화 방지 → 무한루프 예방)
-      const sessionKey = Object.keys(localStorage).find(k => k.startsWith('booklog-auth'));
-      if(sessionKey) localStorage.removeItem(sessionKey);
-      const sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-      sbKeys.forEach(k => localStorage.removeItem(k));
-      // reload 없이 그냥 진행 (reload 무한루프 방지)
-      return;
+      console.warn('Corrupted session - removing session keys only');
+      Object.keys(localStorage).filter(k => k.startsWith('booklog-auth') || k.startsWith('sb-'))
+        .forEach(k => localStorage.removeItem(k));
     }
   } catch(e) {}
 }
@@ -760,7 +741,7 @@ async function shareQuoteCard(qtId, btn) {
   const richText = rawText
     .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
     .replace(/<\/div>\s*<div>/gi, '<br>')
-    .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
+    .replace(/<div>/gi, '<br>').replace(/<\/div>/gi, '')
     .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
     .replace(/\n/g, '<br>')
     .replace(/(<br>){3,}/gi, '<br><br>');
@@ -1021,14 +1002,15 @@ function renderQuotes() {
     if (hasHtml) {
       // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환 (서식 태그 보존)
       text = text
-        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
-        .replace(/<\/div>\s*<div>/gi, '<br>')
-        .replace(/<div>/gi, '').replace(/<\/div>/gi, '<br>')
+        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')  // 빈 줄 div
+        .replace(/<\/div>\s*<div>/gi, '<br>')           // div 경계
+        .replace(/<div>/gi, '<br>')                       // 열리는 div → 줄바꿈
+        .replace(/<\/div>/gi, '')                        // 닫히는 div 제거
         .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
         .replace(/\n/g, '<br>')
-        .replace(/(<br\s*\/?> *){3,}/gi, '<br><br>')
-        .replace(/^(<br\s*\/?> *)+/gi, '')
-        .replace(/(<br\s*\/?> *)+$/gi, '');
+        .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
+        .replace(/^(<br\s*\/?>\s*)+/gi, '')
+        .replace(/(<br\s*\/?>\s*)+$/gi, '');
     } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
@@ -1763,9 +1745,14 @@ function openLootBox(userTitle, completedIds) {
   overlay.id = 'lootbox-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-  const itemsHtml = earned.length === 0
-    ? `<div style="text-align:center;padding:2rem;color:#a08c72;font-size:.78rem;">아직 획득한 전리품이 없어요.<br><span style="font-size:.68rem;opacity:.7;">퀘스트를 달성해 전리품을 모아보세요!</span></div>`
-    : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;padding:.2rem;" id="loot-items-grid"></div>`;
+  // 5×5 서랍장: 빈 슬롯 포함해서 항상 5열 표시
+  const DRAWER_COLS = 5;
+  const DRAWER_ROWS = Math.max(3, Math.ceil(earned.length / DRAWER_COLS) + 1);
+  const totalSlots = DRAWER_COLS * DRAWER_ROWS;
+  const emptySlots = totalSlots - earned.length;
+  const itemsHtml = `<div style="display:grid;grid-template-columns:repeat(${DRAWER_COLS},1fr);gap:.4rem;padding:.2rem;max-height:260px;overflow-y:auto;" id="loot-items-grid">
+    ${Array(emptySlots).fill('<div class="loot-empty-slot"></div>').join('')}
+  </div>`;
 
   overlay.innerHTML = `
     <div style="background:#fdf8ee;border-radius:16px;width:100%;max-width:320px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3);">
@@ -1785,11 +1772,16 @@ function openLootBox(userTitle, completedIds) {
 
   // earned 아이템을 DOM으로 직접 추가 (이스케이프 문제 방지)
   const grid = overlay.querySelector('#loot-items-grid');
-  if(grid && earned.length > 0) {
+  if(grid) {
+    // 획득한 아이템을 먼저 삽입 (빈 슬롯보다 앞에)
+    const emptySlots = grid.querySelectorAll('.loot-empty-slot');
+    emptySlots.forEach(slot => {
+      slot.style.cssText = 'background:#f0ece0;border:1.5px dashed #d9d3c0;border-radius:8px;aspect-ratio:1;min-height:52px;';
+    });
     earned.forEach(q => {
       const r = q.reward;
       const cell = document.createElement('div');
-      cell.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:10px;padding:.7rem .4rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;text-align:center;cursor:pointer;transition:transform .15s;`;
+      cell.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:8px;padding:.4rem .2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;text-align:center;cursor:pointer;transition:transform .15s;aspect-ratio:1;min-height:52px;`;
       // dotArt SVG를 직접 삽입
       const artDiv = document.createElement('div');
       artDiv.style.cssText = 'font-size:2rem;line-height:1;';
@@ -1803,7 +1795,7 @@ function openLootBox(userTitle, completedIds) {
       cell.addEventListener('mouseenter', () => cell.style.transform = 'scale(1.04)');
       cell.addEventListener('mouseleave', () => cell.style.transform = '');
       cell.addEventListener('click', () => showLootItemDetail(q.id, userTitle));
-      grid.appendChild(cell);
+      grid.insertBefore(cell, grid.firstChild);
     });
   }
 }
