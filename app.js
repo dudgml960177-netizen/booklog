@@ -1766,8 +1766,6 @@ function openLootBox(userTitle, completedIds) {
   const itemsHtml = earned.length === 0
     ? `<div style="text-align:center;padding:2rem;color:#a08c72;font-size:.78rem;">아직 획득한 전리품이 없어요.<br><span style="font-size:.68rem;opacity:.7;">퀘스트를 달성해 전리품을 모아보세요!</span></div>`
     : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;padding:.2rem;" id="loot-items-grid"></div>`;
-        }).join('')}
-      </div>`;
 
   overlay.innerHTML = `
     <div style="background:#fdf8ee;border-radius:16px;width:100%;max-width:320px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3);">
