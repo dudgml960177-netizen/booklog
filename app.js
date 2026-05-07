@@ -1593,8 +1593,29 @@ const QUESTS = [
       return new Date(joinedAt) <= new Date('2026-05-31T23:59:59Z');
     },
     reward: {
-      title: '📖 북로그의 시초',        // 칭호 (profiles.user_title에 저장)
-      item: '🗝️',                       // 도트 아이템 이모지
+      title: '📖 북로그의 시초',
+      item: '🗝️',
+      // 도트 아트 SVG (픽셀 스타일 열쇠)
+      dotArt: `<svg width="32" height="32" viewBox="0 0 16 16" style="image-rendering:pixelated;" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="2" height="2" fill="#c8a050"/>
+        <rect x="4" y="2" width="4" height="2" fill="#c8a050"/>
+        <rect x="8" y="2" width="2" height="2" fill="#c8a050"/>
+        <rect x="4" y="4" width="2" height="6" fill="#c8a050"/>
+        <rect x="6" y="4" width="2" height="2" fill="#c8a050"/>
+        <rect x="8" y="4" width="2" height="2" fill="#c8a050"/>
+        <rect x="2" y="6" width="2" height="2" fill="#c8a050"/>
+        <rect x="2" y="4" width="2" height="2" fill="#e8c060"/>
+        <rect x="4" y="2" width="4" height="2" fill="#e8c060"/>
+        <rect x="8" y="2" width="2" height="2" fill="#e8c060"/>
+        <rect x="4" y="8" width="2" height="2" fill="#c8a050"/>
+        <rect x="4" y="10" width="2" height="2" fill="#a07830"/>
+        <rect x="4" y="12" width="4" height="2" fill="#a07830"/>
+        <rect x="8" y="10" width="2" height="2" fill="#a07830"/>
+        <rect x="10" y="8" width="2" height="2" fill="#a07830"/>
+        <rect x="10" y="12" width="2" height="2" fill="#a07830"/>
+        <rect x="2" y="4" width="1" height="1" fill="#f0d080"/>
+        <rect x="5" y="3" width="1" height="1" fill="#f0d080"/>
+      </svg>`,
       itemName: '시초의 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
       color: '#c8a050',
@@ -1680,60 +1701,167 @@ async function showQuestRewardPopup(quest) {
   });
 }
 
-// 전리품 패널 빌드
+// 전리품 패널 빌드 — 사물함 버튼 + 퀘스트 버튼
 function buildLoot(userTitle, completedIds) {
   const panel = document.getElementById('loot-panel');
   if(!panel) return;
-
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
+  const earnedCount = earned.length;
+
   panel.innerHTML = '';
 
-  if(!earned.length) {
-    // 빈 슬롯 — 통계 카드와 동일한 크기
-    const el = document.createElement('div');
-    el.style.cssText = 'flex-shrink:0;width:72px;background:var(--card);border:1.5px dashed var(--border2);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;';
-    el.innerHTML = `
-      <div style="font-size:1.1rem;opacity:.2;">🏅</div>
-      <div style="font-size:.55rem;font-weight:600;color:var(--tx2);opacity:.55;">전리품</div>
-      <div style="font-size:.48rem;color:var(--tx3);font-style:italic;opacity:.45;line-height:1.3;">Coming<br>Soon</div>`;
-    panel.appendChild(el);
-    return;
-  }
+  // 카드 공통 스타일
+  const cardStyle = 'flex-shrink:0;width:72px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
 
-  earned.forEach(quest => {
-    const r = quest.reward;
-    const el = document.createElement('div');
-    el.title = r.itemName + ' — ' + r.itemDesc;
-    el.style.cssText = `flex-shrink:0;width:72px;background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;`;
-    el.innerHTML = `
-      <div style="font-size:1.3rem;">${r.item}</div>
-      <div style="font-size:.55rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.2;">${r.itemName}</div>`;
-    el.onclick = () => showLootDetail(quest, userTitle);
-    panel.appendChild(el);
-  });
+  // ① 전리품(사물함) 카드
+  const lootCard = document.createElement('div');
+  lootCard.style.cssText = cardStyle + (earnedCount > 0 ? 'border-color:#e8d4a0;background:#fdf8ee;' : '');
+  lootCard.title = '전리품 사물함';
+  lootCard.innerHTML = earnedCount > 0
+    ? `<div style="font-size:1.1rem;">🗄️</div>
+       <div style="font-size:.55rem;font-weight:700;color:#c8a050;">전리품</div>
+       <div style="font-size:.48rem;color:#a08c72;">${earnedCount}개 획득</div>`
+    : `<div style="font-size:1.1rem;opacity:.3;">🗄️</div>
+       <div style="font-size:.55rem;font-weight:600;color:var(--tx3);opacity:.6;">전리품</div>
+       <div style="font-size:.45rem;color:var(--tx3);opacity:.4;line-height:1.3;">Coming<br>Soon</div>`;
+  lootCard.onclick = () => openLootBox(userTitle, completedIds);
+  lootCard.onmouseenter = () => lootCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.1)';
+  lootCard.onmouseleave = () => lootCard.style.boxShadow = '';
+  panel.appendChild(lootCard);
+
+  // ② 퀘스트 카드
+  const questCard = document.createElement('div');
+  const doneCount = completedIds?.length || 0;
+  questCard.style.cssText = cardStyle;
+  questCard.title = '독서 퀘스트';
+  questCard.innerHTML = `<div style="font-size:1.1rem;">🗺️</div>
+    <div style="font-size:.55rem;font-weight:700;color:var(--tx2);">퀘스트</div>
+    <div style="font-size:.48rem;color:var(--tx3);">${doneCount}/${QUESTS.length}달성</div>`;
+  questCard.onclick = () => openQuestModal(completedIds);
+  questCard.onmouseenter = () => questCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.1)';
+  questCard.onmouseleave = () => questCard.style.boxShadow = '';
+  panel.appendChild(questCard);
 }
 
-// 전리품 상세 팝업
-async function showLootDetail(quest, userTitle) {
+// ── 사물함 모달
+function openLootBox(userTitle, completedIds) {
+  const earned = QUESTS.filter(q => completedIds?.includes(q.id));
+  const overlay = document.createElement('div');
+  overlay.id = 'lootbox-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  const itemsHtml = earned.length === 0
+    ? `<div style="text-align:center;padding:2rem;color:#a08c72;font-size:.78rem;">아직 획득한 전리품이 없어요.<br><span style="font-size:.68rem;opacity:.7;">퀘스트를 달성해 전리품을 모아보세요!</span></div>`
+    : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;padding:.2rem;">
+        ${earned.map(q => {
+          const r = q.reward;
+          return `<div onclick="showLootItemDetail('${q.id}','${userTitle}')" style="background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:10px;padding:.7rem .4rem;display:flex;flex-direction:column;align-items:center;gap:.3rem;text-align:center;cursor:pointer;transition:transform .15s;" onmouseenter="this.style.transform='scale(1.04)'" onmouseleave="this.style.transform=''">
+            <div style="font-size:2rem;line-height:1;">${r.dotArt||r.item}</div>
+            <div style="font-size:.58rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.3;">${r.itemName}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+  overlay.innerHTML = `
+    <div style="background:#fdf8ee;border-radius:16px;width:100%;max-width:320px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3);">
+      <!-- 헤더 -->
+      <div style="background:linear-gradient(135deg,#4a3520,#7a5030);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:1.1rem;">🗄️</span>
+          <span style="color:#fff;font-size:.88rem;font-weight:700;">전리품 사물함</span>
+        </div>
+        <button onclick="document.getElementById('lootbox-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="padding:.8rem;">${itemsHtml}</div>
+      ${earned.length > 0 ? `<div style="padding:.5rem .8rem .8rem;text-align:center;font-size:.6rem;color:#a08c72;">아이템을 눌러 상세 정보를 확인하세요</div>` : ''}
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+}
+
+// 전리품 아이템 상세
+function showLootItemDetail(questId, userTitle) {
+  const quest = QUESTS.find(q => q.id === questId);
+  if(!quest) return;
   const r = quest.reward;
   const isActive = userTitle === r.title;
-  await showAlert(
-    `<div style="text-align:center;">
-      <div style="font-size:2rem;margin-bottom:.4rem;">${r.item}</div>
-      <div style="font-size:.95rem;font-weight:700;color:#2e1f0e;margin-bottom:.25rem;">${r.itemName}</div>
-      <div style="font-size:.72rem;color:#7a6a5a;margin-bottom:.8rem;">${r.itemDesc}</div>
-      <div style="background:${r.bg};border:1px solid ${r.border};border-radius:8px;padding:.6rem;margin-bottom:.6rem;">
-        <div style="font-size:.6rem;color:#a08c72;margin-bottom:.2rem;">획득 칭호</div>
-        <div style="font-size:.85rem;font-weight:700;color:${r.color};">${r.title}</div>
-        <div style="font-size:.62rem;color:#a08c72;margin-top:.3rem;">${isActive?'현재 사용 중':'칭호 탭에서 변경 가능'}</div>
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML = `
+    <div style="background:#fdf8ee;border-radius:16px;padding:1.8rem 1.5rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid ${r.border||'#e8d4a0'};">
+      <div style="font-size:3rem;margin-bottom:.6rem;line-height:1;">${r.dotArt||r.item}</div>
+      <div style="font-size:1rem;font-weight:700;color:#2e1f0e;margin-bottom:.25rem;">${r.itemName}</div>
+      <div style="font-size:.72rem;color:#7a6a5a;margin-bottom:.9rem;">${r.itemDesc}</div>
+      <div style="background:${r.bg};border:1px solid ${r.border};border-radius:10px;padding:.7rem;margin-bottom:.9rem;">
+        <div style="font-size:.58rem;color:#a08c72;margin-bottom:.25rem;font-weight:600;letter-spacing:.05em;">획득 칭호</div>
+        <div style="font-size:.88rem;font-weight:700;color:${r.color||'#c8a050'};">${r.title}</div>
+        <div style="font-size:.6rem;color:#a08c72;margin-top:.3rem;">${isActive?'✓ 현재 사용 중':'설정에서 칭호를 변경할 수 있어요'}</div>
       </div>
-    </div>`
-  );
+      <button onclick="this.closest('.loot-detail-overlay').remove()" style="background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);">확인</button>
+    </div>`;
+  overlay.querySelector('div').classList.add('loot-detail-overlay');
+  overlay.querySelector('[style*="확인"]').closest('div[style]').classList.add('loot-detail-overlay');
+  // 닫기 버튼 수정
+  const btn = overlay.querySelector('button');
+  btn.onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
-// 퀘스트 패널 빌드
+// ── 퀘스트 모달
+function openQuestModal(completedIds) {
+  const overlay = document.createElement('div');
+  overlay.id = 'quest-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+
+  const questRows = QUESTS.map(q => {
+    const achieved = completedIds?.includes(q.id);
+    const r = q.reward;
+    return `<div style="display:flex;align-items:center;gap:.7rem;padding:.65rem .7rem;border-radius:10px;background:${achieved?r.bg||'#fdf8ee':'#f5f0e8'};border:1px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};margin-bottom:.4rem;">
+      <div style="width:36px;height:36px;border-radius:8px;background:${achieved?r.color+'22':'rgba(0,0,0,.06)'};display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">${achieved?r.dotArt||r.item:'❓'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.78rem;font-weight:700;color:${achieved?'#2e1f0e':'var(--tx2)'};">${q.name}</div>
+        <div style="font-size:.63rem;color:var(--tx3);margin-top:.08rem;">${achieved?r.title:q.hint}</div>
+      </div>
+      <div style="flex-shrink:0;">
+        ${achieved
+          ? `<span style="font-size:.6rem;font-weight:700;color:${r.color||'#c8a050'};background:${r.bg};padding:.15rem .5rem;border-radius:8px;border:1px solid ${r.border};">달성 ✓</span>`
+          : `<span style="font-size:.6rem;color:var(--tx3);background:#ede4d0;padding:.15rem .5rem;border-radius:8px;">도전 중</span>`}
+      </div>
+    </div>`;
+  }).join('');
+
+  const done = (completedIds||[]).length;
+  overlay.innerHTML = `
+    <div style="background:#fdf8ee;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.2);">
+      <div style="padding:1rem 1.1rem .7rem;border-bottom:1px solid #e8d4a0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:1rem;">🗺️</span>
+          <div>
+            <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;">독서 퀘스트</div>
+            <div style="font-size:.6rem;color:#a08c72;">${done}/${QUESTS.length} 달성</div>
+          </div>
+        </div>
+        <button onclick="document.getElementById('quest-overlay').remove()" style="background:#ede4d0;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:.8rem;color:#5c3d1e;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="overflow-y:auto;padding:.8rem .9rem 1.2rem;flex:1;">${questRows}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+}
+
+// 전리품 상세 팝업 (레거시 - openLootBox로 대체)
+async function showLootDetail(quest, userTitle) {
+  openLootBox(userTitle);
+}
+
+// 퀘스트 패널 빌드 (하위호환 — quest-panel은 이제 숨김)
 function buildQuestPanel(completedIds) {
   const panel = document.getElementById('quest-panel');
+  if(panel) panel.style.display = 'none'; // 카드 방식으로 대체됨
+  return;
+  // eslint-disable-next-line no-unreachable
   if(!panel) return;
 
   const total = QUESTS.length;
