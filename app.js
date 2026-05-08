@@ -212,7 +212,8 @@ function initFontSize(sizeFromDB) {
 }
 
 // ── 앱 상태 관리
-let _appState = 'idle'; // idle | starting | running | auth
+let _appState = 'idle'; // idle
+let initTimeout = null; // Supabase 초기화 타임아웃 핸들러| starting | running | auth
 
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
@@ -268,7 +269,11 @@ sb.auth.onAuthStateChange(async (event, session) => {
         }
         // starting 상태면 무시 (이미 진행 중)
       } else if(event === 'INITIAL_SESSION') {
+        // 세션 없음 → 로그인 화면
         _appState = 'auth';
+        clearTimeout(initTimeout); // 타임아웃 취소
+        showScreen('auth');
+        loadSavedEmail();
       }
     }
     if(event === 'SIGNED_OUT') {
@@ -295,16 +300,17 @@ function init() {
       if(e.target === el && _mdTarget === el) el.style.display='none';
     });
   });
-  // Supabase 응답 타임아웃 감지 - 5초 안에 INITIAL_SESSION 안 오면 강제 auth 화면
-  const initTimeout = setTimeout(() => {
-    // 5초 타임아웃: localStorage 절대 건드리지 않음, 그냥 로그인 화면 표시
-    if(_appState === 'idle' || _appState === 'starting') {
-      console.warn('Supabase timeout - showing auth screen (no localStorage change)');
+  // Supabase 세션 로드 대기: 로딩 화면 표시 후 INITIAL_SESSION 기다림
+  showScreen('loading');
+  initTimeout = setTimeout(() => {
+    // 15초 타임아웃: 그래도 안 오면 로그인 화면 (세션 없는 것으로 판단)
+    if(_appState === 'idle') {
+      console.warn('Supabase timeout 15s - no session, showing auth');
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
     }
-  }, 5000);
+  }, 15000);
   // INITIAL_SESSION 오면 타임아웃 취소
   const unsub = sb.auth.onAuthStateChange((event) => {
     if(event === 'INITIAL_SESSION') { clearTimeout(initTimeout); unsub.data?.subscription?.unsubscribe(); }
@@ -332,8 +338,9 @@ function init() {
       }
     } catch(e) {}
   }
-  showScreen('auth');
-  loadSavedEmail();
+  // 로딩 화면은 위에서 이미 표시. 전역 OAC가 INITIAL_SESSION 받아서 처리
+  // 세션 없을 때: INITIAL_SESSION(null) → OAC에서 _appState='auth' → 타임아웃 해제 불가
+  // 이 경우 unsub OAC가 INITIAL_SESSION 받아도 clearTimeout만 함 → 전역OAC가 처리
 }
 
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -1120,13 +1127,23 @@ function openEditQuote(qt) {
           style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${
           (()=>{
             const t = qt.text||'';
-            // 이미 HTML이면 그대로, 순수 텍스트면 줄바꿈→<br>
-            return /<[a-z]/i.test(t) ? t : t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+            if(/<[a-z]/i.test(t)) {
+              return t
+                .replace(/<div><br\s*\/?><\/div>/gi,'<br>')
+                .replace(/<\/div>\s*<div>/gi,'<br>')
+                .replace(/<div>/gi,'')
+                .replace(/<\/div>/gi,'<br>')
+                .replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>')
+                .replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>')
+                .replace(/^(<br\s*\/?>\s*)+/,'')
+                .replace(/(<br\s*\/?>\s*)+$/,'');
+            }
+            return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
           })()
         }</div>
         <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
-          <input id="eq-tag" type="text" class="form-input" placeholder="💬 코멘트" value="${qt.tag||''}" style="flex:1;font-size:.75rem;">
-          <input id="eq-page" type="text" class="form-input" placeholder="p.42" value="${qt.page||''}" style="width:60px;font-size:.75rem;text-align:center;">
+          <input id="eq-tag" type="text" class="form-input" placeholder="💬 코멘트" value="${(qt.tag && String(qt.tag)!=='null') ? qt.tag : ''}" style="flex:1;font-size:.75rem;">
+          <input id="eq-page" type="text" class="form-input" placeholder="p.42" value="${(qt.page!=null && String(qt.page)!=='null') ? qt.page : ''}" style="width:60px;font-size:.75rem;text-align:center;">
         </div>
         <div style="display:flex;gap:.4rem;">
           <button onclick="saveEditQuote('${qt.id}',this)" class="btn-save" style="flex:1;font-size:.75rem;">저장</button>
