@@ -18,6 +18,21 @@ window.onerror = (msg, src, line) => {
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 
+// [긴급] 세션 충돌 방지: 초기 로딩 시 비정상 토큰 선제 제거
+(function() {
+  const k = 'sb-xowlwzpoxrudgaoavkbr-auth-token';
+  try {
+    const s = localStorage.getItem(k);
+    if (s) {
+      const p = JSON.parse(s);
+      if (!p.access_token || (p.expires_at && Date.now()/1000 > p.expires_at)) {
+        localStorage.removeItem(k);
+      }
+    }
+  } catch (e) { localStorage.removeItem(k); }
+})();
+
+
 // 로그인 세션 및 쿠키 오류 방지 로직
 
 
@@ -986,6 +1001,21 @@ async function shareQuoteCard(qtId, btn) {
     color: #444 !important;
   }
 
+
+  html, body { overflow-x: hidden !important; width: 100%; position: relative; }
+  .loot-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+    gap: 15px !important;
+    padding: 15px !important;
+    max-height: 480px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
 </style>
   </defs>
   <g id="_레이어_1" data-name="레이어_1" class="st7">
@@ -1716,34 +1746,23 @@ const QUESTS = [
 
   // ── 1. 돌아온 독서가 (불러오기 100권 이상)
   {
-    id: 'returnee', name: '돌아온 독서가', hint: '대량 데이터 복구', desc: '과거의 독서 기록을 모두 불러온 열정적인 독서가입니다.', condition: (books) => true, reward: { title: '전설의 고서', item: '📕', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-<rect x="7" y="4" width="18" height="24" rx="2" fill="#1A2A40" stroke="#0D1626" stroke-width="0.5"/>
-<path d="M7 4 L11 4 V28 L7 28 Z" fill="#142130"/>
-<rect x="22" y="14" width="5" height="4" rx="1" fill="#D4AF37"/>
-<path d="M23 16 H26" stroke="#B8860B" stroke-width="0.5"/>
-<path d="M13 8 H21 M13 12 H21 M13 16 H19" stroke="#D4AF37" stroke-width="0.6" opacity="0.5"/>
-<path d="M7 8 H11 M7 24 H11" stroke="#D4AF37" stroke-width="0.8" opacity="0.4"/>
-</svg>`,
-      itemName: '전설의 책',
-      itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
-      color: '#111111', bg: '#fdf8ee', border: '#D4AF37', titleColor: '#8B4513', descColor: '#222222',
-    }
+    id: 'returnee', name: '전설의 독서가', hint: '과거 기록 복원', desc: '잊혀진 기록들을 다시 불러온 당신, 기록의 소중함을 아는 분이군요.', condition: (books) => true, reward: { title: '전설의 고서', item: '📕', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect x="7" y="5" width="18" height="22" rx="1.5" fill="#1A2A40" stroke="#B8860B" stroke-width="1.2"/>
+  <path d="M10 5 V27" stroke="#D4AF37" stroke-width="0.8" stroke-dasharray="1 1"/>
+  <rect x="13" y="10" width="8" height="1.5" fill="#D4AF37" opacity="0.6"/>
+  <rect x="13" y="14" width="8" height="1.5" fill="#D4AF37" opacity="0.6"/>
+  <circle cx="17" cy="21" r="2.5" fill="none" stroke="#D4AF37" stroke-width="0.8"/>
+</svg>` }
   },
 
   // ── 2. 활자 중독자 (30권 완독)
   {
-    id: 'bookworm30', name: '활자 중독자', hint: '30권 완독', desc: '이미 활자의 매력에 푹 빠진 당신은 진정한 독서가!', condition: (books) => true, reward: { title: '금색 책갈피', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-<path d="M12 4 H20 V22 L16 19 L12 22 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1"/>
-<path d="M16 4 V19" stroke="#D4AF37" stroke-width="0.5" stroke-dasharray="1 1" opacity="0.4"/>
-<path d="M16 22 L16 26" stroke="#B8860B" stroke-width="1.2"/>
-<circle cx="16" cy="28" r="2.5" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
-<path d="M16 27 L16 29 M15 28 L17 28" stroke="#1A2A40" stroke-width="0.5"/>
-<rect x="14" y="7" width="4" height="1" fill="#D4AF37" opacity="0.6"/>
-</svg>`,
-      itemName: '나무 책갈피',
-      itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
-      color: '#111111', bg: '#fdf8ee', border: '#D4AF37', titleColor: '#8B4513', descColor: '#222222',
-    }
+    id: 'bookworm30', name: '활자 중독자', hint: '30권 완독', desc: '활자의 바다에 빠진 당신을 위한 증표입니다.', condition: (books) => true, reward: { title: '금색 책갈피', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 4 H20 V22 L16 19 L12 22 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1"/>
+  <path d="M16 22 V28" stroke="#B8860B" stroke-width="1"/>
+  <circle cx="16" cy="28" r="2" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+  <path d="M14 8 H18" stroke="#D4AF37" stroke-width="0.5" opacity="0.6"/>
+</svg>` }
   },
 
   // ── 3. 관상용 수집가 (30일 방치 책 읽기 시작)
@@ -1796,21 +1815,13 @@ const QUESTS = [
 
   // ── 6. 독서 기계 (연속 100일 로그인) + 초대권
   {
-    id: 'streak100', name: '독서 기계', hint: '100일 연속 독서', desc: '멈추지 않는 증기기관차처럼 100일을 달려오셨군요!', condition: (books) => true, reward: { title: '증기기관차', item: '🚂', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-<rect x="4" y="16" width="18" height="9" fill="#1A2A40" stroke="#0D1626" stroke-width="0.8"/>
-<rect x="18" y="10" width="10" height="15" fill="#1A2A40" stroke="#0D1626" stroke-width="0.8"/>
-<path d="M7 10 V16" stroke="#1A2A40" stroke-width="2.5"/>
-<path d="M6 10 H10" stroke="#B8860B" stroke-width="1.2"/>
-<circle cx="8" cy="26" r="3" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
-<circle cx="16" cy="26" r="3" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
-<circle cx="24" cy="26" r="3" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
-<path d="M20 13 H26 M20 17 H26" stroke="#D4AF37" stroke-width="0.8" opacity="0.5"/>
-<path d="M6 8 Q9 2 12 7" fill="none" stroke="#D4AF37" stroke-width="0.8" stroke-dasharray="1 2"/>
-</svg>`,
-      itemName: '백일떡',
-      itemDesc: '북로그 100일 연속 방문 달성! 뇌세포들이 경례합니다.',
-      color: '#111111', bg: '#fdf8ee', border: '#D4AF37', titleColor: '#8B4513', descColor: '#222222',
-    }
+    id: 'streak100', name: '백일떡 독자', hint: '100일 연속 독서', desc: '100일의 정성이 쌓였습니다. 이제 독서는 당신의 삶 그 자체군요!', condition: (books, profile) => true, reward: { title: '백일떡', item: '🍡', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <path d="M6 12 L16 8 L26 12 L26 24 L16 28 L6 24 Z" fill="#fdf8ee" stroke="#B8860B" stroke-width="1.2"/>
+  <path d="M6 12 L16 16 L26 12 M16 16 V28" fill="none" stroke="#B8860B" stroke-width="0.8"/>
+  <path d="M16 8 L12 4 L16 6 L20 4 L16 8" fill="#1A2A40" stroke="#0D1626" stroke-width="0.5"/>
+  <text x="16" y="22" text-anchor="middle" font-size="5" font-family="serif" fill="#1A2A40" font-weight="bold">百日</text>
+  <path d="M10 10 L13 11 M19 11 L22 10" stroke="#D4AF37" stroke-width="0.5"/>
+</svg>` }
   },
 
   // ── 7. 방구석 현자 (4주 주말 독서 타이머)
