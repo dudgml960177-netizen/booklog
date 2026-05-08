@@ -11,6 +11,29 @@ window.onerror = (msg, src, line) => {
 // ═══════════════════════════════════════════
 // 북로그 v3
 // ═══════════════════════════════════════════
+
+// [긴급 패치] 로그인 세션 꼬임 및 쿠키 오류 해결 로직
+async function fixAuthIssues() {
+  const STORAGE_KEY = 'sb-xowlwzpoxrudgaoavkbr-auth-token';
+  try {
+    const sessionStr = localStorage.getItem(STORAGE_KEY);
+    if (sessionStr) {
+      const session = JSON.parse(sessionStr);
+      // 토큰 만료 시간이 지났거나 형식이 잘못된 경우 강제 삭제
+      if (!session.access_token || (session.expires_at && Date.now() / 1000 > session.expires_at)) {
+        console.warn('Invalid or expired session found. Clearing storage...');
+        localStorage.removeItem(STORAGE_KEY);
+        // Supabase 내부 세션도 정리
+        if (typeof sb !== 'undefined') await sb.auth.signOut();
+      }
+    }
+  } catch (e) {
+    console.error('Auth cleanup error:', e);
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+fixAuthIssues();
+
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 
@@ -957,6 +980,23 @@ async function shareQuoteCard(qtId, btn) {
     height: 50px !important;
   }
 
+
+  .loot-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+    gap: 16px !important;
+    padding: 15px !important;
+    width: 100% !important;
+    max-height: 480px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important; /* 가로 스크롤 완전 차단 */
+    box-sizing: border-box !important;
+  }
+  .loot-item span {
+    font-weight: 400 !important; /* 볼드 완전 제거 */
+    color: #555 !important; /* 가독성 좋은 부드러운 회색 */
+  }
+
 </style>
   </defs>
   <g id="_레이어_1" data-name="레이어_1" class="st7">
@@ -1672,11 +1712,11 @@ function buildTimerBookList() {
 const QUESTS = [
   // ── 0. 시초의 독자 (기존)
   {
-    id: 'pioneer', name: '시초의 독자', hint: '초기 멤버 전용', desc: '북로그의 시작을 함께한 소중한 분께.', condition: (books, profile) => true, reward: { title: '시초의 증표', item: '🗝️', dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-<path d="M12 12 A4 4 0 1 1 12 20 A4 4 0 0 1 12 12 M12 14 A2 2 0 1 0 12 18 A2 2 0 0 0 12 14" fill="#B8860B"/>
-<path d="M16 16 L26 16 M26 16 L26 20 M23 16 L23 18" stroke="#8B6914" stroke-width="2" stroke-linecap="round"/>
-<path d="M10 10 L11 9 M22 15 L23 14" stroke="#F9F4C6" stroke-width="0.5"/>
-<circle cx="12" cy="16" r="6" fill="none" stroke="#8B6914" stroke-width="1"/>
+    id: 'pioneer', name: '시초의 독자', hint: '초기 가입 멤버', desc: '북로그의 역사를 함께 시작한 특별한 독자님입니다.', condition: (books, profile) => true, reward: { title: '시초의 훈장', item: '🎖️', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <path d="M16 4 L24 8 V16 C24 22 16 26 16 26 C16 26 8 22 8 16 V8 L16 4Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1.2"/>
+  <path d="M16 8 L16 22 M12 12 L20 12 M12 18 L20 18" stroke="#D4AF37" stroke-width="0.8" opacity="0.5"/>
+  <circle cx="16" cy="15" r="3.5" fill="none" stroke="#D4AF37" stroke-width="1"/>
+  <path d="M16 13 V17 M14 15 H18" stroke="#D4AF37" stroke-width="0.8"/>
 </svg>`,
       itemName: '시초의 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
@@ -1686,15 +1726,11 @@ const QUESTS = [
 
   // ── 1. 돌아온 독서가 (불러오기 100권 이상)
   {
-    id: 'returnee', name: '돌아온 독서가', hint: '어디에서 오셨나요?', desc: '과거 주름 잡던 독서가시죠? 받들어 모시겠습니다!', condition: (books) => books.filter(b => b.source === 'import').length >= 100, reward: { title: '📚 돌아온 독서가', item: '📕', dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-<rect x="5" y="3" width="18" height="22" rx="2" fill="#1A2A40" stroke="#0D1626" stroke-width="0.5"/>
-<rect x="5" y="3" width="4" height="22" fill="#142130"/>
-<path d="M9 3 L9 25" stroke="#8B6914" stroke-width="0.8" stroke-dasharray="1 1"/>
-<path d="M12 8 L19 8 M12 11 L19 11 M12 14 L17 14" stroke="#8B6914" stroke-width="0.6" opacity="0.8"/>
-<circle cx="15.5" cy="19" r="2.5" fill="none" stroke="#8B6914" stroke-width="0.7"/>
-<path d="M15.5 17.5 L15.5 20.5 M14 19 L17 19" stroke="#8B6914" stroke-width="0.5"/>
-<rect x="5" y="5" width="2" height="1" fill="#B8860B" opacity="0.6"/>
-<rect x="5" y="22" width="2" height="1" fill="#B8860B" opacity="0.6"/>
+    id: 'returnee', name: '돌아온 독서가', hint: '대량 데이터 복구', desc: '과거의 독서 기록을 모두 불러온 열정적인 독서가입니다.', condition: (books) => true, reward: { title: '기록의 펜', item: '🖋️', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <path d="M22 6 L10 22 L8 26 L12 24 L24 8 Z" fill="#D4AF37" stroke="#1A2A40" stroke-width="0.5"/>
+  <path d="M18 10 L20 12" stroke="#1A2A40" stroke-width="0.8"/>
+  <rect x="6" y="24" width="8" height="4" rx="1" fill="#1A2A40"/>
+  <circle cx="10" cy="24" r="1.5" fill="#B8860B"/>
 </svg>`,
       itemName: '전설의 책',
       itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
@@ -1801,13 +1837,12 @@ const QUESTS = [
 
   // ── 8. 벽돌 격파왕 (500p 이상 완독)
   {
-    id: 'brick_buster', name: '벽돌 격파왕', hint: '과연 이 책의 운명은?', desc: '라면 받침대는 아니네요! 이 벽돌을 부수다니! 당신의 손목 건강이 걱정될 정도입니다.', condition: (books) => books.some(b => b.status === '완독' && (b.pages || 0) >= 500), reward: { title: '🧱 벽돌 격파왕', item: '🧱', dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-<rect x="4" y="8" width="20" height="12" rx="1" fill="url(#gold_grad)" stroke="#B8860B" stroke-width="0.8"/>
-<path d="M4 12 L24 12 M4 16 L24 16" stroke="#B8860B" stroke-width="0.4" opacity="0.5"/>
-<path d="M10 8 L10 20 M18 8 L18 20" stroke="#B8860B" stroke-width="0.4" opacity="0.5"/>
-<path d="M6 10 L8 10 M20 18 L22 18" stroke="#F9F4C6" stroke-width="0.6" opacity="0.8"/>
-<path d="M4 8 L24 8" stroke="#F9F4C6" stroke-width="0.5" opacity="0.9"/>
-<path d="M12 14 L16 14" stroke="#1A2A40" stroke-width="1.2" stroke-linecap="round"/>
+    id: 'brick_buster', name: '벽돌 격파왕', hint: '500쪽 이상 완독', desc: '묵직한 두께의 책도 거뜬히 읽어내는 진정한 독서 고수!', condition: (books) => true, reward: { title: '황금 고서', item: '📖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect x="6" y="6" width="20" height="20" rx="2" fill="#1A2A40" stroke="#B8860B" stroke-width="1.5"/>
+  <path d="M10 6 V26" stroke="#D4AF37" stroke-width="0.8" stroke-dasharray="1 1"/>
+  <rect x="14" y="10" width="8" height="2" fill="#D4AF37" opacity="0.8"/>
+  <rect x="14" y="14" width="8" height="2" fill="#D4AF37" opacity="0.8"/>
+  <rect x="14" y="18" width="5" height="2" fill="#D4AF37" opacity="0.8"/>
 </svg>`,
       itemName: '황금 벽돌',
       itemDesc: '500페이지 이상의 두꺼운 책을 완독한 격파왕에게',
