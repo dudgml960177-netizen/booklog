@@ -1594,9 +1594,27 @@ const QUESTS = [
       return new Date(joinedAt) <= new Date('2026-05-31T23:59:59Z');
     },
     reward: {
-      title: '📖 북로그의 시초',
+      title: '북로그의 시초',
       item: '🗝️',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="kg" cx="40%" cy="30%"><stop offset="0%" stop-color="#f5e070"/><stop offset="60%" stop-color="#d4a820"/><stop offset="100%" stop-color="#a07820"/></radialGradient></defs><circle cx="13" cy="13" r="8" fill="url(#kg)" stroke="#a07820" stroke-width="1"/><circle cx="13" cy="13" r="5" fill="none" stroke="#a07820" stroke-width="1.5"/><circle cx="13" cy="13" r="2" fill="#a07820"/><rect x="19" y="11.5" width="12" height="3" rx="1.5" fill="url(#kg)" stroke="#a07820" stroke-width=".8"/><rect x="26" y="14.5" width="2" height="3" rx="1" fill="url(#kg)" stroke="#a07820" stroke-width=".8"/><rect x="29" y="14.5" width="2" height="2" rx="1" fill="url(#kg)" stroke="#a07820" stroke-width=".8"/><circle cx="10" cy="10" r="1.2" fill="rgba(255,255,255,.6)"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="pg" cx="35%" cy="25%" r="70%">
+    <stop offset="0%" stop-color="#ffe878"/>
+    <stop offset="50%" stop-color="#f0c030"/>
+    <stop offset="100%" stop-color="#b88010"/>
+  </radialGradient>
+  <filter id="ps"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#b88010" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#ps)">
+  <circle cx="11" cy="11" r="7" fill="url(#pg)" stroke="#a07010" stroke-width=".8"/>
+  <circle cx="11" cy="11" r="4.5" fill="none" stroke="#a07010" stroke-width="1.2"/>
+  <circle cx="11" cy="11" r="1.8" fill="#a07010"/>
+  <rect x="16.5" y="9.8" width="10" height="2.4" rx="1.2" fill="url(#pg)" stroke="#a07010" stroke-width=".7"/>
+  <rect x="22" y="12.2" width="2" height="2.5" rx="1" fill="url(#pg)" stroke="#a07010" stroke-width=".7"/>
+  <rect x="24.5" y="12.2" width="1.5" height="2" rx=".75" fill="url(#pg)" stroke="#a07010" stroke-width=".7"/>
+  <ellipse cx="8.5" cy="8.5" rx="1.5" ry=".8" fill="rgba(255,255,255,.5)" transform="rotate(-30 8.5 8.5)"/>
+</g>
+</svg>`,
       itemName: '시초의 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1613,7 +1631,29 @@ const QUESTS = [
     reward: {
       title: '📚 돌아온 독서가',
       item: '📕',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="20" height="28" rx="2" fill="#8B3A3A" stroke="#5c2020" stroke-width="1"/><rect x="4" y="4" width="4" height="28" rx="1" fill="#6B2A2A"/><rect x="8" y="8" width="12" height="1.5" rx=".7" fill="#f5d0a0" opacity=".8"/><rect x="8" y="12" width="12" height="1.5" rx=".7" fill="#f5d0a0" opacity=".8"/><rect x="8" y="16" width="9" height="1.5" rx=".7" fill="#f5d0a0" opacity=".6"/><text x="26" y="20" font-size="12" text-anchor="middle" fill="#c8a050">✨</text></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="rg1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#e8785a"/>
+    <stop offset="100%" stop-color="#9a3020"/>
+  </linearGradient>
+  <linearGradient id="rg2" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#f09070"/>
+    <stop offset="100%" stop-color="#c04030"/>
+  </linearGradient>
+  <filter id="rs"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#7a1010" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#rs)">
+  <rect x="4" y="3" width="16" height="22" rx="2" fill="url(#rg1)" stroke="#7a2010" stroke-width=".8"/>
+  <rect x="4" y="3" width="3.5" height="22" fill="url(#rg2)" rx="1"/>
+  <rect x="9" y="7" width="8" height="1.2" rx=".6" fill="rgba(255,240,220,.8)"/>
+  <rect x="9" y="10" width="8" height="1.2" rx=".6" fill="rgba(255,240,220,.8)"/>
+  <rect x="9" y="13" width="6" height="1.2" rx=".6" fill="rgba(255,240,220,.6)"/>
+  <rect x="9" y="16" width="7" height="1.2" rx=".6" fill="rgba(255,240,220,.6)"/>
+  <path d="M20 10 L24 10 L26 14 L24 18 L20 18" fill="none" stroke="#f0c030" stroke-width="1.2" stroke-linejoin="round"/>
+  <circle cx="5" cy="5" r="1.2" fill="rgba(255,255,255,.35)"/>
+</g>
+</svg>`,
       itemName: '전설의 책',
       itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
       color: '#8B3A3A', bg: '#fdf5f5', border: '#e8c8c8',
@@ -1630,7 +1670,25 @@ const QUESTS = [
     reward: {
       title: '📑 활자 중독자',
       item: '🔖',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="3" width="10" height="22" rx="2" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><polygon points="10,25 15,20 20,25" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><rect x="13" y="7" width="4" height="1.2" rx=".6" fill="#f5d0a0"/><rect x="13" y="10" width="4" height="1.2" rx=".6" fill="#f5d0a0"/><rect x="13" y="13" width="3" height="1.2" rx=".6" fill="#f5d0a0" opacity=".7"/><rect x="22" y="6" width="8" height="22" rx="2" fill="#5A8B3A" stroke="#3a6b20" stroke-width="1" opacity=".85"/><rect x="4" y="9" width="8" height="22" rx="2" fill="#3A5A8B" stroke="#203a6b" stroke-width="1" opacity=".85"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="bm30g" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#d4a870"/>
+    <stop offset="100%" stop-color="#8b5a28"/>
+  </linearGradient>
+  <filter id="bm30s"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#5a3010" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#bm30s)">
+  <rect x="9" y="2" width="8" height="20" rx="1.5" fill="url(#bm30g)" stroke="#6a3f1a" stroke-width=".8"/>
+  <polygon points="9,22 13,18 17,22" fill="url(#bm30g)" stroke="#6a3f1a" stroke-width=".8"/>
+  <rect x="11" y="5" width="4" height="1" rx=".5" fill="rgba(255,240,200,.7)"/>
+  <rect x="11" y="7.5" width="4" height="1" rx=".5" fill="rgba(255,240,200,.7)"/>
+  <rect x="11" y="10" width="3" height="1" rx=".5" fill="rgba(255,240,200,.5)"/>
+  <rect x="18" y="5" width="7" height="18" rx="1.5" fill="#6a8b50" stroke="#3a5a28" stroke-width=".8" opacity=".9"/>
+  <rect x="3" y="7" width="7" height="18" rx="1.5" fill="#5a6a8b" stroke="#2a3a5a" stroke-width=".8" opacity=".9"/>
+  <rect x="10" y="2.5" width="1.5" height="1.5" rx=".5" fill="rgba(255,255,255,.4)"/>
+</g>
+</svg>`,
       itemName: '나무 책갈피',
       itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
       color: '#6B4A20', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1655,7 +1713,25 @@ const QUESTS = [
     reward: {
       title: '🧹 관상용 수집가',
       item: '🪣',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="10" rx="8" ry="4" fill="#c8b090" stroke="#9a7a50" stroke-width="1"/><path d="M10 10 Q8 22 10 28 Q18 32 26 28 Q28 22 26 10" fill="#d4bc9a" stroke="#9a7a50" stroke-width="1"/><path d="M10 10 Q8 16 10 22" stroke="#9a7a50" stroke-width=".5" fill="none"/><path d="M26 10 Q28 16 26 22" stroke="#9a7a50" stroke-width=".5" fill="none"/><line x1="10" y1="10" x2="6" y2="4" stroke="#888" stroke-width="1.5" stroke-linecap="round"/><line x1="26" y1="10" x2="30" y2="4" stroke="#888" stroke-width="1.5" stroke-linecap="round"/><text x="18" y="23" text-anchor="middle" font-size="8" fill="#7a6a5a">먼지</text></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="dg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#e8d0a0"/>
+    <stop offset="100%" stop-color="#b09060"/>
+  </linearGradient>
+  <filter id="ds"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#806040" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#ds)">
+  <ellipse cx="14" cy="9" rx="7" ry="3.5" fill="url(#dg)" stroke="#907040" stroke-width=".8"/>
+  <path d="M7 9 Q5.5 18 7 22 Q14 25.5 21 22 Q22.5 18 21 9" fill="#d4bc90" stroke="#907040" stroke-width=".8"/>
+  <line x1="4" y1="7.5" x2="8" y2="4" stroke="#888" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="24" y1="7.5" x2="20" y2="4" stroke="#888" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="10" cy="9" rx="1.8" ry=".7" fill="rgba(255,255,255,.4)"/>
+  <circle cx="9" cy="4" r=".7" fill="#a0a0a0" opacity=".6"/>
+  <circle cx="11" cy="2.5" r=".5" fill="#a0a0a0" opacity=".5"/>
+  <circle cx="14" cy="3" r=".6" fill="#b0b0b0" opacity=".4"/>
+</g>
+</svg>`,
       itemName: '먼지떨이',
       itemDesc: '30일 동안 묵혀둔 책을 드디어 펼친 수집가에게',
       color: '#9a7a50', bg: '#fdf8f0', border: '#e8d4b0',
@@ -1677,7 +1753,25 @@ const QUESTS = [
     reward: {
       title: '🧟 활자 좀비',
       item: '👁️',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="18" rx="14" ry="10" fill="#ffe8e8" stroke="#cc8888" stroke-width="1.5"/><ellipse cx="18" cy="18" rx="8" ry="6" fill="#ffcccc" stroke="#cc6666" stroke-width="1"/><circle cx="18" cy="18" r="4" fill="#cc2222"/><circle cx="18" cy="18" r="2" fill="#880000"/><ellipse cx="16" cy="16" rx="1" ry="1.5" fill="rgba(255,255,255,.5)" transform="rotate(-30 16 16)"/><path d="M4 18 Q8 12 12 18" fill="none" stroke="#cc8888" stroke-width="1"/><path d="M24 18 Q28 12 32 18" fill="none" stroke="#cc8888" stroke-width="1"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="eyeg" cx="40%" cy="30%">
+    <stop offset="0%" stop-color="#ffcccc"/>
+    <stop offset="60%" stop-color="#ff8888"/>
+    <stop offset="100%" stop-color="#cc4444"/>
+  </radialGradient>
+  <filter id="eyes"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#880000" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#eyes)">
+  <ellipse cx="14" cy="14" rx="12" ry="8" fill="#fff0f0" stroke="#e09090" stroke-width=".8"/>
+  <ellipse cx="14" cy="14" rx="7" ry="5" fill="#ffcccc" stroke="#cc8080" stroke-width=".7"/>
+  <circle cx="14" cy="14" r="4" fill="url(#eyeg)" stroke="#aa2222" stroke-width=".8"/>
+  <circle cx="14" cy="14" r="2" fill="#881111"/>
+  <circle cx="12.5" cy="12.5" r="1.2" fill="rgba(255,255,255,.55)" transform="rotate(-20 12.5 12.5)"/>
+  <path d="M3 14 Q5 10 8 14" fill="none" stroke="#e09090" stroke-width=".8"/>
+  <path d="M20 14 Q23 10 25 14" fill="none" stroke="#e09090" stroke-width=".8"/>
+</g>
+</svg>`,
       itemName: '다크서클 패치',
       itemDesc: '새벽에도 책을 놓지 않는 활자 좀비에게',
       color: '#cc2222', bg: '#fff5f5', border: '#ffcccc',
@@ -1697,7 +1791,21 @@ const QUESTS = [
     reward: {
       title: '💪 의지의 독서인',
       item: '🪢',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M6 18 Q6 10 14 10 Q22 10 22 18 Q22 26 14 26" fill="none" stroke="#8B6B3A" stroke-width="3" stroke-linecap="round"/><path d="M14 26 Q6 26 6 18" fill="none" stroke="#6B4A20" stroke-width="3" stroke-linecap="round"/><path d="M22 18 Q22 10 30 10 Q30 18 30 18 Q30 26 22 26" fill="none" stroke="#8B6B3A" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="18" r="3" fill="#c8a050" stroke="#9a7820" stroke-width="1"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="ropeg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#e0b870"/>
+    <stop offset="100%" stop-color="#9a7030"/>
+  </linearGradient>
+  <filter id="ropes"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#6a4010" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#ropes)">
+  <path d="M5 16 C5 10 10 8 14 10 C18 12 18 18 14 20 C10 22 5 20 5 16 Z" fill="none" stroke="url(#ropeg)" stroke-width="2.5"/>
+  <path d="M14 20 C18 22 23 20 23 16 C23 12 20 8 16 10" fill="none" stroke="url(#ropeg)" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="13" cy="16" r="2.5" fill="#f0d060" stroke="#c0a030" stroke-width=".8"/>
+  <circle cx="12" cy="15" r="1" fill="rgba(255,255,255,.5)"/>
+</g>
+</svg>`,
       itemName: '튼튼한 동아줄',
       itemDesc: '북로그를 3일 연속으로 방문한 의지의 독서인에게',
       color: '#8B6B3A', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1718,7 +1826,27 @@ const QUESTS = [
     reward: {
       title: '⚙️ 독서 기계',
       item: '🍡',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="6" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><rect x="8" y="12" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><rect x="8" y="18" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><rect x="8" y="24" width="20" height="4" rx="2" fill="#e8c8a0" stroke="#c8a870" stroke-width="1"/><line x1="18" y1="4" x2="18" y2="30" stroke="#c8a870" stroke-width="1.5"/><circle cx="18" cy="2" r="2" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="18" cy="32" r="2" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><text x="18" y="35" text-anchor="middle" font-size="6" fill="#c8a050">100</text></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="cakg" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#fff8e8"/>
+    <stop offset="50%" stop-color="#f8e8c0"/>
+    <stop offset="100%" stop-color="#e8c880"/>
+  </linearGradient>
+  <filter id="caks"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#b08030" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#caks)">
+  <ellipse cx="14" cy="20" rx="10" ry="4" fill="#f0d890" stroke="#c0a040" stroke-width=".8"/>
+  <rect x="8" y="6" width="12" height="14" rx="1" fill="url(#cakg)" stroke="#c0a040" stroke-width=".8"/>
+  <path d="M8 10 L20 10" stroke="#c0a040" stroke-width=".5" opacity=".5"/>
+  <path d="M8 13 L20 13" stroke="#c0a040" stroke-width=".5" opacity=".5"/>
+  <path d="M8 16 L20 16" stroke="#c0a040" stroke-width=".5" opacity=".5"/>
+  <text x="14" y="9" text-anchor="middle" font-size="3.5" font-weight="bold" fill="#c0a040" font-family="sans-serif">100</text>
+  <text x="14" y="18.5" text-anchor="middle" font-size="4" fill="#c08030" font-family="sans-serif">일</text>
+  <rect x="8" y="6" width="12" height="3" rx="1" fill="#f5e8c0"/>
+  <circle cx="10" cy="7.5" r=".8" fill="rgba(255,255,255,.6)"/>
+</g>
+</svg>`,
       itemName: '백일떡',
       itemDesc: '북로그 100일 연속 방문 달성! 뇌세포들이 경례합니다.',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1738,7 +1866,24 @@ const QUESTS = [
     reward: {
       title: '🛋️ 방구석 현자',
       item: '🛋️',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="16" width="28" height="12" rx="4" fill="#b08060" stroke="#7a5a40" stroke-width="1"/><rect x="6" y="14" width="8" height="8" rx="3" fill="#c49070" stroke="#7a5a40" stroke-width="1"/><rect x="22" y="14" width="8" height="8" rx="3" fill="#c49070" stroke="#7a5a40" stroke-width="1"/><rect x="14" y="15" width="8" height="6" rx="2" fill="#d4a890" stroke="#9a7860" stroke-width=".8"/><rect x="8" y="28" width="4" height="4" rx="1" fill="#7a5a40"/><rect x="24" y="28" width="4" height="4" rx="1" fill="#7a5a40"/><circle cx="10" cy="12" r="2" fill="#e8c8a0" stroke="#c8a880" stroke-width=".8"/><rect x="12" y="10" width="12" height="2" rx="1" fill="#e8c8a0" opacity=".7"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="sofag" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#d4a880"/>
+    <stop offset="100%" stop-color="#8b6040"/>
+  </linearGradient>
+  <filter id="sofas"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#5a3010" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#sofas)">
+  <rect x="3" y="14" width="22" height="10" rx="3.5" fill="url(#sofag)" stroke="#6a4020" stroke-width=".8"/>
+  <rect x="3" y="11" width="6" height="7" rx="3" fill="#c49070" stroke="#6a4020" stroke-width=".8"/>
+  <rect x="19" y="11" width="6" height="7" rx="3" fill="#c49070" stroke="#6a4020" stroke-width=".8"/>
+  <rect x="10" y="12" width="8" height="6" rx="2.5" fill="#e0b898" stroke="#9a7050" stroke-width=".7"/>
+  <rect x="7" y="24" width="3.5" height="3" rx="1" fill="#6a4020"/>
+  <rect x="17.5" y="24" width="3.5" height="3" rx="1" fill="#6a4020"/>
+  <ellipse cx="6.5" cy="12" rx="2.5" ry="1" fill="rgba(255,255,255,.3)" transform="rotate(-10 6.5 12)"/>
+</g>
+</svg>`,
       itemName: '푹신한 소파',
       itemDesc: '4주 연속 주말을 책과 함께한 방구석 현자에게',
       color: '#7a5a40', bg: '#fdf8f4', border: '#e8d0b8',
@@ -1755,7 +1900,30 @@ const QUESTS = [
     reward: {
       title: '🧱 벽돌 격파왕',
       item: '🧱',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><rect x="4" y="8" width="28" height="20" rx="2" fill="url(#gold)" stroke="#9a7820" stroke-width="1.5"/><rect x="4" y="8" width="28" height="7" rx="2" fill="#f0d060" stroke="#9a7820" stroke-width="1"/><line x1="18" y1="8" x2="18" y2="28" stroke="#9a7820" stroke-width=".8" opacity=".5"/><line x1="11" y1="15" x2="11" y2="28" stroke="#9a7820" stroke-width=".8" opacity=".5"/><line x1="25" y1="15" x2="25" y2="28" stroke="#9a7820" stroke-width=".8" opacity=".5"/><line x1="4" y1="15" x2="32" y2="15" stroke="#9a7820" stroke-width=".8" opacity=".5"/><circle cx="26" cy="10" r="1.5" fill="rgba(255,255,255,.5)"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="goldbg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#fff078"/>
+    <stop offset="40%" stop-color="#f0c030"/>
+    <stop offset="100%" stop-color="#c08010"/>
+  </linearGradient>
+  <linearGradient id="goldtop" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#fff8a0"/>
+    <stop offset="100%" stop-color="#e8b020"/>
+  </linearGradient>
+  <filter id="golds"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#a06010" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#golds)">
+  <rect x="3" y="7" width="22" height="16" rx="2" fill="url(#goldbg)" stroke="#b08010" stroke-width="1"/>
+  <rect x="3" y="7" width="22" height="5.5" rx="2" fill="url(#goldtop)" stroke="#b08010" stroke-width=".8"/>
+  <line x1="14" y1="7" x2="14" y2="23" stroke="#b08010" stroke-width=".6" opacity=".4"/>
+  <line x1="8.5" y1="12.5" x2="8.5" y2="23" stroke="#b08010" stroke-width=".6" opacity=".4"/>
+  <line x1="19.5" y1="12.5" x2="19.5" y2="23" stroke="#b08010" stroke-width=".6" opacity=".4"/>
+  <line x1="3" y1="12.5" x2="25" y2="12.5" stroke="#b08010" stroke-width=".6" opacity=".4"/>
+  <line x1="3" y1="18" x2="25" y2="18" stroke="#b08010" stroke-width=".6" opacity=".3"/>
+  <ellipse cx="7" cy="9" rx="3" ry="1.2" fill="rgba(255,255,255,.4)" transform="rotate(-15 7 9)"/>
+</g>
+</svg>`,
       itemName: '황금 벽돌',
       itemDesc: '500페이지 이상의 두꺼운 책을 완독한 격파왕에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1775,7 +1943,27 @@ const QUESTS = [
     reward: {
       title: '🌃 밤샘 독서가',
       item: '👁️‍🗨️',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="18" cy="14" r="10" fill="#e8e0f8" stroke="#9880c0" stroke-width="1.5"/><path d="M12 14 Q18 20 24 14" fill="none" stroke="#9880c0" stroke-width="1.5"/><ellipse cx="18" cy="12" rx="3" ry="4" fill="#cc4444"/><circle cx="18" cy="12" r="1.5" fill="#880000"/><line x1="14" y1="25" x2="14" y2="32" stroke="#a0a0c0" stroke-width="2" stroke-linecap="round"/><line x1="22" y1="25" x2="22" y2="32" stroke="#a0a0c0" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="32" x2="26" y2="32" stroke="#a0a0c0" stroke-width="2" stroke-linecap="round"/><circle cx="28" cy="6" r="2" fill="#f5e060" opacity=".8"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="eyedropg" cx="30%" cy="25%">
+    <stop offset="0%" stop-color="#e8f0ff"/>
+    <stop offset="100%" stop-color="#8898cc"/>
+  </radialGradient>
+  <filter id="eyedrops"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#3040a0" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#eyedrops)">
+  <path d="M10 4 Q14 4 14 9 L14 20 Q14 22 12 22 L10 22 Q8 22 8 20 L8 9 Q8 4 10 4 Z" fill="url(#eyedropg)" stroke="#6070b0" stroke-width=".8"/>
+  <ellipse cx="11" cy="22" rx="3" ry="1.5" fill="#7080c0" opacity=".5"/>
+  <circle cx="9.5" cy="19" r="2" fill="#cc3344"/>
+  <circle cx="9" cy="18.5" r=".8" fill="rgba(255,255,255,.5)"/>
+  <path d="M14 9 Q17 7 18 12 Q17 16 14 16" fill="url(#eyedropg)" stroke="#6070b0" stroke-width=".7" opacity=".8"/>
+  <circle cx="22" cy="6" r="2.5" fill="#f5e878" opacity=".9"/>
+  <line x1="22" y1="2" x2="22" y2="3.2" stroke="#f5e060" stroke-width="1" stroke-linecap="round"/>
+  <line x1="22" y1="9" x2="22" y2="10.2" stroke="#f5e060" stroke-width="1" stroke-linecap="round"/>
+  <line x1="18" y1="6" x2="19.2" y2="6" stroke="#f5e060" stroke-width="1" stroke-linecap="round"/>
+  <line x1="24.8" y1="6" x2="26" y2="6" stroke="#f5e060" stroke-width="1" stroke-linecap="round"/>
+</g>
+</svg>`,
       itemName: '빨간 눈 안약',
       itemDesc: '밤새 책을 읽고 해를 맞이한 밤샘 독서가에게',
       color: '#7760a0', bg: '#f8f5ff', border: '#d8ccee',
@@ -1803,7 +1991,28 @@ const QUESTS = [
     reward: {
       title: '🚂 활자폭주족',
       item: '🚂',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="12" width="26" height="14" rx="3" fill="#5a5a7a" stroke="#3a3a5a" stroke-width="1.5"/><rect x="4" y="8" width="16" height="8" rx="2" fill="#6a6a8a" stroke="#3a3a5a" stroke-width="1"/><rect x="6" y="10" width="5" height="4" rx="1" fill="#a0d8ff" opacity=".8"/><rect x="13" y="10" width="5" height="4" rx="1" fill="#a0d8ff" opacity=".8"/><circle cx="8" cy="26" r="4" fill="#3a3a5a" stroke="#1a1a3a" stroke-width="1"/><circle cx="20" cy="26" r="4" fill="#3a3a5a" stroke="#1a1a3a" stroke-width="1"/><circle cx="8" cy="26" r="2" fill="#6a6a8a"/><circle cx="20" cy="26" r="2" fill="#6a6a8a"/><path d="M28 14 Q34 14 34 20 Q34 24 28 24" fill="none" stroke="#cc4444" stroke-width="2"/><line x1="28" y1="18" x2="34" y2="16" stroke="#ee8888" stroke-width="1" opacity=".7"/><line x1="28" y1="20" x2="36" y2="20" stroke="#ee8888" stroke-width="1" opacity=".6"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="traing" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#8888cc"/>
+    <stop offset="100%" stop-color="#555588"/>
+  </linearGradient>
+  <filter id="trains"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#2a2a60" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#trains)">
+  <rect x="1" y="10" width="20" height="11" rx="2.5" fill="url(#traing)" stroke="#3a3a70" stroke-width=".8"/>
+  <rect x="3" y="7" width="13" height="6" rx="2" fill="#7070aa" stroke="#3a3a70" stroke-width=".8"/>
+  <rect x="5" y="8.5" width="4" height="3" rx="1" fill="#a8d8ff" opacity=".9"/>
+  <rect x="10.5" y="8.5" width="3.5" height="3" rx="1" fill="#a8d8ff" opacity=".9"/>
+  <circle cx="6" cy="21" r="3.2" fill="#2a2a58" stroke="#111140" stroke-width=".8"/>
+  <circle cx="16" cy="21" r="3.2" fill="#2a2a58" stroke="#111140" stroke-width=".8"/>
+  <circle cx="6" cy="21" r="1.6" fill="#5858a0"/>
+  <circle cx="16" cy="21" r="1.6" fill="#5858a0"/>
+  <path d="M21 13 Q25 11 25 16 Q25 21 21 21" fill="none" stroke="#dd4444" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="21" y1="15" x2="26" y2="13" stroke="#ee8888" stroke-width=".8" opacity=".8"/>
+  <line x1="21" y1="17" x2="27" y2="17" stroke="#ee8888" stroke-width=".8" opacity=".6"/>
+</g>
+</svg>`,
       itemName: '증기기관차',
       itemDesc: '30일 내 10권을 연달아 완독한 폭주기관차에게',
       color: '#5a5a7a', bg: '#f5f5ff', border: '#c8c8e8',
@@ -1822,7 +2031,21 @@ const QUESTS = [
     reward: {
       title: '✂️ 프로 하차러',
       item: '🔖',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="3" width="10" height="24" rx="2" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><polygon points="12,27 17,22 22,27" fill="#8B6B3A" stroke="#6b4a20" stroke-width="1"/><line x1="8" y1="10" x2="24" y2="10" stroke="#cc3333" stroke-width="2" stroke-linecap="round" transform="rotate(45 16 16)"/><line x1="8" y1="16" x2="24" y2="16" stroke="#cc3333" stroke-width="2" stroke-linecap="round" transform="rotate(-45 16 16)"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="bmkg" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#c8a870"/>
+    <stop offset="100%" stop-color="#8b6030"/>
+  </linearGradient>
+  <filter id="bmks"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#5a3010" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#bmks)">
+  <rect x="9" y="2" width="9" height="20" rx="1.5" fill="url(#bmkg)" stroke="#6a4020" stroke-width=".8"/>
+  <polygon points="9,22 13.5,18 18,22" fill="url(#bmkg)" stroke="#6a4020" stroke-width=".8"/>
+  <line x1="5" y1="8" x2="22" y2="20" stroke="#dd3333" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="22" y1="8" x2="5" y2="20" stroke="#dd3333" stroke-width="2.5" stroke-linecap="round"/>
+</g>
+</svg>`,
       itemName: '부러진 북마크',
       itemDesc: '5분 만에 과감하게 하차를 결정한 결단력의 소유자에게',
       color: '#6B4A20', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1840,7 +2063,27 @@ const QUESTS = [
     reward: {
       title: '👑 활자의 신',
       item: '👑',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="crown" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><path d="M4 28 L4 16 L10 22 L18 8 L26 22 L32 16 L32 28 Z" fill="url(#crown)" stroke="#9a7820" stroke-width="1.5" stroke-linejoin="round"/><circle cx="4" cy="16" r="2.5" fill="#ee4444"/><circle cx="18" cy="8" r="2.5" fill="#4444ee"/><circle cx="32" cy="16" r="2.5" fill="#44aa44"/><circle cx="11" cy="28" r="1.5" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="18" cy="28" r="1.5" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="25" cy="28" r="1.5" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/><circle cx="20" cy="11" r="1" fill="rgba(255,255,255,.6)"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="crowng" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#fff090"/>
+    <stop offset="50%" stop-color="#f0c030"/>
+    <stop offset="100%" stop-color="#c08010"/>
+  </linearGradient>
+  <filter id="crowns"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#906010" flood-opacity=".6"/></filter>
+</defs>
+<g filter="url(#crowns)">
+  <path d="M3 22 L3 12 L8 17 L14 5 L20 17 L25 12 L25 22 Z" fill="url(#crowng)" stroke="#b08010" stroke-width="1.2" stroke-linejoin="round"/>
+  <circle cx="3" cy="12" r="2.2" fill="#ee4444" stroke="#cc2222" stroke-width=".6"/>
+  <circle cx="14" cy="5" r="2.2" fill="#4444ee" stroke="#2222cc" stroke-width=".6"/>
+  <circle cx="25" cy="12" r="2.2" fill="#44bb44" stroke="#228822" stroke-width=".6"/>
+  <rect x="3" y="21" width="22" height="2.5" rx="1.2" fill="#e0b030" stroke="#b08010" stroke-width=".7"/>
+  <circle cx="8.5" cy="22.2" r="1.2" fill="#fff090" stroke="#c09020" stroke-width=".5"/>
+  <circle cx="14" cy="22.2" r="1.2" fill="#fff090" stroke="#c09020" stroke-width=".5"/>
+  <circle cx="19.5" cy="22.2" r="1.2" fill="#fff090" stroke="#c09020" stroke-width=".5"/>
+  <ellipse cx="8" cy="9" rx="2.5" ry="1" fill="rgba(255,255,255,.4)" transform="rotate(-30 8 9)"/>
+</g>
+</svg>`,
       itemName: '전설의 왕관',
       itemDesc: '총 1,000권을 기록한 걸어다니는 도서관에게',
       color: '#c8a050', bg: '#fdf8e8', border: '#e8d490',
@@ -1857,7 +2100,25 @@ const QUESTS = [
     reward: {
       title: '🛒 욕망의 수집가',
       item: '🛒',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M4 6 L8 6 L14 24 L28 24 L32 10 L10 10" fill="none" stroke="#5a8B3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="14" y="12" width="14" height="10" rx="1" fill="#a0d0a0" stroke="#5a8B3a" stroke-width=".8" opacity=".6"/><circle cx="16" cy="28" r="2.5" fill="#5a8B3a" stroke="#3a6a1a" stroke-width="1"/><circle cx="26" cy="28" r="2.5" fill="#5a8B3a" stroke="#3a6a1a" stroke-width="1"/><line x1="18" y1="14" x2="18" y2="22" stroke="#5a8B3a" stroke-width=".8"/><line x1="22" y1="14" x2="22" y2="22" stroke="#5a8B3a" stroke-width=".8"/><line x1="26" y1="14" x2="26" y2="22" stroke="#5a8B3a" stroke-width=".8"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="cartg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#88cc70"/>
+    <stop offset="100%" stop-color="#3a7828"/>
+  </linearGradient>
+  <filter id="carts"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#1a5010" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#carts)">
+  <path d="M3 5 L6 5 L10 19 L22 19 L26 8 L8 8" fill="none" stroke="url(#cartg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="11" y="10" width="11" height="8" rx="1" fill="#a8e090" stroke="#4a9038" stroke-width=".7" opacity=".7"/>
+  <circle cx="13" cy="23" r="2.5" fill="url(#cartg)" stroke="#2a6020" stroke-width=".8"/>
+  <circle cx="21" cy="23" r="2.5" fill="url(#cartg)" stroke="#2a6020" stroke-width=".8"/>
+  <circle cx="12.5" cy="22.5" r="1" fill="rgba(255,255,255,.5)"/>
+  <line x1="13.5" y1="11.5" x2="13.5" y2="17.5" stroke="#4a9038" stroke-width=".7"/>
+  <line x1="17" y1="11.5" x2="17" y2="17.5" stroke="#4a9038" stroke-width=".7"/>
+  <line x1="20.5" y1="11.5" x2="20.5" y2="17.5" stroke="#4a9038" stroke-width=".7"/>
+</g>
+</svg>`,
       itemName: '쇼핑 수레',
       itemDesc: '읽고 싶은 책 100권을 담아둔 욕망의 수집가에게',
       color: '#5a8B3a', bg: '#f5faf0', border: '#c0e0b0',
@@ -1874,7 +2135,23 @@ const QUESTS = [
     reward: {
       title: '🌿 초보 산책가',
       item: '🪧',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="4" width="2" height="28" rx="1" fill="#8B6B3A" stroke="#6b4a20" stroke-width=".8"/><rect x="8" y="6" width="16" height="10" rx="2" fill="#c8a050" stroke="#9a7820" stroke-width="1"/><polygon points="8,11 6,11 8,16 24,16" fill="#c8a050" stroke="#9a7820" stroke-width="1"/><line x1="10" y1="9" x2="22" y2="9" stroke="#fdf8ee" stroke-width="1"/><line x1="10" y1="12" x2="18" y2="12" stroke="#fdf8ee" stroke-width="1"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="signg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#e0c080"/>
+    <stop offset="100%" stop-color="#a07838"/>
+  </linearGradient>
+  <filter id="signs"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#705020" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#signs)">
+  <rect x="12.5" y="3" width="2" height="22" rx="1" fill="#9a7030" stroke="#7a5020" stroke-width=".7"/>
+  <rect x="6" y="5" width="14" height="9" rx="1.5" fill="url(#signg)" stroke="#9a7030" stroke-width=".8"/>
+  <polygon points="6,9.5 4,9.5 6,14 20,14" fill="url(#signg)" stroke="#9a7030" stroke-width=".8"/>
+  <line x1="8" y1="8" x2="18" y2="8" stroke="rgba(255,255,255,.7)" stroke-width=".9"/>
+  <line x1="8" y1="11" x2="15" y2="11" stroke="rgba(255,255,255,.5)" stroke-width=".9"/>
+  <circle cx="8" cy="5.5" r="1" fill="rgba(255,255,255,.4)"/>
+</g>
+</svg>`,
       itemName: '나무 표지판',
       itemDesc: '산책 게시판에 첫 발을 내딛은 초보 산책가에게',
       color: '#8B6B3A', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1891,7 +2168,24 @@ const QUESTS = [
     reward: {
       title: '🏅 고급 산책가',
       item: '🪧',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="4" width="2" height="28" rx="1" fill="#8B6B3A" stroke="#6b4a20" stroke-width=".8"/><rect x="8" y="6" width="16" height="10" rx="2" fill="#f5e060" stroke="#c8a050" stroke-width="1.5"/><polygon points="8,11 6,11 8,16 24,16" fill="#f5e060" stroke="#c8a050" stroke-width="1.5"/><line x1="10" y1="9" x2="22" y2="9" stroke="#9a7820" stroke-width="1"/><line x1="10" y1="12" x2="18" y2="12" stroke="#9a7820" stroke-width="1"/><circle cx="24" cy="8" r="2" fill="#c8a050" stroke="#9a7820" stroke-width=".8"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="goldsg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#fff090"/>
+    <stop offset="100%" stop-color="#d4a020"/>
+  </linearGradient>
+  <filter id="goldss"><feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#907010" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#goldss)">
+  <rect x="12.5" y="3" width="2" height="22" rx="1" fill="#9a7030" stroke="#7a5020" stroke-width=".7"/>
+  <rect x="6" y="5" width="14" height="9" rx="1.5" fill="url(#goldsg)" stroke="#c09020" stroke-width="1"/>
+  <polygon points="6,9.5 4,9.5 6,14 20,14" fill="url(#goldsg)" stroke="#c09020" stroke-width="1"/>
+  <line x1="8" y1="8" x2="18" y2="8" stroke="#9a7010" stroke-width=".9"/>
+  <line x1="8" y1="11" x2="15" y2="11" stroke="#9a7010" stroke-width=".9"/>
+  <circle cx="21" cy="6.5" r="2" fill="#f0c030" stroke="#c09010" stroke-width=".8"/>
+  <ellipse cx="8" cy="5.8" rx="2.5" ry=".9" fill="rgba(255,255,255,.5)" transform="rotate(-10 8 5.8)"/>
+</g>
+</svg>`,
       itemName: '황금 표지판',
       itemDesc: '산책 게시판에 활발히 참여하는 고급 산책가에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1915,7 +2209,20 @@ const QUESTS = [
     reward: {
       title: '💌 순애보 독자',
       item: '∞',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M18 22 C18 22 6 22 6 15 C6 10 10 8 14 10 C16 11 18 14 18 14 C18 14 20 11 22 10 C26 8 30 10 30 15 C30 22 18 22 18 22 Z" fill="#ee5577" stroke="#cc3355" stroke-width="1"/><text x="18" y="30" text-anchor="middle" font-size="10" fill="#9a7820" font-weight="bold">∞</text></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="heartg" cx="40%" cy="30%">
+    <stop offset="0%" stop-color="#ff88aa"/>
+    <stop offset="100%" stop-color="#cc2255"/>
+  </radialGradient>
+  <filter id="hearts"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#880033" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#hearts)">
+  <path d="M14 23 C14 23 3 17 3 10 C3 7 5 5 8 5 C10 5 12 6.5 14 8.5 C16 6.5 18 5 20 5 C23 5 25 7 25 10 C25 17 14 23 14 23 Z" fill="url(#heartg)" stroke="#aa1a44" stroke-width="1"/>
+  <text x="14" y="14" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.6)" font-weight="bold" font-family="sans-serif">∞</text>
+  <ellipse cx="8.5" cy="8" rx="3" ry="1.5" fill="rgba(255,255,255,.35)" transform="rotate(-30 8.5 8)"/>
+</g>
+</svg>`,
       itemName: '무한대 기호',
       itemDesc: '같은 책을 5번 이상 읽어낸 진정한 순애보 독자에게',
       color: '#ee5577', bg: '#fff5f8', border: '#ffc8d8',
@@ -1935,7 +2242,23 @@ const QUESTS = [
     reward: {
       title: '🔍 왕눈이',
       item: '🔍',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="11" fill="none" stroke="#5a5a8a" stroke-width="2.5"/><circle cx="16" cy="16" r="8" fill="#e0e8ff" opacity=".6"/><circle cx="12" cy="12" r="3" fill="rgba(255,255,255,.5)"/><line x1="24" y1="24" x2="32" y2="32" stroke="#5a5a8a" stroke-width="3" stroke-linecap="round"/><text x="16" y="20" text-anchor="middle" font-size="10" fill="#5a5a8a" font-weight="bold">+</text></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="lensg" cx="35%" cy="30%">
+    <stop offset="0%" stop-color="#e8f4ff"/>
+    <stop offset="70%" stop-color="#88b8e8"/>
+    <stop offset="100%" stop-color="#4878b8"/>
+  </radialGradient>
+  <filter id="lenss"><feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#2050a0" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#lenss)">
+  <circle cx="13" cy="13" r="9.5" fill="url(#lensg)" stroke="#3868b0" stroke-width="1.5"/>
+  <circle cx="13" cy="13" r="6.5" fill="rgba(200,220,255,.3)" stroke="#5888d0" stroke-width=".7"/>
+  <line x1="20" y1="20" x2="26" y2="26" stroke="#3868b0" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="13" y="17" text-anchor="middle" font-size="9" font-weight="bold" fill="#2850a8" font-family="sans-serif">A</text>
+  <ellipse cx="8" cy="8" rx="3.5" ry="1.5" fill="rgba(255,255,255,.45)" transform="rotate(-30 8 8)"/>
+</g>
+</svg>`,
       itemName: '돋보기',
       itemDesc: '폰트 크기를 최대로 설정한 왕눈이에게',
       color: '#5a5a8a', bg: '#f5f5ff', border: '#c8c8e8',
@@ -1953,7 +2276,21 @@ const QUESTS = [
     reward: {
       title: '📢 프로 참견러',
       item: '📣',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M6 14 L6 22 L14 22 L22 30 L22 6 L14 14 Z" fill="#e87030" stroke="#c05010" stroke-width="1.5" stroke-linejoin="round"/><path d="M26 10 Q32 18 26 26" fill="none" stroke="#e87030" stroke-width="2.5" stroke-linecap="round"/><path d="M28 6 Q38 18 28 30" fill="none" stroke="#e87030" stroke-width="1.5" stroke-linecap="round" opacity=".5"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="megag" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#ff9050"/>
+    <stop offset="100%" stop-color="#cc4810"/>
+  </linearGradient>
+  <filter id="megas"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#882000" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#megas)">
+  <path d="M4 12 L4 18 L11 18 L18 25 L18 5 L11 12 Z" fill="url(#megag)" stroke="#aa3808" stroke-width=".9" stroke-linejoin="round"/>
+  <path d="M20 7 Q27 14 20 21" fill="none" stroke="url(#megag)" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M22 4 Q31 14 22 24" fill="none" stroke="#ff8840" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>
+  <ellipse cx="7" cy="12.5" rx="2" ry="1" fill="rgba(255,255,255,.35)" transform="rotate(-10 7 12.5)"/>
+</g>
+</svg>`,
       itemName: '확성기',
       itemDesc: '산책 게시판에 댓글 30개를 달아준 오지랖 대장에게',
       color: '#e87030', bg: '#fff8f0', border: '#f8d4b0',
@@ -1970,7 +2307,23 @@ const QUESTS = [
     reward: {
       title: '💌 독서인러버',
       item: '💌',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="10" width="28" height="20" rx="3" fill="#f8e8f0" stroke="#d06080" stroke-width="1.5"/><path d="M4 13 L18 22 L32 13" fill="none" stroke="#d06080" stroke-width="1.5"/><path d="M4 10 L18 20 L32 10" fill="#ffd0e8" stroke="none"/><circle cx="24" cy="9" r="5" fill="#ee5577"/><text x="24" y="12" text-anchor="middle" font-size="8" fill="#fff">♥</text></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="letterg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#f8d8ee"/>
+    <stop offset="100%" stop-color="#e090c0"/>
+  </linearGradient>
+  <filter id="letters"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#882060" flood-opacity=".4"/></filter>
+</defs>
+<g filter="url(#letters)">
+  <rect x="3" y="8" width="22" height="16" rx="2.5" fill="url(#letterg)" stroke="#c060a0" stroke-width=".9"/>
+  <path d="M3 11 L14 18 L25 11" fill="none" stroke="#c060a0" stroke-width="1.2"/>
+  <path d="M3 8 L14 16 L25 8" fill="#fce8f8" stroke="none"/>
+  <circle cx="22" cy="7" r="4.5" fill="#ee4488" stroke="#cc2266" stroke-width=".8"/>
+  <text x="22" y="10" text-anchor="middle" font-size="6" fill="white" font-weight="bold" font-family="sans-serif">♥</text>
+  <ellipse cx="6" cy="10" rx="3" ry="1" fill="rgba(255,255,255,.4)" transform="rotate(-10 6 10)"/>
+</g>
+</svg>`,
       itemName: '러브레터',
       itemDesc: '북로그에서 친구 10명을 만든 독서인러버에게',
       color: '#d06080', bg: '#fff5f8', border: '#f8c8d8',
@@ -1989,7 +2342,23 @@ const QUESTS = [
     reward: {
       title: '🕵️ 서재 탐정',
       item: '🎩',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="26" rx="14" ry="4" fill="#3a3a5a" stroke="#1a1a3a" stroke-width="1"/><rect x="8" y="10" width="20" height="16" rx="10" fill="#5a5a8a" stroke="#3a3a5a" stroke-width="1.5"/><ellipse cx="18" cy="11" rx="8" ry="3" fill="#7a7aaa" stroke="#3a3a5a" stroke-width="1"/><line x1="26" y1="14" x2="30" y2="12" stroke="#c8c8e8" stroke-width="1"/><circle cx="31" cy="11" r="2" fill="#f5e060" opacity=".8"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="hatg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#888ab8"/>
+    <stop offset="100%" stop-color="#404468"/>
+  </linearGradient>
+  <filter id="hats"><feDropShadow dx="0" dy="2" stdDeviation="1.2" flood-color="#101840" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#hats)">
+  <ellipse cx="14" cy="22" rx="12" ry="3.5" fill="#303460" stroke="#181838" stroke-width=".8"/>
+  <rect x="7" y="7" width="14" height="15" rx="7" fill="url(#hatg)" stroke="#303460" stroke-width="1"/>
+  <ellipse cx="14" cy="7.5" rx="6" ry="2.2" fill="#9898c8" stroke="#303460" stroke-width=".8"/>
+  <line x1="21" y1="11" x2="25" y2="9" stroke="#c8c8e8" stroke-width=".9"/>
+  <circle cx="25.5" cy="8.5" r="1.8" fill="#f5e878" opacity=".9"/>
+  <ellipse cx="10" cy="10" rx="3" ry="1.2" fill="rgba(255,255,255,.25)" transform="rotate(-20 10 10)"/>
+</g>
+</svg>`,
       itemName: '탐정 모자',
       itemDesc: '서재 파도타기를 100번 이용한 서재 탐정에게',
       color: '#5a5a8a', bg: '#f5f5ff', border: '#c8c8e8',
@@ -2015,7 +2384,22 @@ const QUESTS = [
     reward: {
       title: '🍷 책발효 장인',
       item: '🍷',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><path d="M14 4 L22 4 L24 16 Q28 20 28 26 Q28 32 18 32 Q8 32 8 26 Q8 20 12 16 Z" fill="#9a2060" stroke="#6a1040" stroke-width="1.5"/><path d="M14 4 L22 4 L22 8 L14 8 Z" fill="#b03070" stroke="#6a1040" stroke-width="1"/><ellipse cx="18" cy="26" rx="7" ry="4" fill="#b03070" opacity=".4"/><path d="M12 16 Q8 24 10 28" fill="none" stroke="#c84080" stroke-width="1" opacity=".6"/><circle cx="22" cy="12" r="1.5" fill="rgba(255,255,255,.4)"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="wineg" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#c04070"/>
+    <stop offset="100%" stop-color="#6a0830"/>
+  </linearGradient>
+  <filter id="wines"><feDropShadow dx="0" dy="2" stdDeviation="1.2" flood-color="#400020" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#wines)">
+  <path d="M11 3 L17 3 L19 13 Q22 17 22 22 Q22 27 14 27 Q6 27 6 22 Q6 17 9 13 Z" fill="url(#wineg)" stroke="#500020" stroke-width="1"/>
+  <path d="M11 3 L17 3 L17 6.5 L11 6.5 Z" fill="#d05080" stroke="#500020" stroke-width=".8"/>
+  <ellipse cx="14" cy="22" rx="5.5" ry="3" fill="#c03060" opacity=".35"/>
+  <path d="M9 13 Q6 20 8 24" fill="none" stroke="#d86090" stroke-width=".8" opacity=".6"/>
+  <ellipse cx="18" cy="9" rx="2" ry="1.5" fill="rgba(255,255,255,.3)" transform="rotate(-20 18 9)"/>
+</g>
+</svg>`,
       itemName: '숙성된 와인',
       itemDesc: '100일 동안 묵혀뒀다 읽기 시작한 책발효 장인에게',
       color: '#9a2060', bg: '#fff5f8', border: '#e8b0c8',
@@ -2034,7 +2418,26 @@ const QUESTS = [
     reward: {
       title: '👻 책귀신과의 친구',
       item: '🧻',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><ellipse cx="18" cy="14" rx="8" ry="10" fill="#f0f0f0" stroke="#c0c0c0" stroke-width="1"/><path d="M10 14 L10 30 Q14 34 18 30 Q22 34 26 30 L26 14" fill="#f0f0f0" stroke="#c0c0c0" stroke-width="1"/><circle cx="14" cy="14" r="2" fill="#333"/><circle cx="22" cy="14" r="2" fill="#333"/><path d="M14 20 Q18 24 22 20" fill="none" stroke="#666" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="10" x2="4" y2="4" stroke="#ee4444" stroke-width="1.5" stroke-linecap="round"/><line x1="28" y1="10" x2="32" y2="4" stroke="#ee4444" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="ghostg" x1="0%" y1="100%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#e0e0f8"/>
+    <stop offset="100%" stop-color="#f8f8ff"/>
+  </linearGradient>
+  <filter id="ghosts"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#6060a0" flood-opacity=".3"/></filter>
+</defs>
+<g filter="url(#ghosts)">
+  <ellipse cx="14" cy="11" rx="8" ry="9" fill="url(#ghostg)" stroke="#a0a0cc" stroke-width=".9"/>
+  <path d="M6 11 L6 24 Q9 27 11.5 24 Q14 27 16.5 24 Q19 27 22 24 L22 11" fill="url(#ghostg)" stroke="#a0a0cc" stroke-width=".9"/>
+  <circle cx="11" cy="11" r="2" fill="#3a3a88"/>
+  <circle cx="17" cy="11" r="2" fill="#3a3a88"/>
+  <circle cx="11.6" cy="10.4" r=".8" fill="rgba(255,255,255,.7)"/>
+  <circle cx="17.6" cy="10.4" r=".8" fill="rgba(255,255,255,.7)"/>
+  <path d="M11 16 Q14 19 17 16" fill="none" stroke="#7070aa" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="4" y1="8" x2="7" y2="5" stroke="#dd3333" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="24" y1="8" x2="21" y2="5" stroke="#dd3333" stroke-width="1.2" stroke-linecap="round"/>
+</g>
+</svg>`,
       itemName: '빨간 두루마리 휴지',
       itemDesc: '새벽 4시 44분에 독서를 기록한 오싹한 독서가에게',
       color: '#8a2a8a', bg: '#faf5ff', border: '#d8c0e8',
@@ -2053,7 +2456,23 @@ const QUESTS = [
     reward: {
       title: '🎨 북로그 인테리어 업자',
       item: '🖱️',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gold2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><rect x="10" y="6" width="16" height="24" rx="8" fill="url(#gold2)" stroke="#9a7820" stroke-width="1.5"/><line x1="18" y1="6" x2="18" y2="18" stroke="#9a7820" stroke-width="1" opacity=".6"/><circle cx="18" cy="14" r="3" fill="#fdf8ee" stroke="#9a7820" stroke-width="1"/><circle cx="18" cy="24" r="1.5" fill="#9a7820" opacity=".4"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="mouseg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#fff090"/>
+    <stop offset="100%" stop-color="#c8a030"/>
+  </linearGradient>
+  <filter id="mouses"><feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#907010" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#mouses)">
+  <rect x="9" y="5" width="10" height="18" rx="5" fill="url(#mouseg)" stroke="#a08020" stroke-width="1"/>
+  <line x1="14" y1="5" x2="14" y2="16" stroke="#a08020" stroke-width=".9" opacity=".5"/>
+  <rect x="9" y="5" width="10" height="7" rx="5" fill="#fff8c0" opacity=".5"/>
+  <circle cx="14" cy="12" r="2.5" fill="#fdf8ee" stroke="#a08020" stroke-width=".8"/>
+  <circle cx="14" cy="12" r="1.2" fill="#c8a030"/>
+  <circle cx="11.5" cy="6.5" r=".9" fill="rgba(255,255,255,.5)"/>
+</g>
+</svg>`,
       itemName: '황금 마우스패드',
       itemDesc: '북로그 메인을 5분간 감상한 인테리어 업자에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -2071,7 +2490,26 @@ const QUESTS = [
     reward: {
       title: '🥇 독서 중독가',
       item: '🔖',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="gold3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f5e070"/><stop offset="100%" stop-color="#c8a050"/></linearGradient></defs><rect x="12" y="3" width="10" height="24" rx="2" fill="url(#gold3)" stroke="#9a7820" stroke-width="1.5"/><polygon points="12,27 17,22 22,27" fill="url(#gold3)" stroke="#9a7820" stroke-width="1.5"/><rect x="14" y="7" width="5" height="1.2" rx=".6" fill="#9a7820" opacity=".6"/><rect x="14" y="10" width="5" height="1.2" rx=".6" fill="#9a7820" opacity=".6"/><rect x="14" y="13" width="4" height="1.2" rx=".6" fill="#9a7820" opacity=".4"/><circle cx="20" cy="6" r="1.5" fill="rgba(255,255,255,.5)"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="goldbm" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#fff090"/>
+    <stop offset="50%" stop-color="#f0c030"/>
+    <stop offset="100%" stop-color="#c08010"/>
+  </linearGradient>
+  <filter id="goldbms"><feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#907010" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#goldbms)">
+  <rect x="9" y="2" width="9" height="21" rx="1.5" fill="url(#goldbm)" stroke="#b08010" stroke-width=".9"/>
+  <polygon points="9,23 13.5,19 18,23" fill="url(#goldbm)" stroke="#b08010" stroke-width=".9"/>
+  <rect x="11" y="5" width="5" height="1.2" rx=".6" fill="#9a7010" opacity=".6"/>
+  <rect x="11" y="7.8" width="5" height="1.2" rx=".6" fill="#9a7010" opacity=".6"/>
+  <rect x="11" y="10.6" width="4" height="1.2" rx=".6" fill="#9a7010" opacity=".4"/>
+  <circle cx="20" cy="6" r="3.5" fill="#f0c030" stroke="#c09010" stroke-width=".9"/>
+  <text x="20" y="8.5" text-anchor="middle" font-size="4" font-weight="bold" fill="#7a6010" font-family="sans-serif">50</text>
+  <ellipse cx="11.5" cy="3.5" rx="2" ry=".8" fill="rgba(255,255,255,.45)" transform="rotate(-15 11.5 3.5)"/>
+</g>
+</svg>`,
       itemName: '금색 책갈피',
       itemDesc: '북로그에서 50권을 완독한 독서 중독가에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -2088,7 +2526,26 @@ const QUESTS = [
     reward: {
       title: '💢 평점 테러리스트',
       item: '🪑',
-      dotArt: `<svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="6" width="16" height="14" rx="2" fill="#8a5a5a" stroke="#6a3a3a" stroke-width="1.5"/><rect x="8" y="20" width="20" height="3" rx="1.5" fill="#8a5a5a" stroke="#6a3a3a" stroke-width="1"/><line x1="12" y1="23" x2="10" y2="32" stroke="#6a3a3a" stroke-width="2" stroke-linecap="round"/><line x1="24" y1="23" x2="26" y2="32" stroke="#6a3a3a" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="23" x2="14" y2="32" stroke="#6a3a3a" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="23" x2="22" y2="32" stroke="#6a3a3a" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="10" x2="22" y2="10" stroke="#ee4444" stroke-width="1.5"/><line x1="14" y1="13" x2="22" y2="13" stroke="#ee4444" stroke-width="1.5" opacity=".7"/></svg>`,
+      dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="chairg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#c09090"/>
+    <stop offset="100%" stop-color="#7a4040"/>
+  </linearGradient>
+  <filter id="chairs"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#501010" flood-opacity=".5"/></filter>
+</defs>
+<g filter="url(#chairs)">
+  <rect x="8" y="5" width="12" height="11" rx="1.5" fill="url(#chairg)" stroke="#5a2828" stroke-width=".9"/>
+  <rect x="6" y="16" width="16" height="2.5" rx="1.2" fill="#9a6060" stroke="#5a2828" stroke-width=".8"/>
+  <line x1="9" y1="18.5" x2="7.5" y2="26" stroke="#5a2828" stroke-width="2" stroke-linecap="round"/>
+  <line x1="19" y1="18.5" x2="20.5" y2="26" stroke="#5a2828" stroke-width="2" stroke-linecap="round"/>
+  <line x1="11.5" y1="18.5" x2="11.5" y2="26" stroke="#5a2828" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="16.5" y1="18.5" x2="16.5" y2="26" stroke="#5a2828" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="10" y1="9.5" x2="18" y2="9.5" stroke="#ee4444" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="10" y1="12.5" x2="18" y2="12.5" stroke="#ee4444" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>
+  <circle cx="10" cy="6" r="1" fill="rgba(255,255,255,.4)"/>
+</g>
+</svg>`,
       itemName: '가시 돋친 의자',
       itemDesc: '별점 1점을 10번 이상 준 독설의 연금술사에게',
       color: '#8a5a5a', bg: '#fff5f5', border: '#e8c8c8',
@@ -2097,49 +2554,6 @@ const QUESTS = [
 ];
 
 
-
-// 받은 초대코드 사용
-async function useReceivedInviteCode() {
-  const input = document.getElementById('use-invite-input');
-  const msgEl = document.getElementById('use-invite-msg');
-  if(!input || !msgEl) return;
-  const code = input.value.trim().toUpperCase();
-  if(!code) { msgEl.style.display='block'; msgEl.style.color='#9e3a1e'; msgEl.textContent='코드를 입력해주세요.'; return; }
-
-  const { data: codeRow, error } = await sb.from('invite_codes')
-    .select('*').eq('code', code).single();
-
-  if(error || !codeRow) {
-    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
-    msgEl.textContent='유효하지 않은 초대코드예요.'; return;
-  }
-  if(codeRow.used_by) {
-    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
-    msgEl.textContent='이미 사용된 초대코드예요.'; return;
-  }
-  if(codeRow.owner_id === currentUser.id) {
-    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
-    msgEl.textContent='본인이 발급한 코드는 사용할 수 없어요.'; return;
-  }
-
-  // 코드 사용 처리
-  const { error: updateErr } = await sb.from('invite_codes')
-    .update({ used_by: currentUser.id, used_at: new Date().toISOString() })
-    .eq('code', code);
-
-  if(updateErr) {
-    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
-    msgEl.textContent='처리 중 오류가 발생했어요.'; return;
-  }
-
-  msgEl.style.display='block'; msgEl.style.color='#2a6b3a';
-  msgEl.textContent='초대코드가 사용되었어요! 🎉';
-  input.value = '';
-  input.disabled = true;
-  // 버튼 비활성화
-  const btn = input.nextElementSibling;
-  if(btn) { btn.disabled=true; btn.style.opacity='.5'; }
-}
 
 // 초대권 자동 발급 (hasInvite:true 퀘스트 달성 시)
 async function grantInviteCode(quest) {
@@ -3708,16 +4122,6 @@ async function openProfile() {
         <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
       +(available.length===0?'<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
       +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
-    // 받은 초대코드 사용 UI
-    const useDiv = document.createElement('div');
-    useDiv.style.cssText = 'margin-top:.6rem;padding-top:.5rem;border-top:1px solid var(--border);';
-    useDiv.innerHTML = `<div style="font-size:.68rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;">받은 초대코드 사용</div>
-      <div style="display:flex;gap:.35rem;">
-        <input type="text" id="use-invite-input" class="form-input" placeholder="초대코드 입력" style="flex:1;font-size:.72rem;text-transform:uppercase;">
-        <button onclick="useReceivedInviteCode()" style="background:var(--acc);color:#fff;border:none;border-radius:var(--r);padding:.4rem .7rem;font-size:.7rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--ff);">사용</button>
-      </div>
-      <div id="use-invite-msg" style="font-size:.65rem;margin-top:.3rem;display:none;"></div>`;
-    codeWrap.appendChild(useDiv);
   }
 }
 async function saveProfile() {
@@ -4955,7 +5359,7 @@ async function openLibrary(userId, userName) {
         <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;font-family:var(--fs);">${initial}</div>
         <div>
           <div style="font-size:1rem;font-weight:700;color:#fff;font-family:var(--fs);">${userName}님의 서재</div>
-          <div style="font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem;">📚 ${targetProfile?.user_title||'함께 읽는 산책자'}</div>
+          <div style="font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem;">${targetProfile?.user_title||'함께 읽는 산책자'}</div>
         </div>
       </div>
       <!-- 통계 칩 -->
