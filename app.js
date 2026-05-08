@@ -212,7 +212,8 @@ function initFontSize(sizeFromDB) {
 }
 
 // ── 앱 상태 관리
-let _appState = 'idle'; 
+// ── 앱 상태 관리
+let _appState = 'idle'; // idle | starting | running | auth
 let initTimeout = null; 
 
 async function startApp(user) {
@@ -220,13 +221,40 @@ async function startApp(user) {
   _appState = 'starting';
   try {
     currentUser = user;
-    await Promise.all([loadData(), loadGoals(), loadUserRole()]);
+    
+    // 💡 [무한 로딩 방지 1] 데이터 불러오기가 5초 이상 걸리면 강제로 로딩을 끝냅니다.
+    const loadAllTasks = Promise.all([
+      typeof loadData === 'function' ? loadData().catch(e=>console.warn(e)) : Promise.resolve(),
+      typeof loadGoals === 'function' ? loadGoals().catch(e=>console.warn(e)) : Promise.resolve(),
+      typeof loadUserRole === 'function' ? loadUserRole().catch(e=>console.warn(e)) : Promise.resolve()
+    ]);
+    
+    await Promise.race([
+      loadAllTasks,
+      new Promise(resolve => setTimeout(resolve, 5000)) 
+    ]);
+
+    try {
+      const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
+      if(pf?.font_size) initFontSize(String(pf.font_size));
+    } catch(e) {}
+    
     _appState = 'running';
     showScreen('app');
     buildBooks();
-    setTimeout(loadNotifications, 500);
-    setTimeout(checkAndGrantQuests, 1500);
+    
+    // 방문 횟수 카운트
+    const _vtd=new Date().toISOString().slice(0,10);
+    const _vk='bl_visit_'+_vtd;
+    const _vc=parseInt(localStorage.getItem(_vk)||'0')+1;
+    localStorage.setItem(_vk, String(_vc));
+    if(_vc > parseInt(localStorage.getItem('bl_daily_visit_max')||'0'))
+      localStorage.setItem('bl_daily_visit_max', String(_vc));
+      
+    if(typeof loadNotifications === 'function') setTimeout(loadNotifications, 500);
+    if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
   } catch(e) {
+    console.error('startApp error:', e);
     _appState = 'idle';
     currentUser = null;
     showScreen('auth');
@@ -234,32 +262,91 @@ async function startApp(user) {
   }
 }
 
+function resetToAuth() {
+  _appState = 'auth';
+  currentUser = null; allBooks = []; allQuotes = [];
+  showScreen('auth');
+  loadSavedEmail();
+}
+
+// onAuthStateChange - sb 생성 직후 등록
 sb.auth.onAuthStateChange(async (event, session) => {
-  if((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
-    clearTimeout(initTimeout); // 응답이 오면 타임아웃 해제
-    if(_appState !== 'running' && _appState !== 'starting') await startApp(session.user);
-  } else if (event === 'INITIAL_SESSION' && !session) {
-    _appState = 'auth';
-    clearTimeout(initTimeout);
-    showScreen('auth');
-    loadSavedEmail();
-  }
+  try {
+    if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      if(session?.user) {
+        if(_appState === 'running') {
+          currentUser = session.user; // 세션 갱신만
+        } else if(_appState !== 'starting') {
+          await startApp(session.user);
+        }
+      } else if(event === 'INITIAL_SESSION') {
+        _appState = 'auth';
+        clearTimeout(initTimeout);
+        showScreen('auth');
+        loadSavedEmail();
+      }
+    }
+    if(event === 'SIGNED_OUT') _appState = 'idle';
+    if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
+    if(event === 'PASSWORD_RECOVERY') {
+      showScreen('auth');
+      authSwitch('newpw', null);
+      showAuthError('새 비밀번호를 입력해주세요.', true);
+    }
+  } catch(e) { console.warn('authStateChange error:', e); }
 });
 
 function init() {
+  initFontSize();
   cleanupLocalStorage();
+  let _mdTarget = null;
+  document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('mousedown', e => { _mdTarget = e.target; });
+    el.addEventListener('click', e => {
+      if(e.target === el && _mdTarget === el) el.style.display='none';
+    });
+  });
+  
   showScreen('loading');
-  // 무한 로딩 방지: 6초(6000ms) 후에도 응답이 없으면 로그인 화면으로 강제 이동
+  
+  // 💡 [무한 로딩 방지 2] 6초가 지나도 로딩 화면이면 무조건 로그인 창으로 강제 이동
   initTimeout = setTimeout(() => {
-    if(_appState === 'idle') {
+    const loadingEl = document.getElementById('screen-loading');
+    if(loadingEl && loadingEl.style.display !== 'none') {
+      console.warn('Force quit loading screen due to timeout');
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
     }
-  }, 6000); 
+  }, 6000);
+
+  // 모바일 뒤로가기
+  window.addEventListener('popstate', () => {
+    const open = [...document.querySelectorAll('.modal-overlay')].find(m => m.style.display !== 'none');
+    if(open) {
+      open.style.display = 'none';
+      history.pushState(null, '', location.href); // 스택 유지
+    }
+  });
+  history.pushState(null, '', location.href);
+  
+  // URL 해시 토큰 처리 
+  const hash = window.location.hash;
+  if(hash.includes('type=recovery') || hash.includes('access_token')) {
+    try {
+      const params = new URLSearchParams(hash.replace('#',''));
+      const accessToken = params.get('access_token');
+      if(accessToken) {
+        sb.auth.setSession({ access_token: accessToken, refresh_token: params.get('refresh_token')||'' })
+          .then(() => { window.history.replaceState(null,'',window.location.pathname); showScreen('auth'); authSwitch('newpw',null); showAuthError('새 비밀번호를 입력해주세요.',true); })
+          .catch(() => { showScreen('auth'); loadSavedEmail(); });
+        return;
+      }
+    } catch(e) {}
+  }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
 
 async function loadData() {
