@@ -172,23 +172,37 @@ function showScreen(name) {
 function cleanupLocalStorage() {
   try {
     const keys = Object.keys(localStorage);
-    keys.forEach(k => {
-      // 보존 대상: Supabase 세션, bl_ 앱 데이터, liked_ 좋아요
-      if(k.startsWith('booklog-auth')) return; // Supabase 세션
-      if(k.startsWith('sb-')) return;           // Supabase 내부
-      if(k.startsWith('bl_')) return;           // 북로그 앱 데이터 전체 보존
-      if(k.startsWith('liked_')) return;        // 좋아요
-      // 그 외 알 수 없는 키만 삭제
+
+    // sb- 키 중 오래된 것 정리 (최신 1개만 유지)
+    // Supabase가 로그인할 때마다 새 sb- 키를 추가해서 쌓임
+    const sbKeys = keys.filter(k => k.startsWith('sb-'));
+    if(sbKeys.length > 2) {
+      // 마지막 2개만 남기고 나머지 삭제
+      sbKeys.slice(0, sbKeys.length - 2).forEach(k => localStorage.removeItem(k));
+    }
+
+    // booklog-auth 키도 1개만 유지
+    const authKeys = keys.filter(k => k.startsWith('booklog-auth'));
+    if(authKeys.length > 1) {
+      authKeys.slice(0, authKeys.length - 1).forEach(k => localStorage.removeItem(k));
+    }
+
+    // 그 외 알 수 없는 키 정리
+    Object.keys(localStorage).forEach(k => {
+      if(k.startsWith('booklog-auth')) return;
+      if(k.startsWith('sb-')) return;
+      if(k.startsWith('bl_')) return;
+      if(k.startsWith('liked_')) return;
       localStorage.removeItem(k);
     });
 
-    // liked_ 키 50개 초과 시 오래된 것부터 정리
+    // liked_ 키 50개 초과 시 정리
     const likedKeys = Object.keys(localStorage).filter(k => k.startsWith('liked_'));
     if(likedKeys.length > 50) {
       likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
     }
 
-    // 세션 데이터 손상 체크 (손상됐으면 해당 키만 제거, reload 없음)
+    // 세션 데이터 손상 체크
     try {
       const sessionKey = Object.keys(localStorage).find(k => k.startsWith('booklog-auth'));
       if(sessionKey) { const raw = localStorage.getItem(sessionKey); if(raw) JSON.parse(raw); }
@@ -1612,7 +1626,7 @@ const QUESTS = [
     name: '활자 중독자',
     hint: '그저 꾸준히 읽을 뿐이지요…',
     desc: '30권이나 읽으셨다고요? 이미 활자 중독이군요!',
-    condition: (books) => books.filter(b => b.status === '완독').length >= 30,
+    condition: (books) => books.filter(b => b.status === '완독' && b.source !== 'import').length >= 30,
     reward: {
       title: '📑 활자 중독자',
       item: '🔖',
@@ -1775,7 +1789,7 @@ const QUESTS = [
     hint: '칙칙폭폭 폭주 기관차 갑니다!',
     desc: '인정합니다! 당신은 브레이크가 고장난 폭주기관차네요!',
     condition: (books) => {
-      const done = books.filter(b => b.status === '완독' && b.date_finish)
+      const done = books.filter(b => b.status === '완독' && b.date_finish && b.source !== 'import')
         .sort((a,b) => new Date(a.date_finish) - new Date(b.date_finish));
       if(done.length < 10) return false;
       // 연속 완독: 완독일 기준 30일 내에 10권
@@ -2053,7 +2067,7 @@ const QUESTS = [
     hint: '우와, 벌써 북로그에서 이만큼?',
     desc: '50권이나 읽으셨다고요? 이미 완벽한 독서가군요!',
     hasInvite: true,
-    condition: (books) => books.filter(b => b.status === '완독').length >= 50,
+    condition: (books) => books.filter(b => b.status === '완독' && b.source !== 'import').length >= 50,
     reward: {
       title: '🥇 독서 중독가',
       item: '🔖',
@@ -2083,6 +2097,49 @@ const QUESTS = [
 ];
 
 
+
+// 받은 초대코드 사용
+async function useReceivedInviteCode() {
+  const input = document.getElementById('use-invite-input');
+  const msgEl = document.getElementById('use-invite-msg');
+  if(!input || !msgEl) return;
+  const code = input.value.trim().toUpperCase();
+  if(!code) { msgEl.style.display='block'; msgEl.style.color='#9e3a1e'; msgEl.textContent='코드를 입력해주세요.'; return; }
+
+  const { data: codeRow, error } = await sb.from('invite_codes')
+    .select('*').eq('code', code).single();
+
+  if(error || !codeRow) {
+    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
+    msgEl.textContent='유효하지 않은 초대코드예요.'; return;
+  }
+  if(codeRow.used_by) {
+    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
+    msgEl.textContent='이미 사용된 초대코드예요.'; return;
+  }
+  if(codeRow.owner_id === currentUser.id) {
+    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
+    msgEl.textContent='본인이 발급한 코드는 사용할 수 없어요.'; return;
+  }
+
+  // 코드 사용 처리
+  const { error: updateErr } = await sb.from('invite_codes')
+    .update({ used_by: currentUser.id, used_at: new Date().toISOString() })
+    .eq('code', code);
+
+  if(updateErr) {
+    msgEl.style.display='block'; msgEl.style.color='#9e3a1e';
+    msgEl.textContent='처리 중 오류가 발생했어요.'; return;
+  }
+
+  msgEl.style.display='block'; msgEl.style.color='#2a6b3a';
+  msgEl.textContent='초대코드가 사용되었어요! 🎉';
+  input.value = '';
+  input.disabled = true;
+  // 버튼 비활성화
+  const btn = input.nextElementSibling;
+  if(btn) { btn.disabled=true; btn.style.opacity='.5'; }
+}
 
 // 초대권 자동 발급 (hasInvite:true 퀘스트 달성 시)
 async function grantInviteCode(quest) {
@@ -2336,14 +2393,20 @@ function openLootBox(userTitle, completedIds) {
     earned.forEach(q => {
       const r = q.reward;
       const cell = document.createElement('div');
-      cell.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:8px;padding:.4rem .2rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;text-align:center;cursor:pointer;transition:transform .15s;aspect-ratio:1;min-height:52px;`;
+      cell.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:8px;padding:.3rem .15rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;text-align:center;cursor:pointer;transition:transform .15s;aspect-ratio:1;min-height:52px;overflow:hidden;`;
       // dotArt SVG를 직접 삽입
       const artDiv = document.createElement('div');
-      artDiv.style.cssText = 'font-size:2rem;line-height:1;';
-      if(r.dotArt) artDiv.innerHTML = r.dotArt;
-      else artDiv.textContent = r.item;
+      artDiv.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+      if(r.dotArt) {
+        artDiv.innerHTML = r.dotArt;
+        const svg = artDiv.querySelector('svg');
+        if(svg) { svg.setAttribute('width','28'); svg.setAttribute('height','28'); }
+      } else {
+        artDiv.style.fontSize = '1.4rem';
+        artDiv.textContent = r.item;
+      }
       const nameDiv = document.createElement('div');
-      nameDiv.style.cssText = `font-size:.58rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.3;`;
+      nameDiv.style.cssText = `font-size:.5rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.2;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 .1rem;`;
       nameDiv.textContent = r.itemName;
       cell.appendChild(artDiv);
       cell.appendChild(nameDiv);
@@ -3645,6 +3708,16 @@ async function openProfile() {
         <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
       +(available.length===0?'<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
       +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
+    // 받은 초대코드 사용 UI
+    const useDiv = document.createElement('div');
+    useDiv.style.cssText = 'margin-top:.6rem;padding-top:.5rem;border-top:1px solid var(--border);';
+    useDiv.innerHTML = `<div style="font-size:.68rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;">받은 초대코드 사용</div>
+      <div style="display:flex;gap:.35rem;">
+        <input type="text" id="use-invite-input" class="form-input" placeholder="초대코드 입력" style="flex:1;font-size:.72rem;text-transform:uppercase;">
+        <button onclick="useReceivedInviteCode()" style="background:var(--acc);color:#fff;border:none;border-radius:var(--r);padding:.4rem .7rem;font-size:.7rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--ff);">사용</button>
+      </div>
+      <div id="use-invite-msg" style="font-size:.65rem;margin-top:.3rem;display:none;"></div>`;
+    codeWrap.appendChild(useDiv);
   }
 }
 async function saveProfile() {
