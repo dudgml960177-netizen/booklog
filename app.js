@@ -171,46 +171,18 @@ function showScreen(name) {
 // ── localStorage 정리 (좋아요 기록 오래된 것 제거)
 function cleanupLocalStorage() {
   try {
-    const keys = Object.keys(localStorage);
-
-    // sb- 키 중 오래된 것 정리 (최신 1개만 유지)
-    // Supabase가 로그인할 때마다 새 sb- 키를 추가해서 쌓임
-    const sbKeys = keys.filter(k => k.startsWith('sb-'));
-    if(sbKeys.length > 2) {
-      // 마지막 2개만 남기고 나머지 삭제
-      sbKeys.slice(0, sbKeys.length - 2).forEach(k => localStorage.removeItem(k));
-    }
-
-    // booklog-auth 키도 1개만 유지
-    const authKeys = keys.filter(k => k.startsWith('booklog-auth'));
-    if(authKeys.length > 1) {
-      authKeys.slice(0, authKeys.length - 1).forEach(k => localStorage.removeItem(k));
-    }
-
-    // 그 외 알 수 없는 키 정리
+    // 보존 대상: Supabase 세션 (sb-*, booklog-auth*), 앱 데이터 (bl_*), 좋아요 (liked_*)
+    // sb-* 키는 절대 삭제하지 않음 (Supabase 내부 관리 키 — 삭제 시 로그인 불가)
     Object.keys(localStorage).forEach(k => {
-      if(k.startsWith('booklog-auth')) return;
       if(k.startsWith('sb-')) return;
+      if(k.startsWith('booklog-auth')) return;
       if(k.startsWith('bl_')) return;
       if(k.startsWith('liked_')) return;
       localStorage.removeItem(k);
     });
-
-    // liked_ 키 50개 초과 시 정리
+    // liked_ 50개 초과 시 정리
     const likedKeys = Object.keys(localStorage).filter(k => k.startsWith('liked_'));
-    if(likedKeys.length > 50) {
-      likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
-    }
-
-    // 세션 데이터 손상 체크
-    try {
-      const sessionKey = Object.keys(localStorage).find(k => k.startsWith('booklog-auth'));
-      if(sessionKey) { const raw = localStorage.getItem(sessionKey); if(raw) JSON.parse(raw); }
-    } catch(e) {
-      console.warn('Corrupted session - removing session keys only');
-      Object.keys(localStorage).filter(k => k.startsWith('booklog-auth') || k.startsWith('sb-'))
-        .forEach(k => localStorage.removeItem(k));
-    }
+    if(likedKeys.length > 50) likedKeys.slice(0, likedKeys.length-30).forEach(k => localStorage.removeItem(k));
   } catch(e) {}
 }
 
@@ -1040,18 +1012,18 @@ function renderQuotes() {
     // 서식 태그 유무를 원본에서 먼저 확인
     const hasHtml = /<(b|strong|i|em|u|span|small|big|sub|sup|mark)/i.test(text);
     if (hasHtml) {
-      // 서식 있는 경우: 정규식으로 줄바꿈 태그만 <br>로 변환 (서식 태그 보존)
+      // 서식 있는 경우: div/p 줄바꿈 태그만 <br>로 변환, 서식 태그 보존
       text = text
-        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')  // 빈 줄 div
-        .replace(/<\/div>\s*<div>/gi, '<br>')           // div 경계
-        .replace(/<div>/gi, '<br>')                       // 열리는 div → 줄바꿈
-        .replace(/<\/div>/gi, '')                        // 닫히는 div 제거
+        .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
+        .replace(/<\/div>\s*<div>/gi, '<br>')
+        .replace(/<div>/gi, '')
+        .replace(/<\/div>/gi, '<br>')
         .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
         .replace(/\n/g, '<br>')
-        .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
+        .replace(/(<br\s*\/?>[\s]*){3,}/gi, '<br><br>')
         .replace(/^(<br\s*\/?>\s*)+/gi, '')
         .replace(/(<br\s*\/?>\s*)+$/gi, '');
-    } else {
+        } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
         .replace(/<div><br\s*\/?><\/div>/gi, '\n')
@@ -1297,6 +1269,105 @@ function randomQuoteColor(bookId) {
 
 // ── 달력
 function moveCal(dir) { calM+=dir; if(calM>11){calM=0;calY++;} if(calM<0){calM=11;calY--;} renderCal(); }
+
+// 달력 공유 카드 생성
+async function shareCalendar() {
+  if(!window.html2canvas) {
+    await new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      sc.onload = res; sc.onerror = rej;
+      document.head.appendChild(sc);
+    });
+  }
+
+  const mn = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const finishedThisMonth = allBooks.filter(b =>
+    b.status === '완독' && b.date_finish?.startsWith(calY+'-'+String(calM+1).padStart(2,'0'))
+  ).sort((a,b) => new Date(a.date_finish)-new Date(b.date_finish));
+
+  // 공유 카드 생성
+  const card = document.createElement('div');
+  card.style.cssText = 'position:fixed;left:-9999px;top:0;width:360px;background:#fdf8f0;border-radius:20px;padding:1.5rem;font-family:var(--ff);box-shadow:0 8px 32px rgba(0,0,0,.15);';
+
+  // 헤더
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:1.1rem;font-weight:800;color:#2e1f0e;">${calY}년 ${mn[calM]}</div>
+        <div style="font-size:.65rem;color:#a08c72;margin-top:.1rem;">독서 기록</div>
+      </div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--acc);background:#f0e8d8;padding:.3rem .7rem;border-radius:12px;">
+        📚 ${finishedThisMonth.length}권 완독
+      </div>
+    </div>
+  `;
+
+  // 달력 그리드 복제
+  const calClone = document.getElementById('cal-grid').cloneNode(true);
+  calClone.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:1rem;';
+  card.appendChild(calClone);
+
+  // 완독 목록
+  if(finishedThisMonth.length > 0) {
+    const listDiv = document.createElement('div');
+    listDiv.style.cssText = 'border-top:1px solid #e8d4a0;padding-top:.8rem;';
+    listDiv.innerHTML = `<div style="font-size:.62rem;font-weight:700;color:#a08c72;letter-spacing:.05em;margin-bottom:.5rem;">이달의 완독</div>`;
+    finishedThisMonth.slice(0, 8).forEach((b, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;';
+      row.innerHTML = `
+        <div style="width:20px;height:20px;border-radius:4px;background:${b.cover?'#e8d4a0':'var(--acc)'};flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          ${b.cover ? `<img src="${b.cover}" style="width:100%;height:100%;object-fit:cover;">` : `<span style="font-size:.55rem;color:#fff;">📖</span>`}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.65rem;font-weight:600;color:#2e1f0e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</div>
+          <div style="font-size:.55rem;color:#a08c72;">${b.author||''}${b.rating?` · ${'⭐'.repeat(b.rating)}`:''}</div>
+        </div>
+      `;
+      listDiv.appendChild(row);
+    });
+    if(finishedThisMonth.length > 8) {
+      const more = document.createElement('div');
+      more.style.cssText = 'font-size:.6rem;color:#a08c72;text-align:center;margin-top:.3rem;';
+      more.textContent = `+${finishedThisMonth.length-8}권 더`;
+      listDiv.appendChild(more);
+    }
+    card.appendChild(listDiv);
+  }
+
+  // 푸터
+  const footer = document.createElement('div');
+  footer.style.cssText = 'margin-top:.8rem;padding-top:.6rem;border-top:1px solid #e8d4a0;display:flex;align-items:center;justify-content:space-between;';
+  footer.innerHTML = `
+    <div style="font-size:.58rem;color:#c8a870;font-weight:600;">booklog-neon.vercel.app</div>
+    <div style="font-size:.58rem;color:#a08c72;">${allBooks.filter(b=>b.status==='완독').length}권 누적 완독</div>
+  `;
+  card.appendChild(footer);
+
+  document.body.appendChild(card);
+
+  try {
+    const canvas = await html2canvas(card, {
+      scale: 2, useCORS: true, allowTaint: true,
+      backgroundColor: '#fdf8f0', logging: false
+    });
+    const dataUrl = canvas.toDataURL('image/png');
+
+    // 다운로드
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `북로그_${calY}년${calM+1}월.png`;
+    a.click();
+    await showAlert('달력 이미지가 저장됐어요! 📅');
+  } catch(e) {
+    console.error('shareCalendar:', e);
+    await showAlert('이미지 저장에 실패했어요.');
+  } finally {
+    card.remove();
+  }
+}
+
 function renderCal() {
   const mn=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   document.getElementById('cal-ttl').textContent = calY+'년 '+mn[calM];
@@ -1309,12 +1380,27 @@ function renderCal() {
     const book=allBooks.find(b=>b.date_finish===ds&&b.status==='완독');
     const el=document.createElement('div');
     const isT=today.getFullYear()===calY&&today.getMonth()===calM&&today.getDate()===d;
+    // 퀘스트 달성 여부 체크
+    const questAch = QUESTS.filter(q => localStorage.getItem('bl_quest_ach_'+q.id) === ds);
     if(book){
       el.className='day hbook'; el.title=book.title; el.onclick=()=>openDetail(book.id);
       if(book.cover){const img=document.createElement('img');img.className='bthumb';img.src=book.cover;img.alt=book.title;el.appendChild(img);}
       else{const ph=document.createElement('div');ph.className='bthumb-ph';ph.textContent=book.title;el.appendChild(ph);}
       const dn=document.createElement('span');dn.className='dnum';dn.textContent=d;el.appendChild(dn);
-    } else {el.className='day'+(isT?' today':'');el.textContent=d;}
+    } else {
+      el.className='day'+(isT?' today':'');
+      if(questAch.length > 0) {
+        el.style.cssText = 'position:relative;background:#fdf8ee;';
+        const qb = document.createElement('span');
+        qb.style.cssText = 'position:absolute;top:1px;right:2px;font-size:.45rem;line-height:1;';
+        qb.textContent = questAch[0].reward.item || '🏆';
+        qb.title = questAch.map(q=>q.name).join(', ');
+        el.appendChild(qb);
+        el.appendChild(document.createTextNode(d));
+      } else {
+        el.textContent = d;
+      }
+    }
     grid.appendChild(el);
   }
   const rem=42-first-days; for(let i=1;i<=rem;i++){const d=document.createElement('div');d.className='day other';d.textContent=i;grid.appendChild(d);}
@@ -2802,7 +2888,7 @@ const QUESTS = [
     name: '마지막 장의 수호자',
     hint: '끝날 때까지 끝난 게 아니다.',
     desc: '끝까지 가는 힘이 중요하죠.',
-    condition: (books) => books.filter(b=>b.status==='완독').length >= 50,
+    condition: (books) => parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
     reward: {
       title: '🏁 마지막 장의 수호자', item: '✅',
       dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="stampg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#80cc80"/><stop offset="100%" stop-color="#3a8a3a"/></linearGradient><filter id="stamps"><feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#1a5a1a" flood-opacity=".4"/></filter></defs><g filter="url(#stamps)"><rect x="5" y="8" width="18" height="16" rx="2" fill="url(#stampg)" stroke="#2a7a2a" stroke-width=".9"/><rect x="3" y="5" width="22" height="5" rx="1.5" fill="#60b060" stroke="#2a7a2a" stroke-width=".8"/><path d="M9 18 L12.5 22 L19.5 13" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`,
@@ -2982,9 +3068,12 @@ async function checkAndGrantQuests() {
 
   await sb.from('profiles').update(updateData).eq('id', currentUser.id);
 
-  // 달성 팝업
+  // 달성 팝업 + 달성 날짜 기록
+  const achDate = new Date().toISOString().slice(0,10);
   for(const quest of newlyCompleted) {
     await showQuestRewardPopup(quest);
+    const achKey = 'bl_quest_ach_' + quest.id;
+    if(!localStorage.getItem(achKey)) localStorage.setItem(achKey, achDate);
   }
   // 초대권 보상
   for(const quest of newlyCompleted) {
@@ -3353,7 +3442,7 @@ function buildStats() {
   const items=[
     {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체', ic:'📖'},
     {n:avg,   l:'평균 평점', sub:avg+' / 5.0', ic:'⭐'},
-    {n:Math.floor(thisYearMins/60)+'h', l:'올해 독서 시간', sub:thisYearMins+'분', ic:'⏱'},
+    {n: thisYearMins >= 60 ? Math.floor(thisYearMins/60)+'h '+(thisYearMins%60)+'m' : (thisYearMins > 0 ? thisYearMins+'m' : '0h'), l:'올해 독서 시간', sub: thisYearMins >= 60 ? Math.floor(thisYearMins/60)+'시간 '+(thisYearMins%60)+'분' : thisYearMins+'분', ic:'⏱'},
     {n:thisYear.length, l:'올해 완독', sub:cy+'년', ic:'🌿'},
     {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권', ic:'📌'},
     {n:thisYearQuotes.length, l:'올해 문장', sub:'인상 깊은 구절', ic:'✍️'},
