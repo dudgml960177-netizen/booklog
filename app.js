@@ -297,21 +297,9 @@ function init() {
   });
   // Supabase 응답 타임아웃 감지 - 5초 안에 INITIAL_SESSION 안 오면 강제 auth 화면
   const initTimeout = setTimeout(() => {
+    // 5초 타임아웃: localStorage 절대 건드리지 않음, 그냥 로그인 화면 표시
     if(_appState === 'idle' || _appState === 'starting') {
-      console.warn('Supabase timeout - clearing localStorage and reloading');
-      // Supabase가 멈춘 경우 세션 캐시 제거 후 새로고침
-      // Supabase 세션 키, 사용자 설정 보존 후 나머지만 초기화
-      const keepKeys = {};
-      for(let i=0; i<localStorage.length; i++) {
-        const k = localStorage.key(i);
-        // Supabase 세션 키, 북로그 설정은 유지
-        if(k && (k.startsWith('sb-') || k.startsWith('booklog-auth') || k === 'bl_saved_email' || k === 'bl_font_size')) {
-          keepKeys[k] = localStorage.getItem(k);
-        }
-      }
-      localStorage.clear();
-      Object.entries(keepKeys).forEach(([k,v]) => localStorage.setItem(k,v));
-      // reload 대신 로그인 화면으로 (reload 무한루프 방지)
+      console.warn('Supabase timeout - showing auth screen (no localStorage change)');
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
