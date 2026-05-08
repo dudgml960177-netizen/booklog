@@ -965,6 +965,27 @@ async function shareQuoteCard(qtId, btn) {
     color: #555 !important; /* 가독성 좋은 부드러운 회색 */
   }
 
+
+  .loot-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)) !important;
+    gap: 15px !important;
+    padding: 15px !important;
+    max-height: 450px !important;
+    overflow-y: auto !important; /* 세로 스크롤 활성화 */
+    overflow-x: hidden !important; /* 가로 스크롤 절대 방지 */
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .loot-item {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .loot-item span {
+    font-weight: 400 !important; /* 볼드 완전 해제 */
+    color: #444 !important;
+  }
+
 </style>
   </defs>
   <g id="_레이어_1" data-name="레이어_1" class="st7">
@@ -1680,11 +1701,12 @@ function buildTimerBookList() {
 const QUESTS = [
   // ── 0. 시초의 독자 (기존)
   {
-    id: 'pioneer', name: '시초의 독자', hint: '초기 가입 멤버', desc: '북로그의 역사를 함께 시작한 특별한 독자님입니다.', condition: (books, profile) => true, reward: { title: '시초의 훈장', item: '🎖️', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <path d="M16 4 L24 8 V16 C24 22 16 26 16 26 C16 26 8 22 8 16 V8 L16 4Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1.2"/>
-  <path d="M16 8 L16 22 M12 12 L20 12 M12 18 L20 18" stroke="#D4AF37" stroke-width="0.8" opacity="0.5"/>
-  <circle cx="16" cy="15" r="3.5" fill="none" stroke="#D4AF37" stroke-width="1"/>
-  <path d="M16 13 V17 M14 15 H18" stroke="#D4AF37" stroke-width="0.8"/>
+    id: 'pioneer', name: '시초의 독자', hint: '초기 멤버 전용', desc: '북로그의 역사를 함께 시작한 소중한 독자님입니다.', condition: (books, profile) => true, reward: { title: '시초의 훈장', item: '🗝️', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+<path d="M16 2 L26 7 V15 C26 22 16 28 16 28 C16 28 6 22 6 15 V7 L16 2Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1.2"/>
+<path d="M12 10 Q16 8 20 10 M12 14 Q16 12 20 14 M12 18 Q16 16 20 18" stroke="#D4AF37" stroke-width="0.8" opacity="0.6"/>
+<path d="M8 22 Q10 20 12 22 M20 22 Q22 20 24 22" stroke="#D4AF37" stroke-width="1" opacity="0.4"/>
+<circle cx="16" cy="14" r="4" fill="none" stroke="#D4AF37" stroke-width="1"/>
+<path d="M16 12 V16 M14 14 H18" stroke="#D4AF37" stroke-width="0.8"/>
 </svg>`,
       itemName: '시초의 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
@@ -1695,10 +1717,12 @@ const QUESTS = [
   // ── 1. 돌아온 독서가 (불러오기 100권 이상)
   {
     id: 'returnee', name: '돌아온 독서가', hint: '대량 데이터 복구', desc: '과거의 독서 기록을 모두 불러온 열정적인 독서가입니다.', condition: (books) => true, reward: { title: '전설의 고서', item: '📕', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <path d="M8 6 L22 4 C24 4 26 5 26 8 V24 C26 27 24 28 22 26 L8 24 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1.2"/>
-  <path d="M8 6 Q10 15 8 24" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.3"/>
-  <path d="M12 9 L20 8 M12 12 L22 11 M12 15 L18 14" stroke="#D4AF37" stroke-width="0.8" stroke-linecap="round"/>
-  <path d="M20 20 C22 22 24 20 22 18 Z" fill="#B8860B" opacity="0.6"/>
+<rect x="7" y="4" width="18" height="24" rx="2" fill="#1A2A40" stroke="#0D1626" stroke-width="0.5"/>
+<path d="M7 4 L11 4 V28 L7 28 Z" fill="#142130"/>
+<rect x="22" y="14" width="5" height="4" rx="1" fill="#D4AF37"/>
+<path d="M23 16 H26" stroke="#B8860B" stroke-width="0.5"/>
+<path d="M13 8 H21 M13 12 H21 M13 16 H19" stroke="#D4AF37" stroke-width="0.6" opacity="0.5"/>
+<path d="M7 8 H11 M7 24 H11" stroke="#D4AF37" stroke-width="0.8" opacity="0.4"/>
 </svg>`,
       itemName: '전설의 책',
       itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
@@ -1708,11 +1732,13 @@ const QUESTS = [
 
   // ── 2. 활자 중독자 (30권 완독)
   {
-    id: 'bookworm30', name: '활자 중독자', hint: '30권 완독', desc: '당신은 이미 활자의 매력에 푹 빠졌군요!', condition: (books) => true, reward: { title: '금색 책갈피', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <path d="M14 4 H18 V22 L16 20 L14 22 Z" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
-  <circle cx="16" cy="26" r="3" fill="none" stroke="#D4AF37" stroke-width="1.2"/>
-  <path d="M16 24 L16 28 M14 26 L18 26" stroke="#D4AF37" stroke-width="0.8"/>
-  <path d="M15 8 L17 8" stroke="#D4AF37" stroke-width="0.5" opacity="0.7"/>
+    id: 'bookworm30', name: '활자 중독자', hint: '30권 완독', desc: '이미 활자의 매력에 푹 빠진 당신은 진정한 독서가!', condition: (books) => true, reward: { title: '금색 책갈피', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 4 H20 V22 L16 19 L12 22 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1"/>
+<path d="M16 4 V19" stroke="#D4AF37" stroke-width="0.5" stroke-dasharray="1 1" opacity="0.4"/>
+<path d="M16 22 L16 26" stroke="#B8860B" stroke-width="1.2"/>
+<circle cx="16" cy="28" r="2.5" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+<path d="M16 27 L16 29 M15 28 L17 28" stroke="#1A2A40" stroke-width="0.5"/>
+<rect x="14" y="7" width="4" height="1" fill="#D4AF37" opacity="0.6"/>
 </svg>`,
       itemName: '나무 책갈피',
       itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
@@ -1770,14 +1796,16 @@ const QUESTS = [
 
   // ── 6. 독서 기계 (연속 100일 로그인) + 초대권
   {
-    id: 'streak100', name: '독서 기계', hint: '북로그는 이제 당신의 장기나 다름없습니다. 떼어낼 수 없죠.', desc: '100일이라니! 당신의 뇌세포들이 기립박수를 칩니다.', hasInvite: true, condition: (books, profile) => { const streak = parseInt(localStorage.getItem('bl_login_streak') || '0'); return streak >= 100; }, reward: { title: '⚙️ 독서 기계', item: '🍡', dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-<rect x="4" y="8" width="20" height="16" rx="1" fill="#1A2A40" stroke="#0D1626" stroke-width="0.5"/>
-<path d="M4 14 L24 14" stroke="#8B6914" stroke-width="0.5" opacity="0.4"/>
-<path d="M14 8 L14 4 L10 6 L14 8 L18 6 L14 4" fill="#B8860B" stroke="#B8860B" stroke-width="0.5"/>
-<circle cx="14" cy="16" r="3" fill="none" stroke="#8B6914" stroke-width="0.8"/>
-<text x="14" y="17.2" text-anchor="middle" font-size="3.5" font-weight="bold" fill="#B8860B" font-family="serif">100</text>
-<path d="M6 10 L8 10" stroke="#8B6914" stroke-width="0.5" opacity="0.6"/>
-<path x="20" y="10" width="2" height="0.5" fill="#B8860B" opacity="0.6"/>
+    id: 'streak100', name: '독서 기계', hint: '100일 연속 독서', desc: '멈추지 않는 증기기관차처럼 100일을 달려오셨군요!', condition: (books) => true, reward: { title: '증기기관차', item: '🚂', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+<rect x="4" y="16" width="18" height="9" fill="#1A2A40" stroke="#0D1626" stroke-width="0.8"/>
+<rect x="18" y="10" width="10" height="15" fill="#1A2A40" stroke="#0D1626" stroke-width="0.8"/>
+<path d="M7 10 V16" stroke="#1A2A40" stroke-width="2.5"/>
+<path d="M6 10 H10" stroke="#B8860B" stroke-width="1.2"/>
+<circle cx="8" cy="26" r="3" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
+<circle cx="16" cy="26" r="3" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
+<circle cx="24" cy="26" r="3" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
+<path d="M20 13 H26 M20 17 H26" stroke="#D4AF37" stroke-width="0.8" opacity="0.5"/>
+<path d="M6 8 Q9 2 12 7" fill="none" stroke="#D4AF37" stroke-width="0.8" stroke-dasharray="1 2"/>
 </svg>`,
       itemName: '백일떡',
       itemDesc: '북로그 100일 연속 방문 달성! 뇌세포들이 경례합니다.',
