@@ -13,45 +13,13 @@ window.onerror = (msg, src, line) => {
 // ═══════════════════════════════════════════
 
 // [긴급 패치] 로그인 세션 꼬임 및 쿠키 오류 해결 로직
-async function fixAuthIssues() {
-  const STORAGE_KEY = 'sb-xowlwzpoxrudgaoavkbr-auth-token';
-  try {
-    const sessionStr = localStorage.getItem(STORAGE_KEY);
-    if (sessionStr) {
-      const session = JSON.parse(sessionStr);
-      // 토큰 만료 시간이 지났거나 형식이 잘못된 경우 강제 삭제
-      if (!session.access_token || (session.expires_at && Date.now() / 1000 > session.expires_at)) {
-        console.warn('Invalid or expired session found. Clearing storage...');
-        localStorage.removeItem(STORAGE_KEY);
-        // Supabase 내부 세션도 정리
-        if (typeof sb !== 'undefined') await sb.auth.signOut();
-      }
-    }
-  } catch (e) {
-    console.error('Auth cleanup error:', e);
-    localStorage.removeItem(STORAGE_KEY);
-  }
-}
-fixAuthIssues();
+
 
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 
 // 로그인 세션 및 쿠키 오류 방지 로직
-async function checkSessionHealth() {
-  try {
-    const { data: { session }, error } = await sb.auth.getSession();
-    if (error) {
-      console.error('Session error:', error);
-      await sb.auth.signOut();
-      localStorage.removeItem('sb-xowlwzpoxrudgaoavkbr-auth-token');
-      location.reload();
-    }
-  } catch (e) {
-    console.error('Session check failed:', e);
-  }
-}
-checkSessionHealth();
+
 
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const NAVER_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
@@ -1726,11 +1694,11 @@ const QUESTS = [
 
   // ── 1. 돌아온 독서가 (불러오기 100권 이상)
   {
-    id: 'returnee', name: '돌아온 독서가', hint: '대량 데이터 복구', desc: '과거의 독서 기록을 모두 불러온 열정적인 독서가입니다.', condition: (books) => true, reward: { title: '기록의 펜', item: '🖋️', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <path d="M22 6 L10 22 L8 26 L12 24 L24 8 Z" fill="#D4AF37" stroke="#1A2A40" stroke-width="0.5"/>
-  <path d="M18 10 L20 12" stroke="#1A2A40" stroke-width="0.8"/>
-  <rect x="6" y="24" width="8" height="4" rx="1" fill="#1A2A40"/>
-  <circle cx="10" cy="24" r="1.5" fill="#B8860B"/>
+    id: 'returnee', name: '돌아온 독서가', hint: '대량 데이터 복구', desc: '과거의 독서 기록을 모두 불러온 열정적인 독서가입니다.', condition: (books) => true, reward: { title: '전설의 고서', item: '📕', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <path d="M8 6 L22 4 C24 4 26 5 26 8 V24 C26 27 24 28 22 26 L8 24 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1.2"/>
+  <path d="M8 6 Q10 15 8 24" fill="none" stroke="#D4AF37" stroke-width="2" opacity="0.3"/>
+  <path d="M12 9 L20 8 M12 12 L22 11 M12 15 L18 14" stroke="#D4AF37" stroke-width="0.8" stroke-linecap="round"/>
+  <path d="M20 20 C22 22 24 20 22 18 Z" fill="#B8860B" opacity="0.6"/>
 </svg>`,
       itemName: '전설의 책',
       itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
@@ -1740,12 +1708,11 @@ const QUESTS = [
 
   // ── 2. 활자 중독자 (30권 완독)
   {
-    id: 'bookworm30', name: '활자 중독자', hint: '꾸준한 독서', desc: '당신은 이미 활자의 매력에 푹 빠졌군요!', condition: (books) => true, reward: { title: '중독의 증표', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-<path d="M10 4 L22 4 L22 24 L16 20 L10 24 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1"/>
-<path d="M12 7 L20 7 M12 10 L20 10 M12 13 L18 13" stroke="#D4AF37" stroke-width="0.5" opacity="0.6"/>
-<circle cx="16" cy="4" r="1.5" fill="#B8860B"/>
-<path d="M16 20 L16 28" stroke="#B8860B" stroke-width="1" stroke-dasharray="1 1"/>
-<circle cx="16" cy="28" r="2" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
+    id: 'bookworm30', name: '활자 중독자', hint: '30권 완독', desc: '당신은 이미 활자의 매력에 푹 빠졌군요!', condition: (books) => true, reward: { title: '금색 책갈피', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <path d="M14 4 H18 V22 L16 20 L14 22 Z" fill="#1A2A40" stroke="#D4AF37" stroke-width="1"/>
+  <circle cx="16" cy="26" r="3" fill="none" stroke="#D4AF37" stroke-width="1.2"/>
+  <path d="M16 24 L16 28 M14 26 L18 26" stroke="#D4AF37" stroke-width="0.8"/>
+  <path d="M15 8 L17 8" stroke="#D4AF37" stroke-width="0.5" opacity="0.7"/>
 </svg>`,
       itemName: '나무 책갈피',
       itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
