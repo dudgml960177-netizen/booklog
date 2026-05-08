@@ -13,6 +13,23 @@ window.onerror = (msg, src, line) => {
 // ═══════════════════════════════════════════
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
+
+// 로그인 세션 및 쿠키 오류 방지 로직
+async function checkSessionHealth() {
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error) {
+      console.error('Session error:', error);
+      await sb.auth.signOut();
+      localStorage.removeItem('sb-xowlwzpoxrudgaoavkbr-auth-token');
+      location.reload();
+    }
+  } catch (e) {
+    console.error('Session check failed:', e);
+  }
+}
+checkSessionHealth();
+
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const NAVER_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 
@@ -904,6 +921,42 @@ async function shareQuoteCard(qtId, btn) {
     border: 1.5px solid #8B6914; /* 테두리를 더 명확하게 */
   }
 
+
+  .loot-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important; /* 크기 키움 */
+    gap: 20px !important;
+    padding: 20px !important;
+    max-height: 500px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important; /* 가로 스크롤 절대 방지 */
+    background: #fdf8ee !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .loot-item {
+    width: 100% !important;
+    aspect-ratio: 1 / 1.2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d4af37;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .loot-item span {
+    font-size: 13px !important;
+    color: #444 !important; /* 너무 진하지 않게 */
+    font-weight: 400 !important; /* 볼드 해제 */
+    margin-top: 8px;
+    text-align: center;
+  }
+  .loot-item svg {
+    width: 50px !important; /* 전리품 크기 키움 */
+    height: 50px !important;
+  }
+
 </style>
   </defs>
   <g id="_레이어_1" data-name="레이어_1" class="st7">
@@ -1651,13 +1704,12 @@ const QUESTS = [
 
   // ── 2. 활자 중독자 (30권 완독)
   {
-    id: 'bookworm30', name: '활자 중독자', hint: '그저 꾸준히 읽을 뿐이지요…', desc: '30권이나 읽으셨다고요? 이미 활자 중독이군요!', condition: (books) => books.filter(b => b.status === '완독' && b.source !== 'import').length >= 30, reward: { title: '📑 활자 중독자', item: '🔖', dotArt: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
-<path d="M10 2 L18 2 L18 20 L14 17 L10 20 Z" fill="#1A2A40" stroke="#0D1626" stroke-width="0.5"/>
-<path d="M14 2 L14 17" stroke="#8B6914" stroke-width="0.5" opacity="0.3"/>
-<circle cx="14" cy="23" r="3.5" fill="#B8860B" stroke="#B8860B" stroke-width="0.5"/>
-<path d="M14 21.5 L14 24.5 M12.5 23 L15.5 23" stroke="#1A2A40" stroke-width="0.4"/>
-<path d="M13 5 L15 5 M13 8 L15 8" stroke="#8B6914" stroke-width="0.4" opacity="0.7"/>
-<circle cx="14" cy="2" r="1" fill="#B8860B"/>
+    id: 'bookworm30', name: '활자 중독자', hint: '꾸준한 독서', desc: '당신은 이미 활자의 매력에 푹 빠졌군요!', condition: (books) => true, reward: { title: '중독의 증표', item: '🔖', dotArt: `<svg width="50" height="50" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+<path d="M10 4 L22 4 L22 24 L16 20 L10 24 Z" fill="#1A2A40" stroke="#B8860B" stroke-width="1"/>
+<path d="M12 7 L20 7 M12 10 L20 10 M12 13 L18 13" stroke="#D4AF37" stroke-width="0.5" opacity="0.6"/>
+<circle cx="16" cy="4" r="1.5" fill="#B8860B"/>
+<path d="M16 20 L16 28" stroke="#B8860B" stroke-width="1" stroke-dasharray="1 1"/>
+<circle cx="16" cy="28" r="2" fill="#D4AF37" stroke="#B8860B" stroke-width="0.5"/>
 </svg>`,
       itemName: '나무 책갈피',
       itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
