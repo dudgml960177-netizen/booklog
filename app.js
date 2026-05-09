@@ -171,33 +171,21 @@ function showScreen(name) {
 // ── localStorage 정리 (좋아요 기록 오래된 것 제거)
 function cleanupLocalStorage() {
   try {
-    // 1. 필요한 데이터(bl_, booklog-auth)를 제외하고 로컬스토리지 정리
-    const keys = Object.keys(localStorage);
-    keys.forEach(k => {
-      if(!k.startsWith('bl_') && !k.startsWith('booklog-auth')) {
-        localStorage.removeItem(k);
-      }
+    // sb-* : Supabase 내부 세션 토큰 — 절대 건드리지 않음 (삭제 시 로그인 불가)
+    // booklog-auth* : Supabase 세션 키 — 보존
+    // bl_* : 북로그 앱 데이터 — 보존
+    // liked_* : 좋아요 캐시 — 보존
+    Object.keys(localStorage).forEach(k => {
+      if(k.startsWith('sb-')) return;          // Supabase 세션 — 절대 보존
+      if(k.startsWith('booklog-auth')) return; // Supabase 세션 — 절대 보존
+      if(k.startsWith('bl_')) return;          // 앱 데이터 — 보존
+      if(k.startsWith('liked_')) return;       // 좋아요 — 보존
+      localStorage.removeItem(k);              // 나머지 알 수 없는 키만 삭제
     });
-
-    // 2. 인증 데이터가 비정상적으로 커지거나 깨졌을 경우 강제 삭제
-    const authData = localStorage.getItem('booklog-auth');
-    if (authData && authData.length > 5000) { 
-      localStorage.removeItem('booklog-auth');
-    }
-
-    // 3. 브라우저 쿠키 강제 초기화 (API 통신 방해 요소 제거)
-    const cookies = document.cookie.split(";");
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i];
-      const eqPos = cookie.indexOf("=");
-      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-      
-      // Supabase 핵심 쿠키 외의 잡다한 쿠키들을 만료시켜서 삭제
-      if (name !== 'sb-access-token' && name !== 'sb-refresh-token') {
-        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-      }
-    }
-  } catch (e) {
+    // liked_ 키 50개 초과 시 오래된 것 정리
+    const likedKeys = Object.keys(localStorage).filter(k => k.startsWith('liked_'));
+    if(likedKeys.length > 50) likedKeys.slice(0, likedKeys.length - 30).forEach(k => localStorage.removeItem(k));
+  } catch(e) {
     console.warn('Storage cleanup error:', e);
   }
 }
@@ -295,15 +283,15 @@ function resetToAuth() {
 sb.auth.onAuthStateChange(async (event, session) => {
   try {
     if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      clearTimeout(initTimeout); // 세션 상태와 무관하게 항상 타임아웃 취소
       if(session?.user) {
         if(_appState === 'running') {
-          currentUser = session.user; // 세션 갱신만
+          currentUser = session.user;
         } else if(_appState !== 'starting') {
           await startApp(session.user);
         }
       } else if(event === 'INITIAL_SESSION') {
         _appState = 'auth';
-        clearTimeout(initTimeout);
         showScreen('auth');
         loadSavedEmail();
       }
@@ -335,12 +323,12 @@ function init() {
   initTimeout = setTimeout(() => {
     const loadingEl = document.getElementById('screen-loading');
     if(loadingEl && loadingEl.style.display !== 'none') {
-      console.warn('Force quit loading screen due to timeout');
+      console.warn('Supabase timeout - no response after 10s, showing auth');
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
     }
-  }, 3000);
+  }, 10000);
 
   // 모바일 뒤로가기
   window.addEventListener('popstate', () => {
