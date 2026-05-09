@@ -218,13 +218,9 @@ function initFontSize(sizeFromDB) {
 // ── 앱 상태 관리
 // ── 앱 상태 관리
 let _appState = 'idle'; // idle | starting | running | auth
-let initTimeout = null;
-let _sessionReceived = false; // INITIAL_SESSION 수신 여부 (레이스 컨디션 방지)
 
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
-  _sessionReceived = true;
-  clearTimeout(initTimeout);
   _appState = 'starting';
   showScreen('loading'); // 데이터 로딩 중 로딩 화면 표시
   try {
@@ -259,6 +255,7 @@ async function startApp(user) {
     console.error('startApp error:', e);
     _appState = 'idle';
     currentUser = null;
+    // 에러 시 로그인 화면으로
     showScreen('auth');
     loadSavedEmail();
   }
@@ -278,67 +275,38 @@ function resetToAuth() {
 // onAuthStateChange - sb 생성 직후 등록
 sb.auth.onAuthStateChange(async (event, session) => {
   try {
-    console.log('[Auth]', event, session?.user?.email || 'no user');
-
-    if(event === 'INITIAL_SESSION') {
-      _sessionReceived = true;
-      clearTimeout(initTimeout);
-      if(session?.user) {
-        // 세션 있음 → 즉시 앱 시작
-        if(_appState !== 'starting' && _appState !== 'running') {
-          await startApp(session.user);
-        }
-      } else {
-        // 세션 없음 → 로그인 화면 (단, Supabase가 토큰 갱신 중일 수 있으므로 잠깐 대기)
-        // 만료된 세션이 있으면 Supabase가 자동으로 TOKEN_REFRESHED를 보낼 것
-        // 그 전에 auth 화면을 보여주되, TOKEN_REFRESHED가 오면 startApp 호출
-        _appState = 'auth';
-        showScreen('auth');
-        loadSavedEmail();
-      }
-    }
-
+    // SIGNED_IN: 사용자가 직접 로그인 또는 토큰 갱신 완료
     if(event === 'SIGNED_IN') {
-      clearTimeout(initTimeout);
-      _sessionReceived = true;
       if(session?.user) {
         if(_appState === 'running') {
-          currentUser = session.user; // 세션 갱신만
-        } else {
-          // auth 화면에서 로그인하거나 토큰 갱신 후 SIGNED_IN
-          if(_appState !== 'starting') {
-            await startApp(session.user);
-          }
-        }
-      }
-    }
-
-    if(event === 'TOKEN_REFRESHED') {
-      // 만료 세션 갱신 완료 → 앱이 auth 화면이면 startApp 호출
-      if(session?.user) {
-        currentUser = session.user;
-        if(_appState === 'auth' || _appState === 'idle') {
+          currentUser = session.user;
+        } else if(_appState !== 'starting') {
           await startApp(session.user);
         }
       }
     }
-
+    // TOKEN_REFRESHED: 백그라운드 토큰 갱신 (앱 실행 중이면 user만 갱신)
+    if(event === 'TOKEN_REFRESHED' && session?.user) {
+      currentUser = session.user;
+    }
+    // SIGNED_OUT: 로그아웃
     if(event === 'SIGNED_OUT') {
       _appState = 'idle';
       currentUser = null;
     }
-
     if(event === 'PASSWORD_RECOVERY') {
       showScreen('auth');
       authSwitch('newpw', null);
       showAuthError('새 비밀번호를 입력해주세요.', true);
     }
-  } catch(e) { console.warn('authStateChange error:', e); }
+  } catch(e) { console.warn('OAC error:', e); }
 });
 
 function init() {
   initFontSize();
   cleanupLocalStorage();
+
+  // 모달 바깥 클릭 닫기
   let _mdTarget = null;
   document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('mousedown', e => { _mdTarget = e.target; });
@@ -346,35 +314,15 @@ function init() {
       if(e.target === el && _mdTarget === el) el.style.display='none';
     });
   });
-  
-  showScreen('loading');
-  
-  // INITIAL_SESSION이 이미 왔으면 타임아웃 불필요
-  // (OAC가 createClient 직후 등록되어 DOMContentLoaded 전에 INITIAL_SESSION 수신 가능)
-  if(_sessionReceived) {
-    // 이미 처리됨 - 타임아웃 설정 불필요
-  } else {
-    initTimeout = setTimeout(() => {
-      const loadingEl = document.getElementById('screen-loading');
-      if(loadingEl && loadingEl.style.display !== 'none') {
-        _appState = 'auth';
-        showScreen('auth');
-        loadSavedEmail();
-      }
-    }, 10000);
-  }
 
   // 모바일 뒤로가기
   window.addEventListener('popstate', () => {
     const open = [...document.querySelectorAll('.modal-overlay')].find(m => m.style.display !== 'none');
-    if(open) {
-      open.style.display = 'none';
-      history.pushState(null, '', location.href); // 스택 유지
-    }
+    if(open) { open.style.display='none'; history.pushState(null,'',location.href); }
   });
   history.pushState(null, '', location.href);
-  
-  // URL 해시 토큰 처리 
+
+  // URL 해시 토큰 처리 (비밀번호 재설정)
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
     try {
@@ -388,8 +336,31 @@ function init() {
       }
     } catch(e) {}
   }
+
+  // 로딩 화면 표시 후 세션 직접 확인
+  showScreen('loading');
+  _initSession();
 }
 
+async function _initSession() {
+  try {
+    // getSession(): 로컬 세션 즉시 확인 + 만료 시 자동 갱신
+    const { data: { session } } = await sb.auth.getSession();
+    if(session?.user) {
+      await startApp(session.user);
+    } else {
+      // 세션 없음 → 로그인 화면
+      _appState = 'auth';
+      showScreen('auth');
+      loadSavedEmail();
+    }
+  } catch(e) {
+    console.error('initSession error:', e);
+    _appState = 'auth';
+    showScreen('auth');
+    loadSavedEmail();
+  }
+}
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
 
