@@ -463,7 +463,7 @@ async function doLogout() {
     await sb.auth.signOut();
   } catch(e) {
     console.warn('signOut error:', e);
-    localStorage.removeItem('booklog-auth');
+    // 세션 키 삭제 금지 - Supabase가 내부적으로 관리
   }
   resetToAuth();
 }
@@ -1024,7 +1024,7 @@ function renderQuotes() {
         .replace(/(<br\s*\/?>[\s]*){3,}/gi, '<br><br>')
         .replace(/^(<br\s*\/?>\s*)+/gi, '')
         .replace(/(<br\s*\/?>\s*)+$/gi, '');
-        } else {
+    } else {
       // 순수 텍스트: 줄바꿈 태그 → \n → <br>
       text = text
         .replace(/<div><br\s*\/?><\/div>/gi, '\n')
@@ -1140,6 +1140,7 @@ function openEditQuote(qt) {
                 .replace(/<div>/gi,'')
                 .replace(/<\/div>/gi,'<br>')
                 .replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>')
+                .replace(/\n/g,'<br>')
                 .replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>')
                 .replace(/^(<br\s*\/?>\s*)+/,'')
                 .replace(/(<br\s*\/?>\s*)+$/,'');
@@ -2748,7 +2749,26 @@ async function grantInviteCode(quest) {
       const btn = document.createElement('button');
       btn.textContent = '확인';
       btn.style.cssText = 'background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);';
-      btn.onclick = () => { overlay.remove(); resolve(); };
+      btn.onclick = () => {
+        overlay.remove();
+        resolve();
+        // 설정 모달이 열려있으면 초대코드 섹션 갱신
+        const profileModal = document.getElementById('modal-profile');
+        if(profileModal && profileModal.style.display !== 'none') {
+          sb.from('invite_codes').select('*').eq('owner_id', currentUser.id).then(({data}) => {
+            const codeWrap = document.getElementById('profile-invite-codes');
+            if(codeWrap && data) {
+              const available = data.filter(c => !c.used_by);
+              const used = data.filter(c => c.used_by);
+              codeWrap.innerHTML = `<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
+                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
+                  <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
+                + (available.length === 0 ? '<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
+                + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '');
+            }
+          });
+        }
+      };
       box.appendChild(btn);
       overlay.appendChild(box);
       overlay.addEventListener('click', e => { if(e.target===overlay){ overlay.remove(); resolve(); } });
