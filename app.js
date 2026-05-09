@@ -222,20 +222,15 @@ let initTimeout = null;
 
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
+  clearTimeout(initTimeout); // 세션 확인됨 → initTimeout 즉시 취소
   _appState = 'starting';
   try {
     currentUser = user;
-    
-    // 💡 [무한 로딩 방지 1] 데이터 불러오기가 5초 이상 걸리면 강제로 로딩을 끝냅니다.
-    const loadAllTasks = Promise.all([
+    // 데이터 로딩 (타임아웃 없이 완전히 기다림 - 중간에 강제 종료 시 데이터 누락)
+    await Promise.all([
       typeof loadData === 'function' ? loadData().catch(e=>console.warn(e)) : Promise.resolve(),
       typeof loadGoals === 'function' ? loadGoals().catch(e=>console.warn(e)) : Promise.resolve(),
       typeof loadUserRole === 'function' ? loadUserRole().catch(e=>console.warn(e)) : Promise.resolve()
-    ]);
-    
-    await Promise.race([
-      loadAllTasks,
-      new Promise(resolve => setTimeout(resolve, 5000)) 
     ]);
 
     try {
@@ -319,7 +314,7 @@ function init() {
   
   showScreen('loading');
   
-  // 💡 [무한 로딩 방지 2] 3초가 지나도 로딩 화면이면 무조건 로그인 창으로 강제 이동
+  // 10초 내 Supabase INITIAL_SESSION 미도착 시 로그인 화면 표시
   initTimeout = setTimeout(() => {
     const loadingEl = document.getElementById('screen-loading');
     if(loadingEl && loadingEl.style.display !== 'none') {
@@ -1291,172 +1286,246 @@ function moveCal(dir) { calM+=dir; if(calM>11){calM=0;calY++;} if(calM<0){calM=1
 // ── 달력 공유 기능 (Base64 변환 로직 + 모던 빈티지 디자인 적용)
 async function shareCalendar() {
   if(!window.html2canvas) {
-    const sc = document.createElement('script');
-    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    document.head.appendChild(sc);
-    await new Promise(res => sc.onload = res);
+    await new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      sc.onload = res; sc.onerror = rej;
+      document.head.appendChild(sc);
+    });
   }
 
-  const mn = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
-  const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(ymPrefix));
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+  const ymPrefix = calY + '-' + String(calM + 1).padStart(2, '0');
+  const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(ymPrefix))
+    .sort((a, b) => new Date(a.date_finish) - new Date(b.date_finish));
 
-  // ── 표지 이미지를 base64로 변환 (CORS 우회 로직 유지)
-  async function toBase64(url) {
-    if(!url) return '';
-    const tryUrls = [url, url.replace('http://', 'https://')];
-    for(const src of tryUrls) {
-      try {
-        const b64 = await new Promise((res) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          const timer = setTimeout(() => res(''), 3000); 
-          img.onload = () => {
-            clearTimeout(timer);
-            try {
-              const c = document.createElement('canvas');
-              c.width = img.naturalWidth || 80;
-              c.height = img.naturalHeight || 120;
-              c.getContext('2d').drawImage(img, 0, 0);
-              res(c.toDataURL('image/jpeg', 0.85));
-            } catch(e) { res(''); }
-          };
-          img.onerror = () => { clearTimeout(timer); res(''); };
-          img.src = src + (src.includes('?') ? '&' : '?') + '_nc=' + Date.now();
-        });
-        if(b64 && b64.length > 100) return b64;
-      } catch(e) {}
+  // ── 표지 base64 변환 (CORS 우회)
+  async function imgToB64(url) {
+    if (!url) return '';
+    const srcs = [url, url.replace('http://', 'https://')];
+    for (const src of srcs) {
+      const b64 = await new Promise(res => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        const t = setTimeout(() => res(''), 4000);
+        img.onload = () => {
+          clearTimeout(t);
+          try {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth || 60; c.height = img.naturalHeight || 90;
+            c.getContext('2d').drawImage(img, 0, 0);
+            res(c.toDataURL('image/jpeg', 0.85));
+          } catch { res(''); }
+        };
+        img.onerror = () => { clearTimeout(t); res(''); };
+        // cache-bust를 쿼리 대신 Pragma 헤더로는 안 되므로 단순 src
+        img.src = src;
+      });
+      if (b64 && b64.length > 200) return b64;
     }
     return '';
   }
 
-  // 완독 책들의 표지 미리 변환 (병렬 처리)
+  // 완독 책 표지 병렬 변환
   const coverMap = {};
-  await Promise.all(
-    finished.map(async b => {
-      if(b.cover) coverMap[b.id] = await toBase64(b.cover);
-    })
-  );
+  await Promise.all(finished.map(async b => {
+    if (b.cover) coverMap[b.id] = await imgToB64(b.cover);
+  }));
 
-  // ── 모던 빈티지 아이보리 톤 배경 설정
+  // ── 카드 생성
   const card = document.createElement('div');
-  card.style.cssText = 'position:fixed;left:-9999px;width:420px;background:#fdf8f0;border-radius:20px;padding:2.5rem;box-shadow:0 20px 50px rgba(0,0,0,0.1);font-family:"Pretendard","Noto Sans KR",serif;box-sizing:border-box;color:#3a2810;';
+  card.style.cssText = [
+    'position:fixed', 'left:-9999px', 'top:0',
+    'width:420px', 'background:#F5EFE4',
+    'padding:28px 28px 24px',
+    'box-sizing:border-box',
+    'font-family:Georgia,"Noto Serif KR",serif',
+    'color:#2C2016',
+  ].join(';');
 
-  card.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.8rem;border-bottom:2px solid #e8d4a0;padding-bottom:1rem;">
-      <div>
-        <div style="font-family:serif;font-size:2.2rem;font-weight:900;letter-spacing:-0.5px;color:#3a2810;line-height:1;">${calY}. ${mn[calM]}</div>
-        <div style="font-family:sans-serif;font-size:0.75rem;color:#8b6b3a;letter-spacing:2px;margin-top:6px;font-weight:bold;">MONTHLY READING LOG</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:1.4rem;font-weight:800;color:#c4714a;line-height:1;">${finished.length} <span style="font-size:0.7rem;color:#8b6b3a;">BOOKS</span></div>
-        <div style="font-family:sans-serif;font-size:0.6rem;letter-spacing:1px;color:#a08c72;margin-top:4px;font-weight:bold;">COMPLETED</div>
-      </div>
+  // ── 상단 헤더
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;';
+  header.innerHTML = `
+    <div>
+      <div style="font-size:11px;letter-spacing:4px;color:#9A8872;text-transform:uppercase;margin-bottom:4px;">${calY}</div>
+      <div style="font-size:26px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:#2C2016;">${MONTH_NAMES[calM]}</div>
     </div>
-    <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:2rem;"></div>
-  `;
+    <div style="text-align:right;">
+      <div style="font-size:28px;font-weight:700;color:#2C2016;line-height:1;">${finished.length}</div>
+      <div style="font-size:10px;letter-spacing:2px;color:#9A8872;text-transform:uppercase;">books read</div>
+    </div>`;
+  card.appendChild(header);
 
-  const grid = card.querySelector('#share-cal-grid');
-  ['SUN','MON','TUE','WED','THU','FRI','SAT'].forEach((d, i) => {
-    const color = i === 0 ? '#c4714a' : '#a08c72'; // 일요일은 코랄 브라운 포인트
-    grid.innerHTML += `<div style="text-align:center;color:${color};font-weight:bold;font-size:0.65rem;font-family:sans-serif;letter-spacing:1px;padding-bottom:4px;">${d}</div>`;
+  // 헤더 구분선
+  const hr1 = document.createElement('div');
+  hr1.style.cssText = 'border-top:1px solid #C8B99A;margin-bottom:16px;';
+  card.appendChild(hr1);
+
+  // ── 달력 그리드
+  const calWrap = document.createElement('div');
+  calWrap.style.cssText = 'margin-bottom:18px;';
+
+  // 요일
+  const dowRow = document.createElement('div');
+  dowRow.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px;';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d, i) => {
+    const cell = document.createElement('div');
+    cell.style.cssText = `text-align:center;font-size:9px;letter-spacing:1px;color:${i===0?'#A0614E':'#9A8872'};text-transform:uppercase;padding-bottom:4px;`;
+    cell.textContent = d;
+    dowRow.appendChild(cell);
   });
+  calWrap.appendChild(dowRow);
+
+  // 날짜 그리드
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:3px;';
+  calWrap.appendChild(grid);
 
   const firstDay = new Date(calY, calM, 1).getDay();
   const numDays = new Date(calY, calM + 1, 0).getDate();
-  for(let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>';
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === calY && today.getMonth() === calM;
 
-  for(let d = 1; d <= numDays; d++) {
-    const dayPrefix = ymPrefix+'-'+String(d).padStart(2,'0');
-    const dayFinished = finished.filter(b => b.date_finish?.startsWith(dayPrefix));
-
-    if(dayFinished.length > 0) {
-      const book = dayFinished[0];
-      const b64 = coverMap[book.id];
-      const coverStyle = b64
-        ? `background-image:url('${b64}');background-size:cover;background-position:center;`
-        : (book.cover
-          ? `background-image:url('${book.cover}');background-size:cover;background-position:center;`
-          : `background:#e8d4a0;display:flex;justify-content:center;align-items:center;`);
-      const noCoverText = b64 || book.cover ? '' : `<span style="color:#8b6b3a;font-size:0.55rem;font-weight:bold;line-height:1.2;">NO<br>COVER</span>`;
-
-      const el = document.createElement('div');
-      // 그림자와 부드러운 테두리를 가진 책 표지 셀
-      el.style.cssText = `position:relative;aspect-ratio:1/1.3;border-radius:6px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.08);border:1px solid #e8d4a0;${coverStyle}`;
-      el.innerHTML = `
-        ${noCoverText}
-        <div style="position:absolute;top:0;left:0;right:0;height:40%;background:linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%);z-index:1;"></div>
-        <div style="position:absolute;top:4px;right:5px;color:#fff;font-size:0.75rem;font-weight:bold;font-family:sans-serif;text-shadow:0 1px 2px rgba(0,0,0,0.8);z-index:2;">${d}</div>
-      `;
-      grid.appendChild(el);
-    } else {
-      const el = document.createElement('div');
-      // 빈 날짜 셀: 은은한 베이지 톤
-      el.style.cssText = 'aspect-ratio:1/1.3;display:flex;justify-content:center;align-items:flex-start;padding-top:6px;color:#c8b8a0;font-size:0.75rem;font-family:sans-serif;font-weight:bold;background:#fffcf6;border:1px solid #f2e8d5;border-radius:6px;';
-      el.textContent = d;
-      grid.appendChild(el);
-    }
+  for (let i = 0; i < firstDay; i++) {
+    const blank = document.createElement('div');
+    blank.style.cssText = 'aspect-ratio:3/4;';
+    grid.appendChild(blank);
   }
 
-  // ── 완독 리스트 (표지 썸네일 포함)
-  if(finished.length > 0) {
-    const list = document.createElement('div');
-    list.innerHTML = `<div style="font-size:0.85rem;color:#3a2810;font-weight:bold;margin-bottom:1rem;border-left:3px solid #c4714a;padding-left:10px;font-family:serif;">이달의 서재 기록</div>`;
-    
-    finished.slice(0, 6).forEach(b => {
-      const b64 = coverMap[b.id];
-      const imgSrc = b64 || b.cover || '';
-      const thumbEl = imgSrc
-        ? `<img src="${imgSrc}" style="width:26px;height:36px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,0.1); border:1px solid #f2e8d5;">`
-        : `<div style="width:26px;height:36px;background:#e8d4a0;border-radius:3px;flex-shrink:0;"></div>`;
-      
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:8px;border-bottom:1px dashed #e8d4a0;padding-bottom:8px;';
-      row.innerHTML = `
-        ${thumbEl}
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:0.85rem;color:#2e1f0e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold;">${b.title}</div>
-          <div style="font-size:0.65rem;color:#8b6b3a;margin-top:2px;">${b.author?.split(/[,·]/)[0] || ''}</div>
-        </div>
-        ${b.rating ? `<div style="font-size:0.7rem;color:#c4714a;flex-shrink:0;letter-spacing:1px;">${'★'.repeat(b.rating)}</div>` : ''}
-      `;
-      list.appendChild(row);
-    });
-    
-    if(finished.length > 6) {
-      const more = document.createElement('div');
-      more.style.cssText = 'text-align:right;color:#a08c72;font-size:0.7rem;font-weight:bold;margin-top:8px;font-family:sans-serif;';
-      more.textContent = `+ 그 외 ${finished.length - 6}권`;
-      list.appendChild(more);
+  for (let d = 1; d <= numDays; d++) {
+    const dp = ymPrefix + '-' + String(d).padStart(2, '0');
+    const dayBooks = finished.filter(b => b.date_finish?.startsWith(dp));
+    const isToday = isCurrentMonth && today.getDate() === d;
+    const cell = document.createElement('div');
+
+    if (dayBooks.length > 0) {
+      const book = dayBooks[0];
+      const b64 = coverMap[book.id] || book.cover || '';
+      cell.style.cssText = 'aspect-ratio:3/4;border-radius:3px;overflow:hidden;position:relative;box-shadow:1px 2px 6px rgba(0,0,0,0.18);';
+      if (b64) {
+        const img = document.createElement('img');
+        img.src = b64;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+        cell.appendChild(img);
+      } else {
+        // 표지 없음: 어두운 배경 + 제목 첫 글자
+        cell.style.background = '#4A3B2A';
+        const initial = document.createElement('div');
+        initial.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:rgba(255,255,255,.6);font-style:italic;';
+        initial.textContent = book.title.charAt(0);
+        cell.appendChild(initial);
+      }
+      // 날짜 숫자 (좌상단, 투명 오버레이)
+      const dn = document.createElement('div');
+      dn.style.cssText = 'position:absolute;top:2px;left:3px;font-size:8px;color:rgba(255,255,255,.85);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.7);';
+      dn.textContent = d;
+      cell.appendChild(dn);
+      // 여러 권이면 뱃지
+      if (dayBooks.length > 1) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;font-size:7px;border-radius:3px;padding:1px 3px;';
+        badge.textContent = `+${dayBooks.length - 1}`;
+        cell.appendChild(badge);
+      }
+    } else {
+      // 빈 날짜: 종이 질감
+      cell.style.cssText = `aspect-ratio:3/4;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:4px;background:${isToday?'#D4C4A8':'#EDE5D4'};`;
+      const dn = document.createElement('div');
+      dn.style.cssText = `font-size:9px;color:${isToday?'#2C2016':'#B0A090'};font-weight:${isToday?'700':'400'};`;
+      dn.textContent = d;
+      cell.appendChild(dn);
     }
-    card.appendChild(list);
+    grid.appendChild(cell);
+  }
+  card.appendChild(calWrap);
+
+  // ── 구분선
+  const hr2 = document.createElement('div');
+  hr2.style.cssText = 'border-top:1px dashed #C8B99A;margin-bottom:14px;';
+  card.appendChild(hr2);
+
+  // ── 완독 리스트 (표지 썸네일 + 제목 + 저자)
+  if (finished.length > 0) {
+    const listTitle = document.createElement('div');
+    listTitle.style.cssText = 'font-size:9px;letter-spacing:3px;color:#9A8872;text-transform:uppercase;margin-bottom:10px;';
+    listTitle.textContent = 'Reading List';
+    card.appendChild(listTitle);
+
+    const listGrid = document.createElement('div');
+    listGrid.style.cssText = 'display:flex;flex-direction:column;gap:7px;';
+    finished.slice(0, 7).forEach((b, i) => {
+      const b64 = coverMap[b.id] || b.cover || '';
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:9px;';
+
+      // 썸네일
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'width:22px;height:32px;border-radius:2px;overflow:hidden;flex-shrink:0;box-shadow:1px 1px 4px rgba(0,0,0,0.2);background:#4A3B2A;';
+      if (b64) {
+        const ti = document.createElement('img');
+        ti.src = b64;
+        ti.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        thumb.appendChild(ti);
+      }
+      row.appendChild(thumb);
+
+      // 텍스트
+      const txt = document.createElement('div');
+      txt.style.cssText = 'flex:1;min-width:0;';
+      txt.innerHTML = `
+        <div style="font-size:11px;color:#2C2016;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;">${b.title}</div>
+        <div style="font-size:9px;color:#9A8872;margin-top:1px;">${b.author?.split(/[,·]/)[0] || ''}</div>`;
+      row.appendChild(txt);
+
+      // 별점
+      if (b.rating) {
+        const stars = document.createElement('div');
+        stars.style.cssText = 'font-size:9px;color:#A0614E;flex-shrink:0;letter-spacing:1px;';
+        stars.textContent = '★'.repeat(b.rating);
+        row.appendChild(stars);
+      }
+      listGrid.appendChild(row);
+    });
+    if (finished.length > 7) {
+      const more = document.createElement('div');
+      more.style.cssText = 'font-size:9px;color:#9A8872;text-align:right;margin-top:2px;font-style:italic;';
+      more.textContent = `and ${finished.length - 7} more books`;
+      listGrid.appendChild(more);
+    }
+    card.appendChild(listGrid);
   }
 
   // ── 푸터
+  const hr3 = document.createElement('div');
+  hr3.style.cssText = 'border-top:1px solid #C8B99A;margin-top:16px;margin-bottom:10px;';
+  card.appendChild(hr3);
   const footer = document.createElement('div');
-  footer.style.cssText = 'margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e8d4a0;display:flex;justify-content:space-between;align-items:center;';
+  footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
   footer.innerHTML = `
-    <span style="font-size:0.6rem;color:#c8b8a0;letter-spacing:1.5px;font-weight:bold;font-family:sans-serif;">BOOKLOG TRACKER</span>
-    <span style="font-size:0.65rem;color:#a08c72;font-weight:bold;">총 ${allBooks.filter(b=>b.status==='완독').length}권 완독</span>
-  `;
+    <span style="font-size:9px;letter-spacing:3px;color:#B0A090;text-transform:uppercase;">Booklog</span>
+    <span style="font-size:9px;color:#B0A090;">${allBooks.filter(b=>b.status==='완독').length} books in total</span>`;
   card.appendChild(footer);
+
   document.body.appendChild(card);
 
   try {
     const canvas = await html2canvas(card, {
-      scale: 2, // 고해상도
-      backgroundColor: '#fdf8f0',
+      scale: 2.5,
+      backgroundColor: '#F5EFE4',
       useCORS: true,
       allowTaint: true,
       logging: false,
-      imageTimeout: 8000,
+      imageTimeout: 10000,
     });
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
-    a.download = `Booklog_${calY}_${calM+1}.png`;
+    a.download = `Booklog_${calY}_${MONTH_NAMES[calM]}.png`;
     a.click();
-  } catch(err) {
-    console.error(err);
+    await showAlert('달력 이미지가 저장됐어요! 📅');
+  } catch (err) {
+    console.error('shareCalendar:', err);
     showAlert('이미지 저장 중 오류가 발생했습니다.');
   } finally {
     card.remove();
