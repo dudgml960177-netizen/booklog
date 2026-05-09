@@ -226,10 +226,14 @@ async function startApp(user) {
   try {
     currentUser = user;
     // 데이터 로딩 (타임아웃 없이 완전히 기다림 - 중간에 강제 종료 시 데이터 누락)
-    await Promise.all([
-      typeof loadData === 'function' ? loadData().catch(e=>console.warn(e)) : Promise.resolve(),
-      typeof loadGoals === 'function' ? loadGoals().catch(e=>console.warn(e)) : Promise.resolve(),
-      typeof loadUserRole === 'function' ? loadUserRole().catch(e=>console.warn(e)) : Promise.resolve()
+    const _loadTimeout = new Promise(res => setTimeout(res, 15000)); // 15초 최대
+    await Promise.race([
+      Promise.all([
+        typeof loadData === 'function' ? loadData().catch(e=>console.warn(e)) : Promise.resolve(),
+        typeof loadGoals === 'function' ? loadGoals().catch(e=>console.warn(e)) : Promise.resolve(),
+        typeof loadUserRole === 'function' ? loadUserRole().catch(e=>console.warn(e)) : Promise.resolve()
+      ]),
+      _loadTimeout
     ]);
 
     try {
@@ -343,19 +347,20 @@ function init() {
 }
 
 async function _initSession() {
+  // getSession에 타임아웃 적용 (네트워크 지연 대비)
+  const sessionPromise = sb.auth.getSession();
+  const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
   try {
-    // getSession(): 로컬 세션 즉시 확인 + 만료 시 자동 갱신
-    const { data: { session } } = await sb.auth.getSession();
+    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
     if(session?.user) {
       await startApp(session.user);
     } else {
-      // 세션 없음 → 로그인 화면
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
     }
   } catch(e) {
-    console.error('initSession error:', e);
+    // 타임아웃 또는 네트워크 오류 → 로그인 화면
     _appState = 'auth';
     showScreen('auth');
     loadSavedEmail();
@@ -412,7 +417,10 @@ async function doLogin() {
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
     if(error) { showAuthError(error.message); return; }
-    // 로그인 성공 - onAuthStateChange가 자동으로 startApp 호출
+    // 로그인 성공 → 직접 startApp 호출 (OAC 타이밍에 의존하지 않음)
+    if(data?.user) {
+      await startApp(data.user);
+    }
   } catch(e) {
     showAuthError('연결 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
   }
@@ -1288,7 +1296,13 @@ function randomQuoteColor(bookId) {
 function moveCal(dir) { calM+=dir; if(calM>11){calM=0;calY++;} if(calM<0){calM=11;calY--;} renderCal(); }
 
 // ── 달력 공유 기능 (Base64 변환 로직 + 모던 빈티지 디자인 적용)
+let _sharingCalendar = false;
 async function shareCalendar() {
+  if(_sharingCalendar) return;
+  _sharingCalendar = true;
+  const shareBtn = document.querySelector('[onclick="shareCalendar()"]');
+  if(shareBtn) { shareBtn.disabled = true; shareBtn.textContent = '저장 중...'; }
+
   const MONTH_NAMES = ['January','February','March','April','May','June',
     'July','August','September','October','November','December'];
   const ymPrefix = calY + '-' + String(calM+1).padStart(2,'0');
@@ -1296,25 +1310,19 @@ async function shareCalendar() {
     b.status==='완독' && b.date_finish?.startsWith(ymPrefix)
   ).sort((a,b) => new Date(a.date_finish)-new Date(b.date_finish));
 
-  // roundRect 폴리필 (구형 브라우저 대응)
+  // roundRect 폴리필
   if(!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
       r = Math.min(r, w/2, h/2);
-      this.moveTo(x+r, y);
-      this.lineTo(x+w-r, y);
-      this.quadraticCurveTo(x+w, y, x+w, y+r);
-      this.lineTo(x+w, y+h-r);
-      this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
-      this.lineTo(x+r, y+h);
-      this.quadraticCurveTo(x, y+h, x, y+h-r);
-      this.lineTo(x, y+r);
-      this.quadraticCurveTo(x, y, x+r, y);
-      this.closePath();
+      this.moveTo(x+r,y); this.lineTo(x+w-r,y);
+      this.quadraticCurveTo(x+w,y,x+w,y+r); this.lineTo(x+w,y+h-r);
+      this.quadraticCurveTo(x+w,y+h,x+w-r,y+h); this.lineTo(x+r,y+h);
+      this.quadraticCurveTo(x,y+h,x,y+h-r); this.lineTo(x,y+r);
+      this.quadraticCurveTo(x,y,x+r,y); this.closePath();
       return this;
     };
   }
 
-  // 표지 이미지 로드
   async function loadCoverImg(url) {
     if(!url) return null;
     const u = url.replace('http://','https://');
@@ -1334,212 +1342,120 @@ async function shareCalendar() {
     if(b.cover) coverImgs[b.id] = await loadCoverImg(b.cover);
   }));
 
-  const DPR = 2;
-  const W = 440, PAD = 28;
-  const COLS = 7;
-  const CELL_W = Math.floor((W - PAD*2) / COLS);
-  const CELL_H = Math.floor(CELL_W * 1.4);
-  const firstDay = new Date(calY, calM, 1).getDay();
-  const numDays = new Date(calY, calM+1, 0).getDate();
-  const rows = Math.ceil((firstDay + numDays) / 7);
-  const DOW_H = 24, HEADER_H = 90, GAP = 3;
-  const CAL_H = DOW_H + rows * (CELL_H + GAP);
-  const LIST_ROWS = Math.min(finished.length, 7);
-  const LIST_H = LIST_ROWS > 0 ? 30 + LIST_ROWS * 42 : 0;
-  const TOTAL_H = HEADER_H + 20 + CAL_H + 20 + LIST_H + 36;
+  const DPR=2, W=440, PAD=28, COLS=7;
+  const CELL_W = Math.floor((W-PAD*2)/COLS);
+  const CELL_H = Math.floor(CELL_W*1.4);
+  const firstDay = new Date(calY,calM,1).getDay();
+  const numDays = new Date(calY,calM+1,0).getDate();
+  const rows = Math.ceil((firstDay+numDays)/7);
+  const DOW_H=24, GAP=3;
+  const CAL_H = DOW_H + rows*(CELL_H+GAP);
+  const LIST_H = Math.min(finished.length,7)*42 + (finished.length>0?30:0);
+  const TOTAL_H = 90 + 20 + CAL_H + 20 + LIST_H + 36;
 
   const canvas = document.createElement('canvas');
-  canvas.width = W * DPR;
-  canvas.height = TOTAL_H * DPR;
+  canvas.width = W*DPR; canvas.height = TOTAL_H*DPR;
   const cx = canvas.getContext('2d');
-  cx.scale(DPR, DPR);
+  cx.scale(DPR,DPR);
+  cx.fillStyle='#F5EFE4'; cx.fillRect(0,0,W,TOTAL_H);
 
-  // 배경
-  cx.fillStyle = '#F5EFE4';
-  cx.fillRect(0, 0, W, TOTAL_H);
-
-  // 헤더
   let y = PAD;
-  cx.fillStyle = '#9A8872';
-  cx.font = '11px Georgia,serif';
-  cx.fillText(String(calY), PAD, y+11);
-  y += 18;
-  cx.fillStyle = '#2C2016';
-  cx.font = 'bold 30px Georgia,serif';
-  cx.fillText(MONTH_NAMES[calM], PAD, y+28);
-  cx.textAlign = 'right';
-  cx.font = 'bold 30px Georgia,serif';
-  cx.fillText(String(finished.length), W-PAD, y+26);
-  cx.font = '10px Georgia,serif';
-  cx.fillStyle = '#9A8872';
-  cx.fillText('BOOKS READ', W-PAD, y+40);
-  cx.textAlign = 'left';
-  y += 48;
+  cx.fillStyle='#9A8872'; cx.font='11px Georgia,serif';
+  cx.fillText(String(calY),PAD,y+11); y+=18;
+  cx.fillStyle='#2C2016'; cx.font='bold 30px Georgia,serif';
+  cx.fillText(MONTH_NAMES[calM],PAD,y+28);
+  cx.textAlign='right';
+  cx.fillText(String(finished.length),W-PAD,y+26);
+  cx.font='10px Georgia,serif'; cx.fillStyle='#9A8872';
+  cx.fillText('BOOKS READ',W-PAD,y+40);
+  cx.textAlign='left'; y+=48;
+  cx.strokeStyle='#C8B99A'; cx.lineWidth=1;
+  cx.beginPath(); cx.moveTo(PAD,y); cx.lineTo(W-PAD,y); cx.stroke(); y+=16;
 
-  // 헤더 구분선
-  cx.strokeStyle = '#C8B99A';
-  cx.lineWidth = 1;
-  cx.beginPath(); cx.moveTo(PAD, y); cx.lineTo(W-PAD, y); cx.stroke();
-  y += 16;
-
-  // 요일
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d,i) => {
-    cx.fillStyle = i===0 ? '#A0614E' : '#9A8872';
-    cx.font = '9px Georgia,serif';
-    cx.textAlign = 'center';
-    cx.fillText(d, PAD + i*CELL_W + CELL_W/2, y+12);
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d,i)=>{
+    cx.fillStyle=i===0?'#A0614E':'#9A8872';
+    cx.font='9px Georgia,serif'; cx.textAlign='center';
+    cx.fillText(d,PAD+i*CELL_W+CELL_W/2,y+12);
   });
-  y += DOW_H;
+  y+=DOW_H;
 
-  // 달력 셀
-  const today = new Date();
-  const isThisMonth = today.getFullYear()===calY && today.getMonth()===calM;
-
-  for(let d=1; d<=numDays; d++) {
-    const ci = firstDay + d - 1;
-    const col = ci % 7;
-    const row = Math.floor(ci / 7);
-    const xPos = PAD + col * CELL_W;
-    const yPos = y + row * (CELL_H + GAP);
-    const cw = CELL_W - GAP, ch = CELL_H - GAP;
-
-    const dp = ymPrefix+'-'+String(d).padStart(2,'0');
-    const dayBooks = finished.filter(b => b.date_finish?.startsWith(dp));
-    const R = 3;
-
-    cx.beginPath();
-    cx.roundRect(xPos, yPos, cw, ch, R);
-
-    if(dayBooks.length > 0) {
-      const book = dayBooks[0];
-      const img = coverImgs[book.id];
-      if(img) {
-        cx.fillStyle = '#4A3B2A';
-        cx.fill();
-        cx.save();
-        cx.clip();
-        const iw = img.naturalWidth||80, ih = img.naturalHeight||120;
-        const sc = Math.max(cw/iw, ch/ih);
-        try {
-          cx.drawImage(img, xPos+(cw-iw*sc)/2, yPos+(ch-ih*sc)/2, iw*sc, ih*sc);
-        } catch(e) {
-          cx.fillStyle = '#4A3B2A';
-          cx.fillRect(xPos, yPos, cw, ch);
-        }
-        // 날짜 오버레이
-        const g = cx.createLinearGradient(xPos, yPos, xPos, yPos+18);
-        g.addColorStop(0, 'rgba(0,0,0,0.55)');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        cx.fillStyle = g;
-        cx.fillRect(xPos, yPos, cw, 18);
-        cx.restore();
-        cx.fillStyle = 'rgba(255,255,255,0.92)';
-        cx.font = 'bold 8px Georgia,serif';
-        cx.textAlign = 'left';
-        cx.fillText(String(d), xPos+3, yPos+11);
+  const today=new Date();
+  const isThisMonth=today.getFullYear()===calY&&today.getMonth()===calM;
+  for(let d=1;d<=numDays;d++){
+    const ci=firstDay+d-1, col=ci%7, row=Math.floor(ci/7);
+    const xPos=PAD+col*CELL_W, yPos=y+row*(CELL_H+GAP);
+    const cw=CELL_W-GAP, ch=CELL_H-GAP;
+    const dp=ymPrefix+'-'+String(d).padStart(2,'0');
+    const dayBooks=finished.filter(b=>b.date_finish?.startsWith(dp));
+    cx.beginPath(); cx.roundRect(xPos,yPos,cw,ch,3);
+    if(dayBooks.length>0){
+      const book=dayBooks[0], img=coverImgs[book.id];
+      if(img){
+        cx.fillStyle='#4A3B2A'; cx.fill();
+        cx.save(); cx.clip();
+        const iw=img.naturalWidth||80,ih=img.naturalHeight||120;
+        const sc=Math.max(cw/iw,ch/ih);
+        cx.drawImage(img,xPos+(cw-iw*sc)/2,yPos+(ch-ih*sc)/2,iw*sc,ih*sc);
+        const g=cx.createLinearGradient(xPos,yPos,xPos,yPos+18);
+        g.addColorStop(0,'rgba(0,0,0,0.55)'); g.addColorStop(1,'rgba(0,0,0,0)');
+        cx.fillStyle=g; cx.fillRect(xPos,yPos,cw,18); cx.restore();
+        cx.fillStyle='rgba(255,255,255,0.92)'; cx.font='bold 8px Georgia,serif';
+        cx.textAlign='left'; cx.fillText(String(d),xPos+3,yPos+11);
       } else {
-        // 표지 없음 - 다크 배경
-        cx.fillStyle = '#4A3B2A';
-        cx.fill();
-        cx.fillStyle = 'rgba(255,255,255,0.6)';
-        cx.font = 'bold 9px Georgia,serif';
-        cx.textAlign = 'center';
-        cx.fillText(String(d), xPos+cw/2, yPos+14);
-        cx.font = '7px Georgia,serif';
-        cx.fillStyle = 'rgba(255,255,255,0.35)';
-        cx.fillText((book.title||'').slice(0,5), xPos+cw/2, yPos+ch/2+4);
-      }
-      if(dayBooks.length > 1) {
-        cx.fillStyle = 'rgba(0,0,0,0.55)';
-        cx.beginPath(); cx.roundRect(xPos+cw-18, yPos+ch-12, 16, 11, 2); cx.fill();
-        cx.fillStyle = '#fff';
-        cx.font = '7px Georgia,serif';
-        cx.textAlign = 'center';
-        cx.fillText('+'+String(dayBooks.length-1), xPos+cw-10, yPos+ch-4);
+        cx.fillStyle='#4A3B2A'; cx.fill();
+        cx.fillStyle='rgba(255,255,255,0.6)'; cx.font='bold 9px Georgia,serif';
+        cx.textAlign='center'; cx.fillText(String(d),xPos+cw/2,yPos+14);
+        cx.font='7px Georgia,serif'; cx.fillStyle='rgba(255,255,255,0.35)';
+        cx.fillText((book.title||'').slice(0,5),xPos+cw/2,yPos+ch/2+4);
       }
     } else {
-      const isToday = isThisMonth && today.getDate()===d;
-      cx.fillStyle = isToday ? '#D4C4A8' : '#EDE5D4';
-      cx.fill();
-      cx.fillStyle = isToday ? '#2C2016' : '#B0A090';
-      cx.font = (isToday ? 'bold ' : '') + '9px Georgia,serif';
-      cx.textAlign = 'center';
-      cx.fillText(String(d), xPos+cw/2, yPos+13);
+      cx.fillStyle=isThisMonth&&today.getDate()===d?'#D4C4A8':'#EDE5D4'; cx.fill();
+      cx.fillStyle=isThisMonth&&today.getDate()===d?'#2C2016':'#B0A090';
+      cx.font=(isThisMonth&&today.getDate()===d?'bold ':'')+'9px Georgia,serif';
+      cx.textAlign='center'; cx.fillText(String(d),xPos+cw/2,yPos+13);
     }
-    cx.textAlign = 'left';
+    cx.textAlign='left';
   }
-  y += rows * (CELL_H + GAP) + 18;
+  y+=rows*(CELL_H+GAP)+18;
 
-  // 구분선 (dashed)
-  cx.setLineDash([3,4]);
-  cx.strokeStyle = '#C8B99A';
-  cx.lineWidth = 0.8;
-  cx.beginPath(); cx.moveTo(PAD, y); cx.lineTo(W-PAD, y); cx.stroke();
-  cx.setLineDash([]);
-  y += 14;
+  cx.setLineDash([3,4]); cx.strokeStyle='#C8B99A'; cx.lineWidth=0.8;
+  cx.beginPath(); cx.moveTo(PAD,y); cx.lineTo(W-PAD,y); cx.stroke();
+  cx.setLineDash([]); y+=14;
 
-  // 완독 리스트
-  if(finished.length > 0) {
-    cx.fillStyle = '#9A8872';
-    cx.font = '9px Georgia,serif';
-    cx.fillText('READING  LIST', PAD, y+10); // 공백으로 간격 표현 (letterSpacing 대체)
-    y += 20;
-
-    finished.slice(0,7).forEach(b => {
-      const img = coverImgs[b.id];
-      const TW = 22, TH = 32;
-      if(img) {
-        cx.save();
-        cx.beginPath(); cx.roundRect(PAD, y, TW, TH, 2); cx.clip();
-        const iw = img.naturalWidth||60, ih = img.naturalHeight||90;
-        const sc = Math.max(TW/iw, TH/ih);
-        try { cx.drawImage(img, PAD+(TW-iw*sc)/2, y+(TH-ih*sc)/2, iw*sc, ih*sc); }
-        catch(e) { cx.fillStyle='#4A3B2A'; cx.fillRect(PAD,y,TW,TH); }
+  if(finished.length>0){
+    cx.fillStyle='#9A8872'; cx.font='9px Georgia,serif';
+    cx.fillText('READING  LIST',PAD,y+10); y+=20;
+    finished.slice(0,7).forEach(b=>{
+      const img=coverImgs[b.id], TW=22,TH=32;
+      if(img){
+        cx.save(); cx.beginPath(); cx.roundRect(PAD,y,TW,TH,2); cx.clip();
+        const iw=img.naturalWidth||60,ih=img.naturalHeight||90,sc=Math.max(TW/iw,TH/ih);
+        cx.drawImage(img,PAD+(TW-iw*sc)/2,y+(TH-ih*sc)/2,iw*sc,ih*sc);
         cx.restore();
       } else {
-        cx.fillStyle = '#4A3B2A';
-        cx.beginPath(); cx.roundRect(PAD, y, TW, TH, 2); cx.fill();
+        cx.fillStyle='#4A3B2A'; cx.beginPath(); cx.roundRect(PAD,y,TW,TH,2); cx.fill();
       }
-      const tx = PAD+TW+9;
-      cx.fillStyle = '#2C2016';
-      cx.font = 'bold 11px Georgia,serif';
-      const title = (b.title||'').length > 22 ? b.title.slice(0,22)+'…' : (b.title||'');
-      cx.fillText(title, tx, y+12);
-      cx.fillStyle = '#9A8872';
-      cx.font = '9px Georgia,serif';
-      cx.fillText((b.author||'').split(/[,·]/)[0].slice(0,20), tx, y+25);
-      if(b.rating) {
-        cx.fillStyle = '#A0614E';
-        cx.textAlign = 'right';
-        cx.fillText('★'.repeat(b.rating), W-PAD, y+14);
-        cx.textAlign = 'left';
-      }
-      cx.strokeStyle = '#E6DEC8';
-      cx.lineWidth = 0.5;
-      cx.beginPath(); cx.moveTo(PAD, y+TH+5); cx.lineTo(W-PAD, y+TH+5); cx.stroke();
-      y += TH+10;
+      const tx=PAD+TW+9;
+      cx.fillStyle='#2C2016'; cx.font='bold 11px Georgia,serif';
+      cx.fillText(((b.title||'').length>22?b.title.slice(0,22)+'…':b.title)||'',tx,y+12);
+      cx.fillStyle='#9A8872'; cx.font='9px Georgia,serif';
+      cx.fillText((b.author||'').split(/[,·]/)[0].slice(0,20),tx,y+25);
+      if(b.rating){cx.fillStyle='#A0614E';cx.textAlign='right';cx.fillText('★'.repeat(b.rating),W-PAD,y+14);cx.textAlign='left';}
+      cx.strokeStyle='#E6DEC8';cx.lineWidth=0.5;
+      cx.beginPath();cx.moveTo(PAD,y+TH+5);cx.lineTo(W-PAD,y+TH+5);cx.stroke();
+      y+=TH+10;
     });
-    if(finished.length > 7) {
-      cx.fillStyle = '#9A8872';
-      cx.font = 'italic 9px Georgia,serif';
-      cx.textAlign = 'right';
-      cx.fillText('and '+String(finished.length-7)+' more books', W-PAD, y+10);
-      cx.textAlign = 'left';
-    }
+    if(finished.length>7){cx.fillStyle='#9A8872';cx.font='italic 9px Georgia,serif';cx.textAlign='right';cx.fillText('and '+String(finished.length-7)+' more books',W-PAD,y+10);cx.textAlign='left';}
   }
 
-  // 푸터
-  cx.strokeStyle = '#C8B99A';
-  cx.lineWidth = 1;
-  cx.beginPath(); cx.moveTo(PAD, TOTAL_H-26); cx.lineTo(W-PAD, TOTAL_H-26); cx.stroke();
-  cx.fillStyle = '#B0A090';
-  cx.font = '9px Georgia,serif';
-  cx.fillText('BOOKLOG', PAD, TOTAL_H-12);
-  cx.textAlign = 'right';
-  cx.fillText(String(allBooks.filter(b=>b.status==='완독').length)+' books in total', W-PAD, TOTAL_H-12);
-  cx.textAlign = 'left';
+  cx.strokeStyle='#C8B99A';cx.lineWidth=1;
+  cx.beginPath();cx.moveTo(PAD,TOTAL_H-26);cx.lineTo(W-PAD,TOTAL_H-26);cx.stroke();
+  cx.fillStyle='#B0A090';cx.font='9px Georgia,serif';
+  cx.fillText('BOOKLOG',PAD,TOTAL_H-12);
+  cx.textAlign='right';
+  cx.fillText(String(allBooks.filter(b=>b.status==='완독').length)+' books in total',W-PAD,TOTAL_H-12);
+  cx.textAlign='left';
 
-  // 저장
   try {
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
@@ -1549,18 +1465,17 @@ async function shareCalendar() {
     showAlert('달력 이미지가 저장됐어요! 📅');
   } catch(e) {
     canvas.toBlob(blob => {
-      if(blob) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'Booklog_'+calY+'_'+MONTH_NAMES[calM]+'.png';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      if(blob){
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download='Booklog_'+calY+'_'+MONTH_NAMES[calM]+'.png';
+        a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000);
         showAlert('달력 이미지가 저장됐어요! 📅');
-      } else {
-        showAlert('이미지 저장에 실패했어요.');
-      }
+      } else { showAlert('이미지 저장에 실패했어요.'); }
     });
+  } finally {
+    _sharingCalendar = false;
+    if(shareBtn){ shareBtn.disabled=false; shareBtn.textContent='📤 공유'; }
   }
 }
 
