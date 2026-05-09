@@ -1301,6 +1301,7 @@ function randomQuoteColor(bookId) {
 function moveCal(dir) { calM+=dir; if(calM>11){calM=0;calY++;} if(calM<0){calM=11;calY--;} renderCal(); }
 
 // ── 달력 공유 기능 (고급 빈티지 레이아웃)
+// ── 달력 공유 기능 (고급 빈티지 레이아웃 & 책표지 반영)
 async function shareCalendar() {
   if(!window.html2canvas) {
     const sc = document.createElement('script');
@@ -1309,41 +1310,121 @@ async function shareCalendar() {
     await new Promise(res => sc.onload = res);
   }
   const mn = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(calY+'-'+String(calM+1).padStart(2,'0')));
+  const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
+  // 이달에 완독한 책 목록
+  const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(ymPrefix));
 
+  // 1. 이미지를 그릴 숨겨진 캔버스(DOM) 생성
   const card = document.createElement('div');
-  card.style.cssText = 'position:fixed;left:-9999px;width:360px;background:#fdf8f0;border-radius:24px;padding:2rem;box-shadow:0 12px 40px rgba(0,0,0,0.15);font-family:serif;';
+  card.style.cssText = 'position:fixed;left:-9999px;width:380px;background:#fdf8f0;border-radius:24px;padding:2.5rem;box-shadow:0 12px 40px rgba(0,0,0,0.15);font-family:serif;box-sizing:border-size;';
+  
+  // 헤더 부분 (년/월, 통계)
   card.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.5rem;border-bottom:2px solid #e8d4a0;padding-bottom:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.8rem;border-bottom:2px solid #e8d4a0;padding-bottom:1.2rem;">
       <div>
-        <div style="font-size:1.6rem;font-weight:800;color:#3a2810;">${calY}. ${mn[calM]}</div>
-        <div style="font-size:0.7rem;color:#8b6b3a;margin-top:4px;letter-spacing:2px;">MONTHLY READING LOG</div>
+        <div style="font-size:1.8rem;font-weight:800;color:#3a2810;line-height:1;">${calY}. ${mn[calM]}</div>
+        <div style="font-size:0.75rem;color:#8b6b3a;margin-top:6px;letter-spacing:2px;font-weight:bold;">MONTHLY READING LOG</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:0.9rem;font-weight:700;color:#c4714a;">${finished.length} BOOKS</div>
-        <div style="font-size:0.6rem;color:#a08c72;">COMPLETED</div>
+        <div style="font-size:1rem;font-weight:700;color:#c4714a;line-height:1;">${finished.length} BOOKS</div>
+        <div style="font-size:0.65rem;color:#a08c72;font-weight:bold;">COMPLETED</div>
       </div>
     </div>
+    <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:2rem; font-size: 0.8rem;"></div>
   `;
-  const calClone = document.getElementById('cal-grid').cloneNode(true);
-  calClone.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:1.5rem;';
-  card.appendChild(calClone);
+  const grid = card.querySelector('#share-cal-grid');
   
+  // 요일 헤더 렌더링
+  ['SUN','MON','TUE','WED','THU','FRI','SAT'].forEach(d => {
+    grid.innerHTML += `<div style="text-align:center; color:#a08c72; font-weight:bold; padding-bottom: 4px; font-size: 0.65rem; letter-spacing:1px;">${d}</div>`;
+  });
+
+  // 달력 날짜 채우기 로직
+  const firstDay = new Date(calY, calM, 1).getDay();
+  const numDays = new Date(calY, calM + 1, 0).getDate();
+  
+  // 1일 앞의 빈칸
+  for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>'; 
+  
+  // 날짜 칸 생성
+  for (let d = 1; d <= numDays; d++) {
+    const dayPrefix = ymPrefix+'-'+String(d).padStart(2,'0');
+    // 해당 날짜에 끝낸 책들
+    const dayFinished = finished.filter(b => b.date_finish?.startsWith(dayPrefix));
+    
+    let cellContent = '';
+    if (dayFinished.length > 0) {
+      // 💡 오류 수정: 해당 날짜에 완독한 첫 번째 책의 표지를 표시
+      const book = dayFinished[0];
+      // CORS 문제 해결을 위해 crossorigin="anonymous" 추가
+      const cover = book.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />` : 
+                    `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%; background: #e8d4a0; color: #7a4a10; font-size: 0.6rem; font-weight: bold; border-radius: 4px; text-align:center; padding:2px; box-sizing:border-box;">NO<br>COVER</div>`;
+      cellContent = `
+        <div style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:1;">
+          ${cover}
+        </div>
+        <div style="position: absolute; top: 2px; right: 3px; background: rgba(253,248,240,0.85); color: #3a2810; padding: 1px 4px; border-radius: 4px; font-size: 0.7rem; font-weight:bold; z-index:2; font-family:sans-serif;">${d}</div>
+      `;
+    } else {
+      // 책 안 끝낸 날은 숫자만 표시
+      cellContent = `<div style="padding: 4px; color: #8b6b3a; font-family:sans-serif; font-weight:bold;">${d}</div>`;
+    }
+    // 날짜 박스 스타일
+    grid.innerHTML += `<div style="position: relative; aspect-ratio: 1/1; border: 1px solid #e8d4a0; border-radius: 6px; display: flex; align-items: flex-end; justify-content: flex-end; overflow: hidden; background: #fffdf9; box-sizing:border-box;">${cellContent}</div>`;
+  }
+  
+  // 하단 완독 리스트 렌더링 (최대 8권)
   if(finished.length > 0) {
     const list = document.createElement('div');
-    list.innerHTML = `<div style="font-size:0.7rem;color:#8b6b3a;font-weight:bold;margin-bottom:0.8rem;border-left:3px solid #c4714a;padding-left:8px;">이달의 서재</div>`;
-    finished.slice(0, 6).forEach(b => {
+    list.innerHTML = `<div style="font-size:0.8rem;color:#3a2810;font-weight:bold;margin-bottom:1rem;border-left:3px solid #c4714a;padding-left:10px;font-family:serif;">이달의 서재 기록</div>`;
+    
+    // 리스트에도 책 표지 조그맣게 추가
+    finished.slice(0, 8).forEach(b => { 
       const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:0.8rem;color:#2e1f0e;';
-      item.innerHTML = `<div style="width:10px;height:10px;background:#c4714a;border-radius:2px;"></div><div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</div>`;
+      item.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:0.85rem;color:#2e1f0e; border-bottom: 1px solid #f0e6d2; padding-bottom:6px;';
+      const cover = b.cover ? `<img src="${b.cover}" crossorigin="anonymous" style="width: 20px; height: 28px; object-fit: cover; border-radius: 2px;" />` : `<div style="width: 20px; height: 28px; background: #e8d4a0; border-radius: 2px;"></div>`;
+      item.innerHTML = `${cover}<div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold;">${b.title}</div>`;
       list.appendChild(item);
     });
+    // 8권 넘어가면 생략 표시
+    if(finished.length > 8) {
+        list.innerHTML += `<div style="text-align:center; color:#a08c72; font-size:0.8rem; margin-top:5px;">... 외 ${finished.length - 8}권</div>`;
+    }
     card.appendChild(list);
   }
+
+  // 풋터 추가
+  const footer = document.createElement('div');
+  footer.style.cssText = 'margin-top:2rem; text-align:center; font-size:0.65rem; color:#b0a080; border-top:1px solid #e8d4a0; padding-top:1rem; letter-spacing:1px;';
+  footer.innerHTML = 'GENERATED BY BOOKLOG';
+  card.appendChild(footer);
+
+  // 2. 화면에 임시로 붙임 (html2canvas가 인식하기 위해)
   document.body.appendChild(card);
-  const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#fdf8f0' });
-  const a = document.createElement('a'); a.href = canvas.toDataURL(); a.download = `ReadingLog_${calY}_${calM+1}.png`; a.click();
-  card.remove();
+
+  try {
+    // 3. html2canvas로 DOM을 캔버스로 변환
+    // useCORS: true 옵션이 외부 이미지(책표지) 로딩에 핵심입니다.
+    const canvas = await html2canvas(card, { 
+        scale: 2, // 고해상도
+        backgroundColor: '#fdf8f0', 
+        useCORS: true, // CORS 허용 이미지 로드
+        logging: false,
+        borderRadius: 24
+    });
+
+    // 4. 이미지 다운로드
+    const a = document.createElement('a'); 
+    a.href = canvas.toDataURL('image/png'); 
+    a.download = `ReadingLog_${calY}_${calM+1}.png`; 
+    a.click();
+  } catch (err) {
+      console.error('달력 이미지 저장 실패:', err);
+      showAlert('이미지 저장에 실패했습니다. 책 표지 이미지 불러오기 문제일 수 있습니다.');
+  } finally {
+      // 5. 임시 DOM 제거
+      card.remove();
+  }
 }
 
 function renderCal() {
@@ -1681,7 +1762,7 @@ function buildTimerBookList() {
 
 // 퀘스트 정의
 // condition(allBooks, profile): boolean — 달성 여부 판정
-// ── 빈티지 퀘스트 전리품 디자인 (전체 42개 생략 없음)
+// ── 빈티지 퀘스트 전리품 디자인
 const QUESTS = [
   // ── 0. 시초의 독자
   {
@@ -1697,7 +1778,7 @@ const QUESTS = [
     reward: {
       title: '북로그의 시초',
       item: '🗝️',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_pio" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#E8C37B"/><stop offset="100%" stop-color="#8B6508"/></linearGradient><filter id="s_pio"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#3E2723" flood-opacity="0.6"/></filter></defs><g filter="url(#s_pio)"><path d="M16 4C11.58 4 8 7.58 8 12c0 3.86 2.73 7.08 6.36 7.84V24l3 3 3-3v-1.5l1.5-1.5V19.84C25.27 19.08 28 15.86 28 12c0-4.42-3.58-8-8-8zm0 11c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" fill="url(#g_pio)" stroke="#5C4033" stroke-width="0.5"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_pio" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#E8C37B"/><stop offset="100%" stop-color="#8B6508"/></linearGradient><filter id="s_pio"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#3E2723" flood-opacity="0.6"/></filter></defs><g filter="url(#s_pio)"><path d="M16 4C11.58 4 8 7.58 8 12c0 3.86 2.73 7.08 6.36 7.84V24l3 3 3-3v-1.5l1.5-1.5V19.84C25.27 19.08 28 15.86 28 12c0-4.42-3.58-8-8-8zm0 11c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z" fill="url(#g_pio)" stroke="#5C4033" stroke-width="0.5"/></g></svg>`,
       itemName: '시초의 황금 열쇠',
       itemDesc: '북로그의 문을 처음 연 독자에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1714,7 +1795,7 @@ const QUESTS = [
     reward: {
       title: '📚 돌아온 독서가',
       item: '📕',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_ret" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#641E16"/><stop offset="100%" stop-color="#3B110B"/></linearGradient><filter id="s_ret"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#1A0500" flood-opacity="0.7"/></filter></defs><g filter="url(#s_ret)"><rect x="6" y="4" width="20" height="24" rx="2" fill="url(#g_ret)" stroke="#D4AF37" stroke-width="1.5"/><rect x="8" y="4" width="4" height="24" fill="#4A150D"/><path d="M14 10h6M14 14h6M14 18h4" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="8" r="1" fill="#D4AF37"/><circle cx="10" cy="24" r="1" fill="#D4AF37"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_ret" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#641E16"/><stop offset="100%" stop-color="#3B110B"/></linearGradient><filter id="s_ret"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#1A0500" flood-opacity="0.7"/></filter></defs><g filter="url(#s_ret)"><rect x="6" y="4" width="20" height="24" rx="2" fill="url(#g_ret)" stroke="#D4AF37" stroke-width="1.5"/><rect x="8" y="4" width="4" height="24" fill="#4A150D"/><path d="M14 10h6M14 14h6M14 18h4" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="8" r="1" fill="#D4AF37"/><circle cx="10" cy="24" r="1" fill="#D4AF37"/></g></svg>`,
       itemName: '전설의 고서',
       itemDesc: '다른 앱에서 100권을 가져온 독서 고수에게',
       color: '#8B3A3A', bg: '#fdf5f5', border: '#e8c8c8',
@@ -1731,7 +1812,7 @@ const QUESTS = [
     reward: {
       title: '📑 활자 중독자',
       item: '🔖',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_bw30" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#A0522D"/><stop offset="100%" stop-color="#5C4033"/></linearGradient><filter id="s_bw30"><feDropShadow dx="1" dy="1.5" stdDeviation="1" flood-color="#271300" flood-opacity="0.6"/></filter></defs><g filter="url(#s_bw30)"><path d="M10 2h12v24l-6-4-6 4V2z" fill="url(#g_bw30)" stroke="#3E2723" stroke-width="1"/><path d="M13 6h6M13 10h6M13 14h4" stroke="#DEB887" stroke-width="1.5" stroke-linecap="round"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_bw30" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#A0522D"/><stop offset="100%" stop-color="#5C4033"/></linearGradient><filter id="s_bw30"><feDropShadow dx="1" dy="1.5" stdDeviation="1" flood-color="#271300" flood-opacity="0.6"/></filter></defs><g filter="url(#s_bw30)"><path d="M10 2h12v24l-6-4-6 4V2z" fill="url(#g_bw30)" stroke="#3E2723" stroke-width="1"/><path d="M13 6h6M13 10h6M13 14h4" stroke="#DEB887" stroke-width="1.5" stroke-linecap="round"/></g></svg>`,
       itemName: '마호가니 책갈피',
       itemDesc: '북로그에서 30권을 완독한 독서 중독자에게',
       color: '#6B4A20', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1756,14 +1837,14 @@ const QUESTS = [
     reward: {
       title: '🧹 관상용 수집가',
       item: '🪣',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_dust" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#DEB887"/><stop offset="100%" stop-color="#8B4513"/></linearGradient><filter id="s_dust"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.5"/></filter></defs><g filter="url(#s_dust)"><path d="M16 28L12 12h8l-4 16z" fill="#5C4033"/><ellipse cx="16" cy="10" rx="8" ry="6" fill="url(#g_dust)"/><path d="M12 8q4-6 8 0" stroke="url(#g_dust)" stroke-width="2" fill="none"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_dust" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#DEB887"/><stop offset="100%" stop-color="#8B4513"/></linearGradient><filter id="s_dust"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.5"/></filter></defs><g filter="url(#s_dust)"><path d="M16 28L12 12h8l-4 16z" fill="#5C4033"/><ellipse cx="16" cy="10" rx="8" ry="6" fill="url(#g_dust)"/><path d="M12 8q4-6 8 0" stroke="url(#g_dust)" stroke-width="2" fill="none"/></g></svg>`,
       itemName: '엔틱 먼지떨이',
       itemDesc: '30일 동안 묵혀둔 책을 드디어 펼친 수집가에게',
       color: '#9a7a50', bg: '#fdf8f0', border: '#e8d4b0',
     }
   },
 
-  // ── 4. 활자 좀비
+  // ── 4. 활자 좀비 (디자인 재설계)
   {
     id: 'dawn_reader',
     name: '활자 좀비',
@@ -1776,7 +1857,7 @@ const QUESTS = [
     reward: {
       title: '🧟 활자 좀비',
       item: '👁️',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_zom" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#A52A2A"/><stop offset="100%" stop-color="#3E2723"/></radialGradient><filter id="s_zom"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.6"/></filter></defs><g filter="url(#s_zom)"><path d="M16 8C8 8 2 16 2 16s6 8 14 8 14-8 14-8-6-8-14-8zm0 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" fill="#F5F5DC" stroke="#8B0000" stroke-width="1"/><circle cx="16" cy="16" r="4" fill="url(#g_zom)"/><circle cx="16" cy="16" r="1.5" fill="#111"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_potion_l" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#DC143C"/><stop offset="100%" stop-color="#8B0000"/></linearGradient><filter id="s_potion_b"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.6"/></filter></defs><g filter="url(#s_potion_b)"><path d="M12 4h8v6l5 9v11a2 2 0 01-2 2H9a2 2 0 01-2-2V19l5-9V4z" fill="url(#g_potion_l)" stroke="#DAA520" stroke-width="1.5"/><rect x="12" y="4" width="8" height="5" fill="#8B4513"/><path d="M12 19s4-6 8 0 M9 23s4-6 8 0" stroke="#DAA520" stroke-width="1.2" opacity="0.6"/><path d="M16 11l-2 3h4z" fill="#D2691E"/><rect x="9" y="16" width="14" height="6" rx="2" fill="#F5DEB3" opacity="0.8"/><path d="M10 18h12M10 20h6" stroke="#8B0000" stroke-width="0.8"/></g></svg>`,
       itemName: '피로회복 포션',
       itemDesc: '새벽에도 책을 놓지 않는 활자 좀비에게',
       color: '#cc2222', bg: '#fff5f5', border: '#ffcccc',
@@ -1796,7 +1877,7 @@ const QUESTS = [
     reward: {
       title: '💪 의지의 독서인',
       item: '🪢',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_rope" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#D2B48C"/><stop offset="100%" stop-color="#8B4513"/></linearGradient><filter id="s_rope"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.6"/></filter></defs><g filter="url(#s_rope)"><path d="M8 8c8-8 16 8 16 8s8-16 0-8-16 8-16 8z" fill="none" stroke="url(#g_rope)" stroke-width="4" stroke-linecap="round"/><path d="M12 16c4 8 8 0 8 0" fill="none" stroke="#5C4033" stroke-width="1.5"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_rope" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#D2B48C"/><stop offset="100%" stop-color="#8B4513"/></linearGradient><filter id="s_rope"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.6"/></filter></defs><g filter="url(#s_rope)"><path d="M8 8c8-8 16 8 16 8s8-16 0-8-16 8-16 8z" fill="none" stroke="url(#g_rope)" stroke-width="4" stroke-linecap="round"/><path d="M12 16c4 8 8 0 8 0" fill="none" stroke="#5C4033" stroke-width="1.5"/></g></svg>`,
       itemName: '질긴 마죽밧줄',
       itemDesc: '북로그를 3일 연속으로 방문한 의지의 독서인에게',
       color: '#8B6B3A', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1817,7 +1898,7 @@ const QUESTS = [
     reward: {
       title: '⚙️ 독서 기계',
       item: '🍡',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_gear" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#E8C37B"/><stop offset="100%" stop-color="#B8860B"/></radialGradient><filter id="s_gear"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#222" flood-opacity="0.7"/></filter></defs><g filter="url(#s_gear)"><path d="M16 2l2 4h-4l2-4zm10 4l-2 3-3-3 5-3v3zm4 10l-4 2v-4l4 2zm-4 10l-3-2 3-3 3 5h-3zm-10 4l-2-4h4l-2 4zm-10-4l2-3 3 3-5 3v-3zm-4-10l4-2v4l-4-2zm4-10l3 2-3 3-3-5h3z" fill="url(#g_gear)"/><circle cx="16" cy="16" r="8" fill="url(#g_gear)" stroke="#5C4033" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="#3E2723"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_gear" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#E8C37B"/><stop offset="100%" stop-color="#B8860B"/></radialGradient><filter id="s_gear"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#222" flood-opacity="0.7"/></filter></defs><g filter="url(#s_gear)"><path d="M16 2l2 4h-4l2-4zm10 4l-2 3-3-3 5-3v3zm4 10l-4 2v-4l4 2zm-4 10l-3-2 3-3 3 5h-3zm-10 4l-2-4h4l-2 4zm-10-4l2-3 3 3-5 3v-3zm-4-10l4-2v4l-4-2zm4-10l3 2-3 3-3-5h3z" fill="url(#g_gear)"/><circle cx="16" cy="16" r="8" fill="url(#g_gear)" stroke="#5C4033" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="#3E2723"/></g></svg>`,
       itemName: '태엽 장치',
       itemDesc: '북로그 100일 연속 방문 달성! 뇌세포들이 경례합니다.',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1837,7 +1918,7 @@ const QUESTS = [
     reward: {
       title: '🛋️ 방구석 현자',
       item: '🛋️',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_sofa" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8B4513"/><stop offset="100%" stop-color="#3E2723"/></linearGradient><filter id="s_sofa"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-opacity="0.6"/></filter></defs><g filter="url(#s_sofa)"><rect x="4" y="14" width="24" height="10" rx="3" fill="url(#g_sofa)" stroke="#1A0500" stroke-width="1"/><path d="M4 14C4 8 8 8 8 8h16s4 0 4 6" fill="url(#g_sofa)" stroke="#1A0500" stroke-width="1"/><rect x="8" y="14" width="16" height="6" rx="2" fill="#A0522D"/><line x1="8" y1="24" x2="8" y2="28" stroke="#3E2723" stroke-width="3"/><line x1="24" y1="24" x2="24" y2="28" stroke="#3E2723" stroke-width="3"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_sofa" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8B4513"/><stop offset="100%" stop-color="#3E2723"/></linearGradient><filter id="s_sofa"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-opacity="0.6"/></filter></defs><g filter="url(#s_sofa)"><rect x="4" y="14" width="24" height="10" rx="3" fill="url(#g_sofa)" stroke="#1A0500" stroke-width="1"/><path d="M4 14C4 8 8 8 8 8h16s4 0 4 6" fill="url(#g_sofa)" stroke="#1A0500" stroke-width="1"/><rect x="8" y="14" width="16" height="6" rx="2" fill="#A0522D"/><line x1="8" y1="24" x2="8" y2="28" stroke="#3E2723" stroke-width="3"/><line x1="24" y1="24" x2="24" y2="28" stroke="#3E2723" stroke-width="3"/></g></svg>`,
       itemName: '고급 가죽 소파',
       itemDesc: '4주 연속 주말을 책과 함께한 방구석 현자에게',
       color: '#7a5a40', bg: '#fdf8f4', border: '#e8d0b8',
@@ -1849,12 +1930,12 @@ const QUESTS = [
     id: 'brick_buster',
     name: '벽돌 격파왕',
     hint: '과연 이 책의 운명은?',
-    desc: '이 벽돌을 부수다니! 당신의 손목 건강이 걱정될 정도입니다.',
+    desc: '라면 받침대는 아니네요! 이 벽돌을 부수다니! 당신의 손목 건강이 걱정될 정도입니다.',
     condition: (books) => books.some(b => b.status === '완독' && (b.pages || 0) >= 500),
     reward: {
       title: '🧱 벽돌 격파왕',
       item: '🧱',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_brick" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#BDB76B"/><stop offset="100%" stop-color="#8B864E"/></linearGradient><filter id="s_brick"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#4A4A4A" flood-opacity="0.8"/></filter></defs><g filter="url(#s_brick)"><rect x="4" y="8" width="24" height="16" rx="1" fill="url(#g_brick)" stroke="#555" stroke-width="1"/><path d="M4 16h24M12 8v8M20 8v8M8 16v8M16 16v8M24 16v8" stroke="#555" stroke-width="1"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_brick" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#BDB76B"/><stop offset="100%" stop-color="#8B864E"/></linearGradient><filter id="s_brick"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#4A4A4A" flood-opacity="0.8"/></filter></defs><g filter="url(#s_brick)"><rect x="4" y="8" width="24" height="16" rx="1" fill="url(#g_brick)" stroke="#555" stroke-width="1"/><path d="M4 16h24M12 8v8M20 8v8M8 16v8M16 16v8M24 16v8" stroke="#555" stroke-width="1"/></g></svg>`,
       itemName: '고대 석판',
       itemDesc: '500페이지 이상의 두꺼운 책을 완독한 격파왕에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
@@ -1874,7 +1955,7 @@ const QUESTS = [
     reward: {
       title: '🌃 밤샘 독서가',
       item: '👁️‍🗨️',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_owl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#696969"/><stop offset="100%" stop-color="#2F4F4F"/></linearGradient><filter id="s_owl"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.8"/></filter></defs><g filter="url(#s_owl)"><path d="M8 24C8 12 12 4 16 4s8 8 8 20z" fill="url(#g_owl)"/><circle cx="12" cy="14" r="3" fill="#FFD700"/><circle cx="20" cy="14" r="3" fill="#FFD700"/><circle cx="12" cy="14" r="1" fill="#000"/><circle cx="20" cy="14" r="1" fill="#000"/><path d="M16 16l-1 3h2z" fill="#D2691E"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_owl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#696969"/><stop offset="100%" stop-color="#2F4F4F"/></linearGradient><filter id="s_owl"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.8"/></filter></defs><g filter="url(#s_owl)"><path d="M8 24C8 12 12 4 16 4s8 8 8 20z" fill="url(#g_owl)"/><circle cx="12" cy="14" r="3" fill="#FFD700"/><circle cx="20" cy="14" r="3" fill="#FFD700"/><circle cx="12" cy="14" r="1" fill="#000"/><circle cx="20" cy="14" r="1" fill="#000"/><path d="M16 16l-1 3h2z" fill="#D2691E"/></g></svg>`,
       itemName: '올빼미 조각상',
       itemDesc: '밤새 책을 읽고 해를 맞이한 밤샘 독서가에게',
       color: '#7760a0', bg: '#f8f5ff', border: '#d8ccee',
@@ -1891,6 +1972,7 @@ const QUESTS = [
       const done = books.filter(b => b.status === '완독' && b.date_finish && b.source !== 'import')
         .sort((a,b) => new Date(a.date_finish) - new Date(b.date_finish));
       if(done.length < 10) return false;
+      // 연속 완독: 완독일 기준 30일 내에 10권
       for(let i = 0; i <= done.length - 10; i++) {
         const start = new Date(done[i].date_finish);
         const end = new Date(done[i+9].date_finish);
@@ -1901,7 +1983,7 @@ const QUESTS = [
     reward: {
       title: '🚂 활자폭주족',
       item: '🚂',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_train" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#4A4A4A"/><stop offset="100%" stop-color="#1A1A1A"/></linearGradient><filter id="s_train"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/></filter></defs><g filter="url(#s_train)"><rect x="6" y="14" width="16" height="10" fill="url(#g_train)"/><rect x="18" y="8" width="6" height="16" fill="#8B4513"/><rect x="8" y="10" width="4" height="4" fill="#D4AF37"/><circle cx="10" cy="24" r="3" fill="#D4AF37"/><circle cx="18" cy="24" r="3" fill="#D4AF37"/><circle cx="24" cy="24" r="2" fill="#D4AF37"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_train" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#4A4A4A"/><stop offset="100%" stop-color="#1A1A1A"/></linearGradient><filter id="s_train"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#000" flood-opacity="0.6"/></filter></defs><g filter="url(#s_train)"><rect x="6" y="14" width="16" height="10" fill="url(#g_train)"/><rect x="18" y="8" width="6" height="16" fill="#8B4513"/><rect x="8" y="10" width="4" height="4" fill="#D4AF37"/><circle cx="10" cy="24" r="3" fill="#D4AF37"/><circle cx="18" cy="24" r="3" fill="#D4AF37"/><circle cx="24" cy="24" r="2" fill="#D4AF37"/></g></svg>`,
       itemName: '황동 증기기관차',
       itemDesc: '30일 내 10권을 연달아 완독한 폭주기관차에게',
       color: '#5a5a7a', bg: '#f5f5ff', border: '#c8c8e8',
@@ -1920,7 +2002,7 @@ const QUESTS = [
     reward: {
       title: '✂️ 프로 하차러',
       item: '🔖',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_quit" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F5DEB3"/><stop offset="100%" stop-color="#D2B48C"/></linearGradient><filter id="s_quit"><feDropShadow dx="1" dy="1.5" stdDeviation="1" flood-color="#8B4513" flood-opacity="0.5"/></filter></defs><g filter="url(#s_quit)"><path d="M10 4h12v20l-6-4-6 4V4z" fill="url(#g_quit)" stroke="#8B4513" stroke-width="1"/><path d="M8 14l16-4M8 16l16-4" stroke="#8B0000" stroke-width="1.5"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_quit" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F5DEB3"/><stop offset="100%" stop-color="#D2B48C"/></linearGradient><filter id="s_quit"><feDropShadow dx="1" dy="1.5" stdDeviation="1" flood-color="#8B4513" flood-opacity="0.5"/></filter></defs><g filter="url(#s_quit)"><path d="M10 4h12v20l-6-4-6 4V4z" fill="url(#g_quit)" stroke="#8B4513" stroke-width="1"/><path d="M8 14l16-4M8 16l16-4" stroke="#8B0000" stroke-width="1.5"/></g></svg>`,
       itemName: '찢어진 양피지',
       itemDesc: '5분 만에 과감하게 하차를 결정한 결단력의 소유자에게',
       color: '#6B4A20', bg: '#fdf8f0', border: '#e8d4a0',
@@ -1938,7 +2020,7 @@ const QUESTS = [
     reward: {
       title: '👑 활자의 신',
       item: '👑',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_god" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD700"/><stop offset="100%" stop-color="#DAA520"/></linearGradient><filter id="s_god"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#8B6508" flood-opacity="0.7"/></filter></defs><g filter="url(#s_god)"><path d="M4 24l2-14 6 6 4-10 4 10 6-6 2 14H4z" fill="url(#g_god)" stroke="#8B6508" stroke-width="1"/><circle cx="6" cy="10" r="2" fill="#DC143C"/><circle cx="16" cy="6" r="2" fill="#4169E1"/><circle cx="26" cy="10" r="2" fill="#2E8B57"/><rect x="4" y="25" width="24" height="3" fill="#B8860B"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_god" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD700"/><stop offset="100%" stop-color="#DAA520"/></linearGradient><filter id="s_god"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#8B6508" flood-opacity="0.7"/></filter></defs><g filter="url(#s_god)"><path d="M4 24l2-14 6 6 4-10 4 10 6-6 2 14H4z" fill="url(#g_god)" stroke="#8B6508" stroke-width="1"/><circle cx="6" cy="10" r="2" fill="#DC143C"/><circle cx="16" cy="6" r="2" fill="#4169E1"/><circle cx="26" cy="10" r="2" fill="#2E8B57"/><rect x="4" y="25" width="24" height="3" fill="#B8860B"/></g></svg>`,
       itemName: '보석 왕관',
       itemDesc: '총 1,000권을 기록한 걸어다니는 도서관에게',
       color: '#c8a050', bg: '#fdf8e8', border: '#e8d490',
@@ -2003,6 +2085,7 @@ const QUESTS = [
     hint: '질리지 않으세요? 이 정도면 책이랑 연애하는 겁니다.',
     desc: '진정한 팬심! 책의 모든 구절이 당신의 피와 살이 되었습니다.',
     condition: (books) => {
+      // 같은 제목 책이 5번 이상 완독
       const titleCount = {};
       books.filter(b => b.status === '완독').forEach(b => {
         titleCount[b.title] = (titleCount[b.title] || 0) + 1;
@@ -2043,7 +2126,7 @@ const QUESTS = [
   {
     id: 'commenter',
     name: '프로 참견러',
-    hint: '남의 이야기에 훈수 좀 두시겠습니까?',
+    hint: '남의 이야기에 훈수 좀 두시겠습니까? 친절하게요!',
     desc: '독서계의 오지랖 대장! 당신 덕분에 북로그가 시끌벅적합니다.',
     hasInvite: true,
     condition: (books, profile, extra) => (extra?.commentCount || 0) >= 30,
@@ -2157,7 +2240,7 @@ const QUESTS = [
     }
   },
 
-  // ── 24. 독서 중독가
+  // ── 24. 독서 중독가 (30권 완독 -> 50권 완독) + 초대권
   {
     id: 'bookworm50',
     name: '독서 중독가',
@@ -2169,7 +2252,7 @@ const QUESTS = [
       title: '🥇 독서 중독가',
       item: '🔖',
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_goldbm" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD700"/><stop offset="100%" stop-color="#B8860B"/></linearGradient><filter id="s_goldbm"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#8B6508" flood-opacity="0.7"/></filter></defs><g filter="url(#s_goldbm)"><path d="M10 2h12v26l-6-5-6 5V2z" fill="url(#g_goldbm)" stroke="#8B6508" stroke-width="1"/><circle cx="16" cy="8" r="3" fill="#FFF"/><text x="16" y="10" text-anchor="middle" font-size="6" fill="#B8860B" font-family="serif">50</text></g></svg>`,
-      itemName: '순금 책갈피',
+      itemName: '금색 책갈피',
       itemDesc: '북로그에서 50권을 완독한 독서 중독가에게',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
     }
@@ -2239,7 +2322,7 @@ const QUESTS = [
     }
   },
 
-  // ── 29. 시간 투자자
+  // ── 29. 시간 투자자 (연 100시간)
   {
     id: 'time_investor',
     name: '시간 투자자',
@@ -2265,7 +2348,7 @@ const QUESTS = [
     }
   },
 
-  // ── 30. 야간 개장 독서가
+  // ── 30. 야간 개장 독서가 (새벽 10회)
   {
     id: 'night_reader',
     name: '야간 개장 독서가',
@@ -2280,7 +2363,7 @@ const QUESTS = [
     }
   },
 
-  // ── 31. 공감 수집가
+  // ── 31. 공감 수집가 (게시글 좋아요 20개) + 초대권
   {
     id: 'like_collector',
     name: '공감 수집가',
@@ -2296,7 +2379,7 @@ const QUESTS = [
     }
   },
 
-  // ── 32. 장르 연구가
+  // ── 32. 장르 연구가 (같은 장르 20권)
   {
     id: 'genre_expert',
     name: '장르 연구가',
@@ -2315,7 +2398,7 @@ const QUESTS = [
     }
   },
 
-  // ── 33. 잡식성 독자
+  // ── 33. 잡식성 독자 (다른 장르 10개)
   {
     id: 'omnivore_reader',
     name: '잡식성 독자',
@@ -2333,7 +2416,7 @@ const QUESTS = [
     }
   },
 
-  // ── 34. 따뜻한 평론가
+  // ── 34. 따뜻한 평론가 (연 평점 평균 4점+)
   {
     id: 'warm_critic',
     name: '따뜻한 평론가',
@@ -2353,7 +2436,7 @@ const QUESTS = [
     }
   },
 
-  // ── 35. 기록 세공사
+  // ── 35. 기록 세공사 (수정 30회)
   {
     id: 'record_editor',
     name: '기록 세공사',
@@ -2368,7 +2451,7 @@ const QUESTS = [
     }
   },
 
-  // ── 36. 상시 접속자
+  // ── 36. 상시 접속자 (알림 100회) + 초대권
   {
     id: 'always_on',
     name: '상시 접속자',
@@ -2384,7 +2467,7 @@ const QUESTS = [
     }
   },
 
-  // ── 37. 상주 독서인
+  // ── 37. 상주 독서인 (하루 10회) + 초대권
   {
     id: 'resident_reader',
     name: '상주 독서인',
@@ -2400,7 +2483,7 @@ const QUESTS = [
     }
   },
 
-  // ── 38. 마지막 장의 수호자
+  // ── 38. 마지막 장의 수호자 (디자인 재설계)
   {
     id: 'finisher',
     name: '마지막 장의 수호자',
@@ -2409,13 +2492,13 @@ const QUESTS = [
     condition: (books) => parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
     reward: {
       title: '🏁 마지막 장의 수호자', item: '✅',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_stamp" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#2E8B57"/><stop offset="100%" stop-color="#006400"/></radialGradient><filter id="s_stamp"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.5"/></filter></defs><g filter="url(#s_stamp)"><circle cx="16" cy="16" r="12" fill="none" stroke="url(#g_stamp)" stroke-width="3"/><path d="M10 16l4 4 8-8" fill="none" stroke="url(#g_stamp)" stroke-width="3" stroke-linecap="round"/></g></svg>`,
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_wax_p" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1A601A"/><stop offset="100%" stop-color="#3E0000"/></radialGradient><filter id="s_wax_p"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#000" flood-opacity="0.5"/></filter></defs><g filter="url(#s_wax_p)"><circle cx="16" cy="16" r="12" fill="url(#g_wax_p)" stroke="#4A0000" stroke-width="1.5"/><path d="M12 16a2 2 0 11-4 0 2 2 0 014 0zm12 0a2 2 0 11-4 0 2 2 0 014 0zm-8 0c-2-4-6 0-6 0s4 4 6 0c2 4 6 0 6 0s-4-4-6 0z" fill="#00D000"/><path d="M8 8s6-4 10 0M4 20s6 4 10 0" stroke="#00D000" stroke-width="1.5" stroke-linecap="round"/></g></svg>`,
       itemName: '에메랄드 인장', itemDesc: '읽는 중에서 완독으로 전환을 50번 달성한 독자에게',
       color: '#3a8a3a', bg: '#f0fff0', border: '#b0e0b0',
     }
   },
 
-  // ── 39. 상시 독서가
+  // ── 39. 상시 독서가 (읽는 중 5권 유지)
   {
     id: 'constant_reader',
     name: '상시 독서가',
@@ -2430,7 +2513,7 @@ const QUESTS = [
     }
   },
 
-  // ── 40. 시간 관리자
+  // ── 40. 시간 관리자 (타이머 1000회)
   {
     id: 'timer_master',
     name: '시간 관리자',
@@ -2439,13 +2522,13 @@ const QUESTS = [
     condition: (books, profile) => parseInt(localStorage.getItem('bl_timer_total')||'0') >= 1000,
     reward: {
       title: '⌛ 시간 관리자', item: '⏰',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_hour" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#D4AF37"/><stop offset="100%" stop-color="#8B6508"/></linearGradient><filter id="s_hour"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.6"/></filter></defs><g filter="url(#s_hour)"><path d="M10 4h12v4l-6 8 6 8v4H10v-4l6-8-6-8z" fill="rgba(255,255,255,0.3)" stroke="url(#g_hour)" stroke-width="2"/><rect x="8" y="2" width="16" height="2" fill="url(#g_hour)"/><rect x="8" y="28" width="16" height="2" fill="url(#g_hour)"/><path d="M12 26l4-5 4 5z" fill="#D2B48C"/></g></svg>`,
-      itemName: '황동 모래시계', itemDesc: '독서 타이머를 총 1000번 실행한 시간 관리의 달인에게',
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_stop" cx="35%" cy="25%"><stop offset="0%" stop-color="#fff8dc"/><stop offset="100%" stop-color="#daa520"/></radialGradient><filter id="s_stop"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#8b6508" flood-opacity="0.6"/></filter></defs><g filter="url(#s_stop)"><circle cx="16" cy="16" r="10" fill="url(#g_stop)" stroke="#8b6508" stroke-width="2"/><path d="M16 6v10l6 2" fill="none" stroke="#5c4033" stroke-width="1.5" stroke-linecap="round"/><circle cx="16" cy="16" r="2" fill="#daa520"/></g></svg>`,
+      itemName: '낡은 스톱워치', itemDesc: '독서 타이머를 총 1000번 실행한 시간 관리의 달인에게',
       color: '#706050', bg: '#f8f6f0', border: '#d8d0c0',
     }
   },
 
-  // ── 41. 전작주의자
+  // ── 41. 전작주의자 (같은 작가 10권)
   {
     id: 'author_fan',
     name: '전작주의자',
@@ -2464,7 +2547,6 @@ const QUESTS = [
     }
   },
 ];
-
 
 // 초대권 자동 발급 (hasInvite:true 퀘스트 달성 시)
 async function grantInviteCode(quest) {
