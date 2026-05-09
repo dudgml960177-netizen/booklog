@@ -171,19 +171,35 @@ function showScreen(name) {
 // ── localStorage 정리 (좋아요 기록 오래된 것 제거)
 function cleanupLocalStorage() {
   try {
-    // 보존 대상: Supabase 세션 (sb-*, booklog-auth*), 앱 데이터 (bl_*), 좋아요 (liked_*)
-    // sb-* 키는 절대 삭제하지 않음 (Supabase 내부 관리 키 — 삭제 시 로그인 불가)
-    Object.keys(localStorage).forEach(k => {
-      if(k.startsWith('sb-')) return;
-      if(k.startsWith('booklog-auth')) return;
-      if(k.startsWith('bl_')) return;
-      if(k.startsWith('liked_')) return;
-      localStorage.removeItem(k);
+    // 1. 필요한 데이터(bl_, booklog-auth)를 제외하고 로컬스토리지 정리
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => {
+      if(!k.startsWith('bl_') && !k.startsWith('booklog-auth')) {
+        localStorage.removeItem(k);
+      }
     });
-    // liked_ 50개 초과 시 정리
-    const likedKeys = Object.keys(localStorage).filter(k => k.startsWith('liked_'));
-    if(likedKeys.length > 50) likedKeys.slice(0, likedKeys.length-30).forEach(k => localStorage.removeItem(k));
-  } catch(e) {}
+
+    // 2. 인증 데이터가 비정상적으로 커지거나 깨졌을 경우 강제 삭제
+    const authData = localStorage.getItem('booklog-auth');
+    if (authData && authData.length > 5000) { 
+      localStorage.removeItem('booklog-auth');
+    }
+
+    // 3. 브라우저 쿠키 강제 초기화 (API 통신 방해 요소 제거)
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i];
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+      
+      // Supabase 핵심 쿠키 외의 잡다한 쿠키들을 만료시켜서 삭제
+      if (name !== 'sb-access-token' && name !== 'sb-refresh-token') {
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+      }
+    }
+  } catch (e) {
+    console.warn('Storage cleanup error:', e);
+  }
 }
 
 
@@ -264,7 +280,13 @@ async function startApp(user) {
 
 function resetToAuth() {
   _appState = 'auth';
-  currentUser = null; allBooks = []; allQuotes = [];
+  currentUser = null; 
+  allBooks = []; 
+  allQuotes = [];
+  
+  // 로그인 세션이 꼬여서 무한 에러가 나는 것을 방지하기 위해 인증 데이터 완전 삭제
+  localStorage.removeItem('booklog-auth');
+  
   showScreen('auth');
   loadSavedEmail();
 }
@@ -309,7 +331,7 @@ function init() {
   
   showScreen('loading');
   
-  // 💡 [무한 로딩 방지 2] 6초가 지나도 로딩 화면이면 무조건 로그인 창으로 강제 이동
+  // 💡 [무한 로딩 방지 2] 3초가 지나도 로딩 화면이면 무조건 로그인 창으로 강제 이동
   initTimeout = setTimeout(() => {
     const loadingEl = document.getElementById('screen-loading');
     if(loadingEl && loadingEl.style.display !== 'none') {
@@ -318,7 +340,7 @@ function init() {
       showScreen('auth');
       loadSavedEmail();
     }
-  }, 6000);
+  }, 3000);
 
   // 모바일 뒤로가기
   window.addEventListener('popstate', () => {
