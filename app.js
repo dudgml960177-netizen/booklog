@@ -1290,6 +1290,7 @@ function moveCal(dir) { calM+=dir; if(calM>11){calM=0;calY++;} if(calM<0){calM=1
 
 // ── 달력 공유 기능 (고급 빈티지 레이아웃)
 // ── 달력 공유 기능 (다이얼리 감성 & 표지 캡처 개선)
+// ── 달력 공유 기능 (모던 빈티지 레이아웃 & 책 표지 로딩 완벽 대응)
 async function shareCalendar() {
   if(!window.html2canvas) {
     const sc = document.createElement('script');
@@ -1298,167 +1299,120 @@ async function shareCalendar() {
     await new Promise(res => sc.onload = res);
   }
 
-  const mn = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const mn = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
   const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(ymPrefix));
 
-  // ── 표지 이미지를 base64로 변환 (CORS 우회)
-  // canvas로 외부 이미지를 그려서 dataURL로 추출
-  async function toBase64(url) {
-    if(!url) return '';
-    // 프록시 URL 시도 (카카오 책 API 이미지 등)
-    const tryUrls = [url, url.replace('http://', 'https://')];
-    for(const src of tryUrls) {
-      try {
-        const b64 = await new Promise((res) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          const timer = setTimeout(() => res(''), 3000); // 3초 타임아웃
-          img.onload = () => {
-            clearTimeout(timer);
-            try {
-              const c = document.createElement('canvas');
-              c.width = img.naturalWidth || 80;
-              c.height = img.naturalHeight || 120;
-              c.getContext('2d').drawImage(img, 0, 0);
-              res(c.toDataURL('image/jpeg', 0.85));
-            } catch(e) { res(''); }
-          };
-          img.onerror = () => { clearTimeout(timer); res(''); };
-          img.src = src + (src.includes('?') ? '&' : '?') + '_nc=' + Date.now();
-        });
-        if(b64 && b64.length > 100) return b64;
-      } catch(e) {}
-    }
-    return '';
-  }
-
-  // 완독 책들의 표지 미리 변환 (병렬 처리)
-  const coverMap = {};
-  await Promise.all(
-    finished.map(async b => {
-      if(b.cover) coverMap[b.id] = await toBase64(b.cover);
-    })
-  );
-
+  // 1. 가장 반응이 좋았던 모던 빈티지 배경 카드 생성
   const card = document.createElement('div');
-  card.style.cssText = 'position:fixed;left:-9999px;width:400px;background:#FAF7F2;border-radius:16px;padding:2.5rem;box-shadow:0 20px 40px rgba(0,0,0,0.1);font-family:"Pretendard","Noto Sans KR",serif;box-sizing:border-box;color:#332b22;';
+  card.style.cssText = 'position:fixed;left:-9999px;width:420px;background:#fdf8f0;border-radius:20px;padding:2.5rem;box-shadow:0 20px 50px rgba(0,0,0,0.1);font-family:serif;box-sizing:border-box;';
 
-  card.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;border-bottom:1px solid #E6DEC8;padding-bottom:1rem;">
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.5rem;border-bottom:2px solid #e8d4a0;padding-bottom:1rem;">
       <div>
-        <div style="font-family:serif;font-size:2.2rem;font-weight:900;letter-spacing:-1px;color:#2B2319;line-height:1;">${calY}</div>
-        <div style="font-family:serif;font-size:1rem;color:#A89B84;letter-spacing:3px;margin-top:4px;">${mn[calM]} READING LOG</div>
+        <div style="font-size:2rem;font-weight:800;color:#3a2810;line-height:1.1;">${calY}. ${mn[calM]}</div>
+        <div style="font-size:0.75rem;color:#8b6b3a;margin-top:6px;letter-spacing:1px;font-weight:bold;">MONTHLY READING LOG</div>
       </div>
-      <div style="text-align:right;background:#4A3B2A;color:#FAF7F2;padding:0.5rem 0.8rem;border-radius:8px;">
-        <div style="font-size:1.1rem;font-weight:bold;line-height:1;">${finished.length}</div>
-        <div style="font-size:0.55rem;letter-spacing:1px;opacity:0.8;">BOOKS</div>
+      <div style="text-align:right;">
+        <div style="font-size:1.2rem;font-weight:700;color:#c4714a;line-height:1.1;">${finished.length} <span style="font-size:0.8rem;">BOOKS</span></div>
+        <div style="font-size:0.6rem;color:#a08c72;font-weight:bold;margin-top:2px;">COMPLETED</div>
       </div>
     </div>
-    <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:2rem;"></div>
+    <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:2rem;">
   `;
 
-  const grid = card.querySelector('#share-cal-grid');
-  ['S','M','T','W','T','F','S'].forEach((d, i) => {
-    const color = i === 0 ? '#C46B5A' : '#A89B84';
-    grid.innerHTML += `<div style="text-align:center;color:${color};font-weight:600;font-size:0.7rem;padding-bottom:6px;">${d}</div>`;
+  // 요일 헤더
+  ['SUN','MON','TUE','WED','THU','FRI','SAT'].forEach(d => {
+    html += `<div style="text-align:center; color:#a08c72; font-weight:bold; font-size: 0.65rem; font-family:sans-serif; letter-spacing:1px; padding-bottom:4px;">${d}</div>`;
   });
 
   const firstDay = new Date(calY, calM, 1).getDay();
   const numDays = new Date(calY, calM + 1, 0).getDate();
-  for(let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>';
 
-  for(let d = 1; d <= numDays; d++) {
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+
+  for (let d = 1; d <= numDays; d++) {
     const dayPrefix = ymPrefix+'-'+String(d).padStart(2,'0');
     const dayFinished = finished.filter(b => b.date_finish?.startsWith(dayPrefix));
 
-    if(dayFinished.length > 0) {
+    if (dayFinished.length > 0) {
       const book = dayFinished[0];
-      // base64로 변환된 표지 사용 → html2canvas CORS 문제 없음
-      const b64 = coverMap[book.id];
-      const coverStyle = b64
-        ? `background-image:url('${b64}');background-size:cover;background-position:center;`
-        : (book.cover
-          ? `background-image:url('${book.cover}');background-size:cover;background-position:center;`
-          : `background:#4A3B2A;display:flex;justify-content:center;align-items:center;`);
-      const noCoverText = b64 || book.cover ? '' : `<span style="color:#FAF7F2;font-size:0.55rem;font-weight:600;">READ</span>`;
-
-      const el = document.createElement('div');
-      el.style.cssText = `position:relative;aspect-ratio:1/1.3;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.15);${coverStyle}`;
-      el.innerHTML = `
-        ${noCoverText}
-        <div style="position:absolute;bottom:0;left:0;width:100%;background:linear-gradient(transparent,rgba(0,0,0,0.75));padding:12px 4px 4px;text-align:center;">
-          <span style="color:#fff;font-size:0.75rem;font-weight:bold;font-family:serif;">${d}</span>
+      // 💡 crossorigin="anonymous" 필수 지정, 표지는 이미지 태그로 렌더링
+      const coverHtml = book.cover 
+        ? `<img src="${book.cover}" crossorigin="anonymous" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0;" />`
+        : `<div style="width:100%; height:100%; background:#e8d4a0; display:flex; align-items:center; justify-content:center; color:#8b6b3a; font-size:0.6rem; font-weight:bold; text-align:center; line-height:1.2;">NO<br>COVER</div>`;
+      
+      html += `
+        <div style="position:relative; aspect-ratio:1/1.3; border-radius:6px; overflow:hidden; background:#fffdf9; box-shadow:0 2px 5px rgba(0,0,0,0.05); border:1px solid #e8d4a0;">
+          ${coverHtml}
+          <div style="position:absolute; top:0; left:0; right:0; height:40%; background:linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%); z-index:1;"></div>
+          <div style="position:absolute; top:4px; right:6px; color:#fff; font-size:0.75rem; font-weight:bold; z-index:2; font-family:sans-serif; text-shadow:0 1px 2px rgba(0,0,0,0.8);">${d}</div>
         </div>
       `;
-      grid.appendChild(el);
     } else {
-      const el = document.createElement('div');
-      el.style.cssText = 'aspect-ratio:1/1.3;display:flex;justify-content:center;align-items:flex-start;padding-top:4px;color:#C4BAA8;font-size:0.75rem;font-weight:500;background:#F2EBE1;border-radius:6px;';
-      el.textContent = d;
-      grid.appendChild(el);
+      // 책을 안 읽은 날
+      html += `<div style="aspect-ratio:1/1.3; border-radius:6px; border:1px solid #f2e8d5; background:#fffcf6; display:flex; justify-content:center; align-items:flex-start; padding-top:6px; color:#c8b8a0; font-size:0.75rem; font-family:sans-serif; font-weight:bold;">${d}</div>`;
     }
   }
+  
+  html += `</div>`;
 
-  // 완독 리스트 (표지 썸네일 포함)
-  if(finished.length > 0) {
-    const list = document.createElement('div');
-    list.innerHTML = `<div style="font-size:0.8rem;color:#4A3B2A;font-weight:bold;margin-bottom:0.8rem;letter-spacing:1px;">📚 완독 리스트</div>`;
+  // 하단 완독 리스트 렌더링 (리스트에도 책 표지 표시)
+  if (finished.length > 0) {
+    html += `<div style="font-size:0.85rem;color:#3a2810;font-weight:bold;margin-bottom:1rem;border-left:3px solid #c4714a;padding-left:10px;">이달의 서재 기록</div>`;
     finished.slice(0, 6).forEach(b => {
-      const b64 = coverMap[b.id];
-      const imgSrc = b64 || b.cover || '';
-      const thumbEl = imgSrc
-        ? `<img src="${imgSrc}" style="width:24px;height:34px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.2);">`
-        : `<div style="width:24px;height:34px;background:#4A3B2A;border-radius:3px;flex-shrink:0;"></div>`;
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:7px;border-bottom:1px dashed #E6DEC8;padding-bottom:5px;';
-      row.innerHTML = `
-        ${thumbEl}
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:0.8rem;color:#2B2319;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;">${b.title}</div>
-          <div style="font-size:0.62rem;color:#A89B84;margin-top:1px;">${b.author?.split(/[,·]/)[0] || ''}</div>
+      const coverThumb = b.cover 
+        ? `<img src="${b.cover}" crossorigin="anonymous" style="width:24px; height:34px; object-fit:cover; border-radius:3px; box-shadow:0 1px 3px rgba(0,0,0,0.1);" />`
+        : `<div style="width:24px; height:34px; background:#e8d4a0; border-radius:3px;"></div>`;
+      html += `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;border-bottom:1px solid #f2e8d5;padding-bottom:8px;">
+          ${coverThumb}
+          <div style="flex:1;overflow:hidden;">
+            <div style="font-size:0.85rem;color:#2e1f0e;font-weight:bold;white-space:nowrap;text-overflow:ellipsis;">${b.title}</div>
+            <div style="font-size:0.65rem;color:#8b6b3a;margin-top:2px;">${b.author?.split(/[,·]/)[0] || ''}</div>
+          </div>
         </div>
-        ${b.rating ? `<div style="font-size:0.65rem;color:#C46B5A;flex-shrink:0;">${'★'.repeat(b.rating)}</div>` : ''}
       `;
-      list.appendChild(row);
     });
     if(finished.length > 6) {
-      const more = document.createElement('div');
-      more.style.cssText = 'text-align:right;color:#A89B84;font-size:0.7rem;margin-top:6px;';
-      more.textContent = `+ 그 외 ${finished.length - 6}권`;
-      list.appendChild(more);
+      html += `<div style="text-align:right; color:#8b6b3a; font-size:0.7rem; font-weight:bold; margin-top:8px;">+ ${finished.length - 6}권 더 보기</div>`;
     }
-    card.appendChild(list);
   }
-
-  // 푸터
-  const footer = document.createElement('div');
-  footer.style.cssText = 'margin-top:1.2rem;padding-top:0.7rem;border-top:1px solid #E6DEC8;display:flex;justify-content:space-between;align-items:center;';
-  footer.innerHTML = `
-    <span style="font-size:0.6rem;color:#C4BAA8;letter-spacing:1px;">BOOKLOG</span>
-    <span style="font-size:0.6rem;color:#C4BAA8;">${allBooks.filter(b=>b.status==='완독').length}권 누적 완독</span>
-  `;
-  card.appendChild(footer);
+  
+  html += `<div style="margin-top:1.5rem; text-align:center; font-size:0.6rem; color:#c8b8a0; letter-spacing:2px; font-family:sans-serif;">BOOKLOG READING TRACKER</div>`;
+  
+  card.innerHTML = html;
   document.body.appendChild(card);
 
-  try {
-    const canvas = await html2canvas(card, {
-      scale: 2,
-      backgroundColor: '#FAF7F2',
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-      imageTimeout: 8000,
+  // 💡 핵심 오류 해결: html2canvas 실행 전, 화면에 추가된 모든 '이미지'가 완벽하게 로딩될 때까지 기다립니다.
+  const images = Array.from(card.querySelectorAll('img'));
+  await Promise.all(images.map(img => {
+    if (img.complete) return Promise.resolve();
+    return new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = () => resolve(); // 이미지가 깨져도 멈추지 않고 진행
     });
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = `Booklog_${calY}_${calM+1}.png`;
+  }));
+  
+  // 렌더링이 안정화될 수 있도록 아주 짧게 0.3초 대기
+  await new Promise(r => setTimeout(r, 300));
+
+  try {
+    const canvas = await html2canvas(card, { 
+        scale: 2, 
+        backgroundColor: '#fdf8f0', 
+        useCORS: true, 
+        logging: false 
+    });
+    const a = document.createElement('a'); 
+    a.href = canvas.toDataURL('image/png'); 
+    a.download = `ReadingLog_${calY}_${calM+1}.png`; 
     a.click();
-  } catch(err) {
-    console.error(err);
-    showAlert('이미지 저장 중 오류가 발생했습니다.');
+  } catch (err) {
+      console.error('달력 이미지 캡처 에러:', err);
+      showAlert('이미지 저장 중 오류가 발생했습니다.');
   } finally {
-    card.remove();
+      card.remove();
   }
 }
 
