@@ -224,8 +224,9 @@ let _sessionReceived = false; // INITIAL_SESSION 수신 여부 (레이스 컨디
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
   _sessionReceived = true;
-  clearTimeout(initTimeout); // 세션 확인됨 → initTimeout 즉시 취소
+  clearTimeout(initTimeout);
   _appState = 'starting';
+  showScreen('loading'); // 데이터 로딩 중 로딩 화면 표시
   try {
     currentUser = user;
     // 데이터 로딩 (타임아웃 없이 완전히 기다림 - 중간에 강제 종료 시 데이터 누락)
@@ -277,23 +278,56 @@ function resetToAuth() {
 // onAuthStateChange - sb 생성 직후 등록
 sb.auth.onAuthStateChange(async (event, session) => {
   try {
-    if(event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-      _sessionReceived = true; // INITIAL_SESSION 수신 완료
-      clearTimeout(initTimeout); // 세션 상태와 무관하게 항상 타임아웃 취소
+    console.log('[Auth]', event, session?.user?.email || 'no user');
+
+    if(event === 'INITIAL_SESSION') {
+      _sessionReceived = true;
+      clearTimeout(initTimeout);
       if(session?.user) {
-        if(_appState === 'running') {
-          currentUser = session.user;
-        } else if(_appState !== 'starting') {
+        // 세션 있음 → 즉시 앱 시작
+        if(_appState !== 'starting' && _appState !== 'running') {
           await startApp(session.user);
         }
-      } else if(event === 'INITIAL_SESSION') {
+      } else {
+        // 세션 없음 → 로그인 화면 (단, Supabase가 토큰 갱신 중일 수 있으므로 잠깐 대기)
+        // 만료된 세션이 있으면 Supabase가 자동으로 TOKEN_REFRESHED를 보낼 것
+        // 그 전에 auth 화면을 보여주되, TOKEN_REFRESHED가 오면 startApp 호출
         _appState = 'auth';
         showScreen('auth');
         loadSavedEmail();
       }
     }
-    if(event === 'SIGNED_OUT') _appState = 'idle';
-    if(event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
+
+    if(event === 'SIGNED_IN') {
+      clearTimeout(initTimeout);
+      _sessionReceived = true;
+      if(session?.user) {
+        if(_appState === 'running') {
+          currentUser = session.user; // 세션 갱신만
+        } else {
+          // auth 화면에서 로그인하거나 토큰 갱신 후 SIGNED_IN
+          if(_appState !== 'starting') {
+            await startApp(session.user);
+          }
+        }
+      }
+    }
+
+    if(event === 'TOKEN_REFRESHED') {
+      // 만료 세션 갱신 완료 → 앱이 auth 화면이면 startApp 호출
+      if(session?.user) {
+        currentUser = session.user;
+        if(_appState === 'auth' || _appState === 'idle') {
+          await startApp(session.user);
+        }
+      }
+    }
+
+    if(event === 'SIGNED_OUT') {
+      _appState = 'idle';
+      currentUser = null;
+    }
+
     if(event === 'PASSWORD_RECOVERY') {
       showScreen('auth');
       authSwitch('newpw', null);
