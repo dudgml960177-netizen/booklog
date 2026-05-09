@@ -1297,16 +1297,53 @@ async function shareCalendar() {
     document.head.appendChild(sc);
     await new Promise(res => sc.onload = res);
   }
-  
+
   const mn = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
   const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(ymPrefix));
 
-  // 감성적인 웜톤 베이지 배경
+  // ── 표지 이미지를 base64로 변환 (CORS 우회)
+  // canvas로 외부 이미지를 그려서 dataURL로 추출
+  async function toBase64(url) {
+    if(!url) return '';
+    // 프록시 URL 시도 (카카오 책 API 이미지 등)
+    const tryUrls = [url, url.replace('http://', 'https://')];
+    for(const src of tryUrls) {
+      try {
+        const b64 = await new Promise((res) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          const timer = setTimeout(() => res(''), 3000); // 3초 타임아웃
+          img.onload = () => {
+            clearTimeout(timer);
+            try {
+              const c = document.createElement('canvas');
+              c.width = img.naturalWidth || 80;
+              c.height = img.naturalHeight || 120;
+              c.getContext('2d').drawImage(img, 0, 0);
+              res(c.toDataURL('image/jpeg', 0.85));
+            } catch(e) { res(''); }
+          };
+          img.onerror = () => { clearTimeout(timer); res(''); };
+          img.src = src + (src.includes('?') ? '&' : '?') + '_nc=' + Date.now();
+        });
+        if(b64 && b64.length > 100) return b64;
+      } catch(e) {}
+    }
+    return '';
+  }
+
+  // 완독 책들의 표지 미리 변환 (병렬 처리)
+  const coverMap = {};
+  await Promise.all(
+    finished.map(async b => {
+      if(b.cover) coverMap[b.id] = await toBase64(b.cover);
+    })
+  );
+
   const card = document.createElement('div');
-  card.style.cssText = 'position:fixed;left:-9999px;width:400px;background:#FAF7F2;border-radius:16px;padding:2.5rem;box-shadow:0 20px 40px rgba(0,0,0,0.1);font-family:"Pretendard", "Noto Sans KR", serif;box-sizing:border-box;color:#332b22;';
-  
-  // 헤더 (심플 & 모던)
+  card.style.cssText = 'position:fixed;left:-9999px;width:400px;background:#FAF7F2;border-radius:16px;padding:2.5rem;box-shadow:0 20px 40px rgba(0,0,0,0.1);font-family:"Pretendard","Noto Sans KR",serif;box-sizing:border-box;color:#332b22;';
+
   card.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;border-bottom:1px solid #E6DEC8;padding-bottom:1rem;">
       <div>
@@ -1320,86 +1357,108 @@ async function shareCalendar() {
     </div>
     <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:2rem;"></div>
   `;
+
   const grid = card.querySelector('#share-cal-grid');
-  
-  // 요일
   ['S','M','T','W','T','F','S'].forEach((d, i) => {
-    const color = i === 0 ? '#C46B5A' : '#A89B84'; // 일요일 포인트 컬러
+    const color = i === 0 ? '#C46B5A' : '#A89B84';
     grid.innerHTML += `<div style="text-align:center;color:${color};font-weight:600;font-size:0.7rem;padding-bottom:6px;">${d}</div>`;
   });
 
   const firstDay = new Date(calY, calM, 1).getDay();
   const numDays = new Date(calY, calM + 1, 0).getDate();
-  
-  for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>'; 
-  
-  for (let d = 1; d <= numDays; d++) {
+  for(let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>';
+
+  for(let d = 1; d <= numDays; d++) {
     const dayPrefix = ymPrefix+'-'+String(d).padStart(2,'0');
     const dayFinished = finished.filter(b => b.date_finish?.startsWith(dayPrefix));
-    
-    if (dayFinished.length > 0) {
-      const book = dayFinished[0];
-      // html2canvas 오류 방지를 위해 background-image 속성 사용
-      const hasCover = book.cover ? true : false;
-      const coverStyle = hasCover 
-        ? `background-image:url('${book.cover}'); background-size:cover; background-position:center;` 
-        : `background:#4A3B2A; display:flex; justify-content:center; align-items:center; text-align:center; padding:4px;`;
-      
-      const noCoverText = hasCover ? '' : `<span style="color:#FAF7F2;font-size:0.55rem;font-weight:600;opacity:0.7;word-break:keep-all;line-height:1.2;">READ</span>`;
 
-      grid.innerHTML += `
-        <div style="position:relative; aspect-ratio:1/1.3; border-radius:6px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); ${coverStyle}">
-          ${noCoverText}
-          <div style="position:absolute; bottom:0; left:0; width:100%; background:linear-gradient(transparent, rgba(0,0,0,0.7)); padding:12px 4px 4px 4px; text-align:center;">
-            <span style="color:#fff; font-size:0.75rem; font-weight:bold; font-family:serif;">${d}</span>
-          </div>
+    if(dayFinished.length > 0) {
+      const book = dayFinished[0];
+      // base64로 변환된 표지 사용 → html2canvas CORS 문제 없음
+      const b64 = coverMap[book.id];
+      const coverStyle = b64
+        ? `background-image:url('${b64}');background-size:cover;background-position:center;`
+        : (book.cover
+          ? `background-image:url('${book.cover}');background-size:cover;background-position:center;`
+          : `background:#4A3B2A;display:flex;justify-content:center;align-items:center;`);
+      const noCoverText = b64 || book.cover ? '' : `<span style="color:#FAF7F2;font-size:0.55rem;font-weight:600;">READ</span>`;
+
+      const el = document.createElement('div');
+      el.style.cssText = `position:relative;aspect-ratio:1/1.3;border-radius:6px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.15);${coverStyle}`;
+      el.innerHTML = `
+        ${noCoverText}
+        <div style="position:absolute;bottom:0;left:0;width:100%;background:linear-gradient(transparent,rgba(0,0,0,0.75));padding:12px 4px 4px;text-align:center;">
+          <span style="color:#fff;font-size:0.75rem;font-weight:bold;font-family:serif;">${d}</span>
         </div>
       `;
+      grid.appendChild(el);
     } else {
-      // 빈 날짜
-      grid.innerHTML += `<div style="aspect-ratio:1/1.3; display:flex; justify-content:center; align-items:flex-start; padding-top:4px; color:#C4BAA8; font-size:0.75rem; font-weight:500; background:#F2EBE1; border-radius:6px;">${d}</div>`;
+      const el = document.createElement('div');
+      el.style.cssText = 'aspect-ratio:1/1.3;display:flex;justify-content:center;align-items:flex-start;padding-top:4px;color:#C4BAA8;font-size:0.75rem;font-weight:500;background:#F2EBE1;border-radius:6px;';
+      el.textContent = d;
+      grid.appendChild(el);
     }
   }
-  
-  // 하단 리스트 (감성적인 라인 스타일)
+
+  // 완독 리스트 (표지 썸네일 포함)
   if(finished.length > 0) {
     const list = document.createElement('div');
     list.innerHTML = `<div style="font-size:0.8rem;color:#4A3B2A;font-weight:bold;margin-bottom:0.8rem;letter-spacing:1px;">📚 완독 리스트</div>`;
-    
-    finished.slice(0, 5).forEach(b => { 
-      list.innerHTML += `
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;border-bottom:1px dashed #E6DEC8;padding-bottom:4px;">
-          <div style="width:6px;height:6px;border-radius:50%;background:#C46B5A;flex-shrink:0;"></div>
-          <div style="font-size:0.85rem;color:#2B2319;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${b.title}</div>
-          <div style="font-size:0.65rem;color:#A89B84;margin-left:auto;flex-shrink:0;">${b.author?.split(/[,·]/)[0] || ''}</div>
+    finished.slice(0, 6).forEach(b => {
+      const b64 = coverMap[b.id];
+      const imgSrc = b64 || b.cover || '';
+      const thumbEl = imgSrc
+        ? `<img src="${imgSrc}" style="width:24px;height:34px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,0.2);">`
+        : `<div style="width:24px;height:34px;background:#4A3B2A;border-radius:3px;flex-shrink:0;"></div>`;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:7px;border-bottom:1px dashed #E6DEC8;padding-bottom:5px;';
+      row.innerHTML = `
+        ${thumbEl}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.8rem;color:#2B2319;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;">${b.title}</div>
+          <div style="font-size:0.62rem;color:#A89B84;margin-top:1px;">${b.author?.split(/[,·]/)[0] || ''}</div>
         </div>
+        ${b.rating ? `<div style="font-size:0.65rem;color:#C46B5A;flex-shrink:0;">${'★'.repeat(b.rating)}</div>` : ''}
       `;
+      list.appendChild(row);
     });
-    if(finished.length > 5) {
-        list.innerHTML += `<div style="text-align:right;color:#A89B84;font-size:0.7rem;margin-top:8px;">+ 그 외 ${finished.length - 5}권</div>`;
+    if(finished.length > 6) {
+      const more = document.createElement('div');
+      more.style.cssText = 'text-align:right;color:#A89B84;font-size:0.7rem;margin-top:6px;';
+      more.textContent = `+ 그 외 ${finished.length - 6}권`;
+      list.appendChild(more);
     }
     card.appendChild(list);
   }
 
+  // 푸터
+  const footer = document.createElement('div');
+  footer.style.cssText = 'margin-top:1.2rem;padding-top:0.7rem;border-top:1px solid #E6DEC8;display:flex;justify-content:space-between;align-items:center;';
+  footer.innerHTML = `
+    <span style="font-size:0.6rem;color:#C4BAA8;letter-spacing:1px;">BOOKLOG</span>
+    <span style="font-size:0.6rem;color:#C4BAA8;">${allBooks.filter(b=>b.status==='완독').length}권 누적 완독</span>
+  `;
+  card.appendChild(footer);
   document.body.appendChild(card);
 
   try {
-    const canvas = await html2canvas(card, { 
-        scale: 2, 
-        backgroundColor: '#FAF7F2', 
-        useCORS: true, 
-        allowTaint: true, // CORS 막힌 이미지 텍스쳐 허용 시도
-        logging: false 
+    const canvas = await html2canvas(card, {
+      scale: 2,
+      backgroundColor: '#FAF7F2',
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      imageTimeout: 8000,
     });
-    const a = document.createElement('a'); 
-    a.href = canvas.toDataURL('image/png'); 
-    a.download = `Booklog_${calY}_${calM+1}.png`; 
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `Booklog_${calY}_${calM+1}.png`;
     a.click();
-  } catch (err) {
-      console.error(err);
-      showAlert('이미지 저장 중 오류가 발생했습니다.');
+  } catch(err) {
+    console.error(err);
+    showAlert('이미지 저장 중 오류가 발생했습니다.');
   } finally {
-      card.remove();
+    card.remove();
   }
 }
 
