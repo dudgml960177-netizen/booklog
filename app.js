@@ -1289,7 +1289,7 @@ function randomQuoteColor(bookId) {
 function moveCal(dir) { calM+=dir; if(calM>11){calM=0;calY++;} if(calM<0){calM=11;calY--;} renderCal(); }
 
 // ── 달력 공유 기능 (고급 빈티지 레이아웃)
-// ── 달력 공유 기능 (고급 빈티지 레이아웃 & 책표지 반영)
+// ── 달력 공유 기능 (다이얼리 감성 & 표지 캡처 개선)
 async function shareCalendar() {
   if(!window.html2canvas) {
     const sc = document.createElement('script');
@@ -1297,120 +1297,108 @@ async function shareCalendar() {
     document.head.appendChild(sc);
     await new Promise(res => sc.onload = res);
   }
-  const mn = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  
+  const mn = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
-  // 이달에 완독한 책 목록
   const finished = allBooks.filter(b => b.status === '완독' && b.date_finish?.startsWith(ymPrefix));
 
-  // 1. 이미지를 그릴 숨겨진 캔버스(DOM) 생성
+  // 감성적인 웜톤 베이지 배경
   const card = document.createElement('div');
-  card.style.cssText = 'position:fixed;left:-9999px;width:380px;background:#fdf8f0;border-radius:24px;padding:2.5rem;box-shadow:0 12px 40px rgba(0,0,0,0.15);font-family:serif;box-sizing:border-size;';
+  card.style.cssText = 'position:fixed;left:-9999px;width:400px;background:#FAF7F2;border-radius:16px;padding:2.5rem;box-shadow:0 20px 40px rgba(0,0,0,0.1);font-family:"Pretendard", "Noto Sans KR", serif;box-sizing:border-box;color:#332b22;';
   
-  // 헤더 부분 (년/월, 통계)
+  // 헤더 (심플 & 모던)
   card.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1.8rem;border-bottom:2px solid #e8d4a0;padding-bottom:1.2rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;border-bottom:1px solid #E6DEC8;padding-bottom:1rem;">
       <div>
-        <div style="font-size:1.8rem;font-weight:800;color:#3a2810;line-height:1;">${calY}. ${mn[calM]}</div>
-        <div style="font-size:0.75rem;color:#8b6b3a;margin-top:6px;letter-spacing:2px;font-weight:bold;">MONTHLY READING LOG</div>
+        <div style="font-family:serif;font-size:2.2rem;font-weight:900;letter-spacing:-1px;color:#2B2319;line-height:1;">${calY}</div>
+        <div style="font-family:serif;font-size:1rem;color:#A89B84;letter-spacing:3px;margin-top:4px;">${mn[calM]} READING LOG</div>
       </div>
-      <div style="text-align:right;">
-        <div style="font-size:1rem;font-weight:700;color:#c4714a;line-height:1;">${finished.length} BOOKS</div>
-        <div style="font-size:0.65rem;color:#a08c72;font-weight:bold;">COMPLETED</div>
+      <div style="text-align:right;background:#4A3B2A;color:#FAF7F2;padding:0.5rem 0.8rem;border-radius:8px;">
+        <div style="font-size:1.1rem;font-weight:bold;line-height:1;">${finished.length}</div>
+        <div style="font-size:0.55rem;letter-spacing:1px;opacity:0.8;">BOOKS</div>
       </div>
     </div>
-    <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:2rem; font-size: 0.8rem;"></div>
+    <div id="share-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:2rem;"></div>
   `;
   const grid = card.querySelector('#share-cal-grid');
   
-  // 요일 헤더 렌더링
-  ['SUN','MON','TUE','WED','THU','FRI','SAT'].forEach(d => {
-    grid.innerHTML += `<div style="text-align:center; color:#a08c72; font-weight:bold; padding-bottom: 4px; font-size: 0.65rem; letter-spacing:1px;">${d}</div>`;
+  // 요일
+  ['S','M','T','W','T','F','S'].forEach((d, i) => {
+    const color = i === 0 ? '#C46B5A' : '#A89B84'; // 일요일 포인트 컬러
+    grid.innerHTML += `<div style="text-align:center;color:${color};font-weight:600;font-size:0.7rem;padding-bottom:6px;">${d}</div>`;
   });
 
-  // 달력 날짜 채우기 로직
   const firstDay = new Date(calY, calM, 1).getDay();
   const numDays = new Date(calY, calM + 1, 0).getDate();
   
-  // 1일 앞의 빈칸
   for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>'; 
   
-  // 날짜 칸 생성
   for (let d = 1; d <= numDays; d++) {
     const dayPrefix = ymPrefix+'-'+String(d).padStart(2,'0');
-    // 해당 날짜에 끝낸 책들
     const dayFinished = finished.filter(b => b.date_finish?.startsWith(dayPrefix));
     
-    let cellContent = '';
     if (dayFinished.length > 0) {
-      // 💡 오류 수정: 해당 날짜에 완독한 첫 번째 책의 표지를 표시
       const book = dayFinished[0];
-      // CORS 문제 해결을 위해 crossorigin="anonymous" 추가
-      const cover = book.cover ? `<img src="${book.cover}" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />` : 
-                    `<div style="display:flex; justify-content:center; align-items:center; width:100%; height:100%; background: #e8d4a0; color: #7a4a10; font-size: 0.6rem; font-weight: bold; border-radius: 4px; text-align:center; padding:2px; box-sizing:border-box;">NO<br>COVER</div>`;
-      cellContent = `
-        <div style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:1;">
-          ${cover}
+      // html2canvas 오류 방지를 위해 background-image 속성 사용
+      const hasCover = book.cover ? true : false;
+      const coverStyle = hasCover 
+        ? `background-image:url('${book.cover}'); background-size:cover; background-position:center;` 
+        : `background:#4A3B2A; display:flex; justify-content:center; align-items:center; text-align:center; padding:4px;`;
+      
+      const noCoverText = hasCover ? '' : `<span style="color:#FAF7F2;font-size:0.55rem;font-weight:600;opacity:0.7;word-break:keep-all;line-height:1.2;">READ</span>`;
+
+      grid.innerHTML += `
+        <div style="position:relative; aspect-ratio:1/1.3; border-radius:6px; overflow:hidden; box-shadow:0 2px 4px rgba(0,0,0,0.05); ${coverStyle}">
+          ${noCoverText}
+          <div style="position:absolute; bottom:0; left:0; width:100%; background:linear-gradient(transparent, rgba(0,0,0,0.7)); padding:12px 4px 4px 4px; text-align:center;">
+            <span style="color:#fff; font-size:0.75rem; font-weight:bold; font-family:serif;">${d}</span>
+          </div>
         </div>
-        <div style="position: absolute; top: 2px; right: 3px; background: rgba(253,248,240,0.85); color: #3a2810; padding: 1px 4px; border-radius: 4px; font-size: 0.7rem; font-weight:bold; z-index:2; font-family:sans-serif;">${d}</div>
       `;
     } else {
-      // 책 안 끝낸 날은 숫자만 표시
-      cellContent = `<div style="padding: 4px; color: #8b6b3a; font-family:sans-serif; font-weight:bold;">${d}</div>`;
+      // 빈 날짜
+      grid.innerHTML += `<div style="aspect-ratio:1/1.3; display:flex; justify-content:center; align-items:flex-start; padding-top:4px; color:#C4BAA8; font-size:0.75rem; font-weight:500; background:#F2EBE1; border-radius:6px;">${d}</div>`;
     }
-    // 날짜 박스 스타일
-    grid.innerHTML += `<div style="position: relative; aspect-ratio: 1/1; border: 1px solid #e8d4a0; border-radius: 6px; display: flex; align-items: flex-end; justify-content: flex-end; overflow: hidden; background: #fffdf9; box-sizing:border-box;">${cellContent}</div>`;
   }
   
-  // 하단 완독 리스트 렌더링 (최대 8권)
+  // 하단 리스트 (감성적인 라인 스타일)
   if(finished.length > 0) {
     const list = document.createElement('div');
-    list.innerHTML = `<div style="font-size:0.8rem;color:#3a2810;font-weight:bold;margin-bottom:1rem;border-left:3px solid #c4714a;padding-left:10px;font-family:serif;">이달의 서재 기록</div>`;
+    list.innerHTML = `<div style="font-size:0.8rem;color:#4A3B2A;font-weight:bold;margin-bottom:0.8rem;letter-spacing:1px;">📚 완독 리스트</div>`;
     
-    // 리스트에도 책 표지 조그맣게 추가
-    finished.slice(0, 8).forEach(b => { 
-      const item = document.createElement('div');
-      item.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:0.85rem;color:#2e1f0e; border-bottom: 1px solid #f0e6d2; padding-bottom:6px;';
-      const cover = b.cover ? `<img src="${b.cover}" crossorigin="anonymous" style="width: 20px; height: 28px; object-fit: cover; border-radius: 2px;" />` : `<div style="width: 20px; height: 28px; background: #e8d4a0; border-radius: 2px;"></div>`;
-      item.innerHTML = `${cover}<div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:bold;">${b.title}</div>`;
-      list.appendChild(item);
+    finished.slice(0, 5).forEach(b => { 
+      list.innerHTML += `
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;border-bottom:1px dashed #E6DEC8;padding-bottom:4px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#C46B5A;flex-shrink:0;"></div>
+          <div style="font-size:0.85rem;color:#2B2319;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${b.title}</div>
+          <div style="font-size:0.65rem;color:#A89B84;margin-left:auto;flex-shrink:0;">${b.author?.split(/[,·]/)[0] || ''}</div>
+        </div>
+      `;
     });
-    // 8권 넘어가면 생략 표시
-    if(finished.length > 8) {
-        list.innerHTML += `<div style="text-align:center; color:#a08c72; font-size:0.8rem; margin-top:5px;">... 외 ${finished.length - 8}권</div>`;
+    if(finished.length > 5) {
+        list.innerHTML += `<div style="text-align:right;color:#A89B84;font-size:0.7rem;margin-top:8px;">+ 그 외 ${finished.length - 5}권</div>`;
     }
     card.appendChild(list);
   }
 
-  // 풋터 추가
-  const footer = document.createElement('div');
-  footer.style.cssText = 'margin-top:2rem; text-align:center; font-size:0.65rem; color:#b0a080; border-top:1px solid #e8d4a0; padding-top:1rem; letter-spacing:1px;';
-  footer.innerHTML = 'GENERATED BY BOOKLOG';
-  card.appendChild(footer);
-
-  // 2. 화면에 임시로 붙임 (html2canvas가 인식하기 위해)
   document.body.appendChild(card);
 
   try {
-    // 3. html2canvas로 DOM을 캔버스로 변환
-    // useCORS: true 옵션이 외부 이미지(책표지) 로딩에 핵심입니다.
     const canvas = await html2canvas(card, { 
-        scale: 2, // 고해상도
-        backgroundColor: '#fdf8f0', 
-        useCORS: true, // CORS 허용 이미지 로드
-        logging: false,
-        borderRadius: 24
+        scale: 2, 
+        backgroundColor: '#FAF7F2', 
+        useCORS: true, 
+        allowTaint: true, // CORS 막힌 이미지 텍스쳐 허용 시도
+        logging: false 
     });
-
-    // 4. 이미지 다운로드
     const a = document.createElement('a'); 
     a.href = canvas.toDataURL('image/png'); 
-    a.download = `ReadingLog_${calY}_${calM+1}.png`; 
+    a.download = `Booklog_${calY}_${calM+1}.png`; 
     a.click();
   } catch (err) {
-      console.error('달력 이미지 저장 실패:', err);
-      showAlert('이미지 저장에 실패했습니다. 책 표지 이미지 불러오기 문제일 수 있습니다.');
+      console.error(err);
+      showAlert('이미지 저장 중 오류가 발생했습니다.');
   } finally {
-      // 5. 임시 DOM 제거
       card.remove();
   }
 }
@@ -1839,16 +1827,35 @@ const QUESTS = [
     hint: '나의 새벽 친구!',
     desc: '나의 새벽 친구는 충혈된 눈과 책이겠지요.',
     condition: (books, profile, extra) => {
-      const dawnCount = parseInt(localStorage.getItem('bl_dawn_sessions') || '0');
-      return dawnCount >= 1;
+      return parseInt(localStorage.getItem('bl_dawn_sessions') || '0') >= 1;
     },
     reward: {
       title: '🧟 활자 좀비',
       item: '👁️',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_potion_l" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#DC143C"/><stop offset="100%" stop-color="#8B0000"/></linearGradient><filter id="s_potion_b"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.6"/></filter></defs><g filter="url(#s_potion_b)"><path d="M12 4h8v6l5 9v11a2 2 0 01-2 2H9a2 2 0 01-2-2V19l5-9V4z" fill="url(#g_potion_l)" stroke="#DAA520" stroke-width="1.5"/><rect x="12" y="4" width="8" height="5" fill="#8B4513"/><path d="M12 19s4-6 8 0 M9 23s4-6 8 0" stroke="#DAA520" stroke-width="1.2" opacity="0.6"/><path d="M16 11l-2 3h4z" fill="#D2691E"/><rect x="9" y="16" width="14" height="6" rx="2" fill="#F5DEB3" opacity="0.8"/><path d="M10 18h12M10 20h6" stroke="#8B0000" stroke-width="0.8"/></g></svg>`,
-      itemName: '피로회복 포션',
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="potion_liquid" x1="0%" y1="100%" x2="0%" y2="0%">
+            <stop offset="0%" stop-color="#6E0B14"/>
+            <stop offset="50%" stop-color="#C2182B"/>
+            <stop offset="100%" stop-color="#FF4D4D"/>
+          </linearGradient>
+          <filter id="glass_glow">
+            <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#C2182B" flood-opacity="0.5"/>
+          </filter>
+        </defs>
+        <g filter="url(#glass_glow)">
+          <path d="M13 8h6v3l5 8v9a3 3 0 01-3 3H11a3 3 0 01-3-3v-9l5-8V8z" fill="rgba(255,255,255,0.15)" stroke="#E8D4A0" stroke-width="1"/>
+          <path d="M9.5 18l1-1.6c.5-.8 1-1.4 1.5-1.4h8c.5 0 1 .6 1.5 1.4l1 1.6V28a2 2 0 01-2 2H11a2 2 0 01-2-2V18z" fill="url(#potion_liquid)"/>
+          <path d="M11 20a1 1 0 011-1h1a1 1 0 011 1 1 1 0 01-1 1h-1a1 1 0 01-1-1zM20 25a1 1 0 011-1h1a1 1 0 011 1 1 1 0 01-1 1h-1a1 1 0 01-1-1z" fill="#FFF" opacity="0.6"/>
+          <path d="M10 22c2 1 4 0 6 0s4 1 6 0" fill="none" stroke="#FFF" stroke-width="0.8" opacity="0.3"/>
+          <rect x="14" y="2" width="4" height="6" rx="1" fill="#8B5A2B"/>
+          <rect x="13" y="2" width="6" height="2" rx="0.5" fill="#5C3A18"/>
+          <path d="M13 10h6" stroke="#4A2F1D" stroke-width="1.5"/>
+        </g>
+      </svg>`,
+      itemName: '새벽의 엘릭서',
       itemDesc: '새벽에도 책을 놓지 않는 활자 좀비에게',
-      color: '#cc2222', bg: '#fff5f5', border: '#ffcccc',
+      color: '#C2182B', bg: '#fff5f5', border: '#ffcccc',
     }
   },
 
@@ -2472,7 +2479,7 @@ const QUESTS = [
   },
 
   // ── 38. 마지막 장의 수호자 (디자인 재설계)
-  {
+{
     id: 'finisher',
     name: '마지막 장의 수호자',
     hint: '끝날 때까지 끝난 게 아니다.',
@@ -2480,12 +2487,28 @@ const QUESTS = [
     condition: (books) => parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
     reward: {
       title: '🏁 마지막 장의 수호자', item: '✅',
-      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_wax_p" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1A601A"/><stop offset="100%" stop-color="#3E0000"/></radialGradient><filter id="s_wax_p"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#000" flood-opacity="0.5"/></filter></defs><g filter="url(#s_wax_p)"><circle cx="16" cy="16" r="12" fill="url(#g_wax_p)" stroke="#4A0000" stroke-width="1.5"/><path d="M12 16a2 2 0 11-4 0 2 2 0 014 0zm12 0a2 2 0 11-4 0 2 2 0 014 0zm-8 0c-2-4-6 0-6 0s4 4 6 0c2 4 6 0 6 0s-4-4-6 0z" fill="#00D000"/><path d="M8 8s6-4 10 0M4 20s6 4 10 0" stroke="#00D000" stroke-width="1.5" stroke-linecap="round"/></g></svg>`,
-      itemName: '에메랄드 인장', itemDesc: '읽는 중에서 완독으로 전환을 50번 달성한 독자에게',
-      color: '#3a8a3a', bg: '#f0fff0', border: '#b0e0b0',
+      dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="emerald_wax" cx="40%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#288F5A"/>
+            <stop offset="70%" stop-color="#0E4D2C"/>
+            <stop offset="100%" stop-color="#062615"/>
+          </radialGradient>
+          <filter id="wax_shadow">
+            <feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#000" flood-opacity="0.5"/>
+          </filter>
+        </defs>
+        <g filter="url(#wax_shadow)">
+          <path d="M16 2c3.5 0 6.5 1.2 9.2 3.8 2.5 2.5 4.8 5.5 4.8 10.2 0 4.5-2.2 8-4.5 10.5-2.8 3-6.5 4.5-9.5 4.5-4 0-7.5-1.5-10.2-4.2C3.2 24 1 20.5 1 16 1 11.5 2.5 8 5.5 5.5 8.2 3.2 12 2 16 2z" fill="url(#emerald_wax)"/>
+          <circle cx="16" cy="16" r="10" fill="#0E4D2C" stroke="#288F5A" stroke-width="0.8"/>
+          <path d="M10 16l4 4 8-9" fill="none" stroke="#FFD700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 16l4 4 8-9" fill="none" stroke="#FFF7C2" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+      </svg>`,
+      itemName: '에메랄드 왁스 씰', itemDesc: '읽는 중에서 완독으로 전환을 50번 달성한 독자에게',
+      color: '#166339', bg: '#f0fff5', border: '#a3d9b8',
     }
   },
-
   // ── 39. 상시 독서가 (읽는 중 5권 유지)
   {
     id: 'constant_reader',
