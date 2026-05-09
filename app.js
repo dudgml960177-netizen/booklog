@@ -266,10 +266,8 @@ function resetToAuth() {
   currentUser = null; 
   allBooks = []; 
   allQuotes = [];
-  
-  // 로그인 세션이 꼬여서 무한 에러가 나는 것을 방지하기 위해 인증 데이터 완전 삭제
-  localStorage.removeItem('booklog-auth');
-  
+  // 세션 키(booklog-auth, sb-*)는 절대 삭제하지 않음
+  // 삭제하면 다음 방문 시 자동 로그인 불가
   showScreen('auth');
   loadSavedEmail();
 }
@@ -1303,28 +1301,64 @@ async function shareCalendar() {
   // ── 표지 base64 변환 (CORS 우회)
   async function imgToB64(url) {
     if (!url) return '';
-    const srcs = [url, url.replace('http://', 'https://')];
-    for (const src of srcs) {
-      const b64 = await new Promise(res => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        const t = setTimeout(() => res(''), 4000);
-        img.onload = () => {
-          clearTimeout(t);
+    const httpsUrl = url.replace('http://', 'https://');
+    // 문장 공유에서 검증된 방식: crossOrigin anonymous 시도, 실패 시 없이 재시도
+    return await new Promise((res) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth || 80;
+          c.height = img.naturalHeight || 120;
+          c.getContext('2d').drawImage(img, 0, 0);
+          res(c.toDataURL('image/jpeg', 0.85));
+        } catch(e) {
+          // CORS tainted → crossOrigin 없이 재시도
+          const img2 = new Image();
+          const t2 = setTimeout(() => res(''), 4000);
+          img2.onload = () => {
+            clearTimeout(t2);
+            try {
+              const c2 = document.createElement('canvas');
+              c2.width = img2.naturalWidth || 80;
+              c2.height = img2.naturalHeight || 120;
+              c2.getContext('2d').drawImage(img2, 0, 0);
+              res(c2.toDataURL('image/jpeg', 0.85));
+            } catch {
+              // 그래도 안 되면 원본 URL 반환 (html2canvas allowTaint로 처리)
+              res(httpsUrl);
+            }
+          };
+          img2.onerror = () => { clearTimeout(t2); res(''); };
+          img2.src = httpsUrl;
+        }
+      };
+      img.onerror = () => {
+        // anonymous 실패 → crossOrigin 없이 시도
+        const img3 = new Image();
+        const t3 = setTimeout(() => res(''), 4000);
+        img3.onload = () => {
+          clearTimeout(t3);
           try {
-            const c = document.createElement('canvas');
-            c.width = img.naturalWidth || 60; c.height = img.naturalHeight || 90;
-            c.getContext('2d').drawImage(img, 0, 0);
-            res(c.toDataURL('image/jpeg', 0.85));
-          } catch { res(''); }
+            const c3 = document.createElement('canvas');
+            c3.width = img3.naturalWidth || 80;
+            c3.height = img3.naturalHeight || 120;
+            c3.getContext('2d').drawImage(img3, 0, 0);
+            res(c3.toDataURL('image/jpeg', 0.85));
+          } catch {
+            res(httpsUrl); // 원본 URL로 폴백
+          }
         };
-        img.onerror = () => { clearTimeout(t); res(''); };
-        // cache-bust를 쿼리 대신 Pragma 헤더로는 안 되므로 단순 src
-        img.src = src;
-      });
-      if (b64 && b64.length > 200) return b64;
-    }
-    return '';
+        img3.onerror = () => { clearTimeout(t3); res(''); };
+        img3.src = httpsUrl;
+      };
+      const t1 = setTimeout(() => { img.src = ''; res(''); }, 6000);
+      img.onload_orig = img.onload;
+      const origOnload = img.onload;
+      img.onload = function() { clearTimeout(t1); origOnload.call(this); };
+      img.src = httpsUrl;
+    });
   }
 
   // 완독 책 표지 병렬 변환
@@ -1402,11 +1436,11 @@ async function shareCalendar() {
 
     if (dayBooks.length > 0) {
       const book = dayBooks[0];
-      const b64 = coverMap[book.id] || book.cover || '';
+      const raw = coverMap[book.id] || ''; const imgSrc = raw.startsWith('data:') ? raw : (raw || book.cover || '');
       cell.style.cssText = 'aspect-ratio:3/4;border-radius:3px;overflow:hidden;position:relative;box-shadow:1px 2px 6px rgba(0,0,0,0.18);';
-      if (b64) {
+      if (imgSrc) {
         const img = document.createElement('img');
-        img.src = b64;
+        img.src = imgSrc; img.setAttribute('crossorigin','anonymous');
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
         cell.appendChild(img);
       } else {
@@ -1456,16 +1490,16 @@ async function shareCalendar() {
     const listGrid = document.createElement('div');
     listGrid.style.cssText = 'display:flex;flex-direction:column;gap:7px;';
     finished.slice(0, 7).forEach((b, i) => {
-      const b64 = coverMap[b.id] || b.cover || '';
+      const raw2 = coverMap[b.id] || ''; const tSrc = raw2.startsWith('data:') ? raw2 : (raw2 || b.cover || '');
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;align-items:center;gap:9px;';
 
       // 썸네일
       const thumb = document.createElement('div');
       thumb.style.cssText = 'width:22px;height:32px;border-radius:2px;overflow:hidden;flex-shrink:0;box-shadow:1px 1px 4px rgba(0,0,0,0.2);background:#4A3B2A;';
-      if (b64) {
+      if (tSrc) {
         const ti = document.createElement('img');
-        ti.src = b64;
+        ti.src = tSrc; ti.setAttribute('crossorigin','anonymous');
         ti.style.cssText = 'width:100%;height:100%;object-fit:cover;';
         thumb.appendChild(ti);
       }
