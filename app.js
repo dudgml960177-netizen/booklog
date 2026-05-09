@@ -1325,11 +1325,28 @@ async function shareCalendar() {
     b.status==='완독' && b.date_finish?.startsWith(ymPrefix)
   ).sort((a,b) => new Date(a.date_finish)-new Date(b.date_finish));
 
-  // ── 표지 이미지 로드 (Blob URL 방식 - CORS 우회 최선책)
-  async function loadCoverImage(url) {
+  // roundRect 폴리필 (구형 브라우저 대응)
+  if(!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
+      r = Math.min(r, w/2, h/2);
+      this.moveTo(x+r, y);
+      this.lineTo(x+w-r, y);
+      this.quadraticCurveTo(x+w, y, x+w, y+r);
+      this.lineTo(x+w, y+h-r);
+      this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+      this.lineTo(x+r, y+h);
+      this.quadraticCurveTo(x, y+h, x, y+h-r);
+      this.lineTo(x, y+r);
+      this.quadraticCurveTo(x, y, x+r, y);
+      this.closePath();
+      return this;
+    };
+  }
+
+  // 표지 이미지 로드
+  async function loadCoverImg(url) {
     if(!url) return null;
     const u = url.replace('http://','https://');
-    // 방법 1: crossOrigin=anonymous (CORS 헤더 있는 서버)
     const tryLoad = (src, cors) => new Promise(res => {
       const img = new Image();
       if(cors) img.crossOrigin = 'anonymous';
@@ -1338,35 +1355,27 @@ async function shareCalendar() {
       img.onerror = () => { clearTimeout(t); res(null); };
       img.src = src;
     });
-    let img = await tryLoad(u, true);
-    if(img) return img;
-    // 방법 2: crossOrigin 없이 (tainted 허용)
-    img = await tryLoad(u, false);
-    if(img) return img;
-    return null;
+    return (await tryLoad(u, true)) || (await tryLoad(u, false));
   }
 
-  // 표지 병렬 로드
   const coverImgs = {};
   await Promise.all(finished.map(async b => {
-    if(b.cover) coverImgs[b.id] = await loadCoverImage(b.cover);
+    if(b.cover) coverImgs[b.id] = await loadCoverImg(b.cover);
   }));
 
-  // ── Canvas 직접 드로잉
-  const DPR = 2; // 고해상도
+  const DPR = 2;
   const W = 440, PAD = 28;
   const COLS = 7;
   const CELL_W = Math.floor((W - PAD*2) / COLS);
-  const CELL_H = Math.floor(CELL_W * 1.4); // 세로로 긴 셀 (책표지 비율)
-
-  // 높이 계산
+  const CELL_H = Math.floor(CELL_W * 1.4);
   const firstDay = new Date(calY, calM, 1).getDay();
   const numDays = new Date(calY, calM+1, 0).getDate();
   const rows = Math.ceil((firstDay + numDays) / 7);
   const DOW_H = 24, HEADER_H = 90, GAP = 3;
   const CAL_H = DOW_H + rows * (CELL_H + GAP);
-  const LIST_H = finished.length > 0 ? 16 + finished.slice(0,7).length * 44 : 0;
-  const TOTAL_H = HEADER_H + 20 + CAL_H + 20 + (finished.length>0?16+LIST_H:0) + 36;
+  const LIST_ROWS = Math.min(finished.length, 7);
+  const LIST_H = LIST_ROWS > 0 ? 30 + LIST_ROWS * 42 : 0;
+  const TOTAL_H = HEADER_H + 20 + CAL_H + 20 + LIST_H + 36;
 
   const canvas = document.createElement('canvas');
   canvas.width = W * DPR;
@@ -1374,41 +1383,36 @@ async function shareCalendar() {
   const cx = canvas.getContext('2d');
   cx.scale(DPR, DPR);
 
-  // ── 배경
+  // 배경
   cx.fillStyle = '#F5EFE4';
   cx.fillRect(0, 0, W, TOTAL_H);
 
-  // ── 헤더
+  // 헤더
   let y = PAD;
   cx.fillStyle = '#9A8872';
   cx.font = '11px Georgia,serif';
   cx.fillText(String(calY), PAD, y+11);
   y += 18;
-
   cx.fillStyle = '#2C2016';
-  cx.font = `bold 32px Georgia,serif`;
-  cx.fillText(MONTH_NAMES[calM], PAD, y+30);
-
-  cx.fillStyle = '#2C2016';
-  cx.font = `bold 32px Georgia,serif`;
-  const booksText = String(finished.length);
+  cx.font = 'bold 30px Georgia,serif';
+  cx.fillText(MONTH_NAMES[calM], PAD, y+28);
   cx.textAlign = 'right';
-  cx.fillText(booksText, W - PAD, y+28);
+  cx.font = 'bold 30px Georgia,serif';
+  cx.fillText(String(finished.length), W-PAD, y+26);
   cx.font = '10px Georgia,serif';
   cx.fillStyle = '#9A8872';
-  cx.fillText('BOOKS READ', W - PAD, y+42);
+  cx.fillText('BOOKS READ', W-PAD, y+40);
   cx.textAlign = 'left';
+  y += 48;
 
-  y += 50;
-  // 가로선
+  // 헤더 구분선
   cx.strokeStyle = '#C8B99A';
   cx.lineWidth = 1;
   cx.beginPath(); cx.moveTo(PAD, y); cx.lineTo(W-PAD, y); cx.stroke();
   y += 16;
 
-  // ── 요일 헤더
-  const DOWS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  DOWS.forEach((d, i) => {
+  // 요일
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d,i) => {
     cx.fillStyle = i===0 ? '#A0614E' : '#9A8872';
     cx.font = '9px Georgia,serif';
     cx.textAlign = 'center';
@@ -1416,165 +1420,144 @@ async function shareCalendar() {
   });
   y += DOW_H;
 
-  // ── 달력 셀
+  // 달력 셀
   const today = new Date();
-  const isCurrentMonth = today.getFullYear()===calY && today.getMonth()===calM;
+  const isThisMonth = today.getFullYear()===calY && today.getMonth()===calM;
 
   for(let d=1; d<=numDays; d++) {
-    const cellIdx = firstDay + d - 1;
-    const col = cellIdx % 7;
-    const row = Math.floor(cellIdx / 7);
-    const cx_ = PAD + col * (CELL_W + GAP/7 - GAP/7);
-    const cy_ = y + row * (CELL_H + GAP);
-    const xPos = PAD + col * CELL_W + (col > 0 ? GAP*col/6 : 0);
+    const ci = firstDay + d - 1;
+    const col = ci % 7;
+    const row = Math.floor(ci / 7);
+    const xPos = PAD + col * CELL_W;
     const yPos = y + row * (CELL_H + GAP);
+    const cw = CELL_W - GAP, ch = CELL_H - GAP;
 
     const dp = ymPrefix+'-'+String(d).padStart(2,'0');
     const dayBooks = finished.filter(b => b.date_finish?.startsWith(dp));
+    const R = 3;
 
-    // 셀 그리기
-    const radius = 3;
     cx.beginPath();
-    cx.roundRect(xPos, yPos, CELL_W-GAP, CELL_H-GAP, radius);
+    cx.roundRect(xPos, yPos, cw, ch, R);
 
     if(dayBooks.length > 0) {
       const book = dayBooks[0];
       const img = coverImgs[book.id];
       if(img) {
-        // 책표지 이미지 채우기
         cx.fillStyle = '#4A3B2A';
         cx.fill();
         cx.save();
         cx.clip();
-        // 이미지 비율 유지하며 채우기
-        const iw = img.naturalWidth || img.width;
-        const ih = img.naturalHeight || img.height;
-        const cw = CELL_W - GAP, ch = CELL_H - GAP;
-        const scale = Math.max(cw/iw, ch/ih);
-        const sw = iw*scale, sh = ih*scale;
+        const iw = img.naturalWidth||80, ih = img.naturalHeight||120;
+        const sc = Math.max(cw/iw, ch/ih);
         try {
-          cx.drawImage(img, xPos+(cw-sw)/2, yPos+(ch-sh)/2, sw, sh);
+          cx.drawImage(img, xPos+(cw-iw*sc)/2, yPos+(ch-ih*sc)/2, iw*sc, ih*sc);
         } catch(e) {
-          // tainted - 어두운 배경으로 폴백
           cx.fillStyle = '#4A3B2A';
           cx.fillRect(xPos, yPos, cw, ch);
         }
-        // 날짜 오버레이 (그라디언트)
-        const grad = cx.createLinearGradient(xPos, yPos, xPos, yPos+20);
-        grad.addColorStop(0, 'rgba(0,0,0,0.5)');
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
-        cx.fillStyle = grad;
-        cx.fillRect(xPos, yPos, cw, 20);
+        // 날짜 오버레이
+        const g = cx.createLinearGradient(xPos, yPos, xPos, yPos+18);
+        g.addColorStop(0, 'rgba(0,0,0,0.55)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        cx.fillStyle = g;
+        cx.fillRect(xPos, yPos, cw, 18);
         cx.restore();
-        // 날짜 숫자
-        cx.fillStyle = 'rgba(255,255,255,0.9)';
-        cx.font = `bold 8px Georgia,serif`;
+        cx.fillStyle = 'rgba(255,255,255,0.92)';
+        cx.font = 'bold 8px Georgia,serif';
         cx.textAlign = 'left';
         cx.fillText(String(d), xPos+3, yPos+11);
       } else {
-        // 표지 없음 - 어두운 배경
+        // 표지 없음 - 다크 배경
         cx.fillStyle = '#4A3B2A';
         cx.fill();
-        cx.fillStyle = 'rgba(255,255,255,0.5)';
-        cx.font = `bold 8px Georgia,serif`;
+        cx.fillStyle = 'rgba(255,255,255,0.6)';
+        cx.font = 'bold 9px Georgia,serif';
         cx.textAlign = 'center';
-        cx.fillText(String(d), xPos+(CELL_W-GAP)/2, yPos+13);
-        cx.font = `7px Georgia,serif`;
+        cx.fillText(String(d), xPos+cw/2, yPos+14);
+        cx.font = '7px Georgia,serif';
         cx.fillStyle = 'rgba(255,255,255,0.35)';
-        const titleShort = book.title.slice(0,4);
-        cx.fillText(titleShort, xPos+(CELL_W-GAP)/2, yPos+(CELL_H-GAP)/2+4);
+        cx.fillText((book.title||'').slice(0,5), xPos+cw/2, yPos+ch/2+4);
+      }
+      if(dayBooks.length > 1) {
+        cx.fillStyle = 'rgba(0,0,0,0.55)';
+        cx.beginPath(); cx.roundRect(xPos+cw-18, yPos+ch-12, 16, 11, 2); cx.fill();
+        cx.fillStyle = '#fff';
+        cx.font = '7px Georgia,serif';
+        cx.textAlign = 'center';
+        cx.fillText('+'+String(dayBooks.length-1), xPos+cw-10, yPos+ch-4);
       }
     } else {
-      // 빈 날짜
-      const isToday = isCurrentMonth && today.getDate()===d;
+      const isToday = isThisMonth && today.getDate()===d;
       cx.fillStyle = isToday ? '#D4C4A8' : '#EDE5D4';
       cx.fill();
       cx.fillStyle = isToday ? '#2C2016' : '#B0A090';
-      cx.font = `${isToday?'bold ':''} 9px Georgia,serif`;
+      cx.font = (isToday ? 'bold ' : '') + '9px Georgia,serif';
       cx.textAlign = 'center';
-      cx.fillText(String(d), xPos+(CELL_W-GAP)/2, yPos+13);
+      cx.fillText(String(d), xPos+cw/2, yPos+13);
     }
+    cx.textAlign = 'left';
   }
-  cx.textAlign = 'left';
-
   y += rows * (CELL_H + GAP) + 18;
 
-  // ── 구분선 (dashed)
-  cx.setLineDash([3, 4]);
+  // 구분선 (dashed)
+  cx.setLineDash([3,4]);
   cx.strokeStyle = '#C8B99A';
   cx.lineWidth = 0.8;
   cx.beginPath(); cx.moveTo(PAD, y); cx.lineTo(W-PAD, y); cx.stroke();
   cx.setLineDash([]);
   y += 14;
 
-  // ── 완독 리스트
+  // 완독 리스트
   if(finished.length > 0) {
     cx.fillStyle = '#9A8872';
     cx.font = '9px Georgia,serif';
-    cx.letterSpacing = '2px';
-    cx.fillText('READING LIST', PAD, y+10);
-    cx.letterSpacing = '0px';
+    cx.fillText('READING  LIST', PAD, y+10); // 공백으로 간격 표현 (letterSpacing 대체)
     y += 20;
 
-    finished.slice(0, 7).forEach(b => {
+    finished.slice(0,7).forEach(b => {
       const img = coverImgs[b.id];
-      const THUMB_W = 22, THUMB_H = 32;
-      // 썸네일
+      const TW = 22, TH = 32;
       if(img) {
         cx.save();
-        cx.beginPath();
-        cx.roundRect(PAD, y, THUMB_W, THUMB_H, 2);
-        cx.clip();
-        const iw = img.naturalWidth || img.width;
-        const ih = img.naturalHeight || img.height;
-        const scale = Math.max(THUMB_W/iw, THUMB_H/ih);
-        try {
-          cx.drawImage(img, PAD+(THUMB_W-iw*scale)/2, y+(THUMB_H-ih*scale)/2, iw*scale, ih*scale);
-        } catch(e) {
-          cx.fillStyle = '#4A3B2A';
-          cx.fillRect(PAD, y, THUMB_W, THUMB_H);
-        }
+        cx.beginPath(); cx.roundRect(PAD, y, TW, TH, 2); cx.clip();
+        const iw = img.naturalWidth||60, ih = img.naturalHeight||90;
+        const sc = Math.max(TW/iw, TH/ih);
+        try { cx.drawImage(img, PAD+(TW-iw*sc)/2, y+(TH-ih*sc)/2, iw*sc, ih*sc); }
+        catch(e) { cx.fillStyle='#4A3B2A'; cx.fillRect(PAD,y,TW,TH); }
         cx.restore();
       } else {
         cx.fillStyle = '#4A3B2A';
-        cx.beginPath(); cx.roundRect(PAD, y, THUMB_W, THUMB_H, 2); cx.fill();
+        cx.beginPath(); cx.roundRect(PAD, y, TW, TH, 2); cx.fill();
       }
-      // 제목
-      const tx = PAD + THUMB_W + 9;
+      const tx = PAD+TW+9;
       cx.fillStyle = '#2C2016';
       cx.font = 'bold 11px Georgia,serif';
-      const title = b.title.length > 22 ? b.title.slice(0,22)+'…' : b.title;
+      const title = (b.title||'').length > 22 ? b.title.slice(0,22)+'…' : (b.title||'');
       cx.fillText(title, tx, y+12);
-      // 저자
       cx.fillStyle = '#9A8872';
       cx.font = '9px Georgia,serif';
-      const author = (b.author?.split(/[,·]/)[0]||'').slice(0,20);
-      cx.fillText(author, tx, y+26);
-      // 별점
+      cx.fillText((b.author||'').split(/[,·]/)[0].slice(0,20), tx, y+25);
       if(b.rating) {
         cx.fillStyle = '#A0614E';
-        cx.font = '9px Georgia,serif';
         cx.textAlign = 'right';
         cx.fillText('★'.repeat(b.rating), W-PAD, y+14);
         cx.textAlign = 'left';
       }
-      // 구분선
       cx.strokeStyle = '#E6DEC8';
       cx.lineWidth = 0.5;
-      cx.beginPath(); cx.moveTo(PAD, y+THUMB_H+4); cx.lineTo(W-PAD, y+THUMB_H+4); cx.stroke();
-      y += THUMB_H + 10;
+      cx.beginPath(); cx.moveTo(PAD, y+TH+5); cx.lineTo(W-PAD, y+TH+5); cx.stroke();
+      y += TH+10;
     });
     if(finished.length > 7) {
       cx.fillStyle = '#9A8872';
       cx.font = 'italic 9px Georgia,serif';
       cx.textAlign = 'right';
-      cx.fillText(`and ${finished.length-7} more books`, W-PAD, y+10);
+      cx.fillText('and '+String(finished.length-7)+' more books', W-PAD, y+10);
       cx.textAlign = 'left';
-      y += 14;
     }
   }
 
-  // ── 푸터
+  // 푸터
   cx.strokeStyle = '#C8B99A';
   cx.lineWidth = 1;
   cx.beginPath(); cx.moveTo(PAD, TOTAL_H-26); cx.lineTo(W-PAD, TOTAL_H-26); cx.stroke();
@@ -1582,30 +1565,29 @@ async function shareCalendar() {
   cx.font = '9px Georgia,serif';
   cx.fillText('BOOKLOG', PAD, TOTAL_H-12);
   cx.textAlign = 'right';
-  cx.fillText(`${allBooks.filter(b=>b.status==='완독').length} books in total`, W-PAD, TOTAL_H-12);
+  cx.fillText(String(allBooks.filter(b=>b.status==='완독').length)+' books in total', W-PAD, TOTAL_H-12);
   cx.textAlign = 'left';
 
-  // ── 다운로드
+  // 저장
   try {
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = `Booklog_${calY}_${MONTH_NAMES[calM]}.png`;
+    a.download = 'Booklog_'+calY+'_'+MONTH_NAMES[calM]+'.png';
     a.click();
-    await showAlert('달력 이미지가 저장됐어요! 📅');
-  } catch(err) {
-    // tainted canvas → 별도 방법 시도
+    showAlert('달력 이미지가 저장됐어요! 📅');
+  } catch(e) {
     canvas.toBlob(blob => {
       if(blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Booklog_${calY}_${MONTH_NAMES[calM]}.png`;
+        a.download = 'Booklog_'+calY+'_'+MONTH_NAMES[calM]+'.png';
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
         showAlert('달력 이미지가 저장됐어요! 📅');
       } else {
-        showAlert('이미지 저장에 실패했어요. (CORS 제한)');
+        showAlert('이미지 저장에 실패했어요.');
       }
     });
   }
