@@ -1044,7 +1044,7 @@ function renderQuotes() {
     text = text
       .replace(/<div><br\s*\/?><\/div>/gi, '<br>')   // 빈 div
       .replace(/<\/div>\s*<div>/gi, '<br>')            // div 경계
-      .replace(/<div>/gi, '')                          // 열리는 div 제거
+      .replace(/<div>/gi, '\n')                        // 열리는 div → 줄바꿈(단독 div 처리)
       .replace(/<\/div>/gi, '<br>')                    // 닫히는 div → br
       .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>') // p 태그
       .replace(/\n/g, '<br>')                          // 줄바꿈 문자
@@ -1166,7 +1166,7 @@ function openEditQuote(qt) {
                 .replace(/^(<br\s*\/?>\s*)+/,'')
                 .replace(/(<br\s*\/?>\s*)+$/,'');
             }
-            return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+            return /<[a-z]/i.test(t) ? t.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'<br>').replace(/<\/div>/gi,'').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\\n/g,'<br>').replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>').replace(/^(<br\s*\/?>\s*)+/,'').replace(/(<br\s*\/?>\s*)+$/,'') : t.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\\n/g,'<br>');
           })()
         }</div>
         <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
@@ -1334,12 +1334,36 @@ async function shareCalendar() {
   async function loadCoverImg(url) {
     if(!url) return null;
     const u = url.replace('http://','https://');
+
+    // 방법 1: fetch로 Blob 가져오기 → ObjectURL → tainted 방지
+    try {
+      const resp = await Promise.race([
+        fetch(u, {mode:'cors', credentials:'omit'}),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('t')),5000))
+      ]);
+      if(resp.ok) {
+        const blob = await resp.blob();
+        if(blob.size > 0 && blob.type.startsWith('image/')) {
+          const objUrl = URL.createObjectURL(blob);
+          const img = await new Promise(res => {
+            const i = new Image();
+            const t = setTimeout(()=>{URL.revokeObjectURL(objUrl);res(null);},3000);
+            i.onload = ()=>{clearTimeout(t);res(i);};
+            i.onerror = ()=>{clearTimeout(t);URL.revokeObjectURL(objUrl);res(null);};
+            i.src = objUrl;
+          });
+          if(img) { img._objUrl = objUrl; return img; }
+        }
+      }
+    } catch(e) {}
+
+    // 방법 2: crossOrigin anonymous (CORS 헤더 있는 서버)
     const tryLoad = (src, cors) => new Promise(res => {
       const img = new Image();
       if(cors) img.crossOrigin = 'anonymous';
-      const t = setTimeout(() => res(null), 5000);
-      img.onload = () => { clearTimeout(t); res(img); };
-      img.onerror = () => { clearTimeout(t); res(null); };
+      const t = setTimeout(()=>res(null),5000);
+      img.onload = ()=>{clearTimeout(t);res(img);};
+      img.onerror = ()=>{clearTimeout(t);res(null);};
       img.src = src;
     });
     return (await tryLoad(u, true)) || (await tryLoad(u, false));
@@ -1464,6 +1488,9 @@ async function shareCalendar() {
   cx.fillText(String(allBooks.filter(b=>b.status==='완독').length)+' books in total',W-PAD,TOTAL_H-12);
   cx.textAlign='left';
 
+  // ObjectURL 정리
+  Object.values(coverImgs).forEach(img => { if(img?._objUrl) URL.revokeObjectURL(img._objUrl); });
+
   try {
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
@@ -1472,6 +1499,7 @@ async function shareCalendar() {
     a.click();
     showAlert('달력 이미지가 저장됐어요! 📅');
   } catch(e) {
+    // tainted canvas → toBlob으로 시도
     canvas.toBlob(blob => {
       if(blob){
         const url=URL.createObjectURL(blob);
@@ -4044,7 +4072,7 @@ function openDetail(bookId) {
     quotes.forEach((q,i)=>{
       const color = QCOLORS[i % QCOLORS.length];
       const hasHtml = /<[a-z]/i.test(q.text||'');
-      const txt = hasHtml ? q.text : (q.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      let txt = q.text || ''; if(hasHtml) { txt = txt.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'<br>').replace(/<\/div>/gi,'').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\n/g,'<br>').replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>').replace(/^(<br\s*\/?>\s*)+/,'').replace(/(<br\s*\/?>\s*)+$/,''); } else { txt = txt.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\n/g,'<br>'); }
       html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem .5rem 1rem;position:relative;margin-bottom:.4rem;cursor:pointer;transition:box-shadow .15s;" onmouseenter="this.style.boxShadow='0 2px 10px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow='none'">
         <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${color};"></div>
         <div style="position:absolute;top:.45rem;right:.55rem;font-size:.6rem;color:var(--tx3);opacity:.5;">✏️</div>
