@@ -346,24 +346,32 @@ function init() {
   _initSession();
 }
 
-async function _initSession() {
-  // getSession에 타임아웃 적용 (네트워크 지연 대비)
-  const sessionPromise = sb.auth.getSession();
-  const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000));
+async function _initSession(retry=0) {
   try {
-    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+    // getSession: 로컬 세션 확인 + 만료 시 자동 갱신 (Supabase 내부 처리)
+    const { data: { session }, error } = await sb.auth.getSession();
+    if(error) throw error;
     if(session?.user) {
       await startApp(session.user);
+    } else {
+      // 세션 없음 → 재시도 1회 (3초 후)
+      if(retry < 1) {
+        setTimeout(() => _initSession(retry+1), 3000);
+      } else {
+        _appState = 'auth';
+        showScreen('auth');
+        loadSavedEmail();
+      }
+    }
+  } catch(e) {
+    if(retry < 1) {
+      // 오류 시 3초 후 재시도 1회
+      setTimeout(() => _initSession(retry+1), 3000);
     } else {
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
     }
-  } catch(e) {
-    // 타임아웃 또는 네트워크 오류 → 로그인 화면
-    _appState = 'auth';
-    showScreen('auth');
-    loadSavedEmail();
   }
 }
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -2560,7 +2568,7 @@ const QUESTS = [
     name: '마지막 장의 수호자',
     hint: '끝날 때까지 끝난 게 아니다.',
     desc: '끝까지 가는 힘이 중요하죠.',
-    condition: (books) => parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
+    condition: (books) => books.filter(b => b.status === '완독').length >= 50 || parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
     reward: {
       title: '🏁 마지막 장의 수호자', item: '✅',
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -2779,6 +2787,7 @@ async function checkAndGrantQuests() {
     await showQuestRewardPopup(quest);
     const achKey = 'bl_quest_ach_' + quest.id;
     if(!localStorage.getItem(achKey)) localStorage.setItem(achKey, achDate);
+    // DB의 completed_quests에 이미 저장되므로 팝업은 newlyCompleted에서만 발생
   }
   // 초대권 보상
   for(const quest of newlyCompleted) {
@@ -3679,12 +3688,25 @@ function openAddBook() {
   openModal('modal-book');
 }
 async function searchBook() {
-  const q=document.getElementById('book-search-input').value.trim();if(!q)return;
-  const res=document.getElementById('search-results');res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 중...</div>';
+  const rawQ=document.getElementById('book-search-input').value.trim();if(!rawQ)return;
+  // 검색어 전처리: 특수문자·괄호 제거 후 핵심어 추출
+  const q = rawQ.replace(/[<>]/g,'').trim();
+  const res=document.getElementById('search-results');
+  res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 중...</div>';
   try {
-    const resp=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
+    // display=20으로 결과 수 증가
+    const resp=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}&display=20`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
     const data=await resp.json();res.innerHTML='';
-    if(!data.items?.length){res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요.</div>';return;}
+    if(!data.items?.length){
+      // 검색 결과 없으면 괄호 등 제거 후 재시도
+      const q2 = q.replace(/[(\[（【].*?[)\]）】]/g,'').replace(/\d+권|\d+편|\d+부/g,'').trim();
+      if(q2 && q2 !== q) {
+        const resp2=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q2)}&display=20`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
+        const data2=await resp2.json();
+        if(data2.items?.length) { data.items = data2.items; }
+      }
+      if(!data.items?.length){res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요.</div>';return;}
+    }
     data.items.forEach(item=>{
       const el=document.createElement('div');el.className='search-item';
       const cover=item.image||'',title=item.title.replace(/<[^>]+>/g,''),author=item.author.replace(/<[^>]+>/g,''),publisher=item.publisher||'',desc=item.description.replace(/<[^>]+>/g,'');
