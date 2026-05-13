@@ -241,6 +241,7 @@ async function startApp(user) {
       if(pf?.font_size) initFontSize(String(pf.font_size));
     } catch(e) {}
     
+    initCustomFont(); // 저장된 폰트 적용
     _appState = 'running';
     showScreen('app');
     buildBooks();
@@ -507,6 +508,62 @@ function showAuthError(msg, success=false) {
 }
 
 // ── 탭
+
+
+// ── 폰트 설정 (관리자)
+function buildFontSettings() {
+  const wrap = document.getElementById('admin-font-settings');
+  if(!wrap) return;
+  const FONTS = [
+    {label:'노토 세리프 KR (기본)', value:"'Noto Serif KR',serif"},
+    {label:'노토 산스 KR', value:"'Noto Sans KR',sans-serif"},
+    {label:'Cormorant Garamond', value:"'Cormorant Garamond','Noto Serif KR',serif"},
+    {label:'Playfair Display', value:"'Playfair Display','Noto Serif KR',serif"},
+    {label:'나눔명조', value:"'Nanum Myeongjo',serif"},
+    {label:'나눔고딕', value:"'Nanum Gothic',sans-serif"},
+  ];
+  const curFont = localStorage.getItem('bl_custom_font') || '';
+  wrap.innerHTML = `
+    <div style="font-size:.7rem;font-weight:600;color:var(--tx2);margin-bottom:.4rem;">시스템 폰트</div>
+    <select id="font-select" style="width:100%;padding:.4rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.75rem;background:var(--paper);" onchange="applyCustomFont(this.value)">
+      ${FONTS.map(f=>`<option value="${f.value}" ${f.value===curFont?'selected':''}>${f.label}</option>`).join('')}
+    </select>
+    <div style="font-size:.62rem;color:var(--tx3);margin-top:.3rem;">선택한 폰트는 앱 전체에 적용됩니다.</div>
+    <div id="font-preview" style="margin-top:.5rem;padding:.5rem;background:var(--shadow-bg);border-radius:4px;font-size:.75rem;">
+      가나다라마바사 · 책장 안의 노트
+    </div>`;
+  const preview = document.getElementById('font-preview');
+  if(preview && curFont) preview.style.fontFamily = curFont;
+}
+
+function applyCustomFont(fontFamily) {
+  localStorage.setItem('bl_custom_font', fontFamily);
+  document.documentElement.style.setProperty('--ff', fontFamily);
+  // 프리뷰 업데이트
+  const preview = document.getElementById('font-preview');
+  if(preview) preview.style.fontFamily = fontFamily;
+}
+
+function initCustomFont() {
+  const saved = localStorage.getItem('bl_custom_font');
+  if(saved) document.documentElement.style.setProperty('--ff', saved);
+}
+
+// ── 타이머 백그라운드 지원
+let _timerBgHideTime = null;
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && timerRunning) {
+    // 백그라운드 전환 시 현재 시간 저장
+    _timerBgHideTime = Date.now();
+  } else if(!document.hidden && timerRunning && _timerBgHideTime) {
+    // 포그라운드 복귀 시 경과 시간 보정
+    const elapsed = Math.round((Date.now() - _timerBgHideTime) / 1000);
+    timerSeconds += elapsed;
+    _timerBgHideTime = null;
+    updateTimerDisplay();
+  }
+});
+
 function sw(name, btn) {
   // FAB 버튼: 서재·문장 탭에서만 표시
   const fab=document.getElementById('fab-add-book');
@@ -584,6 +641,21 @@ function buildBooks() {
   const list = getFilteredBooks();
   if (curView==='gallery') buildGallery(list);
   else buildList(list);
+  // 필터 카운트 업데이트
+  const total = allBooks.length;
+  const fc = {
+    all: total,
+    done: allBooks.filter(b=>b.status==='완독').length,
+    read: allBooks.filter(b=>b.status==='읽는중').length,
+    want: allBooks.filter(b=>b.status==='읽고싶음').length,
+    stop: allBooks.filter(b=>b.status==='중단').length,
+  };
+  const el = (id, n) => { const e=document.getElementById(id); if(e) e.textContent=n||''; };
+  el('fc-all', fc.all||''); el('fc-done', fc.done||''); el('fc-read', fc.read||'');
+  el('fc-want', fc.want||''); el('fc-stop', fc.stop||'');
+  // 서재 카운트 라벨
+  const lbl = document.getElementById('library-count-label');
+  if(lbl) lbl.textContent = `MY LIBRARY · ${total} VOLUMES`;
 }
 // ── 일괄 삭제
 let selectMode = false, selectedIds = new Set();
@@ -632,12 +704,22 @@ function buildGallery(list) {
     } else {
       el.onclick = ()=>openDetail(b.id);
     }
-    const img = b.cover ? `<img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;display:block;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.48rem;color:rgba(255,255,255,.8);text-align:center;padding:.2rem;font-style:italic;line-height:1.3;">${b.title}</div>`;
+    // 책 표지 없을 때: 단색 배경 + 제목 (제목 길면 자동 생략)
+    const statusColor = {'완독':'#6b8f6b','읽는중':'#5a7a8a','읽고싶음':'#c4a87a','중단':'#8a3a28','다시읽기':'#8b6b8b'}[b.status||''] || '#4a3520';
+    const shortTitle = b.title && b.title.length > 14 ? b.title.slice(0,13)+'…' : (b.title||'');
+    const shortAuthor = b.author ? b.author.split(/[,·]/)[0].slice(0,12) : '';
+    const img = b.cover
+      ? `<img src="${b.cover}" alt="${b.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">`
+      : `<div style="width:100%;height:100%;background:${statusColor};display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;padding:.5rem .45rem;box-sizing:border-box;">
+           <div style="font-size:.35rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:.3rem;border-top:1px solid rgba(255,255,255,.3);padding-top:.3rem;width:100%;font-family:var(--ff-sans);">${shortAuthor}</div>
+           <div style="font-size:.5rem;font-weight:600;color:rgba(255,255,255,.9);line-height:1.3;font-family:var(--ff-serif);">${shortTitle}</div>
+         </div>`;
+    const ratingDot = b.rating ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};margin-right:.25rem;vertical-align:middle;"></span>` : '';
+    const ratingNum = b.rating ? `<span style="font-size:.7rem;font-style:italic;color:var(--tx3);font-family:var(--ff-serif);">${b.rating}</span>` : '';
     el.innerHTML = `<div class="gi-cover">${img}</div>
-      <div class="gi-title">${b.title}</div>
-      <div class="gi-author">${b.author||''}</div>
-      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'⯨':'☆').join('')}</div>
-      <span class="gi-status">${b.status||''}</span>`;
+      <div class="gi-title" title="${b.title}">${b.title}</div>
+      <div class="gi-author">${shortAuthor}</div>
+      <div style="display:flex;align-items:center;margin-top:.15rem;">${ratingDot}${ratingNum}</div>`;
     g.appendChild(el);
   });
 }
@@ -1068,18 +1150,24 @@ function filterQftBooks(q) {
 function selectQftBook(bookId) {
   const book = allBooks.find(b=>b.id===bookId);
   if(!book) return;
-  // 모달 닫기
   document.querySelector('#qft-list')?.closest('.modal-overlay')?.remove();
-  // 해당 책 열기
-  openBook(book);
-  // 문장 추가 에디터로 포커스
+  // 책 상세 열기
+  openDetail(book.id);
+  // 일정 시간 후 문장 추가 에디터 스크롤 + 포커스
   setTimeout(() => {
-    const quoteSection = document.querySelector('[data-qtext]');
-    if(quoteSection) {
-      quoteSection.scrollIntoView({behavior:'smooth', block:'center'});
-      quoteSection.focus();
+    // 문장 추가 섹션으로 스크롤
+    const addSection = document.getElementById('book-quote-add');
+    const editor = document.querySelector('.qeditor-body[data-qtext]');
+    if(addSection) {
+      addSection.scrollIntoView({behavior:'smooth', block:'start'});
+    } else if(editor) {
+      editor.scrollIntoView({behavior:'smooth', block:'center'});
     }
-  }, 500);
+    setTimeout(()=>{
+      const ed = document.querySelector('.qeditor-body[data-qtext]');
+      if(ed) ed.focus();
+    }, 400);
+  }, 600);
 }
 
 function renderQuotes() {
@@ -1417,32 +1505,39 @@ async function shareCalendar() {
 
     // 표지 이미지 사전 로드 (문장 공유와 동일한 방식)
     const coverMap = {}; // bookId → base64 or src
+    // 표지 이미지 로드: cors→base64 우선, 실패 시 원본URL (html2canvas allowTaint)
     await Promise.all(finished.map(b => new Promise(res => {
       if(!b.cover) return res();
+      const httpsUrl = b.cover.replace('http://','https://');
+      // 1차: crossOrigin anonymous → canvas base64
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      const timer = setTimeout(() => {
+        img.src=''; // 취소
+        // 타임아웃 → 원본 URL 폴백
+        coverMap[b.id] = httpsUrl;
+        res();
+      }, 5000);
       img.onload = () => {
+        clearTimeout(timer);
         try {
           const c = document.createElement('canvas');
           c.width=img.naturalWidth||80; c.height=img.naturalHeight||120;
           c.getContext('2d').drawImage(img,0,0);
-          coverMap[b.id] = c.toDataURL('image/jpeg',0.85);
+          coverMap[b.id] = c.toDataURL('image/jpeg',0.88); // base64 성공
           res();
         } catch(e) {
-          // tainted → 원본 URL 그대로 사용 (html2canvas allowTaint로 처리)
-          const img2=new Image();
-          img2.onload=()=>{coverMap[b.id]=img2.src; res();};
-          img2.onerror=()=>res();
-          img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_t='+Date.now();
+          // tainted → 원본 URL로 폴백 (html2canvas allowTaint 처리)
+          coverMap[b.id] = httpsUrl;
+          res();
         }
       };
       img.onerror = () => {
-        const img2=new Image();
-        img2.onload=()=>{coverMap[b.id]=img2.src; res();};
-        img2.onerror=()=>res();
-        img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_t='+Date.now();
+        clearTimeout(timer);
+        coverMap[b.id] = httpsUrl; // 로드 실패 → 원본 URL
+        res();
       };
-      img.src=b.cover;
+      img.src = httpsUrl;
     })));
 
     // 카드 DOM 생성
@@ -1589,15 +1684,19 @@ async function shareCalendar() {
     document.body.appendChild(card);
     await new Promise(res=>setTimeout(res,300)); // 이미지 렌더링 대기
 
+    await new Promise(res=>setTimeout(res,500)); // 이미지 완전 렌더링 대기
+
     const canvas = await html2canvas(card, {
       scale:2.5, backgroundColor:'#F5EFE4',
       useCORS:true, allowTaint:true, logging:false,
-      imageTimeout:15000,
-      onclone:(doc)=>{
-        // 클론에서 이미지 강제 표시
-        doc.querySelectorAll('img').forEach(img=>{
-          img.style.display='block';
-          img.crossOrigin='anonymous';
+      imageTimeout:20000,
+      onclone:(doc, el)=>{
+        // 원본 URL 이미지: crossOrigin 제거 (allowTaint에서 처리)
+        el.querySelectorAll('img').forEach(img=>{
+          if(img.src && !img.src.startsWith('data:')) {
+            img.removeAttribute('crossorigin');
+            img.style.display='block';
+          }
         });
       }
     });
@@ -1638,9 +1737,14 @@ function renderCal() {
       else{const ph=document.createElement('div');ph.className='bthumb-ph';ph.textContent=book.title;el.appendChild(ph);}
       const dn=document.createElement('span');dn.className='dnum';dn.textContent=d;el.appendChild(dn);
     } else {
+      // 독서 타이머 기록 확인 (형광펜 표시)
+      const timerKey = 'bl_daily_timer_'+ds;
+      const hasTimer = parseInt(localStorage.getItem(timerKey)||'0') > 0;
       el.className='day'+(isT?' today':'');
+      if(hasTimer) el.className += ' reading-day';
       if(questAch.length > 0) {
-        el.style.cssText = 'position:relative;background:#fdf8ee;';
+        el.style.position='relative';
+        if(!hasTimer) el.style.background='#fdf8ee';
         const qb = document.createElement('span');
         qb.style.cssText = 'position:absolute;top:1px;right:2px;font-size:.45rem;line-height:1;';
         qb.textContent = questAch[0].reward.item || '🏆';
@@ -4739,6 +4843,7 @@ async function openAdminPanel() {
   selectedMemberIds.clear();
   await loadAllMembers();
   openModal('modal-admin-panel');
+  buildFontSettings(); // 폰트 설정 섹션 렌더링
 }
 
 async function loadAllMembers() {
