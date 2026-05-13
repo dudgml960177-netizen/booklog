@@ -1015,21 +1015,71 @@ function toggleQText(id, btn) {
 
 // 문장 탭에서 책 선택 후 문장 추가
 function addQuoteFromTab() {
-  const sel = document.getElementById('q-book-select');
-  const bookId = sel?.value;
-  if(!bookId) { showAlert('먼저 책을 선택해주세요.'); return; }
+  // 서재 책 검색 모달 표시
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'display:flex;z-index:1100;';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:380px;padding:0;overflow:hidden;">
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-weight:700;color:#fff;font-size:.9rem;">📖 어느 책에 추가할까요?</span>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+      <div style="padding:.75rem;">
+        <input id="qft-search" type="text" placeholder="책 제목이나 저자 검색..."
+          style="width:100%;box-sizing:border-box;padding:.45rem .7rem;border:1px solid var(--border2);border-radius:8px;font-size:.78rem;font-family:var(--ff);margin-bottom:.5rem;"
+          oninput="filterQftBooks(this.value)">
+        <div id="qft-list" style="max-height:300px;overflow-y:auto;"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+
+  // 초기 목록 표시
+  window._qftBooks = allBooks.filter(b=>b.status==='완독'||b.status==='읽는중')
+    .sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+  filterQftBooks('');
+  document.getElementById('qft-search')?.focus();
+}
+
+function filterQftBooks(q) {
+  const list = document.getElementById('qft-list');
+  if(!list) return;
+  const books = (window._qftBooks||[]).filter(b =>
+    !q || (b.title||'').toLowerCase().includes(q.toLowerCase()) ||
+    (b.author||'').toLowerCase().includes(q.toLowerCase())
+  );
+  if(!books.length) {
+    list.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;text-align:center;">일치하는 책이 없어요.</div>';
+    return;
+  }
+  list.innerHTML = books.map(b => `
+    <div onclick="selectQftBook('${b.id}')"
+      style="display:flex;align-items:center;gap:.6rem;padding:.45rem .5rem;border-radius:8px;cursor:pointer;transition:background .12s;"
+      onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''">
+      ${b.cover ? `<img src="${b.cover}" style="width:28px;height:40px;object-fit:cover;border-radius:3px;flex-shrink:0;">` : `<div style="width:28px;height:40px;background:var(--acc2);border-radius:3px;flex-shrink:0;"></div>`}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.76rem;font-weight:600;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title||''}</div>
+        <div style="font-size:.65rem;color:var(--tx3);">${(b.author||'').split(/[,·]/)[0]||''} · ${b.status}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selectQftBook(bookId) {
   const book = allBooks.find(b=>b.id===bookId);
   if(!book) return;
-  // openBook을 열되 문장 추가 에디터가 보이도록
+  // 모달 닫기
+  document.querySelector('#qft-list')?.closest('.modal-overlay')?.remove();
+  // 해당 책 열기
   openBook(book);
-  // 잠깐 후 문장 추가 버튼 클릭
+  // 문장 추가 에디터로 포커스
   setTimeout(() => {
-    const addBtn = document.querySelector('.add-quote-btn, [onclick*="openAddQuote"], [onclick*="addQuote"]');
-    if(addBtn) addBtn.click();
-    // 문장 섹션으로 스크롤
-    const quoteSection = document.querySelector('.quote-section, #quote-section, .book-quotes');
-    if(quoteSection) quoteSection.scrollIntoView({behavior:'smooth'});
-  }, 400);
+    const quoteSection = document.querySelector('[data-qtext]');
+    if(quoteSection) {
+      quoteSection.scrollIntoView({behavior:'smooth', block:'center'});
+      quoteSection.focus();
+    }
+  }, 500);
 }
 
 function renderQuotes() {
@@ -1038,12 +1088,10 @@ function renderQuotes() {
   if(qHeader) {
     const completed = allBooks.filter(b=>b.status==='완독'||b.status==='읽는중').sort((a,b)=>(a.title||'').localeCompare(b.title||''));
     qHeader.innerHTML = `
-      <div style="display:flex;gap:.4rem;align-items:center;padding:.5rem 0 .6rem;">
-        <select id="q-book-select" style="flex:1;font-size:.72rem;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--tx1);font-family:var(--ff);">
-          <option value="">📖 책을 선택해서 문장 추가</option>
-          ${completed.map(b=>`<option value="${b.id}">${b.title}${b.author?' — '+b.author.split(/[,·]/)[0]:''}</option>`).join('')}
-        </select>
-        <button onclick="addQuoteFromTab()" style="padding:.3rem .75rem;background:var(--acc);color:#fff;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--ff);">＋ 문장</button>
+      <div style="display:flex;justify-content:flex-end;padding:.4rem 0 .5rem;">
+        <button onclick="addQuoteFromTab()" style="padding:.3rem .85rem;background:var(--acc);color:#fff;border:none;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:var(--ff);display:flex;align-items:center;gap:.3rem;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+          ＋ 문장 추가
+        </button>
       </div>`;
   }
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
@@ -1348,201 +1396,225 @@ async function shareCalendar() {
   if(_sharingCalendar) return;
   _sharingCalendar = true;
   const shareBtn = document.querySelector('[onclick="shareCalendar()"]');
-  if(shareBtn) { shareBtn.disabled = true; shareBtn.textContent = '저장 중...'; }
-
-  const MONTH_NAMES = ['January','February','March','April','May','June',
-    'July','August','September','October','November','December'];
-  const ymPrefix = calY + '-' + String(calM+1).padStart(2,'0');
-  const finished = allBooks.filter(b =>
-    b.status==='완독' && b.date_finish?.startsWith(ymPrefix)
-  ).sort((a,b) => new Date(a.date_finish)-new Date(b.date_finish));
-
-  // roundRect 폴리필
-  if(!CanvasRenderingContext2D.prototype.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
-      r = Math.min(r, w/2, h/2);
-      this.moveTo(x+r,y); this.lineTo(x+w-r,y);
-      this.quadraticCurveTo(x+w,y,x+w,y+r); this.lineTo(x+w,y+h-r);
-      this.quadraticCurveTo(x+w,y+h,x+w-r,y+h); this.lineTo(x+r,y+h);
-      this.quadraticCurveTo(x,y+h,x,y+h-r); this.lineTo(x,y+r);
-      this.quadraticCurveTo(x,y,x+r,y); this.closePath();
-      return this;
-    };
-  }
-
-  async function loadCoverImg(url) {
-    if(!url) return null;
-    const u = url.replace('http://','https://');
-
-    // fetch+ObjectURL: CORS 있으면 clean, no-cors면 opaque blob
-    // 두 경우 모두 ObjectURL은 same-origin 취급 → canvas.toDataURL 가능
-    const tryFetch = async (mode) => {
-      try {
-        const resp = await Promise.race([
-          fetch(u, {mode, credentials:'omit'}),
-          new Promise((_,rej)=>setTimeout(()=>rej('timeout'),5000))
-        ]);
-        // no-cors는 ok=false, type='opaque' 이지만 blob은 가져올 수 있음
-        const blob = await resp.blob();
-        if(blob.size < 100) return null;
-        const objUrl = URL.createObjectURL(blob);
-        return await new Promise(res => {
-          const img = new Image();
-          const t = setTimeout(()=>{URL.revokeObjectURL(objUrl);res(null);},4000);
-          img.onload = ()=>{clearTimeout(t); img._objUrl=objUrl; res(img);};
-          img.onerror = ()=>{clearTimeout(t);URL.revokeObjectURL(objUrl);res(null);};
-          img.src = objUrl;
-        });
-      } catch(e){ return null; }
-    };
-
-    // cors 먼저, 실패하면 no-cors
-    return (await tryFetch('cors')) || (await tryFetch('no-cors'));
-  }
-
-  const coverImgs = {};
-  await Promise.all(finished.map(async b => {
-    if(b.cover) coverImgs[b.id] = await loadCoverImg(b.cover);
-  }));
-
-  const DPR=2, W=440, PAD=28, COLS=7;
-  const CELL_W = Math.floor((W-PAD*2)/COLS);
-  const CELL_H = Math.floor(CELL_W*1.4);
-  const firstDay = new Date(calY,calM,1).getDay();
-  const numDays = new Date(calY,calM+1,0).getDate();
-  const rows = Math.ceil((firstDay+numDays)/7);
-  const DOW_H=24, GAP=3;
-  const CAL_H = DOW_H + rows*(CELL_H+GAP);
-  const LIST_H = Math.min(finished.length,7)*42 + (finished.length>0?30:0);
-  const TOTAL_H = 90 + 20 + CAL_H + 20 + LIST_H + 36;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = W*DPR; canvas.height = TOTAL_H*DPR;
-  const cx = canvas.getContext('2d');
-  cx.scale(DPR,DPR);
-  cx.fillStyle='#F5EFE4'; cx.fillRect(0,0,W,TOTAL_H);
-
-  let y = PAD;
-  cx.fillStyle='#9A8872'; cx.font='11px Georgia,serif';
-  cx.fillText(String(calY),PAD,y+11); y+=18;
-  cx.fillStyle='#2C2016'; cx.font='bold 30px Georgia,serif';
-  cx.fillText(MONTH_NAMES[calM],PAD,y+28);
-  cx.textAlign='right';
-  cx.fillText(String(finished.length),W-PAD,y+26);
-  cx.font='10px Georgia,serif'; cx.fillStyle='#9A8872';
-  cx.fillText('BOOKS READ',W-PAD,y+40);
-  cx.textAlign='left'; y+=48;
-  cx.strokeStyle='#C8B99A'; cx.lineWidth=1;
-  cx.beginPath(); cx.moveTo(PAD,y); cx.lineTo(W-PAD,y); cx.stroke(); y+=16;
-
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d,i)=>{
-    cx.fillStyle=i===0?'#A0614E':'#9A8872';
-    cx.font='9px Georgia,serif'; cx.textAlign='center';
-    cx.fillText(d,PAD+i*CELL_W+CELL_W/2,y+12);
-  });
-  y+=DOW_H;
-
-  const today=new Date();
-  const isThisMonth=today.getFullYear()===calY&&today.getMonth()===calM;
-  for(let d=1;d<=numDays;d++){
-    const ci=firstDay+d-1, col=ci%7, row=Math.floor(ci/7);
-    const xPos=PAD+col*CELL_W, yPos=y+row*(CELL_H+GAP);
-    const cw=CELL_W-GAP, ch=CELL_H-GAP;
-    const dp=ymPrefix+'-'+String(d).padStart(2,'0');
-    const dayBooks=finished.filter(b=>b.date_finish?.startsWith(dp));
-    cx.beginPath(); cx.roundRect(xPos,yPos,cw,ch,3);
-    if(dayBooks.length>0){
-      const book=dayBooks[0], img=coverImgs[book.id];
-      if(img){
-        cx.fillStyle='#4A3B2A'; cx.fill();
-        cx.save(); cx.clip();
-        const iw=img.naturalWidth||80,ih=img.naturalHeight||120;
-        const sc=Math.max(cw/iw,ch/ih);
-        cx.drawImage(img,xPos+(cw-iw*sc)/2,yPos+(ch-ih*sc)/2,iw*sc,ih*sc);
-        const g=cx.createLinearGradient(xPos,yPos,xPos,yPos+18);
-        g.addColorStop(0,'rgba(0,0,0,0.55)'); g.addColorStop(1,'rgba(0,0,0,0)');
-        cx.fillStyle=g; cx.fillRect(xPos,yPos,cw,18); cx.restore();
-        cx.fillStyle='rgba(255,255,255,0.92)'; cx.font='bold 8px Georgia,serif';
-        cx.textAlign='left'; cx.fillText(String(d),xPos+3,yPos+11);
-      } else {
-        cx.fillStyle='#4A3B2A'; cx.fill();
-        cx.fillStyle='rgba(255,255,255,0.6)'; cx.font='bold 9px Georgia,serif';
-        cx.textAlign='center'; cx.fillText(String(d),xPos+cw/2,yPos+14);
-        cx.font='7px Georgia,serif'; cx.fillStyle='rgba(255,255,255,0.35)';
-        cx.fillText((book.title||'').slice(0,5),xPos+cw/2,yPos+ch/2+4);
-      }
-    } else {
-      cx.fillStyle=isThisMonth&&today.getDate()===d?'#D4C4A8':'#EDE5D4'; cx.fill();
-      cx.fillStyle=isThisMonth&&today.getDate()===d?'#2C2016':'#B0A090';
-      cx.font=(isThisMonth&&today.getDate()===d?'bold ':'')+'9px Georgia,serif';
-      cx.textAlign='center'; cx.fillText(String(d),xPos+cw/2,yPos+13);
-    }
-    cx.textAlign='left';
-  }
-  y+=rows*(CELL_H+GAP)+18;
-
-  cx.setLineDash([3,4]); cx.strokeStyle='#C8B99A'; cx.lineWidth=0.8;
-  cx.beginPath(); cx.moveTo(PAD,y); cx.lineTo(W-PAD,y); cx.stroke();
-  cx.setLineDash([]); y+=14;
-
-  if(finished.length>0){
-    cx.fillStyle='#9A8872'; cx.font='9px Georgia,serif';
-    cx.fillText('READING  LIST',PAD,y+10); y+=20;
-    finished.slice(0,7).forEach(b=>{
-      const img=coverImgs[b.id], TW=22,TH=32;
-      if(img){
-        cx.save(); cx.beginPath(); cx.roundRect(PAD,y,TW,TH,2); cx.clip();
-        const iw=img.naturalWidth||60,ih=img.naturalHeight||90,sc=Math.max(TW/iw,TH/ih);
-        cx.drawImage(img,PAD+(TW-iw*sc)/2,y+(TH-ih*sc)/2,iw*sc,ih*sc);
-        cx.restore();
-      } else {
-        cx.fillStyle='#4A3B2A'; cx.beginPath(); cx.roundRect(PAD,y,TW,TH,2); cx.fill();
-      }
-      const tx=PAD+TW+9;
-      cx.fillStyle='#2C2016'; cx.font='bold 11px Georgia,serif';
-      cx.fillText(((b.title||'').length>22?b.title.slice(0,22)+'…':b.title)||'',tx,y+12);
-      cx.fillStyle='#9A8872'; cx.font='9px Georgia,serif';
-      cx.fillText((b.author||'').split(/[,·]/)[0].slice(0,20),tx,y+25);
-      if(b.rating){cx.fillStyle='#A0614E';cx.textAlign='right';cx.fillText('★'.repeat(b.rating),W-PAD,y+14);cx.textAlign='left';}
-      cx.strokeStyle='#E6DEC8';cx.lineWidth=0.5;
-      cx.beginPath();cx.moveTo(PAD,y+TH+5);cx.lineTo(W-PAD,y+TH+5);cx.stroke();
-      y+=TH+10;
-    });
-    if(finished.length>7){cx.fillStyle='#9A8872';cx.font='italic 9px Georgia,serif';cx.textAlign='right';cx.fillText('and '+String(finished.length-7)+' more books',W-PAD,y+10);cx.textAlign='left';}
-  }
-
-  cx.strokeStyle='#C8B99A';cx.lineWidth=1;
-  cx.beginPath();cx.moveTo(PAD,TOTAL_H-26);cx.lineTo(W-PAD,TOTAL_H-26);cx.stroke();
-  cx.fillStyle='#B0A090';cx.font='9px Georgia,serif';
-  cx.fillText('BOOKLOG',PAD,TOTAL_H-12);
-  cx.textAlign='right';
-  cx.fillText(String(allBooks.filter(b=>b.status==='완독').length)+' books in total',W-PAD,TOTAL_H-12);
-  cx.textAlign='left';
-
-  // ObjectURL 정리
-  Object.values(coverImgs).forEach(img => { if(img?._objUrl) URL.revokeObjectURL(img._objUrl); });
+  if(shareBtn) { shareBtn.disabled=true; shareBtn.textContent='저장 중...'; }
 
   try {
-    const dataUrl = canvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = 'Booklog_'+calY+'_'+MONTH_NAMES[calM]+'.png';
-    a.click();
-    showAlert('달력 이미지가 저장됐어요! 📅');
-  } catch(e) {
-    // tainted canvas → toBlob으로 시도
-    canvas.toBlob(blob => {
-      if(blob){
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a');
-        a.href=url; a.download='Booklog_'+calY+'_'+MONTH_NAMES[calM]+'.png';
-        a.click(); setTimeout(()=>URL.revokeObjectURL(url),5000);
-        showAlert('달력 이미지가 저장됐어요! 📅');
-      } else { showAlert('이미지 저장에 실패했어요.'); }
+    // html2canvas 로드
+    if(!window.html2canvas) {
+      await new Promise((res,rej) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        sc.onload=res; sc.onerror=rej; document.head.appendChild(sc);
+      });
+    }
+
+    const MONTHS = ['January','February','March','April','May','June',
+      'July','August','September','October','November','December'];
+    const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
+    const finished = allBooks
+      .filter(b=>b.status==='완독'&&b.date_finish?.startsWith(ymPrefix))
+      .sort((a,b)=>new Date(a.date_finish)-new Date(b.date_finish));
+
+    // 표지 이미지 사전 로드 (문장 공유와 동일한 방식)
+    const coverMap = {}; // bookId → base64 or src
+    await Promise.all(finished.map(b => new Promise(res => {
+      if(!b.cover) return res();
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width=img.naturalWidth||80; c.height=img.naturalHeight||120;
+          c.getContext('2d').drawImage(img,0,0);
+          coverMap[b.id] = c.toDataURL('image/jpeg',0.85);
+          res();
+        } catch(e) {
+          // tainted → 원본 URL 그대로 사용 (html2canvas allowTaint로 처리)
+          const img2=new Image();
+          img2.onload=()=>{coverMap[b.id]=img2.src; res();};
+          img2.onerror=()=>res();
+          img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_t='+Date.now();
+        }
+      };
+      img.onerror = () => {
+        const img2=new Image();
+        img2.onload=()=>{coverMap[b.id]=img2.src; res();};
+        img2.onerror=()=>res();
+        img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_t='+Date.now();
+      };
+      img.src=b.cover;
+    })));
+
+    // 카드 DOM 생성
+    const card = document.createElement('div');
+    card.style.cssText='position:fixed;left:-9999px;top:0;width:420px;background:#F5EFE4;padding:28px;box-sizing:border-box;font-family:Georgia,"Noto Serif KR",serif;color:#2C2016;';
+
+    // 헤더
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;">
+        <div>
+          <div style="font-size:11px;letter-spacing:3px;color:#9A8872;text-transform:uppercase;margin-bottom:3px;">${calY}</div>
+          <div style="font-size:28px;font-weight:700;letter-spacing:-0.5px;line-height:1;">${MONTHS[calM]}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:28px;font-weight:700;line-height:1;">${finished.length}</div>
+          <div style="font-size:9px;letter-spacing:2px;color:#9A8872;text-transform:uppercase;">BOOKS READ</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #C8B99A;margin-bottom:14px;"></div>`;
+
+    // 달력 그리드
+    const calDiv = document.createElement('div');
+    calDiv.style.cssText='margin-bottom:14px;';
+
+    // 요일 헤더
+    const dowRow = document.createElement('div');
+    dowRow.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:5px;';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d,i)=>{
+      const cell=document.createElement('div');
+      cell.style.cssText=`text-align:center;font-size:9px;letter-spacing:1px;color:${i===0?'#A0614E':'#9A8872'};text-transform:uppercase;`;
+      cell.textContent=d; dowRow.appendChild(cell);
     });
+    calDiv.appendChild(dowRow);
+
+    // 날짜 그리드
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px;';
+    const firstDay=new Date(calY,calM,1).getDay();
+    const numDays=new Date(calY,calM+1,0).getDate();
+    const today=new Date();
+    const isThisMonth=today.getFullYear()===calY&&today.getMonth()===calM;
+
+    for(let i=0;i<firstDay;i++){
+      const blank=document.createElement('div');
+      blank.style.cssText='aspect-ratio:3/4;';
+      grid.appendChild(blank);
+    }
+
+    for(let d=1;d<=numDays;d++){
+      const dp=ymPrefix+'-'+String(d).padStart(2,'0');
+      const dayBooks=finished.filter(b=>b.date_finish?.startsWith(dp));
+      const cell=document.createElement('div');
+      const isToday=isThisMonth&&today.getDate()===d;
+
+      if(dayBooks.length>0){
+        const book=dayBooks[0];
+        const src=coverMap[book.id];
+        cell.style.cssText='aspect-ratio:3/4;border-radius:3px;overflow:hidden;position:relative;box-shadow:1px 2px 6px rgba(0,0,0,0.18);';
+        if(src){
+          // 이미지: data: URL 또는 원본 URL
+          const imgEl=document.createElement('img');
+          imgEl.src=src;
+          imgEl.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+          if(!src.startsWith('data:')) imgEl.crossOrigin='anonymous';
+          cell.appendChild(imgEl);
+        } else {
+          cell.style.background='#4A3B2A';
+          const ti=document.createElement('div');
+          ti.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,.5);font-style:italic;';
+          ti.textContent=(book.title||'').slice(0,3);
+          cell.appendChild(ti);
+        }
+        const dn=document.createElement('div');
+        dn.style.cssText='position:absolute;top:2px;left:3px;font-size:8px;color:rgba(255,255,255,.9);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.7);';
+        dn.textContent=d; cell.appendChild(dn);
+      } else {
+        cell.style.cssText=`aspect-ratio:3/4;border-radius:3px;display:flex;align-items:flex-start;justify-content:center;padding-top:4px;background:${isToday?'#D4C4A8':'#EDE5D4'};`;
+        const dn=document.createElement('div');
+        dn.style.cssText=`font-size:9px;color:${isToday?'#2C2016':'#B0A090'};font-weight:${isToday?'700':'400'};`;
+        dn.textContent=d; cell.appendChild(dn);
+      }
+      grid.appendChild(cell);
+    }
+    calDiv.appendChild(grid);
+    card.appendChild(calDiv);
+
+    // 구분선
+    const hr=document.createElement('div');
+    hr.style.cssText='border-top:1px dashed #C8B99A;margin-bottom:12px;';
+    card.appendChild(hr);
+
+    // 완독 리스트
+    if(finished.length>0){
+      const lt=document.createElement('div');
+      lt.style.cssText='font-size:9px;letter-spacing:2px;color:#9A8872;text-transform:uppercase;margin-bottom:8px;';
+      lt.textContent='Reading List'; card.appendChild(lt);
+
+      finished.slice(0,7).forEach(b=>{
+        const src=coverMap[b.id];
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #EDE5D4;';
+
+        const thumb=document.createElement('div');
+        thumb.style.cssText='width:22px;height:32px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#4A3B2A;';
+        if(src){
+          const ti=document.createElement('img');
+          ti.src=src; ti.style.cssText='width:100%;height:100%;object-fit:cover;';
+          if(!src.startsWith('data:')) ti.crossOrigin='anonymous';
+          thumb.appendChild(ti);
+        }
+        row.appendChild(thumb);
+
+        const txt=document.createElement('div');
+        txt.style.cssText='flex:1;min-width:0;';
+        const title=document.createElement('div');
+        title.style.cssText='font-size:11px;color:#2C2016;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        title.textContent=(b.title||'').length>22?b.title.slice(0,22)+'…':(b.title||'');
+        const author=document.createElement('div');
+        author.style.cssText='font-size:9px;color:#9A8872;margin-top:1px;';
+        author.textContent=(b.author||'').split(/[,·]/)[0].slice(0,20);
+        txt.appendChild(title); txt.appendChild(author); row.appendChild(txt);
+
+        if(b.rating){
+          const st=document.createElement('div');
+          st.style.cssText='font-size:9px;color:#A0614E;flex-shrink:0;';
+          st.textContent='★'.repeat(b.rating); row.appendChild(st);
+        }
+        card.appendChild(row);
+      });
+      if(finished.length>7){
+        const more=document.createElement('div');
+        more.style.cssText='font-size:9px;color:#9A8872;text-align:right;font-style:italic;';
+        more.textContent='and '+String(finished.length-7)+' more books';
+        card.appendChild(more);
+      }
+    }
+
+    // 푸터
+    const footer=document.createElement('div');
+    footer.style.cssText='border-top:1px solid #C8B99A;margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;';
+    footer.innerHTML=`<span style="font-size:9px;letter-spacing:2px;color:#B0A090;text-transform:uppercase;">Booklog</span><span style="font-size:9px;color:#B0A090;">${allBooks.filter(b=>b.status==='완독').length} books in total</span>`;
+    card.appendChild(footer);
+
+    document.body.appendChild(card);
+    await new Promise(res=>setTimeout(res,300)); // 이미지 렌더링 대기
+
+    const canvas = await html2canvas(card, {
+      scale:2.5, backgroundColor:'#F5EFE4',
+      useCORS:true, allowTaint:true, logging:false,
+      imageTimeout:15000,
+      onclone:(doc)=>{
+        // 클론에서 이미지 강제 표시
+        doc.querySelectorAll('img').forEach(img=>{
+          img.style.display='block';
+          img.crossOrigin='anonymous';
+        });
+      }
+    });
+    card.remove();
+
+    const dataUrl=canvas.toDataURL('image/png');
+    const a=document.createElement('a');
+    a.href=dataUrl; a.download='Booklog_'+calY+'_'+MONTHS[calM]+'.png';
+    a.click();
+    await showAlert('달력 이미지가 저장됐어요! 📅');
+
+  } catch(err) {
+    console.error('shareCalendar error:', err);
+    await showAlert('이미지 저장에 실패했어요.\n'+err.message);
   } finally {
-    _sharingCalendar = false;
-    if(shareBtn){ shareBtn.disabled=false; shareBtn.textContent='📤 공유'; }
+    _sharingCalendar=false;
+    if(shareBtn){shareBtn.disabled=false;shareBtn.textContent='📤 공유';}
   }
 }
 
