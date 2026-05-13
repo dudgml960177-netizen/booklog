@@ -194,10 +194,10 @@
   </g>
 </svg></div>
       <div class="header-actions">
-        <button class="header-btn" onclick="surfLibrary()" title="파도타기" style="font-size:1rem;">≈</button>
-        <button class="header-btn" onclick="openSocialModal()" title="친구" style="font-size:.85rem;">&#128100;</button>
-        <button class="header-btn" onclick="openModal('modal-backup')" title="백업/가져오기" style="font-size:.85rem;">&#10697;</button>
-        <button class="header-btn" onclick="openAddBook()" title="책 추가" style="font-size:1.1rem;font-weight:300;">＋</button>
+        <button class="header-btn" onclick="surfLibrary()" title="파도타기 🌊">🌊</button>
+        <button class="header-btn" onclick="openSocialModal()" title="친구">👥</button>
+        <button class="header-btn" onclick="openModal('modal-backup')" title="백업/가져오기">💾</button>
+        <button class="header-btn" onclick="openAddBook()" title="책 추가">＋</button>
         <button class="header-btn" id="notif-btn" onclick="openNotifModal()" title="알림" style="position:relative;">
           🔔<span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#c0392b;color:#fff;font-size:.45rem;border-radius:50%;width:14px;height:14px;display:none;align-items:center;justify-content:center;font-weight:700;"></span>
         </button>
@@ -208,11 +208,11 @@
 
   <div class="tabs-wrap">
     <div class="tabs">
-      <button class="tab on" onclick="sw('books',this)">서재</button>
-      <button class="tab" onclick="sw('quotes',this)">문장</button>
-      <button class="tab" onclick="sw('record',this)">기록</button>
-      <button class="tab" onclick="sw('graph',this)">통계</button>
-      <button class="tab tab-right" onclick="sw('board',this)">산책</button>
+      <button class="tab on" onclick="sw('books',this)">📚 서재</button>
+      <button class="tab" onclick="sw('quotes',this)">✍️ 문장</button>
+      <button class="tab" onclick="sw('record',this)">📅 기록</button>
+      <button class="tab" onclick="sw('graph',this)">📊 통계</button>
+      <button class="tab tab-right" onclick="sw('board',this)">🌲 산책</button>
     </div>
   </div>
 
@@ -222,25 +222,21 @@
       <!-- 서재 (갤러리+테이블 통합) -->
       <div class="panel on" id="p-books">
         <div class="books-toolbar">
-          <!-- 서재 타이틀 -->
-          <div style="margin-bottom:.6rem;">
-            <div style="font-size:1.6rem;font-weight:700;color:var(--tx1);font-family:var(--ff-serif);letter-spacing:-.02em;line-height:1;">나의 서재</div>
-            <div id="library-count-label" style="font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin-top:.15rem;">MY LIBRARY</div>
-          </div>
           <!-- 책 검색 -->
           <div style="position:relative;margin-bottom:.5rem;">
-            <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--tx3);">&#128269;</span>
+            <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--tx3);">🔍</span>
             <input id="books-search-input" type="text" class="search-input"
               placeholder="제목, 작가, 출판사로 검색..."
-              style="padding-left:1.8rem;font-size:.75rem;width:100%;border-radius:4px;background:var(--paper);border:1px solid var(--border);box-sizing:border-box;"
+              style="padding-left:1.8rem;font-size:.75rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;box-sizing:border-box;"
               oninput="filterBooksSearch(this.value)">
           </div>
-          <div class="filter-row" style="gap:.15rem;">
-            <button class="filter-btn on" onclick="filterStatus('전체',this)">전체 <span id="fc-all" style="font-size:.6rem;opacity:.7;"></span></button>
-            <button class="filter-btn" onclick="filterStatus('완독',this)">완독 <span id="fc-done" style="font-size:.6rem;opacity:.7;"></span></button>
-            <button class="filter-btn" onclick="filterStatus('읽는중',this)">읽는중 <span id="fc-read" style="font-size:.6rem;opacity:.7;"></span></button>
-            <button class="filter-btn" onclick="filterStatus('읽고싶음',this)">읽고싶음 <span id="fc-want" style="font-size:.6rem;opacity:.7;"></span></button>
-            <button class="filter-btn" onclick="filterStatus('중단',this)">중단 <span id="fc-stop" style="font-size:.6rem;opacity:.7;"></span></button>
+          <div class="filter-row">
+            <button class="filter-btn on" onclick="filterStatus('전체',this)">전체</button>
+            <button class="filter-btn" onclick="filterStatus('완독',this)">완독</button>
+            <button class="filter-btn" onclick="filterStatus('읽는중',this)">읽는중</button>
+            <button class="filter-btn" onclick="filterStatus('읽고싶음',this)">읽고싶음</button>
+            <button class="filter-btn" onclick="filterStatus('중단',this)">중단</button>
+            <button class="filter-btn" onclick="filterStatus('다시읽기',this)">🔁 다시읽기</button>
           </div>
           <div class="toolbar-right" style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;">
             <!-- 정렬 -->
@@ -451,7 +447,7 @@
 </div>
 
 <!-- FAB: 책 추가 버튼 -->
-<button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.8rem;bottom:2rem;z-index:900;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
+<button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.5rem;bottom:1.5rem;z-index:900;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
 
 <!-- 책 추가/수정 모달 -->
 <div id="modal-book" class="modal-overlay" style="display:none;">
@@ -900,12 +896,6 @@
       <button class="modal-close" onclick="closeModal('modal-admin-panel')">✕</button>
     </div>
     <div class="modal-body" style="flex:1;overflow-y:auto;padding:.8rem;">
-
-      <!-- 폰트 설정 -->
-      <div style="background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:.75rem;">
-        <div style="font-size:.7rem;font-weight:700;color:var(--tx2);margin-bottom:.5rem;letter-spacing:.05em;">🔤 시스템 폰트 설정</div>
-        <div id="admin-font-settings"></div>
-      </div>
 
       <!-- 회원 목록 -->
       <div style="margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;">
