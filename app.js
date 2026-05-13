@@ -244,6 +244,9 @@ async function startApp(user) {
     _appState = 'running';
     showScreen('app');
     buildBooks();
+    // FAB 버튼 초기 표시 (기본 서재 탭)
+    const fabInit = document.getElementById('fab-add-book');
+    if(fabInit) fabInit.style.display = 'flex';
     
     // 방문 횟수 카운트
     const _vtd=new Date().toISOString().slice(0,10);
@@ -505,6 +508,9 @@ function showAuthError(msg, success=false) {
 
 // ── 탭
 function sw(name, btn) {
+  // FAB 버튼: 서재·문장 탭에서만 표시
+  const fab=document.getElementById('fab-add-book');
+  if(fab) fab.style.display=(name==='books'||name==='quotes')?'flex':'none';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   btn.classList.add('on');
@@ -1006,7 +1012,40 @@ function toggleQText(id, btn) {
     btn.textContent = '더 보기 ▾';
   }
 }
+
+// 문장 탭에서 책 선택 후 문장 추가
+function addQuoteFromTab() {
+  const sel = document.getElementById('q-book-select');
+  const bookId = sel?.value;
+  if(!bookId) { showAlert('먼저 책을 선택해주세요.'); return; }
+  const book = allBooks.find(b=>b.id===bookId);
+  if(!book) return;
+  // openBook을 열되 문장 추가 에디터가 보이도록
+  openBook(book);
+  // 잠깐 후 문장 추가 버튼 클릭
+  setTimeout(() => {
+    const addBtn = document.querySelector('.add-quote-btn, [onclick*="openAddQuote"], [onclick*="addQuote"]');
+    if(addBtn) addBtn.click();
+    // 문장 섹션으로 스크롤
+    const quoteSection = document.querySelector('.quote-section, #quote-section, .book-quotes');
+    if(quoteSection) quoteSection.scrollIntoView({behavior:'smooth'});
+  }, 400);
+}
+
 function renderQuotes() {
+  // 문장 탭 상단: 책 선택 → 문장 추가 버튼 렌더링
+  const qHeader = document.getElementById('q-tab-header');
+  if(qHeader) {
+    const completed = allBooks.filter(b=>b.status==='완독'||b.status==='읽는중').sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+    qHeader.innerHTML = `
+      <div style="display:flex;gap:.4rem;align-items:center;padding:.5rem 0 .6rem;">
+        <select id="q-book-select" style="flex:1;font-size:.72rem;padding:.3rem .5rem;border:1px solid var(--border2);border-radius:8px;background:var(--card);color:var(--tx1);font-family:var(--ff);">
+          <option value="">📖 책을 선택해서 문장 추가</option>
+          ${completed.map(b=>`<option value="${b.id}">${b.title}${b.author?' — '+b.author.split(/[,·]/)[0]:''}</option>`).join('')}
+        </select>
+        <button onclick="addQuoteFromTab()" style="padding:.3rem .75rem;background:var(--acc);color:#fff;border:none;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--ff);">＋ 문장</button>
+      </div>`;
+  }
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
   if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.<br><small style="color:var(--tx3);font-size:.72rem;">책을 추가할 때 인상 깊은 문장을 기록해보세요.</small></div>'; return; }
   const q = quoteSearchQ.trim().toLowerCase();
@@ -1335,38 +1374,30 @@ async function shareCalendar() {
     if(!url) return null;
     const u = url.replace('http://','https://');
 
-    // 방법 1: fetch로 Blob 가져오기 → ObjectURL → tainted 방지
-    try {
-      const resp = await Promise.race([
-        fetch(u, {mode:'cors', credentials:'omit'}),
-        new Promise((_,rej)=>setTimeout(()=>rej(new Error('t')),5000))
-      ]);
-      if(resp.ok) {
+    // fetch+ObjectURL: CORS 있으면 clean, no-cors면 opaque blob
+    // 두 경우 모두 ObjectURL은 same-origin 취급 → canvas.toDataURL 가능
+    const tryFetch = async (mode) => {
+      try {
+        const resp = await Promise.race([
+          fetch(u, {mode, credentials:'omit'}),
+          new Promise((_,rej)=>setTimeout(()=>rej('timeout'),5000))
+        ]);
+        // no-cors는 ok=false, type='opaque' 이지만 blob은 가져올 수 있음
         const blob = await resp.blob();
-        if(blob.size > 0 && blob.type.startsWith('image/')) {
-          const objUrl = URL.createObjectURL(blob);
-          const img = await new Promise(res => {
-            const i = new Image();
-            const t = setTimeout(()=>{URL.revokeObjectURL(objUrl);res(null);},3000);
-            i.onload = ()=>{clearTimeout(t);res(i);};
-            i.onerror = ()=>{clearTimeout(t);URL.revokeObjectURL(objUrl);res(null);};
-            i.src = objUrl;
-          });
-          if(img) { img._objUrl = objUrl; return img; }
-        }
-      }
-    } catch(e) {}
+        if(blob.size < 100) return null;
+        const objUrl = URL.createObjectURL(blob);
+        return await new Promise(res => {
+          const img = new Image();
+          const t = setTimeout(()=>{URL.revokeObjectURL(objUrl);res(null);},4000);
+          img.onload = ()=>{clearTimeout(t); img._objUrl=objUrl; res(img);};
+          img.onerror = ()=>{clearTimeout(t);URL.revokeObjectURL(objUrl);res(null);};
+          img.src = objUrl;
+        });
+      } catch(e){ return null; }
+    };
 
-    // 방법 2: crossOrigin anonymous (CORS 헤더 있는 서버)
-    const tryLoad = (src, cors) => new Promise(res => {
-      const img = new Image();
-      if(cors) img.crossOrigin = 'anonymous';
-      const t = setTimeout(()=>res(null),5000);
-      img.onload = ()=>{clearTimeout(t);res(img);};
-      img.onerror = ()=>{clearTimeout(t);res(null);};
-      img.src = src;
-    });
-    return (await tryLoad(u, true)) || (await tryLoad(u, false));
+    // cors 먼저, 실패하면 no-cors
+    return (await tryFetch('cors')) || (await tryFetch('no-cors'));
   }
 
   const coverImgs = {};
@@ -3519,7 +3550,7 @@ function buildMilestone() {
     {n:Math.round(total/yrs*10)/10+'권',l:'연평균',ic:'📅',c:'#5a7a8a',bg:'#eef2f5',prog:Math.min(total/yrs/20,1),target:'20권/년'},
     {n:Math.floor(totalMins/60)+'h',l:'독서 시간',ic:'⏱',c:'#8b6b8b',bg:'#f3eef3',prog:Math.min(totalMins/60/500,1),target:'500h'},
     {n:totalPages?totalPages.toLocaleString():'0',l:'누적 페이지',ic:'📄',c:'#7a5a3a',bg:'#f5f0e8',prog:Math.min(totalPages/50000,1),target:'50,000p'},
-    {n:done.filter(b=>b.rating>=4).length+'권',l:'명작 수집',ic:'⭐',c:'#b07030',bg:'#fdf7e8',prog:Math.min(done.filter(b=>b.rating>=4).length/100,1),target:'100권'},
+    {n:done.filter(b=>b.rating>=5).length+'권',l:'명작 수집',ic:'⭐',c:'#b07030',bg:'#fdf7e8',prog:Math.min(done.filter(b=>b.rating>=5).length/100,1),target:'100권'},
   ];
   const g=document.getElementById('ms-grid'); g.innerHTML='';
   items.forEach(it=>{

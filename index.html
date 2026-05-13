@@ -270,7 +270,8 @@
       <!-- 문장 수집 -->
       <div class="panel" id="p-quotes">
         <div class="q-filter" id="q-filter"></div>
-        <div class="quote-feed" id="q-feed">
+        <div id="q-tab-header"></div>
+          <div class="quote-feed" id="q-feed">
           <div class="empty-state">수집된 문장이 없어요.</div>
         </div>
       </div>
@@ -444,6 +445,9 @@
     </div>
   </main>
 </div>
+
+<!-- FAB: 책 추가 버튼 -->
+<button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.1rem;bottom:1.4rem;z-index:900;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
 
 <!-- 책 추가/수정 모달 -->
 <div id="modal-book" class="modal-overlay" style="display:none;">
