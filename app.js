@@ -241,6 +241,7 @@ async function startApp(user) {
       if(pf?.font_size) initFontSize(String(pf.font_size));
     } catch(e) {}
     
+    initSystemFont();
     _appState = 'running';
     showScreen('app');
     buildBooks();
@@ -507,6 +508,30 @@ function showAuthError(msg, success=false) {
 }
 
 // ── 탭
+
+// ── 시스템 폰트 설정
+function applySystemFont(fontFamily) {
+  if(!fontFamily) return;
+  localStorage.setItem('bl_system_font', fontFamily);
+  document.documentElement.style.setProperty('--ff', fontFamily);
+  const preview = document.getElementById('font-preview-wrap');
+  if(preview) preview.style.fontFamily = fontFamily;
+  // 폰트 선택 동기화
+  const sel = document.getElementById('admin-font-select');
+  if(sel) sel.value = fontFamily;
+}
+
+function initSystemFont() {
+  const saved = localStorage.getItem('bl_system_font');
+  if(saved) {
+    document.documentElement.style.setProperty('--ff', saved);
+    const sel = document.getElementById('admin-font-select');
+    if(sel) sel.value = saved;
+    const preview = document.getElementById('font-preview-wrap');
+    if(preview) preview.style.fontFamily = saved;
+  }
+}
+
 function sw(name, btn) {
   // FAB 버튼: 서재·문장 탭에서만 표시
   const fab=document.getElementById('fab-add-book');
@@ -584,6 +609,26 @@ function buildBooks() {
   const list = getFilteredBooks();
   if (curView==='gallery') buildGallery(list);
   else buildList(list);
+  // 필터 카운트 + 라벨 업데이트
+  const fc = {
+    all: allBooks.length,
+    done: allBooks.filter(b=>b.status==='완독').length,
+    now: allBooks.filter(b=>b.status==='읽는중').length,
+    want: allBooks.filter(b=>b.status==='읽고싶음').length,
+    stop: allBooks.filter(b=>b.status==='중단').length,
+  };
+  const setTxt = (id, v) => { const el=document.getElementById(id); if(el && v) el.textContent=v; };
+  setTxt('fc-all',fc.all); setTxt('fc-done',fc.done); setTxt('fc-now',fc.now);
+  setTxt('fc-want',fc.want); setTxt('fc-stop',fc.stop);
+  const lbl=document.getElementById('lib-count-lbl');
+  if(lbl) lbl.textContent=`MY LIBRARY · ${allBooks.length} VOLUMES`;
+  // 필터 버튼 스타일 동기화
+  document.querySelectorAll('.filter-btn').forEach(btn=>{
+    const on = btn.classList.contains('on');
+    btn.style.color = on ? 'var(--tx1)' : 'var(--tx2)';
+    btn.style.fontWeight = on ? '700' : '500';
+    btn.style.borderBottomColor = on ? 'var(--tx1)' : 'transparent';
+  });
 }
 // ── 일괄 삭제
 let selectMode = false, selectedIds = new Set();
@@ -632,12 +677,28 @@ function buildGallery(list) {
     } else {
       el.onclick = ()=>openDetail(b.id);
     }
-    const img = b.cover ? `<img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;display:block;">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.48rem;color:rgba(255,255,255,.8);text-align:center;padding:.2rem;font-style:italic;line-height:1.3;">${b.title}</div>`;
-    el.innerHTML = `<div class="gi-cover">${img}</div>
-      <div class="gi-title">${b.title}</div>
-      <div class="gi-author">${b.author||''}</div>
-      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'⯨':'☆').join('')}</div>
-      <span class="gi-status">${b.status||''}</span>`;
+    const stColor={'완독':'#6b8f6b','읽는중':'#5a7a8a','읽고싶음':'#c4a87a','중단':'#8a3a28','다시읽기':'#c4714a'}[b.status]||'#4a3520';
+    const stAccent='rgba(255,255,255,0.55)';
+    const ttl = b.title||'';
+    const titleDisp = ttl.length>16 ? ttl.slice(0,14)+'…' : ttl;
+    const auth = (b.author||'').split(/[,·]/)[0].slice(0,12);
+    const coverHtml = b.cover
+      ? `<img src="${b.cover}" alt="${ttl}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">`
+      : `<div style="width:100%;height:100%;background:${stColor};display:flex;flex-direction:column;justify-content:space-between;padding:${Math.round(68*0.12)}px ${Math.round(68*0.10)}px;box-sizing:border-box;overflow:hidden;">
+           <div style="width:100%;height:1px;background:${stAccent};opacity:.5;"></div>
+           <div style="display:flex;flex-direction:column;gap:4px;">
+             <div style="font-family:var(--ff-disp);font-size:.42rem;color:${stAccent};font-style:italic;line-height:1.1;letter-spacing:.02em;">${titleDisp}</div>
+             <div style="width:40%;height:1px;background:${stAccent};opacity:.55;margin-top:4px;"></div>
+             <div style="font-family:var(--ff);font-size:.3rem;color:${stAccent};opacity:.75;letter-spacing:.08em;text-transform:uppercase;">${auth}</div>
+           </div>
+           <div style="width:100%;height:1px;background:${stAccent};opacity:.4;"></div>
+         </div>`;
+    const ratingVal = parseFloat(b.rating)||0;
+    const ratingDisp = ratingVal>0 ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-top:.15rem;"><span style="width:6px;height:6px;border-radius:50%;background:${stColor};display:inline-block;"></span><span style="font-family:var(--ff-disp);font-size:.68rem;font-style:italic;color:var(--rust);">★ ${ratingVal}</span></span>` : '';
+    el.innerHTML = `<div class="gi-cover">${coverHtml}</div>
+      <div class="gi-title" title="${ttl}">${ttl}</div>
+      <div class="gi-author">${auth}</div>
+      ${ratingDisp}`;
     g.appendChild(el);
   });
 }
@@ -970,7 +1031,7 @@ async function shareQuoteCard(qtId, btn) {
     </div>`).join('');
   ov.innerHTML = `
     <div class="modal" style="max-width:360px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.7rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;border-bottom:1px solid var(--border);justify-content:space-between;flex-shrink:0;">
         <div style="font-size:.8rem;font-weight:700;color:#fff;font-family:var(--fs);">📷 문장 카드 ${total > 1 ? `(${total}장)` : ''}</div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;">✕</button>
       </div>
@@ -1021,9 +1082,9 @@ function addQuoteFromTab() {
   overlay.style.cssText = 'display:flex;z-index:1100;';
   overlay.innerHTML = `
     <div class="modal" style="max-width:380px;padding:0;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-weight:700;color:#fff;font-size:.9rem;">📖 어느 책에 추가할까요?</span>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:1.2rem;cursor:pointer;">✕</button>
+      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+        <span style="font-weight:700;color:var(--tx1);font-size:.9rem;">어느 책에 추가할까요?</span>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:var(--tx3);font-size:1.2rem;cursor:pointer;">✕</button>
       </div>
       <div style="padding:.75rem;">
         <input id="qft-search" type="text" placeholder="책 제목이나 저자 검색..."
@@ -1070,16 +1131,19 @@ function selectQftBook(bookId) {
   if(!book) return;
   // 모달 닫기
   document.querySelector('#qft-list')?.closest('.modal-overlay')?.remove();
-  // 해당 책 열기
-  openBook(book);
-  // 문장 추가 에디터로 포커스
+  // 책 상세 열기 (openDetail 사용)
+  openDetail(book.id);
+  // 문장 추가 에디터 스크롤 + 포커스
   setTimeout(() => {
-    const quoteSection = document.querySelector('[data-qtext]');
-    if(quoteSection) {
-      quoteSection.scrollIntoView({behavior:'smooth', block:'center'});
-      quoteSection.focus();
+    // 책 상세 화면에서 문장 추가 섹션으로 이동
+    const addSection = document.querySelector('.q-add-section, [data-section="add-quote"]');
+    const editor = document.querySelector('.qeditor-body[contenteditable="true"]');
+    const target = addSection || editor;
+    if(target) {
+      target.scrollIntoView({behavior:'smooth', block:'start'});
+      setTimeout(() => { if(editor) editor.focus(); }, 300);
     }
-  }, 500);
+  }, 700);
 }
 
 function renderQuotes() {
@@ -1215,7 +1279,7 @@ function openEditQuote(qt) {
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
         <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 수정</div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
       </div>
@@ -1279,7 +1343,7 @@ function openAddQuoteFromDetail(bookId) {
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
         <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 추가</div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
       </div>
@@ -1402,126 +1466,112 @@ async function shareCalendar() {
     // html2canvas 로드
     if(!window.html2canvas) {
       await new Promise((res,rej) => {
-        const sc = document.createElement('script');
-        sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        const sc=document.createElement('script');
+        sc.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
         sc.onload=res; sc.onerror=rej; document.head.appendChild(sc);
       });
     }
 
-    const MONTHS = ['January','February','March','April','May','June',
-      'July','August','September','October','November','December'];
-    const ymPrefix = calY+'-'+String(calM+1).padStart(2,'0');
-    const finished = allBooks
-      .filter(b=>b.status==='완독'&&b.date_finish?.startsWith(ymPrefix))
+    const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const ymPrefix=calY+'-'+String(calM+1).padStart(2,'0');
+    const finished=allBooks.filter(b=>b.status==='완독'&&b.date_finish?.startsWith(ymPrefix))
       .sort((a,b)=>new Date(a.date_finish)-new Date(b.date_finish));
 
-    // 표지 이미지 사전 로드 (문장 공유와 동일한 방식)
-    const coverMap = {}; // bookId → base64 or src
-    await Promise.all(finished.map(b => new Promise(res => {
+    // ── 표지 base64 변환 (문장 공유와 완전히 동일한 방식)
+    const coverMap={};
+    await Promise.all(finished.map(b=>new Promise(res=>{
       if(!b.cover) return res();
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
+      const img=new Image();
+      img.crossOrigin='anonymous';
+      img.onload=()=>{
         try {
-          const c = document.createElement('canvas');
+          const c=document.createElement('canvas');
           c.width=img.naturalWidth||80; c.height=img.naturalHeight||120;
           c.getContext('2d').drawImage(img,0,0);
-          coverMap[b.id] = c.toDataURL('image/jpeg',0.85);
+          coverMap[b.id]=c.toDataURL('image/jpeg',0.85);
           res();
         } catch(e) {
-          // tainted → 원본 URL 그대로 사용 (html2canvas allowTaint로 처리)
+          // tainted → img.src 원본 URL 저장 (html2canvas allowTaint로 처리)
           const img2=new Image();
           img2.onload=()=>{coverMap[b.id]=img2.src; res();};
           img2.onerror=()=>res();
-          img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_t='+Date.now();
+          img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_nc='+Date.now();
         }
       };
-      img.onerror = () => {
-        const img2=new Image();
-        img2.onload=()=>{coverMap[b.id]=img2.src; res();};
-        img2.onerror=()=>res();
-        img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_t='+Date.now();
+      img.onerror=()=>{
+        // cors 실패 → crossOrigin 없이 재시도
+        const img3=new Image();
+        img3.onload=()=>{coverMap[b.id]=img3.src; res();};
+        img3.onerror=()=>res();
+        img3.src=b.cover+(b.cover.includes('?')?'&':'?')+'_nc='+Date.now();
       };
       img.src=b.cover;
     })));
 
-    // 카드 DOM 생성
-    const card = document.createElement('div');
-    card.style.cssText='position:fixed;left:-9999px;top:0;width:420px;background:#F5EFE4;padding:28px;box-sizing:border-box;font-family:Georgia,"Noto Serif KR",serif;color:#2C2016;';
+    // ── 카드 DOM 생성 (빈티지 스타일)
+    const card=document.createElement('div');
+    card.style.cssText='position:fixed;left:-9999px;top:0;width:420px;background:#f2ece0;padding:28px;box-sizing:border-box;font-family:"Pretendard","Noto Sans KR",sans-serif;color:#2a1f10;';
 
-    // 헤더
     card.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;">
         <div>
-          <div style="font-size:11px;letter-spacing:3px;color:#9A8872;text-transform:uppercase;margin-bottom:3px;">${calY}</div>
-          <div style="font-size:28px;font-weight:700;letter-spacing:-0.5px;line-height:1;">${MONTHS[calM]}</div>
+          <div style="font-family:'Cormorant Garamond','Noto Serif KR',serif;font-size:28px;font-style:italic;color:#2a1f10;line-height:1;letter-spacing:-0.01em;">${MONTHS[calM]}</div>
+          <div style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#9a8460;margin-top:5px;">${calY}</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:28px;font-weight:700;line-height:1;">${finished.length}</div>
-          <div style="font-size:9px;letter-spacing:2px;color:#9A8872;text-transform:uppercase;">BOOKS READ</div>
+          <div style="font-family:'Cormorant Garamond','Noto Serif KR',serif;font-size:28px;color:#2a1f10;line-height:1;">${finished.length}</div>
+          <div style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#9a8460;">BOOKS READ</div>
         </div>
       </div>
-      <div style="border-top:1px solid #C8B99A;margin-bottom:14px;"></div>`;
+      <div style="border-top:1px solid #d9ccb0;margin-bottom:14px;"></div>`;
 
     // 달력 그리드
-    const calDiv = document.createElement('div');
-    calDiv.style.cssText='margin-bottom:14px;';
-
-    // 요일 헤더
-    const dowRow = document.createElement('div');
-    dowRow.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:5px;';
-    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((d,i)=>{
-      const cell=document.createElement('div');
-      cell.style.cssText=`text-align:center;font-size:9px;letter-spacing:1px;color:${i===0?'#A0614E':'#9A8872'};text-transform:uppercase;`;
-      cell.textContent=d; dowRow.appendChild(cell);
+    const calDiv=document.createElement('div');
+    calDiv.style.marginBottom='14px';
+    const dowRow=document.createElement('div');
+    dowRow.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);padding-bottom:6px;border-bottom:1px solid #d9ccb0;margin-bottom:4px;';
+    ['일','월','화','수','목','금','토'].forEach((d,i)=>{
+      const c=document.createElement('div');
+      c.style.cssText=`text-align:center;font-size:9px;color:${i===0?'#c4714a':'#9a8460'};letter-spacing:.1em;`;
+      c.textContent=d; dowRow.appendChild(c);
     });
     calDiv.appendChild(dowRow);
-
-    // 날짜 그리드
     const grid=document.createElement('div');
-    grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:3px;';
+    grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);';
     const firstDay=new Date(calY,calM,1).getDay();
     const numDays=new Date(calY,calM+1,0).getDate();
     const today=new Date();
-    const isThisMonth=today.getFullYear()===calY&&today.getMonth()===calM;
-
-    for(let i=0;i<firstDay;i++){
-      const blank=document.createElement('div');
-      blank.style.cssText='aspect-ratio:3/4;';
-      grid.appendChild(blank);
-    }
-
+    // 빈칸
+    for(let i=0;i<firstDay;i++){const b=document.createElement('div');b.style.cssText='aspect-ratio:1/1.1;border-bottom:1px solid #d9ccb0;';grid.appendChild(b);}
+    // 날짜
     for(let d=1;d<=numDays;d++){
       const dp=ymPrefix+'-'+String(d).padStart(2,'0');
-      const dayBooks=finished.filter(b=>b.date_finish?.startsWith(dp));
+      const book=finished.find(b=>b.date_finish?.startsWith(dp));
+      const isToday=today.getFullYear()===calY&&today.getMonth()===calM&&today.getDate()===d;
       const cell=document.createElement('div');
-      const isToday=isThisMonth&&today.getDate()===d;
-
-      if(dayBooks.length>0){
-        const book=dayBooks[0];
+      cell.style.cssText='aspect-ratio:1/1.1;position:relative;border-bottom:1px solid #d9ccb0;overflow:hidden;';
+      if(book){
         const src=coverMap[book.id];
-        cell.style.cssText='aspect-ratio:3/4;border-radius:3px;overflow:hidden;position:relative;box-shadow:1px 2px 6px rgba(0,0,0,0.18);';
-        if(src){
-          // 이미지: data: URL 또는 원본 URL
-          const imgEl=document.createElement('img');
-          imgEl.src=src;
-          imgEl.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
-          if(!src.startsWith('data:')) imgEl.crossOrigin='anonymous';
-          cell.appendChild(imgEl);
+        if(src&&src.startsWith('data:')){
+          // base64 → img
+          const im=document.createElement('img');
+          im.src=src; im.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+          cell.appendChild(im);
+        } else if(src){
+          // 원본 URL
+          const im=document.createElement('img');
+          im.src=src; im.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+          im.crossOrigin='anonymous'; cell.appendChild(im);
         } else {
-          cell.style.background='#4A3B2A';
-          const ti=document.createElement('div');
-          ti.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,.5);font-style:italic;';
-          ti.textContent=(book.title||'').slice(0,3);
-          cell.appendChild(ti);
+          cell.style.background='#6b8f6b';
         }
-        const dn=document.createElement('div');
-        dn.style.cssText='position:absolute;top:2px;left:3px;font-size:8px;color:rgba(255,255,255,.9);font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.7);';
+        const dn=document.createElement('span');
+        dn.style.cssText='position:absolute;top:2px;left:3px;font-size:8px;color:rgba(255,255,255,.9);font-family:Cormorant Garamond,serif;font-style:italic;text-shadow:0 1px 2px rgba(0,0,0,.5);z-index:1;';
         dn.textContent=d; cell.appendChild(dn);
       } else {
-        cell.style.cssText=`aspect-ratio:3/4;border-radius:3px;display:flex;align-items:flex-start;justify-content:center;padding-top:4px;background:${isToday?'#D4C4A8':'#EDE5D4'};`;
+        cell.style.cssText+=(isToday?'background:#fbf6e8;':'');
         const dn=document.createElement('div');
-        dn.style.cssText=`font-size:9px;color:${isToday?'#2C2016':'#B0A090'};font-weight:${isToday?'700':'400'};`;
+        dn.style.cssText=`padding:3px 4px;font-family:'Cormorant Garamond',serif;font-size:11px;color:${isToday?'#c4714a':'#2a1f10'};${isToday?'font-style:italic;':''}`;
         dn.textContent=d; cell.appendChild(dn);
       }
       grid.appendChild(cell);
@@ -1531,22 +1581,20 @@ async function shareCalendar() {
 
     // 구분선
     const hr=document.createElement('div');
-    hr.style.cssText='border-top:1px dashed #C8B99A;margin-bottom:12px;';
+    hr.style.cssText='border-top:1px dashed #d9ccb0;margin-bottom:12px;';
     card.appendChild(hr);
 
     // 완독 리스트
     if(finished.length>0){
       const lt=document.createElement('div');
-      lt.style.cssText='font-size:9px;letter-spacing:2px;color:#9A8872;text-transform:uppercase;margin-bottom:8px;';
+      lt.style.cssText='font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#9a8460;margin-bottom:8px;';
       lt.textContent='Reading List'; card.appendChild(lt);
-
       finished.slice(0,7).forEach(b=>{
         const src=coverMap[b.id];
         const row=document.createElement('div');
-        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #EDE5D4;';
-
+        row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #ede4d0;';
         const thumb=document.createElement('div');
-        thumb.style.cssText='width:22px;height:32px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#4A3B2A;';
+        thumb.style.cssText='width:22px;height:32px;border-radius:2px;overflow:hidden;flex-shrink:0;background:#6b8f6b;';
         if(src){
           const ti=document.createElement('img');
           ti.src=src; ti.style.cssText='width:100%;height:100%;object-fit:cover;';
@@ -1554,50 +1602,36 @@ async function shareCalendar() {
           thumb.appendChild(ti);
         }
         row.appendChild(thumb);
-
         const txt=document.createElement('div');
         txt.style.cssText='flex:1;min-width:0;';
-        const title=document.createElement('div');
-        title.style.cssText='font-size:11px;color:#2C2016;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        title.textContent=(b.title||'').length>22?b.title.slice(0,22)+'…':(b.title||'');
-        const author=document.createElement('div');
-        author.style.cssText='font-size:9px;color:#9A8872;margin-top:1px;';
-        author.textContent=(b.author||'').split(/[,·]/)[0].slice(0,20);
-        txt.appendChild(title); txt.appendChild(author); row.appendChild(txt);
-
-        if(b.rating){
-          const st=document.createElement('div');
-          st.style.cssText='font-size:9px;color:#A0614E;flex-shrink:0;';
-          st.textContent='★'.repeat(b.rating); row.appendChild(st);
-        }
+        txt.innerHTML=`<div style="font-size:11px;font-weight:600;color:#2a1f10;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title||''}</div><div style="font-size:9px;color:#9a8460;margin-top:1px;">${(b.author||'').split(/[,·]/)[0].slice(0,18)}</div>`;
+        row.appendChild(txt);
+        if(b.rating){const st=document.createElement('div');st.style.cssText='font-size:10px;color:#c4714a;flex-shrink:0;font-family:Cormorant Garamond,serif;font-style:italic;';st.textContent='★ '+b.rating;row.appendChild(st);}
         card.appendChild(row);
       });
-      if(finished.length>7){
-        const more=document.createElement('div');
-        more.style.cssText='font-size:9px;color:#9A8872;text-align:right;font-style:italic;';
-        more.textContent='and '+String(finished.length-7)+' more books';
-        card.appendChild(more);
-      }
+      if(finished.length>7){const more=document.createElement('div');more.style.cssText='font-size:9px;color:#9a8460;text-align:right;font-style:italic;';more.textContent='and '+(finished.length-7)+' more books';card.appendChild(more);}
     }
 
     // 푸터
     const footer=document.createElement('div');
-    footer.style.cssText='border-top:1px solid #C8B99A;margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;';
-    footer.innerHTML=`<span style="font-size:9px;letter-spacing:2px;color:#B0A090;text-transform:uppercase;">Booklog</span><span style="font-size:9px;color:#B0A090;">${allBooks.filter(b=>b.status==='완독').length} books in total</span>`;
+    footer.style.cssText='border-top:1px solid #d9ccb0;margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;';
+    footer.innerHTML=`<span style="font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#bda788;">BOOKLOG</span><span style="font-size:9px;color:#9a8460;">${allBooks.filter(b=>b.status==='완독').length} books in total</span>`;
     card.appendChild(footer);
-
     document.body.appendChild(card);
-    await new Promise(res=>setTimeout(res,300)); // 이미지 렌더링 대기
 
-    const canvas = await html2canvas(card, {
-      scale:2.5, backgroundColor:'#F5EFE4',
-      useCORS:true, allowTaint:true, logging:false,
-      imageTimeout:15000,
-      onclone:(doc)=>{
-        // 클론에서 이미지 강제 표시
-        doc.querySelectorAll('img').forEach(img=>{
-          img.style.display='block';
-          img.crossOrigin='anonymous';
+    // 이미지 로딩 대기
+    await new Promise(res=>setTimeout(res,600));
+
+    const canvas=await html2canvas(card,{
+      scale:2.5,
+      backgroundColor:'#f2ece0',
+      useCORS:true,
+      allowTaint:true,
+      logging:false,
+      imageTimeout:20000,
+      onclone:(doc,el)=>{
+        el.querySelectorAll('img').forEach(img=>{
+          if(!img.src.startsWith('data:')) img.crossOrigin='anonymous';
         });
       }
     });
@@ -1610,8 +1644,8 @@ async function shareCalendar() {
     await showAlert('달력 이미지가 저장됐어요! 📅');
 
   } catch(err) {
-    console.error('shareCalendar error:', err);
-    await showAlert('이미지 저장에 실패했어요.\n'+err.message);
+    console.error('shareCalendar error:',err);
+    await showAlert('이미지 저장 실패: '+err.message);
   } finally {
     _sharingCalendar=false;
     if(shareBtn){shareBtn.disabled=false;shareBtn.textContent='📤 공유';}
@@ -1619,46 +1653,82 @@ async function shareCalendar() {
 }
 
 function renderCal() {
-  const mn=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  document.getElementById('cal-ttl').textContent = calY+'년 '+mn[calM];
+  const MONTHS_EN=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  // 헤더 업데이트
+  const ttlEl = document.getElementById('cal-ttl');
+  if(ttlEl) ttlEl.innerHTML = `<span style="font-family:var(--ff-disp);font-size:.85rem;font-style:italic;letter-spacing:-.01em;">${calY}.${String(calM+1).padStart(2,'0')}</span>`;
   const grid = document.getElementById('cal-grid');
   const dows = [...grid.querySelectorAll('.dow')]; grid.innerHTML=''; dows.forEach(d=>grid.appendChild(d));
   const first=new Date(calY,calM,1).getDay(), days=new Date(calY,calM+1,0).getDate(), prev=new Date(calY,calM,0).getDate(), today=new Date();
-  for(let i=0;i<first;i++){const d=document.createElement('div');d.className='day other';d.textContent=prev-first+1+i;grid.appendChild(d);}
+  // 빈 칸
+  for(let i=0;i<first;i++){const d=document.createElement('div');d.className='day other';const dn=document.createElement('span');dn.textContent=prev-first+1+i;d.appendChild(dn);grid.appendChild(d);}
   for(let d=1;d<=days;d++){
     const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const book=allBooks.find(b=>b.date_finish===ds&&b.status==='완독');
     const el=document.createElement('div');
     const isT=today.getFullYear()===calY&&today.getMonth()===calM&&today.getDate()===d;
-    // 퀘스트 달성 여부 체크
     const questAch = QUESTS.filter(q => localStorage.getItem('bl_quest_ach_'+q.id) === ds);
+    // 타이머 기록 날짜 확인 (형광펜)
+    const timerKey = 'bl_daily_timer_'+ds;
+    const hasTimer = parseInt(localStorage.getItem(timerKey)||'0') > 0;
+
     if(book){
       el.className='day hbook'; el.title=book.title; el.onclick=()=>openDetail(book.id);
-      if(book.cover){const img=document.createElement('img');img.className='bthumb';img.src=book.cover;img.alt=book.title;el.appendChild(img);}
-      else{const ph=document.createElement('div');ph.className='bthumb-ph';ph.textContent=book.title;el.appendChild(ph);}
-      const dn=document.createElement('span');dn.className='dnum';dn.textContent=d;el.appendChild(dn);
+      el.style.padding='0'; el.style.overflow='hidden';
+      if(book.cover){
+        const img=document.createElement('img');
+        img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+        img.src=book.cover; img.alt=book.title;
+        img.onerror=()=>{ img.style.display='none'; el.style.background='#6b8f6b'; };
+        el.appendChild(img);
+      } else {
+        // 표지 없으면 상태 색 배경
+        const stColor={'완독':'#6b8f6b'}[book.status]||'#6b8f6b';
+        el.style.background=stColor;
+        const ph=document.createElement('div');
+        ph.style.cssText='position:absolute;inset:0;display:flex;align-items:flex-end;padding:2px 3px;';
+        const ti=document.createElement('div');
+        ti.style.cssText='font-size:.38rem;color:rgba(255,255,255,.8);font-family:var(--ff-disp);font-style:italic;line-height:1.1;overflow:hidden;';
+        ti.textContent=(book.title||'').slice(0,8); ph.appendChild(ti); el.appendChild(ph);
+      }
+      // 날짜 숫자 (우상단 오버레이)
+      const dn=document.createElement('span');
+      dn.style.cssText='position:absolute;top:2px;left:4px;font-size:.55rem;color:rgba(255,255,255,.9);font-family:var(--ff-disp);font-style:italic;text-shadow:0 1px 2px rgba(0,0,0,.5);z-index:1;';
+      dn.textContent=d; el.appendChild(dn);
     } else {
       el.className='day'+(isT?' today':'');
-      if(questAch.length > 0) {
-        el.style.cssText = 'position:relative;background:#fdf8ee;';
-        const qb = document.createElement('span');
-        qb.style.cssText = 'position:absolute;top:1px;right:2px;font-size:.45rem;line-height:1;';
-        qb.textContent = questAch[0].reward.item || '🏆';
-        qb.title = questAch.map(q=>q.name).join(', ');
+      // 날짜 숫자
+      const dn=document.createElement('div');
+      dn.textContent=d; dn.style.cssText='font-family:var(--ff-disp);font-size:.7rem;'+(isT?'color:var(--rust);font-style:italic;':'');
+      el.appendChild(dn);
+      // 형광펜 효과 (타이머 기록 있는 날)
+      if(hasTimer && !isT){
+        el.style.background='linear-gradient(to bottom, rgba(196,113,74,.10) 0%, transparent 100%)';
+      }
+      // 퀘스트 달성 뱃지
+      if(questAch.length>0){
+        const qb=document.createElement('span');
+        qb.style.cssText='position:absolute;bottom:2px;right:2px;font-size:.45rem;line-height:1;';
+        qb.textContent=questAch[0].reward.item||'🏆';
+        qb.title=questAch.map(q=>q.name).join(', ');
         el.appendChild(qb);
-        el.appendChild(document.createTextNode(d));
-      } else {
-        el.textContent = d;
+        el.style.position='relative';
       }
     }
     grid.appendChild(el);
   }
-  const rem=42-first-days; for(let i=1;i<=rem;i++){const d=document.createElement('div');d.className='day other';d.textContent=i;grid.appendChild(d);}
+  const rem=42-first-days; for(let i=1;i<=rem;i++){const d=document.createElement('div');d.className='day other';const dn=document.createElement('span');dn.textContent=i;d.appendChild(dn);grid.appendChild(d);}
+  // 완독 리스트
   const list=document.getElementById('cal-list'); list.innerHTML='';
   const mk=calY+'-'+String(calM+1).padStart(2,'0');
   const mb=allBooks.filter(b=>b.date_finish?.startsWith(mk)&&b.status==='완독');
-  if(!mb.length) list.innerHTML='<div style="font-size:.7rem;color:var(--tx3);padding:.25rem 0;">이 달에 완독한 책이 없습니다.</div>';
-  else mb.forEach(b=>{const r=document.createElement('div');r.className='cli';r.onclick=()=>openDetail(b.id);r.innerHTML=`<span class="cldot"></span><span style="flex:1;">${b.title}</span><span style="color:var(--tx3);font-size:.63rem;">${b.date_finish}</span>`;list.appendChild(r);});
+  if(!mb.length) list.innerHTML='<div style="font-size:.68rem;color:var(--tx3);padding:.3rem 0;font-style:italic;">이 달에 완독한 책이 없습니다.</div>';
+  else mb.forEach(b=>{
+    const r=document.createElement('div');r.className='cli';r.onclick=()=>openDetail(b.id);
+    const stColor='#6b8f6b';
+    r.innerHTML=`<span style="display:inline-block;width:22px;height:30px;border-radius:2px;overflow:hidden;flex-shrink:0;margin-right:8px;">${b.cover?`<img src="${b.cover}" style="width:100%;height:100%;object-fit:cover;">` : `<div style="width:100%;height:100%;background:${stColor};"></div>`}</span><span style="flex:1;font-size:.72rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</span><span style="color:var(--tx3);font-size:.6rem;font-family:var(--ff-disp);font-style:italic;flex-shrink:0;">${b.date_finish?.slice(5)||''}</span>`;
+    list.appendChild(r);
+  });
 }
 
 // ── 타이머
@@ -1709,8 +1779,12 @@ function updateTimerDisplay() {
   if(btn) btn.textContent=timerRunning?'⏸ 일시정지':(timerSeconds>0?'▶ 계속':'▶ 시작');
 }
 function toggleTimer() {
-  // 타이머 시작 시 카운트
-  if(!timerRunning) {
+  const sel=document.getElementById('timer-book-select');
+  if(!timerRunning&&sel&&!sel.value){showAlert('읽는 중인 책을 먼저 선택해주세요.');return;}
+  if(timerRunning){
+    clearInterval(timerInterval);timerRunning=false;
+  } else {
+    // 시작 시 카운트
     localStorage.setItem('bl_timer_total', String((parseInt(localStorage.getItem('bl_timer_total')||'0')+1)));
     const _td=new Date().toISOString().slice(0,10);
     const _dtk='bl_daily_timer_'+_td;
@@ -1718,13 +1792,37 @@ function toggleTimer() {
     localStorage.setItem(_dtk, String(_dtc));
     if(_dtc > parseInt(localStorage.getItem('bl_daily_timer_max')||'0'))
       localStorage.setItem('bl_daily_timer_max', String(_dtc));
+    timerBookId=sel?.value||null;timerRunning=true;
+    timerInterval=setInterval(()=>{timerSeconds++;updateTimerDisplay();},1000);
   }
-  const sel=document.getElementById('timer-book-select');
-  if(!timerRunning&&sel&&!sel.value){alert('읽는 중인 책을 먼저 선택해주세요.');return;}
-  if(timerRunning){clearInterval(timerInterval);timerRunning=false;}
-  else{timerBookId=sel?.value||null;timerRunning=true;timerInterval=setInterval(()=>{timerSeconds++;updateTimerDisplay();},1000);}
   updateTimerDisplay();
+  updateTimerBtn();
 }
+
+function updateTimerBtn() {
+  const btn = document.getElementById('timer-toggle-btn');
+  if(!btn) return;
+  if(timerRunning) {
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> 일시정지';
+    btn.style.background = 'var(--rust)';
+  } else {
+    btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> 시작';
+    btn.style.background = 'var(--tx1)';
+  }
+}
+
+// 백그라운드 타이머 지원 (visibilitychange)
+let _timerHideTime = null;
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden && timerRunning) {
+    _timerHideTime = Date.now();
+  } else if(!document.hidden && timerRunning && _timerHideTime) {
+    const elapsed = Math.round((Date.now() - _timerHideTime) / 1000);
+    timerSeconds += elapsed;
+    _timerHideTime = null;
+    updateTimerDisplay();
+  }
+});
 function resetTimer() {
   if(!confirm('타이머를 초기화할까요?'))return;
   clearInterval(timerInterval);timerRunning=false;timerSeconds=0;updateTimerDisplay();
@@ -3029,7 +3127,7 @@ function openLootBox(userTitle, completedIds) {
   overlay.innerHTML = `
     <div style="background:#fdf8ee;border-radius:16px;width:100%;max-width:320px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3);">
       <!-- 헤더 -->
-      <div style="background:linear-gradient(135deg,#4a3520,#7a5030);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+      <div style="background:var(--paper);padding:.9rem 1rem;display:flex;align-items:center;border-bottom:1px solid var(--border);justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:1.1rem;">🗄️</span>
           <span style="color:#fff;font-size:.88rem;font-weight:700;">전리품</span>
