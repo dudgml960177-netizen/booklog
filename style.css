@@ -461,6 +461,3 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .qcard-share-btn{position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:.8rem;cursor:pointer;opacity:0;transition:opacity .15s;padding:.15rem .3rem;border-radius:4px;z-index:2;}
 .qcard:hover .qcard-share-btn{opacity:.6;}
 .qcard-share-btn:hover{opacity:1!important;background:var(--border);}
-
-/* quiet collection ui */
-.loot-card,.quest-card{backdrop-filter:blur(2px);}

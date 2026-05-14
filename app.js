@@ -1705,7 +1705,7 @@ function renderCal() {
       if(hasTimer && !isT){
         el.style.background='linear-gradient(to bottom, rgba(196,113,74,.10) 0%, transparent 100%)';
       }
-      // 기록 발견 뱃지
+      // 퀘스트 달성 뱃지
       if(questAch.length>0){
         const qb=document.createElement('span');
         qb.style.cssText='position:absolute;bottom:2px;right:2px;font-size:.45rem;line-height:1;';
@@ -2046,12 +2046,12 @@ function buildTimerBookList() {
 
 
 // ═══════════════════════════════════════════════
-// 독서 기록 & 수집품 시스템
+// 독서 퀘스트 & 전리품 시스템
 // ═══════════════════════════════════════════════
 
-// 기록 정의
-// condition(allBooks, profile): boolean — 발견 여부 판정
-// ── 빈티지 기록 수집품 디자인
+// 퀘스트 정의
+// condition(allBooks, profile): boolean — 달성 여부 판정
+// ── 빈티지 퀘스트 전리품 디자인
 const QUESTS = [
   // ── 0. 시초의 독자
   {
@@ -2208,7 +2208,7 @@ const QUESTS = [
       item: '🍡',
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="g_gear" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#E8C37B"/><stop offset="100%" stop-color="#B8860B"/></radialGradient><filter id="s_gear"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-color="#222" flood-opacity="0.7"/></filter></defs><g filter="url(#s_gear)"><path d="M16 2l2 4h-4l2-4zm10 4l-2 3-3-3 5-3v3zm4 10l-4 2v-4l4 2zm-4 10l-3-2 3-3 3 5h-3zm-10 4l-2-4h4l-2 4zm-10-4l2-3 3 3-5 3v-3zm-4-10l4-2v4l-4-2zm4-10l3 2-3 3-3-5h3z" fill="url(#g_gear)"/><circle cx="16" cy="16" r="8" fill="url(#g_gear)" stroke="#5C4033" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="#3E2723"/></g></svg>`,
       itemName: '태엽 장치',
-      itemDesc: '북로그 100일 연속 방문 발견! 뇌세포들이 경례합니다.',
+      itemDesc: '북로그 100일 연속 방문 달성! 뇌세포들이 경례합니다.',
       color: '#c8a050', bg: '#fdf8ee', border: '#e8d4a0',
     }
   },
@@ -2651,7 +2651,7 @@ const QUESTS = [
     reward: {
       title: '⌚ 시간 투자자', item: '⏱',
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_clock" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#D4AF37"/><stop offset="100%" stop-color="#8B6508"/></linearGradient><filter id="s_clock"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#4A3B14" flood-opacity="0.6"/></filter></defs><g filter="url(#s_clock)"><circle cx="16" cy="16" r="12" fill="#F5DEB3" stroke="url(#g_clock)" stroke-width="3"/><path d="M16 6v10l6 2" fill="none" stroke="#5C4033" stroke-width="1.5" stroke-linecap="round"/><circle cx="16" cy="16" r="2" fill="url(#g_clock)"/><text x="16" y="24" text-anchor="middle" font-size="5" fill="#8B4513" font-family="serif">100H</text></g></svg>`,
-      itemName: '황금 회중시계', itemDesc: '한 해에 100시간 독서를 발견한 시간 투자자에게',
+      itemName: '황금 회중시계', itemDesc: '한 해에 100시간 독서를 달성한 시간 투자자에게',
       color: '#907040', bg: '#fdf8f0', border: '#e0c890',
     }
   },
@@ -2818,7 +2818,7 @@ const QUESTS = [
           <path d="M10 16l4 4 8-9" fill="none" stroke="#FFF7C2" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
       </svg>`,
-      itemName: '에메랄드 왁스 씰', itemDesc: '읽는 중에서 완독으로 전환을 50번 발견한 독자에게',
+      itemName: '에메랄드 왁스 씰', itemDesc: '읽는 중에서 완독으로 전환을 50번 달성한 독자에게',
       color: '#166339', bg: '#f0fff5', border: '#a3d9b8',
     }
   },
@@ -2872,7 +2872,7 @@ const QUESTS = [
   },
 ];
 
-// 초대권 자동 발급 (hasInvite:true 기록 발견 시)
+// 초대권 자동 발급 (hasInvite:true 퀘스트 달성 시)
 async function grantInviteCode(quest) {
   try {
     const newCode = Math.random().toString(36).slice(2,8).toUpperCase() + '-' + quest.id.slice(0,4).toUpperCase();
@@ -2892,7 +2892,7 @@ async function grantInviteCode(quest) {
       box.innerHTML = `
         <div style="font-size:2rem;margin-bottom:.5rem;">🎟️</div>
         <div style="font-size:.72rem;font-weight:700;color:#c8a050;letter-spacing:.08em;margin-bottom:.3rem;">북로그 초대권 발급!</div>
-        <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${quest.name} 발견 보상</div>
+        <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${quest.name} 달성 보상</div>
         <div style="background:#f5f0e0;border-radius:8px;padding:.6rem;margin-bottom:.8rem;font-family:monospace;font-size:1rem;font-weight:700;color:#8B6B3A;letter-spacing:.1em;">${newCode}</div>
         <div style="font-size:.65rem;color:#a08c72;margin-bottom:.9rem;">설정 메뉴에서 초대코드를 확인할 수 있어요</div>`;
       const btn = document.createElement('button');
@@ -2926,7 +2926,7 @@ async function grantInviteCode(quest) {
   } catch(e) { console.warn('invite code grant failed:', e); }
 }
 
-// 기록 발견 체크 및 자동 보상 적용
+// 퀘스트 달성 체크 및 자동 보상 적용
 async function checkAndGrantQuests() {
   if(!currentUser) return;
   const { data: profile } = await sb.from('profiles')
@@ -2999,18 +2999,18 @@ async function checkAndGrantQuests() {
 
   if(!newlyCompleted.length) return;
 
-  // 새로 발견한 기록 보상 적용
+  // 새로 달성한 퀘스트 보상 적용
   const newCompleted = [...completed, ...newlyCompleted.map(q=>q.id)];
-  // 칭호: 가장 최근 발견 기록의 칭호로 덮어씌우지 않고 최초만 적용
+  // 칭호: 가장 최근 달성 퀘스트의 칭호로 덮어씌우지 않고 최초만 적용
   const updateData = { completed_quests: newCompleted };
-  // 칭호가 아직 없으면 첫 번째 발견 칭호 부여
+  // 칭호가 아직 없으면 첫 번째 달성 칭호 부여
   if(!profile.user_title && newlyCompleted.length > 0) {
     updateData.user_title = newlyCompleted[0].reward.title;
   }
 
   await sb.from('profiles').update(updateData).eq('id', currentUser.id);
 
-  // 발견 팝업 + 발견 날짜 기록
+  // 달성 팝업 + 달성 날짜 기록
   const achDate = new Date().toISOString().slice(0,10);
   for(const quest of newlyCompleted) {
     await showQuestRewardPopup(quest);
@@ -3025,12 +3025,12 @@ async function checkAndGrantQuests() {
     }
   }
 
-  // 수집품 & 기록 패널 새로고침
+  // 전리품 & 퀘스트 패널 새로고침
   buildLoot(profile.user_title || updateData.user_title, newCompleted);
   buildQuestPanel(newCompleted);
 }
 
-// 기록 발견 팝업
+// 퀘스트 달성 팝업
 async function showQuestRewardPopup(quest) {
   const r = quest.reward;
   await new Promise(resolve => {
@@ -3039,7 +3039,7 @@ async function showQuestRewardPopup(quest) {
     overlay.innerHTML = `
       <div style="background:#fdf8ee;border-radius:16px;padding:2rem 1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);border:2px solid ${r.border||'#e8d4a0'};">
         <div style="font-size:2.5rem;margin-bottom:.6rem;">🎉</div>
-        <div style="font-size:.65rem;font-weight:700;color:${r.color||'#c8a050'};letter-spacing:.1em;text-transform:uppercase;margin-bottom:.3rem;">기록 발견!</div>
+        <div style="font-size:.65rem;font-weight:700;color:${r.color||'#c8a050'};letter-spacing:.1em;text-transform:uppercase;margin-bottom:.3rem;">퀘스트 달성!</div>
         <div style="font-size:1.1rem;font-weight:700;color:#2e1f0e;margin-bottom:.8rem;">${quest.name}</div>
         <div style="background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:12px;padding:1rem;margin-bottom:1rem;">
           <div style="font-size:2rem;margin-bottom:.4rem;">${r.item}</div>
@@ -3063,12 +3063,12 @@ async function showQuestRewardPopup(quest) {
   });
 }
 
-// 수집품 패널 빌드 — 수집품 버튼 + 기록 버튼
+// 전리품 패널 빌드 — 전리품 버튼 + 퀘스트 버튼
 function buildLoot(userTitle, completedIds) {
-  // stat-grid에 수집품·기록 카드 추가 (기존 카드들과 나란히)
+  // stat-grid에 전리품·퀘스트 카드 추가 (기존 카드들과 나란히)
   const panel = document.getElementById('stat-grid');
   if(!panel) return;
-  // 기존 수집품·기록 카드 제거 (재빌드 시)
+  // 기존 전리품·퀘스트 카드 제거 (재빌드 시)
   panel.querySelectorAll('.loot-card,.quest-card').forEach(el=>el.remove());
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
   const earnedCount = earned.length;
@@ -3076,39 +3076,39 @@ function buildLoot(userTitle, completedIds) {
   // 카드 공통 스타일
   const cardStyle = 'flex:1;min-width:68px;max-width:88px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
 
-  // ① 수집품 카드
+  // ① 전리품 카드
   const lootCard = document.createElement('div');
   lootCard.className = 'loot-card';
   lootCard.style.cssText = cardStyle + (earnedCount > 0 ? 'border-color:#e8d4a0;background:#fdf8ee;' : '');
-  lootCard.title = '수집품';
+  lootCard.title = '전리품';
   lootCard.innerHTML = earnedCount > 0
     ? `<div style="font-size:1.1rem;">🗄️</div>
-       <div style="font-size:.55rem;font-weight:700;color:#c8a050;">수집품</div>
+       <div style="font-size:.55rem;font-weight:700;color:#c8a050;">전리품</div>
        <div style="font-size:.48rem;color:#a08c72;">${earnedCount}개 획득</div>`
     : `<div style="font-size:1.1rem;opacity:.3;">🗄️</div>
-       <div style="font-size:.55rem;font-weight:600;color:var(--tx3);opacity:.6;">수집품</div>
+       <div style="font-size:.55rem;font-weight:600;color:var(--tx3);opacity:.6;">전리품</div>
        <div style="font-size:.45rem;color:var(--tx3);opacity:.4;line-height:1.3;">Coming<br>Soon</div>`;
   lootCard.onclick = () => openLootBox(userTitle, completedIds);
   lootCard.onmouseenter = () => lootCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.1)';
   lootCard.onmouseleave = () => lootCard.style.boxShadow = '';
   panel.appendChild(lootCard);
 
-  // ② 기록 카드
+  // ② 퀘스트 카드
   const questCard = document.createElement('div');
   questCard.className = 'quest-card';
   const doneCount = completedIds?.length || 0;
   questCard.style.cssText = cardStyle;
-  questCard.title = '독서 기록';
+  questCard.title = '독서 퀘스트';
   questCard.innerHTML = `<div style="font-size:1.1rem;">🗺️</div>
-    <div style="font-size:.55rem;font-weight:700;color:var(--tx2);">기록</div>
-    <div style="font-size:.48rem;color:var(--tx3);">${doneCount}/${QUESTS.length}발견</div>`;
+    <div style="font-size:.55rem;font-weight:700;color:var(--tx2);">퀘스트</div>
+    <div style="font-size:.48rem;color:var(--tx3);">${doneCount}/${QUESTS.length}달성</div>`;
   questCard.onclick = () => openQuestModal(completedIds);
   questCard.onmouseenter = () => questCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.1)';
   questCard.onmouseleave = () => questCard.style.boxShadow = '';
   panel.appendChild(questCard);
 }
 
-// ── 수집품 모달
+// ── 전리품 모달
 function openLootBox(userTitle, completedIds) {
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
   const overlay = document.createElement('div');
@@ -3130,7 +3130,7 @@ function openLootBox(userTitle, completedIds) {
       <div style="background:var(--paper);padding:.9rem 1rem;display:flex;align-items:center;border-bottom:1px solid var(--border);justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:1.1rem;">🗄️</span>
-          <span style="color:#fff;font-size:.88rem;font-weight:700;">수집품</span>
+          <span style="color:#fff;font-size:.88rem;font-weight:700;">전리품</span>
         </div>
         <button onclick="document.getElementById('lootbox-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
@@ -3176,7 +3176,7 @@ function openLootBox(userTitle, completedIds) {
   }
 }
 
-// 수집품 아이템 상세
+// 전리품 아이템 상세
 function showLootItemDetail(questId, userTitle) {
   const quest = QUESTS.find(q => q.id === questId);
   if(!quest) return;
@@ -3214,7 +3214,7 @@ function showLootItemDetail(questId, userTitle) {
 }
 
 
-// 기록 상세 팝업
+// 퀘스트 상세 팝업
 function showQuestDetail(questId, achieved) {
   const q = QUESTS.find(x => x.id === questId);
   if(!q) return;
@@ -3233,13 +3233,13 @@ function showQuestDetail(questId, achieved) {
   // 내용
   const contentDiv = document.createElement('div');
   contentDiv.innerHTML = `
-    <div style="font-size:.58rem;font-weight:700;color:${achieved?r.color||'#c8a050':'#a08c72'};letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;">${achieved?'발견 완료 ✓':'도전 중'}</div>
+    <div style="font-size:.58rem;font-weight:700;color:${achieved?r.color||'#c8a050':'#a08c72'};letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;">${achieved?'달성 완료 ✓':'도전 중'}</div>
     <div style="font-size:1rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${q.name}</div>
     <div style="font-size:.78rem;color:#5c4a30;line-height:1.7;margin-bottom:.8rem;padding:.7rem .8rem;background:${achieved?r.bg||'#fdf8ee':'#f5f0e8'};border-radius:10px;border:1px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};">
       ${achieved && q.desc ? q.desc : q.hint}
     </div>
     ${achieved ? `
-    <div style="font-size:.62rem;color:#a08c72;margin-bottom:.3rem;">획득 수집품</div>
+    <div style="font-size:.62rem;color:#a08c72;margin-bottom:.3rem;">획득 전리품</div>
     <div style="font-size:.78rem;font-weight:700;color:#2e1f0e;margin-bottom:.2rem;">${r.itemName}</div>
     <div style="font-size:.72rem;font-weight:600;color:${r.color||'#c8a050'};margin-bottom:.8rem;">${r.title}</div>
     ` : ''}`;
@@ -3254,7 +3254,7 @@ function showQuestDetail(questId, achieved) {
   document.body.appendChild(overlay);
 }
 
-// ── 기록 모달
+// ── 퀘스트 모달
 function openQuestModal(completedIds) {
   const overlay = document.createElement('div');
   overlay.id = 'quest-overlay';
@@ -3271,7 +3271,7 @@ function openQuestModal(completedIds) {
       </div>
       <div style="flex-shrink:0;">
         ${achieved
-          ? `<span style="font-size:.6rem;font-weight:700;color:${r.color||'#c8a050'};background:${r.bg};padding:.15rem .5rem;border-radius:8px;border:1px solid ${r.border};">발견 ✓</span>`
+          ? `<span style="font-size:.6rem;font-weight:700;color:${r.color||'#c8a050'};background:${r.bg};padding:.15rem .5rem;border-radius:8px;border:1px solid ${r.border};">달성 ✓</span>`
           : `<span style="font-size:.6rem;color:var(--tx3);background:#ede4d0;padding:.15rem .5rem;border-radius:8px;">도전 중</span>`}
       </div>
     </div>`;
@@ -3284,8 +3284,8 @@ function openQuestModal(completedIds) {
         <div style="display:flex;align-items:center;gap:.5rem;">
           <span style="font-size:1rem;">🗺️</span>
           <div>
-            <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;">독서 기록</div>
-            <div style="font-size:.6rem;color:#a08c72;">${done}/${QUESTS.length} 발견</div>
+            <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;">독서 퀘스트</div>
+            <div style="font-size:.6rem;color:#a08c72;">${done}/${QUESTS.length} 달성</div>
           </div>
         </div>
         <button onclick="document.getElementById('quest-overlay').remove()" style="background:#ede4d0;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:.8rem;color:#5c3d1e;display:flex;align-items:center;justify-content:center;">✕</button>
@@ -3296,12 +3296,12 @@ function openQuestModal(completedIds) {
   overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
 }
 
-// 수집품 상세 팝업 (레거시 - openLootBox로 대체)
+// 전리품 상세 팝업 (레거시 - openLootBox로 대체)
 async function showLootDetail(quest, userTitle) {
   openLootBox(userTitle);
 }
 
-// 기록 패널 빌드 (하위호환 — quest-panel은 이제 숨김)
+// 퀘스트 패널 빌드 (하위호환 — quest-panel은 이제 숨김)
 function buildQuestPanel(completedIds) {
   const panel = document.getElementById('quest-panel');
   if(panel) panel.style.display = 'none'; // 카드 방식으로 대체됨
@@ -3317,9 +3317,9 @@ function buildQuestPanel(completedIds) {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
         <div style="display:flex;align-items:center;gap:.35rem;">
           <span style="font-size:.85rem;">🗺️</span>
-          <span style="font-size:.72rem;font-weight:700;color:var(--tx2);">독서 기록</span>
+          <span style="font-size:.72rem;font-weight:700;color:var(--tx2);">독서 퀘스트</span>
         </div>
-        <span style="font-size:.62rem;color:var(--tx3);">${done}/${total} 발견</span>
+        <span style="font-size:.62rem;color:var(--tx3);">${done}/${total} 달성</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:.35rem;">
         ${QUESTS.map(q => {
@@ -3331,7 +3331,7 @@ function buildQuestPanel(completedIds) {
               <div style="font-size:.72rem;font-weight:${achieved?700:500};color:${achieved?'#2e1f0e':'var(--tx2)'};">${q.name}</div>
               <div style="font-size:.62rem;color:var(--tx3);margin-top:.08rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${achieved ? r.title : q.hint}</div>
             </div>
-            ${achieved ? `<span style="font-size:.6rem;font-weight:700;color:${r.color||'#c8a050'};flex-shrink:0;">발견✓</span>` : '<span style="font-size:.6rem;color:var(--tx3);flex-shrink:0;">도전중</span>'}
+            ${achieved ? `<span style="font-size:.6rem;font-weight:700;color:${r.color||'#c8a050'};flex-shrink:0;">달성✓</span>` : '<span style="font-size:.6rem;color:var(--tx3);flex-shrink:0;">도전중</span>'}
           </div>`;
         }).join('')}
       </div>
@@ -3403,7 +3403,7 @@ function buildStats() {
       <div style="font-size:.55rem;color:var(--tx3);margin-top:.08rem;">${it.l}</div>`;
     sg.appendChild(el);
   });
-  // 수집품 & 기록 패널 초기 로드
+  // 전리품 & 퀘스트 패널 초기 로드
   sb.from('profiles').select('user_title,completed_quests').eq('id',currentUser.id).single().then(({data:pf})=>{
     buildLoot(pf?.user_title, pf?.completed_quests||[]);
     buildQuestPanel(pf?.completed_quests||[]);
