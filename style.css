@@ -450,130 +450,154 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx1
 .quest-card h4{color:#8B4513}
 
 
-/* =========================
-   전리품 도감
-========================= */
+/* =========================================
+   BOOKLOG TROPHY / QUEST REDESIGN
+========================================= */
 
-.archive-wrap{
-    padding:120px 40px;
-    background:#f4ede2;
-    position:relative;
-}
-
-.archive-title-wrap{
-    text-align:center;
-    margin-bottom:60px;
-}
-
-.archive-sub{
-    font-size:11px;
-    letter-spacing:4px;
-    color:#b09b84;
-    margin-bottom:16px;
-}
-
-.archive-title{
-    font-size:44px;
-    color:#5b4637;
-    margin-bottom:12px;
-    font-family:'DM Serif Display', serif;
-}
-
-.archive-desc{
-    color:#8d7867;
-    font-size:15px;
-}
-
-.archive-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-    gap:28px;
-    max-width:1300px;
-    margin:0 auto;
-}
-
-.archive-item{
-    background:#f8f2e8;
-    border:1px solid #e6d8c4;
-    border-radius:24px;
-    padding:24px;
+.quest-card,
+.trophy-card,
+.reward-card,
+.quest-item{
+    background:#f8f1e7 !important;
+    border:1px solid #e6d8c7 !important;
+    border-radius:22px !important;
+    box-shadow:0 8px 24px rgba(84,61,40,.06) !important;
     position:relative;
     overflow:hidden;
-    transition:all .4s ease;
+    transition:
+      transform .45s ease,
+      box-shadow .45s ease,
+      border-color .45s ease !important;
 }
 
-.archive-item:hover{
-    transform:translateY(-6px) rotate(-0.4deg);
-    box-shadow:0 14px 28px rgba(73,52,33,.08);
+.quest-card:hover,
+.trophy-card:hover,
+.reward-card:hover,
+.quest-item:hover{
+    transform:translateY(-4px) rotate(-0.3deg);
+    box-shadow:0 16px 36px rgba(84,61,40,.10) !important;
+    border-color:#d3bea8 !important;
 }
 
-.archive-paper{
+.quest-card::before,
+.trophy-card::before,
+.reward-card::before,
+.quest-item::before{
+    content:'';
     position:absolute;
-    inset:12px;
-    border:1px dashed rgba(120,90,60,.14);
-    border-radius:16px;
+    inset:0;
+    background:
+      linear-gradient(to bottom,
+      rgba(255,255,255,.25),
+      transparent 40%);
     pointer-events:none;
 }
 
-.archive-image{
-    height:180px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin-bottom:18px;
+.quest-card::after,
+.trophy-card::after,
+.reward-card::after,
+.quest-item::after{
+    content:'';
+    position:absolute;
+    inset:12px;
+    border:1px dashed rgba(115,87,60,.12);
+    border-radius:14px;
+    pointer-events:none;
 }
 
-.archive-image img{
-    width:120px;
-    height:120px;
-    object-fit:contain;
-    transition:transform .4s ease;
-    filter:drop-shadow(0 6px 10px rgba(0,0,0,.08));
+.quest-card h3,
+.trophy-card h3,
+.reward-card h3,
+.quest-title,
+.reward-title{
+    font-family:'Nanum Myeongjo', serif !important;
+    color:#5a4637 !important;
+    letter-spacing:.02em;
 }
 
-.archive-item:hover img{
-    transform:translateY(-4px) scale(1.03) rotate(-2deg);
+.quest-card p,
+.trophy-card p,
+.reward-card p,
+.quest-desc,
+.reward-desc{
+    color:#8b7765 !important;
+    line-height:1.7;
 }
 
-.archive-name{
-    text-align:center;
-    color:#5a4739;
-    font-size:17px;
-    font-family:'DM Serif Display', serif;
+.quest-icon,
+.reward-icon,
+.trophy-icon{
+    filter:
+      drop-shadow(0 8px 14px rgba(0,0,0,.08));
+    transition:
+      transform .45s ease,
+      filter .45s ease;
 }
 
-.lock-image{
-    font-size:52px;
-    color:#bca792;
-    font-family:'DM Serif Display', serif;
+.quest-card:hover .quest-icon,
+.reward-card:hover .reward-icon,
+.trophy-card:hover .trophy-icon{
+    transform:
+      translateY(-4px)
+      rotate(-2deg)
+      scale(1.03);
+
+    filter:
+      drop-shadow(0 14px 18px rgba(0,0,0,.12));
 }
 
-.archive-item.locked{
-    opacity:.55;
+.quest-complete{
+    background:#efe4d3 !important;
+    color:#7b5d44 !important;
+    border:1px solid #dcc5aa !important;
+}
+
+.quest-locked{
+    opacity:.58;
+    filter:grayscale(.15);
+}
+
+.quest-progress{
+    height:6px !important;
+    border-radius:999px !important;
+    background:#eadfce !important;
+    overflow:hidden;
+}
+
+.quest-progress-fill{
+    background:linear-gradient(
+      to right,
+      #d9b78f,
+      #a77950
+    ) !important;
+    border-radius:999px;
+}
+
+.stats-trophy-grid,
+.quest-grid{
+    display:grid !important;
+    grid-template-columns:
+      repeat(auto-fill,minmax(220px,1fr));
+    gap:24px !important;
+}
+
+.reward-dotart svg{
+    width:92px !important;
+    height:92px !important;
 }
 
 @media(max-width:768px){
 
-    .archive-wrap{
-        padding:80px 20px;
+    .stats-trophy-grid,
+    .quest-grid{
+        grid-template-columns:
+          repeat(2,1fr);
+        gap:16px !important;
     }
 
-    .archive-grid{
-        grid-template-columns:repeat(2,1fr);
-        gap:18px;
-    }
-
-    .archive-title{
-        font-size:34px;
-    }
-
-    .archive-image{
-        height:130px;
-    }
-
-    .archive-image img{
-        width:90px;
-        height:90px;
+    .reward-dotart svg{
+        width:72px !important;
+        height:72px !important;
     }
 
 }
