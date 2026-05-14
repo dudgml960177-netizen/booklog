@@ -222,15 +222,20 @@
 
       <!-- 서재 (갤러리+테이블 통합) -->
       <div class="panel on" id="p-books">
-        <div class="books-toolbar">
-          <!-- 서재 타이틀 -->
-          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
-            <div>
-              <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">나의 서재</div>
-              <div id="lib-count-lbl" style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">MY LIBRARY</div>
-            </div>
-            <div style="display:flex;gap:10px;color:var(--tx1);" id="lib-view-btns"></div>
-          </div>
+        <div class="panel on" id="p-books">
+  <!-- 동적으로 renderLibraryHero()가 채울 영역 -->
+  <div id="library-hero"></div>
+  <!-- 갤러리 뷰 -->
+  <div id="view-gallery">
+    <div class="gallery" id="gal-grid">
+      <div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>
+    </div>
+  </div>
+  <!-- 리스트 뷰 -->
+  <div id="view-list" style="display:none;">
+    <div class="book-list" id="book-list-items"></div>
+  </div>
+</div>
           <!-- 검색 -->
           <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;color:var(--tx3);">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -274,16 +279,17 @@
 
       <!-- 문장 수집 -->
       <div class="panel" id="p-quotes">
-        <div class="q-filter" id="q-filter"></div>
-        <div id="q-tab-header"></div>
-          <div class="quote-feed" id="q-feed">
-          <div class="empty-state">수집된 문장이 없어요.</div>
-        </div>
-      </div>
+  <div id="q-tab-header"></div>
+  <div class="q-filter" id="q-filter"></div>
+  <div class="quote-feed" id="q-feed">
+    <div class="empty-state">수집된 문장이 없어요.</div>
+  </div>
+</div>
 
       <!-- 기록 탭 -->
-      <div class="panel" id="p-record">
-        <div class="record-top">
+       <div class="panel" id="p-record">
+  <div id="record-hero"></div>  <!-- JS가 채움 -->
+  <div class="record-top">
           <!-- 달력 (좌) -->
           <div class="card record-cal-card">
             <div class="cal-hd">
@@ -387,6 +393,7 @@
 
       <!-- 통계 -->
       <div class="panel" id="p-graph">
+  <div id="stats-hero"></div>  <!-- JS가 채움 -->
 
         <!-- ① 목표 + 핵심 지표 통합 헤더 -->
         <!-- 목표 진행 -->
@@ -452,16 +459,25 @@
 </div>
 
 <!-- FAB: 책 추가 버튼 -->
-<button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.6rem;bottom:2.2rem;z-index:900;width:52px;height:52px;border-radius:50%;background:var(--paper);border-bottom:1px solid var(--border);color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
+<button id="fab-add-book" onclick="openAddBook()" title="책 추가"
+  style="position:fixed;right:1.6rem;bottom:2.2rem;
+    z-index:800;width:48px;height:48px;border-radius:50%;
+    background:#2a1f10;color:#fff;font-size:1.5rem;font-weight:300;
+    border:none;cursor:pointer;
+    box-shadow:0 4px 20px rgba(42,31,16,.28);
+    display:none;align-items:center;justify-content:center;
+    transition:transform .15s,box-shadow .15s;"
+  onmouseenter="this.style.transform='scale(1.08)'"
+  onmouseleave="this.style.transform='scale(1)'">＋</button>
 
 <!-- 책 추가/수정 모달 -->
 <div id="modal-book" class="modal-overlay" style="display:none;">
   <div class="modal" style="max-width:440px;">
     <!-- 헤더 -->
-    <div style="background:var(--paper);border-bottom:1px solid var(--border);padding:.85rem 1.1rem .75rem;border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;justify-content:space-between;">
-      <div id="modal-book-title" style="font-size:.88rem;font-weight:700;color:#fff;font-family:var(--fs);">책 추가</div>
-      <button class="modal-close" onclick="closeModal('modal-book')" style="color:rgba(255,255,255,.8);">✕</button>
-    </div>
+    <div class="modal-header">
+  <div id="modal-book-title" class="modal-title">책 추가</div>
+  <button class="modal-close" onclick="closeModal('modal-book')">✕</button>
+</div>
     <div class="modal-body" style="padding:.85rem 1rem;">
       <!-- 검색 -->
       <div class="search-section" id="search-section">
@@ -628,6 +644,18 @@
           <span style="font-size:.72rem;font-weight:600;color:var(--tx2);">🔤 글자 크기</span>
           <span id="font-size-label" style="font-size:.72rem;color:var(--acc);font-weight:600;">100%</span>
         </div>
+        <!-- 폰트 스타일 설정 (글자 크기 설정 바로 아래) -->
+<div style="margin-bottom:.75rem;padding:.6rem .8rem;background:#faf6ef;border:1px solid var(--border);border-radius:var(--rs);">
+  <div style="font-size:.72rem;font-weight:600;color:var(--tx2);margin-bottom:.5rem;">🖊️ 폰트 스타일</div>
+  <select id="user-font-select" class="form-input" style="font-size:.78rem;" onchange="applySystemFont(this.value)">
+    <option value="">Pretendard (기본)</option>
+    <option value="'Noto Sans KR',sans-serif">Noto Sans KR</option>
+    <option value="'Noto Serif KR',serif">Noto Serif KR</option>
+    <option value="'Cormorant Garamond','Noto Serif KR',serif">Cormorant Garamond</option>
+    <option value="'IBM Plex Mono','Courier New',monospace">IBM Plex Mono</option>
+  </select>
+  <div id="user-font-preview" style="margin-top:.4rem;padding:.4rem .6rem;background:var(--paper);border-radius:var(--rs);font-size:.75rem;color:var(--tx1);">책장 안의 노트 — 나의 서재</div>
+</div>
         <input type="range" id="font-size-slider" min="80" max="130" step="5" value="100"
           oninput="applyFontSize(this.value)"
           style="width:100%;accent-color:var(--acc);cursor:pointer;">
