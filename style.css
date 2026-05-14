@@ -448,3 +448,132 @@ html,body{height:100%;background:var(--bg);font-family:var(--ff);color:var(--tx1
 .loot-item.locked{opacity:.5;filter:grayscale(1)}
 .quest-card{background:#fdf8ee;border:1px solid #d4af37;color:#111}
 .quest-card h4{color:#8B4513}
+
+
+/* =========================
+   전리품 도감
+========================= */
+
+.archive-wrap{
+    padding:120px 40px;
+    background:#f4ede2;
+    position:relative;
+}
+
+.archive-title-wrap{
+    text-align:center;
+    margin-bottom:60px;
+}
+
+.archive-sub{
+    font-size:11px;
+    letter-spacing:4px;
+    color:#b09b84;
+    margin-bottom:16px;
+}
+
+.archive-title{
+    font-size:44px;
+    color:#5b4637;
+    margin-bottom:12px;
+    font-family:'DM Serif Display', serif;
+}
+
+.archive-desc{
+    color:#8d7867;
+    font-size:15px;
+}
+
+.archive-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:28px;
+    max-width:1300px;
+    margin:0 auto;
+}
+
+.archive-item{
+    background:#f8f2e8;
+    border:1px solid #e6d8c4;
+    border-radius:24px;
+    padding:24px;
+    position:relative;
+    overflow:hidden;
+    transition:all .4s ease;
+}
+
+.archive-item:hover{
+    transform:translateY(-6px) rotate(-0.4deg);
+    box-shadow:0 14px 28px rgba(73,52,33,.08);
+}
+
+.archive-paper{
+    position:absolute;
+    inset:12px;
+    border:1px dashed rgba(120,90,60,.14);
+    border-radius:16px;
+    pointer-events:none;
+}
+
+.archive-image{
+    height:180px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:18px;
+}
+
+.archive-image img{
+    width:120px;
+    height:120px;
+    object-fit:contain;
+    transition:transform .4s ease;
+    filter:drop-shadow(0 6px 10px rgba(0,0,0,.08));
+}
+
+.archive-item:hover img{
+    transform:translateY(-4px) scale(1.03) rotate(-2deg);
+}
+
+.archive-name{
+    text-align:center;
+    color:#5a4739;
+    font-size:17px;
+    font-family:'DM Serif Display', serif;
+}
+
+.lock-image{
+    font-size:52px;
+    color:#bca792;
+    font-family:'DM Serif Display', serif;
+}
+
+.archive-item.locked{
+    opacity:.55;
+}
+
+@media(max-width:768px){
+
+    .archive-wrap{
+        padding:80px 20px;
+    }
+
+    .archive-grid{
+        grid-template-columns:repeat(2,1fr);
+        gap:18px;
+    }
+
+    .archive-title{
+        font-size:34px;
+    }
+
+    .archive-image{
+        height:130px;
+    }
+
+    .archive-image img{
+        width:90px;
+        height:90px;
+    }
+
+}
