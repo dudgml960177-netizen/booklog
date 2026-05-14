@@ -957,11 +957,122 @@ async function shareQuoteCard(qtId, btn) {
     box-sizing: border-box !important;
     background: #fdf8ee !important;
   }
-  .loot-item { background: #fff; border: 1px solid #d4af37; border-radius: 10px; cursor: pointer; }
-  .loot-item span { font-weight: 400 !important; color: #333 !important; font-size: 12px; margin-top: 5px; }
-  .loot-item.locked { opacity: 0.5; filter: grayscale(1); }
-  .quest-card { background: #fdf8ee; border: 1px solid #d4af37; color: #111; }
-  .quest-card h4 { color: #8B4513; }
+  
+  .loot-grid {
+    background:#f6efe5 !important;
+    border-radius:24px !important;
+    padding:24px !important;
+    gap:20px !important;
+  }
+
+  .loot-item {
+    background:#f8f1e7 !important;
+    border:1px solid #e2d4c2 !important;
+    border-radius:22px !important;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    transition:
+      transform .45s ease,
+      box-shadow .45s ease,
+      border-color .45s ease;
+    box-shadow:
+      0 8px 24px rgba(85,62,40,.06);
+  }
+
+  .loot-item::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(to bottom,
+      rgba(255,255,255,.24),
+      transparent 40%);
+    pointer-events:none;
+  }
+
+  .loot-item::after{
+    content:'';
+    position:absolute;
+    inset:12px;
+    border:1px dashed rgba(110,85,58,.12);
+    border-radius:14px;
+    pointer-events:none;
+  }
+
+  .loot-item:hover{
+    transform:
+      translateY(-4px)
+      rotate(-0.3deg);
+
+    border-color:#d4bda3 !important;
+
+    box-shadow:
+      0 18px 32px rgba(85,62,40,.10);
+  }
+
+  .loot-item span {
+    font-weight:400 !important;
+    color:#5b4738 !important;
+    font-size:13px;
+    margin-top:10px;
+    font-family:'Nanum Myeongjo', serif;
+    letter-spacing:.02em;
+  }
+
+  .loot-item svg{
+    filter:
+      drop-shadow(0 8px 12px rgba(0,0,0,.08));
+
+    transition:
+      transform .45s ease,
+      filter .45s ease;
+  }
+
+  .loot-item:hover svg{
+    transform:
+      translateY(-4px)
+      rotate(-2deg)
+      scale(1.03);
+
+    filter:
+      drop-shadow(0 14px 18px rgba(0,0,0,.12));
+  }
+
+  .loot-item.locked {
+    opacity:0.5;
+    filter:grayscale(.2);
+  }
+
+  .quest-card {
+    background:#f8f1e7 !important;
+    border:1px solid #e2d4c2 !important;
+    border-radius:24px !important;
+    color:#5a4738 !important;
+    box-shadow:
+      0 8px 24px rgba(85,62,40,.06);
+    transition:
+      transform .45s ease,
+      box-shadow .45s ease;
+  }
+
+  .quest-card:hover{
+    transform:translateY(-4px);
+    box-shadow:
+      0 18px 32px rgba(85,62,40,.10);
+  }
+
+  .quest-card h4 {
+    color:#5a4738 !important;
+    font-family:'Nanum Myeongjo', serif;
+    font-size:18px;
+  }
+
+  .quest-card p{
+    color:#887462 !important;
+    line-height:1.7;
+  }
+
 
 </style>
   </defs>
