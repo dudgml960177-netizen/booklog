@@ -528,9 +528,9 @@ function initSystemFont() {
 }
 
 function sw(name, btn) {
-  // FAB 버튼: 서재·문장 탭에서만 표시
+  // FAB 버튼: 어느 탭에서든 책 추가 가능
   const fab=document.getElementById('fab-add-book');
-  if(fab) fab.style.display=(name==='books'||name==='quotes')?'flex':'none';
+  if(fab) fab.style.display='flex';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   btn.classList.add('on');
@@ -3018,147 +3018,239 @@ async function checkAndGrantQuests() {
 // 퀘스트 달성 팝업
 async function showQuestRewardPopup(quest) {
   const r = quest.reward;
+  const idx = QUESTS.indexOf(quest);
   await new Promise(resolve => {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-    overlay.innerHTML = `
-      <div style="background:#fdf8ee;border-radius:16px;padding:2rem 1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);border:2px solid ${r.border||'#e8d4a0'};">
-        <div style="font-size:2.5rem;margin-bottom:.6rem;">🎉</div>
-        <div style="font-size:.65rem;font-weight:700;color:${r.color||'#c8a050'};letter-spacing:.1em;text-transform:uppercase;margin-bottom:.3rem;">퀘스트 달성!</div>
-        <div style="font-size:1.1rem;font-weight:700;color:#2e1f0e;margin-bottom:.8rem;">${quest.name}</div>
-        <div style="background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:12px;padding:1rem;margin-bottom:1rem;">
-          <div style="font-size:2rem;margin-bottom:.4rem;">${r.item}</div>
-          <div style="font-size:.82rem;font-weight:700;color:#2e1f0e;">${r.itemName}</div>
-          <div style="font-size:.7rem;color:#7a6a5a;margin-top:.2rem;">${r.itemDesc}</div>
-          <div style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid ${r.border||'#e8d4a0'};">
-            <div style="font-size:.6rem;color:#a08c72;margin-bottom:.2rem;">칭호 획득</div>
-            <div style="font-size:.82rem;font-weight:700;color:${r.color||'#c8a050'};">${r.title}</div>
-          </div>
-        </div>
-        <button onclick="this.closest('[data-popup]').dispatchEvent(new Event('close'))" 
-          style="background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);">
-          확인
-        </button>
-      </div>`;
-    overlay.querySelector('[data-popup]')?.addEventListener('close', ()=>{overlay.remove();resolve();});
-    // 버튼에 data-popup 추가
-    overlay.firstElementChild.setAttribute('data-popup','');
-    overlay.querySelector('button').onclick = ()=>{overlay.remove();resolve();};
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn .25s ease;';
+    const box = document.createElement('div');
+    box.setAttribute('data-popup','');
+    box.style.cssText = `background:#fdf8ee;border-radius:16px;padding:2rem 1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.25);border:2px solid ${r.border||'#e8d4a0'};animation:popIn .3s cubic-bezier(.34,1.56,.64,1);`;
+
+    const sparkle = document.createElement('div');
+    sparkle.style.cssText = 'font-size:1.8rem;margin-bottom:.4rem;animation:spin1 .8s ease;display:inline-block;';
+    sparkle.textContent = '✨';
+    box.appendChild(sparkle);
+
+    const badge = document.createElement('div');
+    badge.style.cssText = `font-size:.65rem;font-weight:700;color:${r.color||'#c8a050'};letter-spacing:.1em;text-transform:uppercase;margin-bottom:.3rem;`;
+    badge.textContent = '퀘스트 달성!';
+    box.appendChild(badge);
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:1.1rem;font-weight:700;color:#2e1f0e;margin-bottom:.8rem;';
+    title.textContent = quest.name;
+    box.appendChild(title);
+
+    const rewardBox = document.createElement('div');
+    rewardBox.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:12px;padding:1rem;margin-bottom:1rem;`;
+
+    const imgDiv = document.createElement('div');
+    imgDiv.style.cssText = 'width:64px;height:64px;margin:0 auto .5rem;';
+    const img = document.createElement('img');
+    img.src = `loot/${idx+1}.png`;
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+    img.onerror = () => { imgDiv.innerHTML = `<div style="font-size:2.2rem;line-height:64px;">${r.item}</div>`; };
+    imgDiv.appendChild(img);
+    rewardBox.appendChild(imgDiv);
+
+    const itemNameEl = document.createElement('div');
+    itemNameEl.style.cssText = 'font-size:.82rem;font-weight:700;color:#2e1f0e;';
+    itemNameEl.textContent = r.itemName;
+    rewardBox.appendChild(itemNameEl);
+
+    const itemDescEl = document.createElement('div');
+    itemDescEl.style.cssText = 'font-size:.7rem;color:#7a6a5a;margin-top:.2rem;';
+    itemDescEl.textContent = r.itemDesc;
+    rewardBox.appendChild(itemDescEl);
+
+    const titleSection = document.createElement('div');
+    titleSection.style.cssText = `margin-top:.6rem;padding-top:.6rem;border-top:1px solid ${r.border||'#e8d4a0'};`;
+    const titleLabel = document.createElement('div');
+    titleLabel.style.cssText = 'font-size:.6rem;color:#a08c72;margin-bottom:.2rem;';
+    titleLabel.textContent = '칭호 획득';
+    const titleVal = document.createElement('div');
+    titleVal.style.cssText = `font-size:.82rem;font-weight:700;color:${r.color||'#c8a050'};`;
+    titleVal.textContent = r.title;
+    titleSection.appendChild(titleLabel);
+    titleSection.appendChild(titleVal);
+    rewardBox.appendChild(titleSection);
+
+    box.appendChild(rewardBox);
+
+    const btn = document.createElement('button');
+    btn.textContent = '확인';
+    btn.style.cssText = `background:${r.color||'#c8a050'};color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);`;
+    btn.onclick = () => { overlay.remove(); resolve(); };
+    box.appendChild(btn);
+
+    overlay.appendChild(box);
     document.body.appendChild(overlay);
   });
 }
 
-// 전리품 패널 빌드 — 전리품 버튼 + 퀘스트 버튼
+// 전리품 패널 빌드 — stat-grid에 전리품·퀘스트 행 추가
 function buildLoot(userTitle, completedIds) {
-  // stat-grid에 전리품·퀘스트 카드 추가 (기존 카드들과 나란히)
   const panel = document.getElementById('stat-grid');
   if(!panel) return;
-  // 기존 전리품·퀘스트 카드 제거 (재빌드 시)
-  panel.querySelectorAll('.loot-card,.quest-card').forEach(el=>el.remove());
+  panel.querySelectorAll('.loot-card,.quest-card,.loot-row').forEach(el=>el.remove());
   const earned = QUESTS.filter(q => completedIds?.includes(q.id));
   const earnedCount = earned.length;
+  const doneCount = completedIds?.length || 0;
+  const pct = QUESTS.length ? Math.round(doneCount / QUESTS.length * 100) : 0;
 
-  // 카드 공통 스타일
-  const cardStyle = 'flex:1;min-width:68px;max-width:88px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.18rem;text-align:center;cursor:pointer;transition:box-shadow .15s;';
+  const row = document.createElement('div');
+  row.className = 'loot-row';
+  row.style.cssText = 'width:100%;display:flex;gap:.32rem;';
 
   // ① 전리품 카드
   const lootCard = document.createElement('div');
   lootCard.className = 'loot-card';
-  lootCard.style.cssText = cardStyle + (earnedCount > 0 ? 'border-color:#e8d4a0;background:#fdf8ee;' : '');
-  lootCard.title = '전리품';
-  lootCard.innerHTML = earnedCount > 0
-    ? `<div style="font-size:1.1rem;">🗄️</div>
-       <div style="font-size:.55rem;font-weight:700;color:#c8a050;">전리품</div>
-       <div style="font-size:.48rem;color:#a08c72;">${earnedCount}개 획득</div>`
-    : `<div style="font-size:1.1rem;opacity:.3;">🗄️</div>
-       <div style="font-size:.55rem;font-weight:600;color:var(--tx3);opacity:.6;">전리품</div>
-       <div style="font-size:.45rem;color:var(--tx3);opacity:.4;line-height:1.3;">Coming<br>Soon</div>`;
+  lootCard.style.cssText = `flex:1;background:${earnedCount?'#fdf8ee':'var(--card)'};border:1px solid ${earnedCount?'#e8d4a0':'var(--border)'};border-radius:var(--rs);padding:.55rem .7rem;cursor:pointer;transition:box-shadow .15s;`;
+
+  const previewWrap = document.createElement('div');
+  previewWrap.style.cssText = 'display:flex;gap:.28rem;align-items:center;margin-bottom:.35rem;min-height:32px;';
+  if(earnedCount > 0) {
+    earned.slice(-4).forEach(q => {
+      const idx = QUESTS.indexOf(q);
+      const img = document.createElement('img');
+      img.src = `loot/${idx+1}.png`;
+      img.style.cssText = 'width:28px;height:28px;object-fit:contain;flex-shrink:0;';
+      img.onerror = () => { const s=document.createElement('span');s.textContent=q.reward.item;s.style.cssText='font-size:1.1rem;';img.replaceWith(s); };
+      previewWrap.appendChild(img);
+    });
+    if(earned.length > 4) {
+      const more = document.createElement('span');
+      more.style.cssText = 'font-size:.58rem;color:var(--tx3);';
+      more.textContent = `+${earned.length-4}`;
+      previewWrap.appendChild(more);
+    }
+  } else {
+    previewWrap.innerHTML = '<span style="font-size:.62rem;color:var(--tx3);opacity:.5;">퀘스트를 달성하세요</span>';
+  }
+
+  const lootMeta = document.createElement('div');
+  lootMeta.innerHTML = `
+    <div style="font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:${earnedCount?'var(--acc)':'var(--tx3)'};">전리품 도감</div>
+    <div style="font-size:.52rem;color:var(--tx3);margin-top:.1rem;">${earnedCount} / ${QUESTS.length} 획득</div>`;
+
+  lootCard.appendChild(previewWrap);
+  lootCard.appendChild(lootMeta);
   lootCard.onclick = () => openLootBox(userTitle, completedIds);
-  lootCard.onmouseenter = () => lootCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.1)';
+  lootCard.onmouseenter = () => lootCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.08)';
   lootCard.onmouseleave = () => lootCard.style.boxShadow = '';
-  panel.appendChild(lootCard);
 
   // ② 퀘스트 카드
   const questCard = document.createElement('div');
   questCard.className = 'quest-card';
-  const doneCount = completedIds?.length || 0;
-  questCard.style.cssText = cardStyle;
-  questCard.title = '독서 퀘스트';
-  questCard.innerHTML = `<div style="font-size:1.1rem;">🗺️</div>
-    <div style="font-size:.55rem;font-weight:700;color:var(--tx2);">퀘스트</div>
-    <div style="font-size:.48rem;color:var(--tx3);">${doneCount}/${QUESTS.length}달성</div>`;
+  questCard.style.cssText = 'flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.55rem .7rem;cursor:pointer;transition:box-shadow .15s;';
+  questCard.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.4rem;">
+      <div style="font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tx2);">퀘스트</div>
+      <div style="font-family:var(--fs);font-style:italic;font-size:.85rem;color:var(--rust);">${doneCount}<span style="font-size:.55rem;color:var(--tx3);font-style:normal;"> / ${QUESTS.length}</span></div>
+    </div>
+    <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:.3rem;">
+      <div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;transition:width .6s;"></div>
+    </div>
+    <div style="font-size:.52rem;color:var(--tx3);">${pct}% 달성</div>`;
   questCard.onclick = () => openQuestModal(completedIds);
-  questCard.onmouseenter = () => questCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.1)';
+  questCard.onmouseenter = () => questCard.style.boxShadow = '0 2px 8px rgba(0,0,0,.08)';
   questCard.onmouseleave = () => questCard.style.boxShadow = '';
-  panel.appendChild(questCard);
+
+  row.appendChild(lootCard);
+  row.appendChild(questCard);
+  panel.appendChild(row);
 }
 
-// ── 전리품 모달
+// ── 전리품 도감 (전체 전리품 모달)
 function openLootBox(userTitle, completedIds) {
-  const earned = QUESTS.filter(q => completedIds?.includes(q.id));
+  const done = completedIds || [];
+  document.getElementById('lootbox-overlay')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'lootbox-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
 
-  // 5×5 서랍장: 빈 슬롯 포함해서 항상 5열 표시
-  const DRAWER_COLS = 5;
-  const DRAWER_ROWS = Math.max(3, Math.ceil(earned.length / DRAWER_COLS) + 1);
-  const totalSlots = DRAWER_COLS * DRAWER_ROWS;
-  const emptySlots = totalSlots - earned.length;
-  const itemsHtml = `<div style="display:grid;grid-template-columns:repeat(${DRAWER_COLS},1fr);gap:.4rem;padding:.2rem;max-height:260px;overflow-y:auto;" id="loot-items-grid">
-    ${Array(emptySlots).fill('<div class="loot-empty-slot"></div>').join('')}
-  </div>`;
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'background:#fdf8ee;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.25);';
 
-  overlay.innerHTML = `
-    <div style="background:#fdf8ee;border-radius:16px;width:100%;max-width:320px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,.3);">
-      <!-- 헤더 -->
-      <div style="background:var(--paper);padding:.9rem 1rem;display:flex;align-items:center;border-bottom:1px solid var(--border);justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:.5rem;">
-          <span style="font-size:1.1rem;">🗄️</span>
-          <span style="color:#fff;font-size:.88rem;font-weight:700;">전리품</span>
-        </div>
-        <button onclick="document.getElementById('lootbox-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
-      </div>
-      <div style="padding:.8rem;">${itemsHtml}</div>
-      ${earned.length > 0 ? `<div style="padding:.5rem .8rem .8rem;text-align:center;font-size:.6rem;color:#a08c72;">아이템을 눌러 상세 정보를 확인하세요</div>` : ''}
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  // 헤더
+  const header = document.createElement('div');
+  header.style.cssText = 'padding:.9rem 1.1rem .75rem;border-bottom:1px solid #e8d4a0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
+  header.innerHTML = `
+    <div>
+      <div style="font-family:var(--fs);font-size:1.1rem;color:#2e1f0e;">전리품 도감</div>
+      <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:#a08c72;margin-top:.2rem;">${done.length} / ${QUESTS.length} UNLOCKED</div>
+    </div>
+    <button onclick="document.getElementById('lootbox-overlay').remove()" style="background:#ede4d0;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:.8rem;color:#5c3d1e;display:flex;align-items:center;justify-content:center;">✕</button>`;
+  sheet.appendChild(header);
 
-  // earned 아이템을 DOM으로 직접 추가 (이스케이프 문제 방지)
-  const grid = overlay.querySelector('#loot-items-grid');
-  if(grid) {
-    // 획득한 아이템을 먼저 삽입 (빈 슬롯보다 앞에)
-    const emptySlots = grid.querySelectorAll('.loot-empty-slot');
-    emptySlots.forEach(slot => {
-      slot.style.cssText = 'background:#f0ece0;border:1.5px dashed #d9d3c0;border-radius:8px;aspect-ratio:1;min-height:52px;';
-    });
-    earned.forEach(q => {
-      const r = q.reward;
-      const cell = document.createElement('div');
-      cell.style.cssText = `background:${r.bg||'#fdf8ee'};border:1.5px solid ${r.border||'#e8d4a0'};border-radius:8px;padding:.3rem .15rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;text-align:center;cursor:pointer;transition:transform .15s;aspect-ratio:1;min-height:52px;overflow:hidden;`;
-      // dotArt SVG를 직접 삽입
-      const artDiv = document.createElement('div');
-      artDiv.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;';
-      if(r.dotArt) {
-        artDiv.innerHTML = r.dotArt;
-        const svg = artDiv.querySelector('svg');
-        if(svg) { svg.setAttribute('width','28'); svg.setAttribute('height','28'); }
-      } else {
-        artDiv.style.fontSize = '1.4rem';
-        artDiv.textContent = r.item;
-      }
-      const nameDiv = document.createElement('div');
-      nameDiv.style.cssText = `font-size:.5rem;font-weight:700;color:${r.color||'#c8a050'};line-height:1.2;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 .1rem;`;
-      nameDiv.textContent = r.itemName;
-      cell.appendChild(artDiv);
-      cell.appendChild(nameDiv);
-      cell.addEventListener('mouseenter', () => cell.style.transform = 'scale(1.04)');
+  // 그리드 영역
+  const scrollArea = document.createElement('div');
+  scrollArea.style.cssText = 'overflow-y:auto;padding:.75rem;flex:1;';
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem;';
+
+  QUESTS.forEach((q, idx) => {
+    const achieved = done.includes(q.id);
+    const r = q.reward;
+    const cell = document.createElement('div');
+    cell.style.cssText = `background:${achieved?'#fff8ee':'#f2ede4'};border:1px solid ${achieved?'#e8d4a0':'#d9d3c0'};border-radius:10px;padding:.5rem .3rem .45rem;display:flex;flex-direction:column;align-items:center;gap:.28rem;text-align:center;cursor:${achieved?'pointer':'default'};transition:transform .15s;position:relative;overflow:hidden;`;
+
+    // 번호
+    const numLbl = document.createElement('div');
+    numLbl.style.cssText = 'position:absolute;top:.28rem;left:.4rem;font-size:.45rem;color:#c0a870;font-family:var(--fs);font-style:italic;';
+    numLbl.textContent = idx;
+    cell.appendChild(numLbl);
+
+    // 이미지 래퍼
+    const imgWrap = document.createElement('div');
+    imgWrap.style.cssText = `width:52px;height:52px;position:relative;${achieved?'':'filter:grayscale(1);opacity:.3;'}`;
+    const img = document.createElement('img');
+    img.src = `loot/${idx+1}.png`;
+    img.alt = r.itemName;
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+    img.onerror = () => {
+      imgWrap.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">${r.item}</div>`;
+      if(!achieved) imgWrap.style.filter = 'grayscale(1)';
+      if(!achieved) imgWrap.style.opacity = '.3';
+    };
+    imgWrap.appendChild(img);
+
+    if(!achieved) {
+      const lockDiv = document.createElement('div');
+      lockDiv.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+      lockDiv.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a08c72" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+      imgWrap.appendChild(lockDiv);
+    }
+    cell.appendChild(imgWrap);
+
+    // 이름
+    const nameLbl = document.createElement('div');
+    nameLbl.style.cssText = `font-size:.52rem;font-weight:${achieved?'700':'400'};color:${achieved?'#5c3d1e':'#b0a090'};line-height:1.25;padding:0 .1rem;`;
+    nameLbl.textContent = r.itemName;
+    cell.appendChild(nameLbl);
+
+    if(achieved) {
+      cell.addEventListener('mouseenter', () => cell.style.transform = 'scale(1.06)');
       cell.addEventListener('mouseleave', () => cell.style.transform = '');
       cell.addEventListener('click', () => showLootItemDetail(q.id, userTitle));
-      grid.insertBefore(cell, grid.firstChild);
-    });
-  }
+    } else {
+      cell.title = q.hint;
+    }
+    grid.appendChild(cell);
+  });
+
+  scrollArea.appendChild(grid);
+  sheet.appendChild(scrollArea);
+
+  // 푸터
+  const footer = document.createElement('div');
+  footer.style.cssText = 'padding:.45rem .8rem .6rem;text-align:center;font-size:.58rem;color:#a08c72;border-top:1px solid #e8d4a0;flex-shrink:0;';
+  footer.textContent = '획득한 아이템을 눌러 상세 정보를 확인하세요';
+  sheet.appendChild(footer);
+
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
 }
 
 // 전리품 아이템 상세
@@ -3166,18 +3258,23 @@ function showLootItemDetail(questId, userTitle) {
   const quest = QUESTS.find(q => q.id === questId);
   if(!quest) return;
   const r = quest.reward;
+  const idx = QUESTS.indexOf(quest);
   const isActive = userTitle === r.title;
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
-  // 아이콘: SVG dotArt는 innerHTML로 따로 삽입
   const detailBox = document.createElement('div');
   detailBox.style.cssText = `background:#fdf8ee;border-radius:16px;padding:1.8rem 1.5rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid ${r.border||'#e8d4a0'};`;
-  const artDiv = document.createElement('div');
-  artDiv.style.cssText = 'font-size:3rem;margin-bottom:.6rem;line-height:1;';
-  if(r.dotArt) artDiv.innerHTML = r.dotArt;
-  else artDiv.textContent = r.item;
-  detailBox.appendChild(artDiv);
+
+  const imgDiv = document.createElement('div');
+  imgDiv.style.cssText = 'width:80px;height:80px;margin:0 auto .9rem;';
+  const img = document.createElement('img');
+  img.src = `loot/${idx+1}.png`;
+  img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+  img.onerror = () => { imgDiv.innerHTML = `<div style="font-size:3rem;line-height:80px;">${r.item}</div>`; };
+  imgDiv.appendChild(img);
+  detailBox.appendChild(imgDiv);
+
   const infoHtml = document.createElement('div');
   infoHtml.innerHTML = `
     <div style="font-size:1rem;font-weight:700;color:#2e1f0e;margin-bottom:.25rem;">${r.itemName}</div>
@@ -3190,7 +3287,7 @@ function showLootItemDetail(questId, userTitle) {
   detailBox.appendChild(infoHtml);
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '확인';
-  closeBtn.style.cssText = 'background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);';
+  closeBtn.style.cssText = `background:${r.color||'#c8a050'};color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);`;
   closeBtn.onclick = () => overlay.remove();
   detailBox.appendChild(closeBtn);
   overlay.appendChild(detailBox);
@@ -3204,18 +3301,25 @@ function showQuestDetail(questId, achieved) {
   const q = QUESTS.find(x => x.id === questId);
   if(!q) return;
   const r = q.reward;
+  const idx = QUESTS.indexOf(q);
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1rem;';
   const box = document.createElement('div');
   box.style.cssText = `background:#fdf8ee;border-radius:16px;padding:1.6rem 1.4rem;max-width:300px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};`;
-  // 아이콘
+
   const iconDiv = document.createElement('div');
-  iconDiv.style.cssText = 'font-size:2.5rem;margin-bottom:.6rem;line-height:1;';
-  if(achieved && r.dotArt) iconDiv.innerHTML = r.dotArt;
-  else if(achieved) iconDiv.textContent = r.item;
-  else iconDiv.textContent = '❓';
+  iconDiv.style.cssText = 'width:72px;height:72px;margin:0 auto .8rem;';
+  if(achieved) {
+    const img = document.createElement('img');
+    img.src = `loot/${idx+1}.png`;
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+    img.onerror = () => { iconDiv.innerHTML = `<div style="font-size:2.8rem;line-height:72px;">${r.item}</div>`; };
+    iconDiv.appendChild(img);
+  } else {
+    iconDiv.innerHTML = `<div style="width:100%;height:100%;background:#f0ece0;border:2px dashed #d9d3c0;border-radius:10px;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c0b0a0" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>`;
+  }
   box.appendChild(iconDiv);
-  // 내용
+
   const contentDiv = document.createElement('div');
   contentDiv.innerHTML = `
     <div style="font-size:.58rem;font-weight:700;color:${achieved?r.color||'#c8a050':'#a08c72'};letter-spacing:.08em;text-transform:uppercase;margin-bottom:.3rem;">${achieved?'달성 완료 ✓':'도전 중'}</div>
@@ -3245,11 +3349,14 @@ function openQuestModal(completedIds) {
   overlay.id = 'quest-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
 
-  const questRows = QUESTS.map(q => {
+  const questRows = QUESTS.map((q, idx) => {
     const achieved = completedIds?.includes(q.id);
     const r = q.reward;
+    const imgHtml = achieved
+      ? `<img src="loot/${idx+1}.png" style="width:28px;height:28px;object-fit:contain;" onerror="this.parentElement.innerHTML='<span style=font-size:1.3rem>${r.item}</span>'">`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c0b0a0" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
     return `<div onclick="showQuestDetail('${q.id}',${achieved})" style="display:flex;align-items:center;gap:.7rem;padding:.65rem .7rem;border-radius:10px;background:${achieved?r.bg||'#fdf8ee':'#f5f0e8'};border:1px solid ${achieved?r.border||'#e8d4a0':'var(--border)'};margin-bottom:.4rem;cursor:pointer;transition:opacity .15s;" onmouseenter="this.style.opacity='.85'" onmouseleave="this.style.opacity='1'">
-      <div style="width:36px;height:36px;border-radius:8px;background:${achieved?r.color+'22':'rgba(0,0,0,.06)'};display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">${achieved?r.dotArt||r.item:'❓'}</div>
+      <div style="width:36px;height:36px;border-radius:8px;background:${achieved?r.color+'22':'rgba(0,0,0,.06)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${imgHtml}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:.78rem;font-weight:700;color:${achieved?'#2e1f0e':'var(--tx2)'};">${q.name}</div>
         <div style="font-size:.63rem;color:var(--tx3);margin-top:.08rem;">${achieved?r.title:q.hint}</div>
@@ -3380,9 +3487,9 @@ function buildStats() {
     {n: Object.keys(aMap).length || '—',                     l:'올해 작가'},
   ];
   const gridEl = document.createElement('div');
-  gridEl.style.cssText = 'width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.55rem;';
+  gridEl.style.cssText = 'width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.55rem;display:grid;grid-template-columns:repeat(3,1fr);';
   gridEl.innerHTML = grid6.map((it,i)=>`
-    <div style="display:inline-block;width:33.33%;box-sizing:border-box;padding:.55rem .7rem;${i<3?'border-bottom:1px solid var(--border);':''}${i%3<2?'border-right:1px solid var(--border);':''}vertical-align:top;">
+    <div style="padding:.55rem .7rem;${i<3?'border-bottom:1px solid var(--border);':''}${i%3<2?'border-right:1px solid var(--border);':''}">
       <div style="font-size:.55rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.22rem;">${it.l}</div>
       <div style="font-family:var(--fs);font-size:1.05rem;font-style:italic;color:var(--tx1);line-height:1;letter-spacing:-.01em;">${it.n}</div>
     </div>`).join('');
