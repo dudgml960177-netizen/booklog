@@ -598,26 +598,6 @@ function setSort(s) {
   if(sel) sel.value = s;
   buildBooks();
 }
-function renderFolderRow() {
-  const row = document.getElementById('lib-folder-row');
-  if (!row) return;
-  if (!allCategories.length) { row.style.display='none'; return; }
-  row.style.display = 'flex';
-  row.style.cssText += 'gap:.35rem;flex-wrap:nowrap;overflow-x:auto;padding-bottom:10px;padding-top:4px;margin-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;width:100%;';
-  row.innerHTML = '';
-  const chips = [{ label:'전체 폴더', cat: null }, ...allCategories.map(c=>({ label:'📁 '+c, cat:c }))];
-  chips.forEach(({ label, cat }) => {
-    const on = curCatFilter === cat;
-    const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.style.cssText = `flex-shrink:0;height:26px;padding:0 .75rem;border-radius:13px;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'var(--card)'};color:${on?'#fff':'var(--tx2)'};font-size:.67rem;font-family:var(--ff);cursor:pointer;white-space:nowrap;transition:all .13s;`;
-    btn.onclick = () => {
-      curCatFilter = on ? null : cat;
-      buildBooks();
-    };
-    row.appendChild(btn);
-  });
-}
 
 function buildBooks() {
   document.getElementById('view-gallery').style.display = curView==='gallery'?'':'none';
@@ -638,7 +618,6 @@ function buildBooks() {
   setTxt('fc-want',fc.want); setTxt('fc-stop',fc.stop);
   const lbl=document.getElementById('lib-count-lbl');
   if(lbl) lbl.textContent=`MY LIBRARY · ${allBooks.length} VOLUMES`;
-  renderFolderRow();
   // 필터 버튼 스타일 동기화
   document.querySelectorAll('.filter-btn').forEach(btn=>{
     const on = btn.classList.contains('on');
@@ -759,29 +738,45 @@ let selectedQuoteIds = new Set();
 function buildQuotes() {
   const filterEl = document.getElementById('q-filter');
   filterEl.innerHTML = '';
-  // 검색 + 선택 삭제 툴바
-  const toolbar = document.createElement('div');
-  toolbar.style.cssText = 'display:flex;gap:.4rem;margin-bottom:.6rem;align-items:center;';
-  // 형광펜 필터 상태
-  toolbar.innerHTML = `
-    <!-- 형광펜 필터 버튼 -->
+
+  // ── 검색바 (나의 서재 스타일)
+  const searchRow = document.createElement('div');
+  searchRow.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:14px;color:var(--tx3);';
+  searchRow.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="quote-search-input" type="text" placeholder="제목, 작가, 문장으로 검색"
+      style="flex:1;border:none;background:transparent;font-size:.78rem;color:var(--tx1);font-style:italic;font-family:var(--ff);outline:none;" value="${quoteSearchQ}">`;
+  filterEl.appendChild(searchRow);
+
+  // ── 필터 행: 형광펜 칩 + 액션 버튼
+  const filterRow = document.createElement('div');
+  filterRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;';
+
+  const hlRow = document.createElement('div');
+  hlRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+  hlRow.innerHTML = `
+    <span style="font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);">형광펜</span>
     <button id="hl-btn-yellow" onclick="toggleHlFilter('#f5e27a',this)" title="노란 형광펜"
-      style="width:20px;height:20px;border-radius:50%;background:#f5e27a;border:2px solid ${quoteHlFilter==='#f5e27a'?'#8a6a00':'#e0c840'};cursor:pointer;flex-shrink:0;transition:all .15s;box-shadow:${quoteHlFilter==='#f5e27a'?'0 0 0 2px #f5e27a':'none'};"></button>
+      style="width:18px;height:18px;border-radius:50%;background:#f5e27a;border:2px solid ${quoteHlFilter==='#f5e27a'?'#8a6a00':'rgba(0,0,0,.08)'};cursor:pointer;transition:all .15s;"></button>
     <button id="hl-btn-mint" onclick="toggleHlFilter('#b8e8d4',this)" title="민트 형광펜"
-      style="width:20px;height:20px;border-radius:50%;background:#b8e8d4;border:2px solid ${quoteHlFilter==='#b8e8d4'?'#2a7a5a':'#7acaaa'};cursor:pointer;flex-shrink:0;transition:all .15s;box-shadow:${quoteHlFilter==='#b8e8d4'?'0 0 0 2px #b8e8d4':'none'};"></button>
+      style="width:18px;height:18px;border-radius:50%;background:#b8e8d4;border:2px solid ${quoteHlFilter==='#b8e8d4'?'#2a7a5a':'rgba(0,0,0,.08)'};cursor:pointer;transition:all .15s;"></button>
     <button id="hl-btn-peach" onclick="toggleHlFilter('#f5c4a0',this)" title="살구 형광펜"
-      style="width:20px;height:20px;border-radius:50%;background:#f5c4a0;border:2px solid ${quoteHlFilter==='#f5c4a0'?'#8a4a1a':'#d8906a'};cursor:pointer;flex-shrink:0;transition:all .15s;box-shadow:${quoteHlFilter==='#f5c4a0'?'0 0 0 2px #f5c4a0':'none'};"></button>
-    <div style="position:relative;flex:1;min-width:80px;">
-      <span style="position:absolute;left:.65rem;top:50%;transform:translateY(-50%);font-size:.68rem;color:var(--tx3);">🔍</span>
-      <input id="quote-search-input" type="text" class="search-input" placeholder="검색..."
-        style="padding-left:1.7rem;font-size:.73rem;width:100%;border-radius:20px;background:#f5f0e8;border-color:transparent;" value="${quoteSearchQ}">
-    </div>
-    <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.7rem;border-radius:12px;">${quoteSelectMode?'✕':'☑ 선택'}</button>
-    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.7rem;border-radius:12px;">🗑</button>
-    <button class="cat-btn" onclick="deleteAllQuotes()" style="font-size:.7rem;border-radius:12px;color:#c0392b;border-color:#e8b8a8;" title="전체 삭제">🗑 전체</button>`;
-  filterEl.appendChild(toolbar);
+      style="width:18px;height:18px;border-radius:50%;background:#f5c4a0;border:2px solid ${quoteHlFilter==='#f5c4a0'?'#8a4a1a':'rgba(0,0,0,.08)'};cursor:pointer;transition:all .15s;"></button>`;
+
+  const actionRow = document.createElement('div');
+  actionRow.style.cssText = 'display:flex;align-items:center;gap:.3rem;';
+  actionRow.innerHTML = `
+    <button id="quote-select-btn" class="cat-btn" onclick="toggleQuoteSelect()" style="font-size:.7rem;">${quoteSelectMode?'✕ 취소':'☑ 선택'}</button>
+    <button id="quote-delete-btn" class="cat-btn" onclick="bulkDeleteQuotes()" style="display:${quoteSelectMode?'flex':'none'};color:#c0392b;border-color:#e8b8a8;font-size:.7rem;">삭제</button>
+    <button onclick="addQuoteFromTab()" style="padding:.3rem .9rem;background:var(--acc);color:#fff;border:none;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:var(--ff);box-shadow:0 2px 8px rgba(0,0,0,.12);">＋ 추가</button>`;
+
+  filterRow.appendChild(hlRow);
+  filterRow.appendChild(actionRow);
+  filterEl.appendChild(filterRow);
+
   const inp = document.getElementById('quote-search-input');
   if(inp) inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
+
   renderQuotes();
 }
 
@@ -1164,17 +1159,8 @@ function selectQftBook(bookId) {
 }
 
 function renderQuotes() {
-  // 문장 탭 상단: 책 선택 → 문장 추가 버튼 렌더링
   const qHeader = document.getElementById('q-tab-header');
-  if(qHeader) {
-    const completed = allBooks.filter(b=>b.status==='완독'||b.status==='읽는중').sort((a,b)=>(a.title||'').localeCompare(b.title||''));
-    qHeader.innerHTML = `
-      <div style="display:flex;justify-content:flex-end;padding:.4rem 0 .5rem;">
-        <button onclick="addQuoteFromTab()" style="padding:.3rem .85rem;background:var(--acc);color:#fff;border:none;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;font-family:var(--ff);display:flex;align-items:center;gap:.3rem;box-shadow:0 2px 8px rgba(0,0,0,.12);">
-          ＋ 문장 추가
-        </button>
-      </div>`;
-  }
+  if(qHeader) qHeader.innerHTML = '';
   const countLbl = document.getElementById('quote-count-lbl');
   if(countLbl) countLbl.textContent = allQuotes.length ? `MY SENTENCES · ${allQuotes.length}` : 'MY SENTENCES';
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
@@ -1496,36 +1482,22 @@ async function shareCalendar() {
     const finished=allBooks.filter(b=>b.status==='완독'&&b.date_finish?.startsWith(ymPrefix))
       .sort((a,b)=>new Date(a.date_finish)-new Date(b.date_finish));
 
-    // ── 표지 base64 변환 (문장 공유와 완전히 동일한 방식)
+    // ── 표지 fetch → base64 변환 (data URI는 html2canvas에서 CORS 문제 없음)
     const coverMap={};
-    await Promise.all(finished.map(b=>new Promise(res=>{
-      if(!b.cover) return res();
-      const img=new Image();
-      img.crossOrigin='anonymous';
-      img.onload=()=>{
-        try {
-          const c=document.createElement('canvas');
-          c.width=img.naturalWidth||80; c.height=img.naturalHeight||120;
-          c.getContext('2d').drawImage(img,0,0);
-          coverMap[b.id]=c.toDataURL('image/jpeg',0.85);
-          res();
-        } catch(e) {
-          // tainted → img.src 원본 URL 저장 (html2canvas allowTaint로 처리)
-          const img2=new Image();
-          img2.onload=()=>{coverMap[b.id]=img2.src; res();};
-          img2.onerror=()=>res();
-          img2.src=b.cover+(b.cover.includes('?')?'&':'?')+'_nc='+Date.now();
-        }
-      };
-      img.onerror=()=>{
-        // cors 실패 → crossOrigin 없이 재시도
-        const img3=new Image();
-        img3.onload=()=>{coverMap[b.id]=img3.src; res();};
-        img3.onerror=()=>res();
-        img3.src=b.cover+(b.cover.includes('?')?'&':'?')+'_nc='+Date.now();
-      };
-      img.src=b.cover;
-    })));
+    await Promise.all(finished.map(async b=>{
+      if(!b.cover) return;
+      try {
+        const resp=await fetch(b.cover);
+        if(!resp.ok) return;
+        const blob=await resp.blob();
+        coverMap[b.id]=await new Promise(res=>{
+          const r=new FileReader();
+          r.onload=()=>res(r.result);
+          r.onerror=()=>res(null);
+          r.readAsDataURL(blob);
+        });
+      } catch(e) { /* 네트워크/CORS 실패 → 색상 폴백 */ }
+    }));
 
     // ── 카드 DOM 생성 (빈티지 스타일)
     const card=document.createElement('div');
@@ -1637,16 +1609,16 @@ async function shareCalendar() {
     card.appendChild(footer);
     document.body.appendChild(card);
 
-    // 이미지 로딩 대기
-    await new Promise(res=>setTimeout(res,1200));
+    // DOM 렌더링 대기
+    await new Promise(res=>setTimeout(res,300));
 
     const canvas=await html2canvas(card,{
       scale:2.5,
       backgroundColor:'#f2ece0',
       useCORS:false,
-      allowTaint:true,
+      allowTaint:false,
       logging:false,
-      imageTimeout:25000
+      imageTimeout:15000
     });
     card.remove();
 
@@ -5713,45 +5685,22 @@ async function openLibrary(userId, userName) {
   const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
   const cats = canSeeCat ? (targetProfile.categories||[]) : [];
 
-  // 헤더 - 감성적 배경
-  const headerColors = [
-    'linear-gradient(135deg,#4a3520 0%,#7a5030 50%,#5a3a20 100%)',
-    'linear-gradient(135deg,#2a4a3a 0%,#3a6a50 50%,#2a4a3a 100%)',
-    'linear-gradient(135deg,#3a3a5a 0%,#5a4a7a 50%,#3a3a5a 100%)',
-    'linear-gradient(135deg,#4a3a2a 0%,#7a6a4a 50%,#4a3a2a 100%)',
-  ];
-  const hColor = headerColors[userName.charCodeAt(0) % headerColors.length];
   const initial = userName.slice(0,1).toUpperCase();
 
   header.innerHTML = `
-    <div style="background:${hColor};padding:1.4rem 1.4rem 1rem;position:relative;overflow:hidden;">
-      <!-- 배경 장식 -->
-      <div style="position:absolute;top:-30px;right:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.04);"></div>
-      <div style="position:absolute;bottom:-40px;right:40px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.03);"></div>
-      <!-- 닫기 -->
-      <button onclick="closeModal('modal-library')" style="position:absolute;top:.9rem;right:.9rem;width:28px;height:28px;border:none;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
-      <!-- 프로필 -->
-      <div style="display:flex;align-items:center;gap:.9rem;margin-bottom:1rem;">
-        <div style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:#fff;font-family:var(--fs);">${initial}</div>
+    <div style="padding:1.1rem 1.2rem .9rem;border-bottom:1px solid var(--border);position:relative;background:var(--card);">
+      <button onclick="closeModal('modal-library')" style="position:absolute;top:.8rem;right:.9rem;width:28px;height:28px;border:none;border-radius:50%;background:var(--border);color:var(--tx2);cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
+      <div style="display:flex;align-items:center;gap:.85rem;padding-right:2rem;">
+        <div style="width:44px;height:44px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-family:var(--fs);font-size:1.3rem;font-style:italic;color:#fff;flex-shrink:0;">${initial}</div>
         <div>
-          <div style="font-size:1rem;font-weight:700;color:#fff;font-family:var(--fs);">${userName}님의 서재</div>
-          <div style="font-size:.7rem;color:rgba(255,255,255,.65);margin-top:.1rem;">${targetProfile?.user_title||'함께 읽는 산책자'}</div>
+          <div style="font-family:var(--fs);font-size:1.15rem;color:var(--tx1);line-height:1.2;">${userName}님의 서재</div>
+          <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:.25rem;">${targetProfile?.user_title||'함께 읽는 산책자'}</div>
         </div>
       </div>
-      <!-- 통계 칩 -->
-      <div style="display:flex;gap:.5rem;">
-        <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
-          <div style="font-size:.95rem;font-weight:700;color:#fff;">${totalDoneLib}</div>
-          <div style="font-size:.58rem;color:rgba(255,255,255,.7);">완독</div>
-        </div>
-        <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
-          <div style="font-size:.95rem;font-weight:700;color:#fff;">${totalReading}</div>
-          <div style="font-size:.58rem;color:rgba(255,255,255,.7);">읽는중</div>
-        </div>
-        <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:.3rem .8rem;text-align:center;">
-          <div style="font-size:.95rem;font-weight:700;color:#fff;">${_libBooks.length}</div>
-          <div style="font-size:.58rem;color:rgba(255,255,255,.7);">전체</div>
-        </div>
+      <div style="display:flex;gap:1.6rem;margin-top:.85rem;padding-top:.7rem;border-top:1px solid var(--border);">
+        <div><span style="font-family:var(--fs);font-style:italic;font-size:1.05rem;color:var(--rust);">${totalDoneLib}</span>&ensp;<span style="font-size:.6rem;color:var(--tx3);">완독</span></div>
+        <div><span style="font-family:var(--fs);font-style:italic;font-size:1.05rem;color:var(--rust);">${totalReading}</span>&ensp;<span style="font-size:.6rem;color:var(--tx3);">읽는중</span></div>
+        <div><span style="font-family:var(--fs);font-style:italic;font-size:1.05rem;color:var(--rust);">${_libBooks.length}</span>&ensp;<span style="font-size:.6rem;color:var(--tx3);">전체</span></div>
       </div>
     </div>
     <!-- 필터 탭 -->
@@ -5761,8 +5710,8 @@ async function openLibrary(userId, userName) {
       <button class="filter-btn" id="lib-f-읽는중" onclick="libFilter('읽는중',this)">읽는중</button>
       <button class="filter-btn" id="lib-f-읽고싶음" onclick="libFilter('읽고싶음',this)">읽고싶음</button>
       ${cats.length ? `<span style="font-size:.6rem;color:var(--border2);margin:0 .1rem;">│</span>
-        <button class="filter-btn on" id="lib-cat-all" onclick="libCatFilter(null,this)">📂 전체</button>
-        ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c.replace(/\s/g,'_')}" onclick="libCatFilter('${c}',this)">📁 ${c}</button>`).join('')}` : ''}
+        <button class="filter-btn on" id="lib-cat-all" onclick="libCatFilter(null,this)">전체</button>
+        ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c.replace(/\s/g,'_')}" onclick="libCatFilter('${c}',this)">${c}</button>`).join('')}` : ''}
     </div>`;
 
   body.innerHTML = `

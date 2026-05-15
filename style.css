@@ -23,6 +23,10 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
   --ff:'Pretendard','Apple SD Gothic Neo',sans-serif;
   --fs:'DM Serif Display',serif;
   --r:7px;--rs:4px;
+  --paper:#faf6ef;   /* 종이색 (카드 배경) */
+  --cream:#f5f0e6;   /* 크림 배경 */
+  --r-card:8px;      /* 카드 둥글기 */
+  --r-btn:6px;       /* 버튼 둥글기 */
 }
 .loading-logo{font-family:var(--fs);font-size:2.2rem;color:var(--tx1);margin-bottom:.3rem;}
 .loading-sub{font-size:.8rem;color:var(--tx3);margin-bottom:1rem;}
