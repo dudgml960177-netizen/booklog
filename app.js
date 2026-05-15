@@ -1487,7 +1487,7 @@ async function shareCalendar() {
     await Promise.all(finished.map(async b=>{
       if(!b.cover) return;
       try {
-        const resp=await fetch(b.cover);
+        const resp=await fetch('https://images.weserv.nl/?url='+encodeURIComponent(b.cover));
         if(!resp.ok) return;
         const blob=await resp.blob();
         coverMap[b.id]=await new Promise(res=>{
@@ -1639,9 +1639,13 @@ async function shareCalendar() {
 
 function renderCal() {
   const MONTHS_EN=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const MONTHS_SHORT=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   // 헤더 업데이트
   const ttlEl = document.getElementById('cal-ttl');
   if(ttlEl) ttlEl.innerHTML = `<span style="font-family:var(--ff-disp);font-size:.85rem;font-style:italic;letter-spacing:-.01em;">${calY}.${String(calM+1).padStart(2,'0')}</span>`;
+  // 기록 페이지 부제 업데이트
+  const recMonthLbl = document.getElementById('record-month-lbl');
+  if(recMonthLbl) recMonthLbl.textContent = MONTHS_SHORT[calM]+' '+calY;
   const grid = document.getElementById('cal-grid');
   const dows = [...grid.querySelectorAll('.dow')]; grid.innerHTML=''; dows.forEach(d=>grid.appendChild(d));
   const first=new Date(calY,calM,1).getDay(), days=new Date(calY,calM+1,0).getDate(), prev=new Date(calY,calM,0).getDate(), today=new Date();
@@ -1653,9 +1657,12 @@ function renderCal() {
     const el=document.createElement('div');
     const isT=today.getFullYear()===calY&&today.getMonth()===calM&&today.getDate()===d;
     const questAch = QUESTS.filter(q => localStorage.getItem('bl_quest_ach_'+q.id) === ds);
-    // 타이머 기록 날짜 확인 (형광펜)
+    // 타이머 기록 날짜 확인
     const timerKey = 'bl_daily_timer_'+ds;
     const hasTimer = parseInt(localStorage.getItem(timerKey)||'0') > 0;
+    // 책별 reading_time_log 확인 (완독 표지 날짜 제외)
+    const hasBookLog = allBooks.some(bk => bk.date_finish !== ds && (bk.reading_time_log?.[ds]||0) > 0);
+    const hasActivity = hasTimer || hasBookLog;
 
     if(book){
       el.className='day hbook'; el.title=book.title; el.onclick=()=>openDetail(book.id);
@@ -1686,9 +1693,12 @@ function renderCal() {
       const dn=document.createElement('div');
       dn.textContent=d; dn.style.cssText='font-family:var(--ff-disp);font-size:.7rem;'+(isT?'color:var(--rust);font-style:italic;':'');
       el.appendChild(dn);
-      // 형광펜 효과 (타이머 기록 있는 날)
-      if(hasTimer && !isT){
-        el.style.background='linear-gradient(to bottom, rgba(196,113,74,.10) 0%, transparent 100%)';
+      // 형광펜 바 (타이머·독서 기록 있는 날)
+      if(hasActivity){
+        el.style.position='relative';
+        const bar=document.createElement('div');
+        bar.style.cssText='position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--rust);opacity:.45;border-radius:0 0 3px 3px;';
+        el.appendChild(bar);
       }
       // 퀘스트 달성 뱃지
       if(questAch.length>0){
@@ -1745,11 +1755,60 @@ function buildTimer() {
   const sel = document.getElementById('timer-book-select');
   sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
   allBooks.filter(b=>b.status==='읽는중').forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
-  // 책 선택 시 독서 현황 표시
   sel.onchange = () => showTimerBookDetail(sel.value);
   updateTimerDisplay();
+  buildWeeklyStats();
   updateTrackerPeriodBtns();
   buildTrackerGrid();
+}
+
+function buildWeeklyStats() {
+  const el = document.getElementById('timer-weekly');
+  if(!el) return;
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const DOW = ['일','월','화','수','목','금','토'];
+  // 최근 7일
+  const days = [];
+  for(let i=6;i>=0;i--){
+    const d=new Date(today); d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    const lsMins=parseInt(localStorage.getItem('bl_daily_timer_'+ds)||'0');
+    const bookMins=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds]||0),0);
+    days.push({ds,mins:Math.max(lsMins,bookMins),dow:d.getDay()});
+  }
+  const total=days.reduce((s,d)=>s+d.mins,0);
+  const maxM=Math.max(...days.map(d=>d.mins),1);
+  // 지난 7일 (비교)
+  let lastTotal=0;
+  for(let i=7;i<=13;i++){
+    const d2=new Date(today); d2.setDate(d2.getDate()-i);
+    const ds2=d2.toISOString().slice(0,10);
+    const m=parseInt(localStorage.getItem('bl_daily_timer_'+ds2)||'0');
+    const bm=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds2]||0),0);
+    lastTotal+=Math.max(m,bm);
+  }
+  const totalH=Math.floor(total/60),totalMin=total%60;
+  const diff=total-lastTotal;
+  const absDiff=Math.abs(diff);
+  const diffStr=diff===0?'지난주와 동일':(diff>0?'+':'−')+Math.floor(absDiff/60)+'h '+absDiff%60+'m';
+  const diffColor=diff>=0?'#7a9e7e':'#c4714a';
+  el.innerHTML=`
+    <div style="font-size:.48rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin-bottom:.45rem;">이 주의 통계</div>
+    <div style="display:flex;align-items:baseline;gap:.35rem;margin-bottom:.6rem;">
+      <span style="font-family:var(--ff-disp);font-style:italic;font-size:1.35rem;color:var(--tx1);line-height:1;">${totalH}h ${totalMin}m</span>
+      <span style="font-size:.53rem;color:${diffColor};">${diffStr}</span>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:2px;height:38px;margin-bottom:.2rem;">
+      ${days.map(d=>{
+        const h=d.mins?Math.max(d.mins/maxM*34,3):0;
+        const isTd=d.ds===todayStr;
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;"><div style="width:100%;height:${h}px;background:${isTd?'var(--rust)':'var(--tx1)'};opacity:${isTd?'1':'.45'};border-radius:2px 2px 0 0;"></div></div>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:2px;">
+      ${days.map(d=>`<div style="flex:1;text-align:center;font-size:.44rem;color:var(--tx3);">${DOW[d.dow]}</div>`).join('')}
+    </div>`;
 }
 function updateTrackerPeriodBtns() {
   document.querySelectorAll('.tracker-period-btn').forEach(b=>{
@@ -1785,7 +1844,7 @@ function toggleTimer() {
 }
 
 function updateTimerBtn() {
-  const btn = document.getElementById('timer-toggle-btn');
+  const btn = document.getElementById('timer-btn');
   if(!btn) return;
   if(timerRunning) {
     btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> 일시정지';
@@ -4400,142 +4459,99 @@ async function saveBook() {
 function openDetail(bookId) {
   curBookId=bookId;
   const b=allBooks.find(b=>b.id===bookId);if(!b)return;
-  // detail-title은 숨겨진 요소 - 오류 방지를 위해 제거
   const quotes=allQuotes.filter(q=>q.book_id===bookId);
   const genre=Array.isArray(b.genre)?b.genre.join(', '):(b.genre||'');
-  const coverHTML=b.cover?`<img class="detail-cover" src="${b.cover}" alt="${b.title}">`:`<div class="detail-cover-ph">${b.title}</div>`;
-  const readingTime=b.reading_time?`<span class="detail-chip">📖 ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>`:'';
-  // 줄거리 더보기
-  const MAX_DESC=150;let descHTML='';
-  if(b.description){
-    if(b.description.length>MAX_DESC){
-      descHTML=`<div class="detail-sec">줄거리</div><div class="detail-body"><span class="desc-short">${b.description.slice(0,MAX_DESC)}...</span><span class="desc-full" style="display:none;">${b.description}</span><span class="desc-toggle" onclick="toggleDesc(this)">더 보기</span></div><div class="detail-divhr"></div>`;
-    } else {
-      descHTML=`<div class="detail-sec">줄거리</div><div class="detail-body">${b.description}</div><div class="detail-divhr"></div>`;
-    }
-  }
-  // 상태 색상
-  const statusColor = {완독:'#2e7d32',읽는중:'#1565c0',읽고싶음:'#7b1fa2',중단:'#c62828'}[b.status]||'var(--tx3)';
-  const statusBg = {완독:'#e8f5e9',읽는중:'#e3f2fd',읽고싶음:'#f3e5f5',중단:'#ffebee'}[b.status]||'#f5f5f5';
-  // 반별점
-  const starStr = r => { let s=''; for(let i=1;i<=5;i++) s+=r>=i?'★':r>=i-.5?'⯨':'☆'; return s; };
-  // 진행률
-  const pct = b.pages&&b.current_page ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
+  const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'⯨':'☆';return s;};
+  const pct=b.pages&&b.current_page?Math.min(100,Math.round(b.current_page/b.pages*100)):0;
+  const statusColor={완독:'#2e7d32',읽는중:'#1565c0',읽고싶음:'#7b1fa2',중단:'#c62828'}[b.status]||'var(--tx3)';
+  const statusBg={완독:'#e8f5e9',읽는중:'#e3f2fd',읽고싶음:'#f3e5f5',중단:'#ffebee'}[b.status]||'#f5f5f5';
+  // BOOK NO.
+  const sortedAll=[...allBooks].sort((a,c)=>new Date(a.created_at||0)-new Date(c.created_at||0));
+  const bookNo=String(sortedAll.findIndex(x=>x.id===bookId)+1).padStart(3,'0');
 
-  let html = `
-  <div style="display:flex;gap:.8rem;align-items:flex-start;padding-bottom:.8rem;border-bottom:1px solid var(--border);margin-bottom:.75rem;">
-    <div style="flex-shrink:0;">${coverHTML}</div>
+  let html=`
+  <div style="font-size:.48rem;letter-spacing:.22em;text-transform:uppercase;color:var(--tx3);margin-bottom:.35rem;">BOOK NO. ${bookNo}</div>
+  <div style="font-family:var(--ff-disp);font-size:1.3rem;font-style:italic;color:var(--tx1);line-height:1.2;margin-bottom:.2rem;letter-spacing:-.01em;">${b.title||''}</div>
+  ${b.author?`<div style="font-size:.6rem;color:var(--tx3);letter-spacing:.04em;margin-bottom:.65rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:'<div style="margin-bottom:.65rem;"></div>'}
+  <div style="display:flex;gap:.8rem;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
+    ${b.cover?`<img src="${b.cover}" alt="" style="width:68px;height:102px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.14);">`:`<div style="width:68px;height:102px;background:var(--bg);border:1px solid var(--border);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--tx3);">표지</div>`}
     <div style="flex:1;min-width:0;">
-      <div style="font-size:.82rem;font-weight:700;color:var(--tx1);line-height:1.35;margin-bottom:.2rem;">${b.title}</div>
-      ${b.author?`<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.3rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:''}
-      <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;">
-        <span style="font-size:.82rem;color:#c8a050;letter-spacing:.02rem;">${starStr(b.rating||0)}</span>
-        ${b.rating?`<span style="font-size:.6rem;color:var(--tx3);">${b.rating}점</span>`:''}
+      ${b.rating?`<div style="display:flex;align-items:baseline;gap:.28rem;margin-bottom:.45rem;"><span style="font-size:.82rem;color:#c8a050;letter-spacing:.02em;">${starStr(b.rating)}</span><span style="font-family:var(--ff-disp);font-style:italic;font-size:.78rem;color:var(--tx2);">${b.rating}</span></div>`:''}
+      <div style="display:flex;flex-wrap:wrap;gap:.22rem;">
+        ${b.status?`<span style="font-size:.57rem;font-weight:600;padding:.1rem .45rem;border-radius:9px;background:${statusBg};color:${statusColor};">${b.status}</span>`:''}
+        ${genre?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${genre}</span>`:''}
+        ${b.pages?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.pages}p</span>`:''}
+        ${b.date_start?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.date_start}</span>`:''}
+        ${b.date_finish?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.date_finish}</span>`:''}
+        ${b.reading_time?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">⏱ ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>`:''}
+        ${b.source?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.source}</span>`:''}
+        ${b.reread?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">🔁 재독</span>`:''}
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;">
-        ${b.status?`<span style="font-size:.6rem;font-weight:600;padding:.12rem .5rem;border-radius:10px;background:${statusBg};color:${statusColor};">${b.status}</span>`:''}
-        ${genre?`<span class="detail-chip">${genre}</span>`:''}
-        ${b.pages?`<span class="detail-chip">${b.pages}p</span>`:''}
-        ${b.date_finish?`<span class="detail-chip">📅 ${b.date_finish}</span>`:''}
-        ${b.source?`<span class="detail-chip">${b.source}</span>`:''}
-        ${b.category?`<span class="detail-chip">📁 ${b.category}</span>`:''}
-        ${b.reread?`<span class="detail-chip">🔁 다시 읽고 싶음</span>`:''}
-        ${readingTime?`<span class="detail-chip">⏱ ${readingTime.replace(/<[^>]+>/g,'')}</span>`:''}
-      </div>
-      ${b.status==='읽는중'&&pct?`
-      <div style="margin-top:.45rem;">
-        <div style="height:4px;background:#e0d8cc;border-radius:2px;overflow:hidden;">
-          <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--acc),#c8a050);border-radius:2px;"></div>
-        </div>
-        <div style="font-size:.55rem;color:var(--tx3);margin-top:.15rem;">${b.current_page}p / ${b.pages}p · ${pct}%</div>
-      </div>`:''}
+      ${b.status==='읽는중'&&pct?`<div style="margin-top:.55rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;"></div></div><div style="font-size:.52rem;color:var(--tx3);margin-top:.12rem;">${b.current_page}p / ${b.pages}p · ${pct}%</div></div>`:''}
     </div>
   </div>`;
-    html+=descHTML;
-  if(b.review) {
-    const MAX_REVIEW = 120;
-    const reviewText = b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-    const reviewPlain = b.review;
-    if(reviewPlain.length > MAX_REVIEW) {
-      const shortReview = b.review.slice(0, MAX_REVIEW).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-      html += `<div class="detail-sec">감상</div>
-        <div class="detail-body">
-          <span class="review-short">${shortReview}...</span>
-          <span class="review-full" style="display:none;">${reviewText}</span>
-          <span class="desc-toggle" onclick="this.previousElementSibling.style.display='inline';this.previousElementSibling.previousElementSibling.style.display='none';this.style.display='none';" style="cursor:pointer;color:var(--acc);font-size:.7rem;margin-left:.3rem;">더 보기</span>
-        </div>`;
-    } else {
-      html += `<div class="detail-sec">감상</div><div class="detail-body">${reviewText}</div>`;
-    }
-  }
-  if(quotes.length || true) { // 항상 문장 섹션 표시 (추가 버튼 위해)
-    html+=`<div class="detail-divhr"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
-      <div class="detail-sec" style="margin:0;">인상 깊은 문장</div>
-      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.65rem;padding:.2rem .55rem;border:1px solid var(--acc);border-radius:10px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);">＋ 문장 추가</button>
-    </div>`;
-    const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
-    quotes.forEach((q,i)=>{
-      const color = QCOLORS[i % QCOLORS.length];
-      const hasHtml = /<[a-z]/i.test(q.text||'');
-      let txt = q.text || ''; if(hasHtml) { txt = txt.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'<br>').replace(/<\/div>/gi,'').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\n/g,'<br>').replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>').replace(/^(<br\s*\/?>\s*)+/,'').replace(/(<br\s*\/?>\s*)+$/,''); } else { txt = txt.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\n/g,'<br>'); }
-      html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.55rem .75rem .5rem 1rem;position:relative;margin-bottom:.4rem;cursor:pointer;transition:box-shadow .15s;" onmouseenter="this.style.boxShadow='0 2px 10px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow='none'">
-        <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${color};"></div>
-        <div style="position:absolute;top:.45rem;right:.55rem;font-size:.6rem;color:var(--tx3);opacity:.5;">✏️</div>
-        <div style="padding-left:.5rem;padding-right:1rem;">
-          <div style="font-size:1.3rem;color:${color};opacity:.22;line-height:1;font-family:Georgia,serif;margin-top:-.1rem;">"</div>
-          <div style="font-size:.72rem;font-family:var(--fs);line-height:1.78;color:var(--tx1);">${txt}</div>
-          ${(q.page||q.tag)?`<div style="display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap;">
-            ${q.page?`<span style="font-size:.57rem;color:var(--tx3);background:#f0ebe0;padding:.1rem .45rem;border-radius:8px;">p.${q.page}</span>`:''}
-            ${q.tag?`<span style="font-size:.57rem;color:var(--acc2);background:#f5f0e8;padding:.1rem .45rem;border-radius:8px;">${q.tag}</span>`:''}
-          </div>`:''}
-        </div>
-      </div>`;
-    });
-    if(!quotes.length) html+=`<div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.6rem 0;">아직 수집된 문장이 없어요.</div>`;
-  }
-  // 읽는중 책: 페이지 진행 업데이트 섹션
-  if(b.status === '읽는중') {
-    const cp = b.current_page||0, tp = b.pages||0;
-    const pct2 = tp&&cp ? Math.min(100,Math.round(cp/tp*100)) : 0;
-    html += `<div class="detail-divhr"></div>
-    <div style="background:linear-gradient(135deg,#fdf8f0,#f5ece0);border:1px solid var(--border);border-radius:10px;padding:.7rem .85rem;margin-top:.2rem;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-        <div style="font-size:.65rem;font-weight:600;color:var(--acc2);letter-spacing:.05em;">📖 독서 진행</div>
-        <label style="display:flex;align-items:center;gap:.3rem;font-size:.65rem;color:var(--tx3);cursor:pointer;">
-          <input type="checkbox" id="show-progress-chk" ${b.show_progress!==false?'checked':''} style="accent-color:var(--acc);width:11px;height:11px;">
-          <span>표시</span>
-        </label>
-      </div>
-      <div id="progress-input-wrap" style="${b.show_progress===false?'display:none;':''}">
-        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
-          <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}"
-            placeholder="현재 쪽" style="flex:1;padding:.35rem .55rem;border:1px solid var(--border2);border-radius:8px;font-size:.8rem;font-family:var(--ff);background:#fff;text-align:center;">
-          ${tp?`<span style="font-size:.68rem;color:var(--tx3);">/ ${tp}p</span>`:''}
-          <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:.32rem .75rem;font-size:.7rem;cursor:pointer;font-family:var(--ff);">저장</button>
-        </div>
-        ${tp&&cp?`
-        <div style="height:5px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden;margin-bottom:.25rem;">
-          <div style="width:${pct2}%;height:100%;background:linear-gradient(90deg,var(--acc),var(--gold));border-radius:3px;transition:width .4s;"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--tx3);">
-          <span>${cp}p 읽음</span>
-          <span>${pct2}% · ${tp-cp}p 남음</span>
-        </div>`:''}
+
+  // 줄거리
+  const MAX_DESC=150;
+  if(b.description){
+    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">줄거리</div>
+      <div style="font-size:.7rem;color:var(--tx2);line-height:1.72;">
+        ${b.description.length>MAX_DESC?`<span class="desc-short">${b.description.slice(0,MAX_DESC)}...</span><span class="desc-full" style="display:none;">${b.description}</span><span class="desc-toggle" onclick="toggleDesc(this)" style="cursor:pointer;color:var(--acc);font-size:.62rem;margin-left:.22rem;">더 보기</span>`:b.description}
       </div>
     </div>`;
-    // 체크박스 이벤트는 html 삽입 후 연결
   }
+
+  // 감상
+  if(b.review){
+    const rv=b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    const MAX_REVIEW=120;
+    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">감상</div>
+      <div style="font-size:.7rem;color:var(--tx2);line-height:1.72;">
+        ${b.review.length>MAX_REVIEW?`<span class="review-short">${b.review.slice(0,MAX_REVIEW).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}...</span><span class="review-full" style="display:none;">${rv}</span><span class="desc-toggle" onclick="this.previousElementSibling.style.display='inline';this.previousElementSibling.previousElementSibling.style.display='none';this.style.display='none';" style="cursor:pointer;color:var(--acc);font-size:.62rem;margin-left:.22rem;">더 보기</span>`:rv}
+      </div>
+    </div>`;
+  }
+
+  // 독서 진행 (읽는중)
+  if(b.status==='읽는중'){
+    const cp=b.current_page||0,tp=b.pages||0;
+    const pct2=tp&&cp?Math.min(100,Math.round(cp/tp*100)):0;
+    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
+      <div style="display:flex;align-items:center;gap:.45rem;">
+        <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}" placeholder="현재 쪽" style="width:68px;padding:.28rem .4rem;border:1px solid var(--border2);border-radius:5px;font-size:.76rem;font-family:var(--ff);text-align:center;">
+        ${tp?`<span style="font-size:.62rem;color:var(--tx3);">/ ${tp}p</span>`:''}
+        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:5px;padding:.26rem .62rem;font-size:.66rem;cursor:pointer;font-family:var(--ff);">저장</button>
+      </div>
+      ${tp&&cp?`<div style="margin-top:.4rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct2}%;height:100%;background:var(--acc);border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.51rem;color:var(--tx3);margin-top:.1rem;">${cp}p · ${pct2}% · ${tp-cp}p 남음</div></div>`:''}
+    </div>`;
+  }
+
+  // 밑줄 · UNDERLINES
+  const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
+  html+=`<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
+      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.58rem;padding:.15rem .48rem;border:1px solid var(--acc);border-radius:9px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);">＋ 추가</button>
+    </div>`;
+  quotes.forEach((q,i)=>{
+    const color=QCOLORS[i%QCOLORS.length];
+    const hasHtml=/<[a-z]/i.test(q.text||'');
+    let txt=q.text||'';
+    if(hasHtml){txt=txt.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'<br>').replace(/<\/div>/gi,'').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\n/g,'<br>').replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>').replace(/^(<br\s*\/?>\s*)+/,'').replace(/(<br\s*\/?>\s*)+$/,'');}
+    else{txt=txt.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\n/g,'<br>');}
+    html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="border-bottom:2px solid ${color};padding:.38rem 0 .48rem;margin-bottom:.32rem;cursor:pointer;position:relative;" onmouseenter="this.querySelector('.q-eh').style.opacity='1'" onmouseleave="this.querySelector('.q-eh').style.opacity='0'">
+      <span class="q-eh" style="position:absolute;top:.3rem;right:0;font-size:.52rem;color:var(--tx3);opacity:0;transition:opacity .13s;">✏️</span>
+      <div style="font-size:.7rem;font-family:var(--ff-disp);font-style:italic;line-height:1.78;color:var(--tx1);padding-right:1rem;">${txt}</div>
+      ${(q.page||q.tag)?`<div style="display:flex;gap:.22rem;margin-top:.28rem;flex-wrap:wrap;">${q.page?`<span style="font-size:.53rem;color:var(--tx3);">p.${q.page}</span>`:''}${q.tag?`<span style="font-size:.53rem;color:var(--acc2);">#${q.tag}</span>`:''}</div>`:''}
+    </div>`;
+  });
+  if(!quotes.length) html+=`<div style="font-size:.68rem;color:var(--tx3);text-align:center;padding:.65rem 0;font-style:italic;">아직 수집된 문장이 없어요.</div>`;
+  html+='</div>';
+
   document.getElementById('detail-body').innerHTML=html;
-  // 페이지 표시 체크박스 이벤트 연결
-  const showChk = document.getElementById('show-progress-chk');
-  if(showChk) {
-    showChk.onchange = () => {
-      const wrap = document.getElementById('progress-input-wrap');
-      if(wrap) wrap.style.display = showChk.checked ? 'flex' : 'none';
-      saveReadingProgress(b.id, true); // 표시 여부만 저장
-    };
-  }
   openModal('modal-detail');
 }
 

@@ -291,8 +291,8 @@
       <div class="panel" id="p-record">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
           <div>
-            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">나의 기록</div>
-            <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">READING LOG</div>
+            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">기록</div>
+            <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">JOURNAL · <span id="record-month-lbl"></span></div>
           </div>
         </div>
         <div class="record-top">
@@ -338,6 +338,8 @@
                 <input type="number" id="timer-current-page" min="1" placeholder="—"
                   style="width:52px;padding:.2rem .35rem;border:1px solid var(--border2);border-radius:5px;font-size:.75rem;font-family:var(--ff);text-align:center;background:#faf6ef;">
               </div>
+              <!-- 이 주의 통계 -->
+              <div id="timer-weekly" style="margin-top:.55rem;padding-top:.5rem;border-top:1px solid var(--border);"></div>
             </div>
 
             <!-- 트래커 (타이머 바로 아래) -->
@@ -1071,6 +1073,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=496"></script>
+<script src="app.js?v=497"></script>
 </body>
 </html>
