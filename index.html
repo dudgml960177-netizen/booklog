@@ -259,6 +259,8 @@
             <button class="cat-btn" id="select-mode-btn" onclick="toggleSelectMode()">☑ 선택</button>
             <button class="cat-btn" id="bulk-delete-btn" onclick="bulkDelete()" style="display:none;color:#c0392b;border-color:#e8b8a8;">🗑 삭제</button>
           </div>
+          <!-- 폴더 빠른 필터 -->
+          <div id="lib-folder-row" style="width:100%;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch;"></div>
         </div>
         <!-- 갤러리 뷰 -->
         <div id="view-gallery">
@@ -274,6 +276,12 @@
 
       <!-- 문장 수집 -->
       <div class="panel" id="p-quotes">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
+          <div>
+            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">문장 수첩</div>
+            <div id="quote-count-lbl" style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">MY SENTENCES</div>
+          </div>
+        </div>
         <div class="q-filter" id="q-filter"></div>
         <div id="q-tab-header"></div>
           <div class="quote-feed" id="q-feed">
@@ -283,6 +291,12 @@
 
       <!-- 기록 탭 -->
       <div class="panel" id="p-record">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
+          <div>
+            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">나의 기록</div>
+            <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">READING LOG</div>
+          </div>
+        </div>
         <div class="record-top">
           <!-- 달력 (좌) -->
           <div class="card record-cal-card">
@@ -387,6 +401,12 @@
 
       <!-- 통계 -->
       <div class="panel" id="p-graph">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
+          <div>
+            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">독서 통계</div>
+            <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">STATISTICS</div>
+          </div>
+        </div>
 
         <!-- ① 목표 + 핵심 지표 통합 헤더 -->
         <!-- 목표 진행 -->
@@ -452,15 +472,15 @@
 </div>
 
 <!-- FAB: 책 추가 버튼 -->
-<button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.6rem;bottom:2.2rem;z-index:900;width:52px;height:52px;border-radius:50%;background:var(--paper);border-bottom:1px solid var(--border);color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
+<button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.6rem;bottom:2.2rem;z-index:100;width:52px;height:52px;border-radius:50%;background:var(--paper);border-bottom:1px solid var(--border);color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
 
 <!-- 책 추가/수정 모달 -->
 <div id="modal-book" class="modal-overlay" style="display:none;">
   <div class="modal" style="max-width:440px;">
     <!-- 헤더 -->
-    <div style="background:var(--paper);border-bottom:1px solid var(--border);padding:.85rem 1.1rem .75rem;border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;justify-content:space-between;">
+    <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));border-bottom:1px solid var(--border);padding:.85rem 1.1rem .75rem;border-radius:var(--r) var(--r) 0 0;display:flex;align-items:center;justify-content:space-between;">
       <div id="modal-book-title" style="font-size:.88rem;font-weight:700;color:#fff;font-family:var(--fs);">책 추가</div>
-      <button class="modal-close" onclick="closeModal('modal-book')" style="color:rgba(255,255,255,.8);">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-book')" style="color:rgba(255,255,255,.8);background:rgba(255,255,255,.15);">✕</button>
     </div>
     <div class="modal-body" style="padding:.85rem 1rem;">
       <!-- 검색 -->
@@ -1058,6 +1078,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=489"></script>
+<script src="app.js?v=490"></script>
 </body>
 </html>

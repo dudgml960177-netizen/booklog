@@ -5,6 +5,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
   --bg:#f2ece0;--card:#faf6ef;--border:#ddd0b8;--border2:#cfc3ac;
   --tx1:#2e1f0e;--tx2:#5c3d1e;--tx3:#a08c72;
   --acc:#b07030;--acc2:#7a3e18;
+  --ff-disp:'Pretendard','Apple SD Gothic Neo',sans-serif;
   /* 확장 팔레트 */
   --sage:#6b8f6b;     /* 세이지 그린 */
   --sage-bg:#eef4ee;
@@ -394,6 +395,9 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 /* 타이머 컴팩트 */
 .record-timer-card .timer-display{font-size:1.9rem;text-align:center;}
 .record-timer-card .timer-btns{justify-content:center;gap:.4rem;}
+
+/* ── 폴더 행 스크롤바 숨김 ── */
+#lib-folder-row::-webkit-scrollbar{display:none;}
 
 /* ── 게시판 ── */
 .board-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;}

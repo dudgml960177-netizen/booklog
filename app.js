@@ -603,6 +603,27 @@ function setSort(s) {
   if(sel) sel.value = s;
   buildBooks();
 }
+function renderFolderRow() {
+  const row = document.getElementById('lib-folder-row');
+  if (!row) return;
+  if (!allCategories.length) { row.style.display='none'; return; }
+  row.style.display = 'flex';
+  row.style.cssText += 'gap:.35rem;flex-wrap:nowrap;overflow-x:auto;padding-bottom:10px;padding-top:4px;margin-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;width:100%;';
+  row.innerHTML = '';
+  const chips = [{ label:'전체 폴더', cat: null }, ...allCategories.map(c=>({ label:'📁 '+c, cat:c }))];
+  chips.forEach(({ label, cat }) => {
+    const on = curCatFilter === cat;
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = `flex-shrink:0;height:26px;padding:0 .75rem;border-radius:13px;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'var(--card)'};color:${on?'#fff':'var(--tx2)'};font-size:.67rem;font-family:var(--ff);cursor:pointer;white-space:nowrap;transition:all .13s;`;
+    btn.onclick = () => {
+      curCatFilter = on ? null : cat;
+      buildBooks();
+    };
+    row.appendChild(btn);
+  });
+}
+
 function buildBooks() {
   document.getElementById('view-gallery').style.display = curView==='gallery'?'':'none';
   document.getElementById('view-list').style.display = curView==='list'?'':'none';
@@ -622,6 +643,7 @@ function buildBooks() {
   setTxt('fc-want',fc.want); setTxt('fc-stop',fc.stop);
   const lbl=document.getElementById('lib-count-lbl');
   if(lbl) lbl.textContent=`MY LIBRARY · ${allBooks.length} VOLUMES`;
+  renderFolderRow();
   // 필터 버튼 스타일 동기화
   document.querySelectorAll('.filter-btn').forEach(btn=>{
     const on = btn.classList.contains('on');
@@ -1082,9 +1104,9 @@ function addQuoteFromTab() {
   overlay.style.cssText = 'display:flex;z-index:1100;';
   overlay.innerHTML = `
     <div class="modal" style="max-width:380px;padding:0;overflow:hidden;">
-      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
-        <span style="font-weight:700;color:var(--tx1);font-size:.9rem;">어느 책에 추가할까요?</span>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:var(--tx3);font-size:1.2rem;cursor:pointer;">✕</button>
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+        <span style="font-weight:700;color:#fff;font-size:.9rem;font-family:var(--fs);">어느 책에 추가할까요?</span>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.85rem;">✕</button>
       </div>
       <div style="padding:.75rem;">
         <input id="qft-search" type="text" placeholder="책 제목이나 저자 검색..."
@@ -1158,6 +1180,8 @@ function renderQuotes() {
         </button>
       </div>`;
   }
+  const countLbl = document.getElementById('quote-count-lbl');
+  if(countLbl) countLbl.textContent = allQuotes.length ? `MY SENTENCES · ${allQuotes.length}` : 'MY SENTENCES';
   const feed = document.getElementById('q-feed'); feed.innerHTML = '';
   if (!allQuotes.length) { feed.innerHTML='<div class="empty-state">수집된 문장이 없어요.<br><small style="color:var(--tx3);font-size:.72rem;">책을 추가할 때 인상 깊은 문장을 기록해보세요.</small></div>'; return; }
   const q = quoteSearchQ.trim().toLowerCase();
@@ -1343,9 +1367,9 @@ function openAddQuoteFromDetail(bookId) {
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 추가</div>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
+      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div style="font-size:.88rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 추가</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
       </div>
       <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
@@ -1558,10 +1582,10 @@ async function shareCalendar() {
           im.src=src; im.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
           cell.appendChild(im);
         } else if(src){
-          // 원본 URL
+          // 원본 URL — allowTaint 모드에서 crossOrigin 없이 렌더링
           const im=document.createElement('img');
           im.src=src; im.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
-          im.crossOrigin='anonymous'; cell.appendChild(im);
+          cell.appendChild(im);
         } else {
           cell.style.background='#6b8f6b';
         }
@@ -1598,7 +1622,6 @@ async function shareCalendar() {
         if(src){
           const ti=document.createElement('img');
           ti.src=src; ti.style.cssText='width:100%;height:100%;object-fit:cover;';
-          if(!src.startsWith('data:')) ti.crossOrigin='anonymous';
           thumb.appendChild(ti);
         }
         row.appendChild(thumb);
@@ -1620,20 +1643,15 @@ async function shareCalendar() {
     document.body.appendChild(card);
 
     // 이미지 로딩 대기
-    await new Promise(res=>setTimeout(res,600));
+    await new Promise(res=>setTimeout(res,1200));
 
     const canvas=await html2canvas(card,{
       scale:2.5,
       backgroundColor:'#f2ece0',
-      useCORS:true,
+      useCORS:false,
       allowTaint:true,
       logging:false,
-      imageTimeout:20000,
-      onclone:(doc,el)=>{
-        el.querySelectorAll('img').forEach(img=>{
-          if(!img.src.startsWith('data:')) img.crossOrigin='anonymous';
-        });
-      }
+      imageTimeout:25000
     });
     card.remove();
 
@@ -5862,8 +5880,8 @@ async function saveLibraryPublic(val) {
 }
 
 // ── 모달 유틸
-function openModal(id){const el=document.getElementById(id);if(el){el.style.display='flex';history.pushState({modal:id},'',location.href);}}
-function closeModal(id){document.getElementById(id).style.display='none';}
+function openModal(id){const el=document.getElementById(id);if(el){el.style.display='flex';history.pushState({modal:id},'',location.href);}const fab=document.getElementById('fab-add-book');if(fab)fab.style.display='none';}
+function closeModal(id){document.getElementById(id).style.display='none';const openModals=document.querySelectorAll('.modal-overlay[style*="flex"]');if(openModals.length===0){const fab=document.getElementById('fab-add-book');if(fab&&document.getElementById('p-books')?.classList.contains('on'))fab.style.display='flex';}}
 // modal overlay click-outside: init에서 등록
 
 // ══════════════════════════════════════
