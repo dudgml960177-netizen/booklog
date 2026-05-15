@@ -146,7 +146,7 @@ const YC = {
   2028:{line:'#7a6aaa',rgb:'122,106,170'},
 };
 const GCOLS = ['#c4714a','#6b8f6b','#5a7a8a','#c8a050','#8b6b8b','#4a7a6a','#c8704a','#7a8a6a','#7a6aaa','#5a8a7a'];
-const RCOLS = ['#c4714a','#b07030','#c8a87a','#7a9e7e','#8a8aaa'];
+const RCOLS = ['#c4714a','#b07030','#c8a050','#c8b87a','#d8c9a8'];
 const TRACKER_COLORS = [
   '#ede8df',  // 0: 없음 - 배경과 자연스럽게
   '#e8d4b0',  // 1: 아주 적음 - 연한 웜베이지
@@ -3504,6 +3504,20 @@ function buildStats() {
 function showGraph(name, btn) {
   if(btn){document.querySelectorAll('.gst').forEach(t=>t.classList.remove('on'));btn.classList.add('on');}
   ['monthly','genre','rating','author','pages'].forEach(n=>document.getElementById('g-'+n).style.display=n===name?'':'none');
+  // Chart.js 기본값을 앱 디자인에 맞게 설정
+  if(window.Chart) {
+    Chart.defaults.color = '#a08c72';
+    Chart.defaults.font.family = 'Pretendard';
+    Chart.defaults.font.size = 10;
+    Chart.defaults.plugins.tooltip.backgroundColor = '#faf6ef';
+    Chart.defaults.plugins.tooltip.borderColor = '#cfc3ac';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.titleColor = '#2e1f0e';
+    Chart.defaults.plugins.tooltip.bodyColor = '#5c3d1e';
+    Chart.defaults.plugins.tooltip.titleFont = {family:'Pretendard',size:11};
+    Chart.defaults.plugins.tooltip.bodyFont = {family:'Pretendard',size:11};
+    Chart.defaults.plugins.tooltip.padding = 8;
+  }
   if(name==='monthly') buildMonthly();
   if(name==='genre')   buildGenre();
   if(name==='rating')  buildRating();
@@ -3620,15 +3634,15 @@ function buildAuthorChart() {
   hallEl.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem;';
   const topA=aSorted[0], topP=pSorted[0];
   hallEl.innerHTML=`
-    <div style="background:#ede4d0;border:1px solid var(--border2);border-radius:6px;padding:.65rem .8rem;text-align:center;">
-      <div style="font-size:.6rem;color:var(--tx3);margin-bottom:.25rem;">👑 최애 작가</div>
-      <div style="font-family:var(--fs);font-size:.95rem;color:var(--tx1);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topA[0]}">${topA[0]}</div>
-      <div style="font-size:.65rem;color:var(--acc);margin-top:.15rem;">${topA[1]}권 완독</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .8rem;text-align:center;">
+      <div style="font-size:.52rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.3rem;">최애 작가</div>
+      <div style="font-family:var(--fs);font-size:.95rem;font-style:italic;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topA[0]}">${topA[0]}</div>
+      <div style="font-size:.62rem;color:var(--rust);margin-top:.18rem;">${topA[1]}권 완독</div>
     </div>
-    <div style="background:#ede4d0;border:1px solid var(--border2);border-radius:6px;padding:.65rem .8rem;text-align:center;">
-      <div style="font-size:.6rem;color:var(--tx3);margin-bottom:.25rem;">📚 최애 출판사</div>
-      <div style="font-family:var(--fs);font-size:.95rem;color:var(--tx1);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topP?topP[0]:'—'}">${topP?topP[0]:'—'}</div>
-      <div style="font-size:.65rem;color:var(--acc);margin-top:.15rem;">${topP?topP[1]+'권 완독':''}</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .8rem;text-align:center;">
+      <div style="font-size:.52rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.3rem;">최애 출판사</div>
+      <div style="font-family:var(--fs);font-size:.95rem;font-style:italic;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topP?topP[0]:'—'}">${topP?topP[0]:'—'}</div>
+      <div style="font-size:.62rem;color:var(--rust);margin-top:.18rem;">${topP?topP[1]+'권 완독':''}</div>
     </div>`;
   wrap.appendChild(hallEl);
 
@@ -3638,19 +3652,19 @@ function buildAuthorChart() {
   const aList=authorExpanded?aSorted:aSorted.slice(0,5);
   const maxA=aSorted[0][1];
   const MEDAL=['🥇','🥈','🥉'];
+  const AUTHOR_COLS=['#b07030','#c4714a','#c8a050','#a08060','#c8b07a'];
   aList.forEach(([name,cnt],i)=>{
     const pct=Math.round(cnt/maxA*100);
-    const ratingColors=['#3a6a4a','#6b8f6b','#c8a050','#c4714a','#8b4a8b'];
-    const bg=ratingColors[i]||'#c8a87a';
+    const bg=AUTHOR_COLS[i]||'#c8b07a';
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;';
-    row.innerHTML=`<span style="font-size:.64rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${MEDAL[i]||''} ${name}</span>
-      <div style="flex:1;height:14px;background:#ede4d0;border-radius:3px;overflow:hidden;">
+    row.innerHTML=`<span style="font-size:.62rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${i<3?'<span style="font-size:.58rem;opacity:.7;">'+('①②③'[i])+'</span> ':' '}${name}</span>
+      <div style="flex:1;height:12px;background:var(--bg);border-radius:3px;overflow:hidden;">
         <div style="width:${pct}%;height:100%;background:${bg};border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">
-          ${pct>18?`<span style="font-size:.55rem;font-weight:600;color:#fff;">${cnt}권</span>`:''}
+          ${pct>22?`<span style="font-size:.52rem;font-weight:600;color:#fff;">${cnt}권</span>`:''}
         </div>
       </div>
-      ${pct<=18?`<span style="font-size:.6rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
+      ${pct<=22?`<span style="font-size:.58rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
     sec1.appendChild(row);
   });
   if(aSorted.length>5){
@@ -3667,18 +3681,18 @@ function buildAuthorChart() {
   const h2=document.createElement('div');h2.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h2.textContent='출판사별 독서';sec2.appendChild(h2);
   const pList=pubExpanded?pSorted:pSorted.slice(0,5);
   const maxP=pSorted[0][1];
-  const PCOLS=['#5a8a8a','#7a9e7e','#8a8aaa','#c8a87a','#9a7090'];
+  const PCOLS=['#b07030','#c4714a','#c8a050','#a08060','#c8b07a'];
   pList.forEach(([name,cnt],i)=>{
     const pct=Math.round(cnt/maxP*100);
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;';
-    row.innerHTML=`<span style="font-size:.64rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</span>
-      <div style="flex:1;height:14px;background:#ede4d0;border-radius:3px;overflow:hidden;">
+    row.innerHTML=`<span style="font-size:.62rem;color:var(--tx2);min-width:72px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</span>
+      <div style="flex:1;height:12px;background:var(--bg);border-radius:3px;overflow:hidden;">
         <div style="width:${pct}%;height:100%;background:${PCOLS[i%5]};border-radius:3px;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">
-          ${pct>18?`<span style="font-size:.55rem;font-weight:600;color:#fff;">${cnt}권</span>`:''}
+          ${pct>22?`<span style="font-size:.52rem;font-weight:600;color:#fff;">${cnt}권</span>`:''}
         </div>
       </div>
-      ${pct<=18?`<span style="font-size:.6rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
+      ${pct<=22?`<span style="font-size:.58rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
     sec2.appendChild(row);
   });
   if(pSorted.length>5){
@@ -3749,17 +3763,9 @@ function buildPagesChart() {
       datasets: [{
         label: '페이지',
         data: vals,
-        backgroundColor: vals.map((v,i) => {
+        backgroundColor: vals.map(v => {
           const ratio = v/maxV;
-          const palettes = [
-            ['rgba(196,113,74,.9)','rgba(196,113,74,.65)','rgba(196,113,74,.35)'],
-            ['rgba(107,143,107,.9)','rgba(107,143,107,.65)','rgba(107,143,107,.35)'],
-            ['rgba(90,122,138,.9)','rgba(90,122,138,.65)','rgba(90,122,138,.35)'],
-            ['rgba(200,160,80,.9)','rgba(200,160,80,.65)','rgba(200,160,80,.35)'],
-            ['rgba(139,107,139,.9)','rgba(139,107,139,.65)','rgba(139,107,139,.35)'],
-          ];
-          const pal = palettes[i % palettes.length];
-          return ratio > 0.6 ? pal[0] : ratio > 0.2 ? pal[1] : ratio > 0 ? pal[2] : 'rgba(220,210,195,.4)';
+          return ratio > 0.6 ? 'rgba(176,112,48,.82)' : ratio > 0.3 ? 'rgba(176,112,48,.55)' : ratio > 0 ? 'rgba(176,112,48,.3)' : 'rgba(220,210,195,.25)';
         }),
         borderColor: 'transparent',
         borderRadius: 5,

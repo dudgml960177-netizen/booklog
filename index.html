@@ -420,16 +420,13 @@
         </div>
 
         <!-- 그래프 -->
-        <div class="card" style="margin-bottom:.7rem;padding:.7rem .8rem;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.3rem;">
-            <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">독서 통계</div>
-            <div class="gtabs" style="gap:.15rem;">
-              <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
-              <button class="gst" onclick="showGraph('genre',this)">장르</button>
-              <button class="gst" onclick="showGraph('rating',this)">평점</button>
-              <button class="gst" onclick="showGraph('author',this)">작가</button>
-              <button class="gst" onclick="showGraph('pages',this)">페이지</button>
-            </div>
+        <div class="card" style="margin-bottom:.7rem;padding:.7rem .8rem .65rem;">
+          <div class="gtabs">
+            <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
+            <button class="gst" onclick="showGraph('genre',this)">장르</button>
+            <button class="gst" onclick="showGraph('rating',this)">평점</button>
+            <button class="gst" onclick="showGraph('author',this)">작가</button>
+            <button class="gst" onclick="showGraph('pages',this)">페이지</button>
           </div>
           <div id="g-monthly">
             <div class="yr-row" id="yr-row-m" style="margin-bottom:.4rem;"></div>
@@ -1072,6 +1069,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=493"></script>
+<script src="app.js?v=494"></script>
 </body>
 </html>
