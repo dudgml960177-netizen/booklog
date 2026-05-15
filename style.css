@@ -35,6 +35,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes popIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @keyframes spin1{0%{transform:rotate(0deg) scale(.5)}60%{transform:rotate(360deg) scale(1.2)}100%{transform:rotate(360deg) scale(1)}}
+@keyframes timerPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 .auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1.5rem;}
 .auth-logo{font-family:var(--fs);font-size:2.5rem;color:var(--tx1);margin-bottom:.3rem;}
 .auth-tagline{font-size:.8rem;color:var(--tx3);margin-bottom:2rem;font-style:italic;}
