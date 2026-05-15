@@ -13,6 +13,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
   --slate-bg:#eef2f5;
   --mauve:#8b6b8b;    /* 모브 퍼플 */
   --mauve-bg:#f3eef3;
+  --rust:#c4714a;     /* 러스트 (필터 카운트, 강조 숫자) */
   --clay:#c4714a;     /* 클레이 오렌지 */
   --clay-bg:#fdf0ea;
   --gold:#c8a050;     /* 골드 */

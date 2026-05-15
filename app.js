@@ -514,21 +514,16 @@ function applySystemFont(fontFamily) {
   if(!fontFamily) return;
   localStorage.setItem('bl_system_font', fontFamily);
   document.documentElement.style.setProperty('--ff', fontFamily);
-  const preview = document.getElementById('font-preview-wrap');
-  if(preview) preview.style.fontFamily = fontFamily;
-  // 폰트 선택 동기화
-  const sel = document.getElementById('admin-font-select');
-  if(sel) sel.value = fontFamily;
+  ['admin-font-select','user-font-select'].forEach(id=>{const s=document.getElementById(id);if(s)s.value=fontFamily;});
+  ['font-preview-wrap','user-font-preview'].forEach(id=>{const p=document.getElementById(id);if(p)p.style.fontFamily=fontFamily;});
 }
 
 function initSystemFont() {
   const saved = localStorage.getItem('bl_system_font');
   if(saved) {
     document.documentElement.style.setProperty('--ff', saved);
-    const sel = document.getElementById('admin-font-select');
-    if(sel) sel.value = saved;
-    const preview = document.getElementById('font-preview-wrap');
-    if(preview) preview.style.fontFamily = saved;
+    ['admin-font-select','user-font-select'].forEach(id=>{const s=document.getElementById(id);if(s)s.value=saved;});
+    ['font-preview-wrap','user-font-preview'].forEach(id=>{const p=document.getElementById(id);if(p)p.style.fontFamily=saved;});
   }
 }
 
@@ -1104,9 +1099,9 @@ function addQuoteFromTab() {
   overlay.style.cssText = 'display:flex;z-index:1100;';
   overlay.innerHTML = `
     <div class="modal" style="max-width:380px;padding:0;overflow:hidden;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
-        <span style="font-weight:700;color:#fff;font-size:.9rem;font-family:var(--fs);">어느 책에 추가할까요?</span>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.85rem;">✕</button>
+      <div style="padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+        <span style="font-weight:700;color:var(--tx1);font-size:.9rem;font-family:var(--fs);">어느 책에 추가할까요?</span>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;border-radius:50%;width:26px;height:26px;color:var(--tx3);cursor:pointer;font-size:.85rem;">✕</button>
       </div>
       <div style="padding:.75rem;">
         <input id="qft-search" type="text" placeholder="책 제목이나 저자 검색..."
@@ -1367,9 +1362,9 @@ function openAddQuoteFromDetail(bookId) {
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:linear-gradient(135deg,var(--acc2),var(--acc));padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <div style="font-size:.88rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 추가</div>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.15);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
+      <div style="padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div style="font-size:.9rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">문장 추가</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;border-radius:50%;width:26px;height:26px;color:var(--tx3);cursor:pointer;font-size:.8rem;">✕</button>
       </div>
       <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
@@ -3400,27 +3395,26 @@ function buildStats() {
   const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
-  const items=[
-    {n:total, l:'누적 완독', sub:years.size?[...years].sort()[0]+'–현재':'전체', ic:'📖'},
-    {n:avg,   l:'평균 평점', sub:avg+' / 5.0', ic:'⭐'},
-    {n: thisYearMins >= 60 ? Math.floor(thisYearMins/60)+'h '+(thisYearMins%60)+'m' : (thisYearMins > 0 ? thisYearMins+'m' : '0h'), l:'올해 독서 시간', sub: thisYearMins >= 60 ? Math.floor(thisYearMins/60)+'시간 '+(thisYearMins%60)+'분' : thisYearMins+'분', ic:'⏱'},
-    {n:thisYear.length, l:'올해 완독', sub:cy+'년', ic:'🌿'},
-    {n:allBooks.filter(b=>b.status==='읽는중').length, l:'읽는 중', sub:'권', ic:'📌'},
-    {n:thisYearQuotes.length, l:'올해 문장', sub:'인상 깊은 구절', ic:'✍️'},
-    {n:topA?topA[0]:'—', l:'최애 작가', sub:topA?topA[1]+'권':'', ic:'👑'},
-    {n:topP?topP[0]:'—', l:'최애 출판사', sub:topP?topP[1]+'권':'', ic:'📚'},
-    {n:thisYearPages>0?thisYearPages.toLocaleString()+'p':'—', l:'올해 페이지', sub:'완독 기준', ic:'📄'},
+  // 6개 핵심 지표 — 3×2 hairline 그리드 (컨셉 이미지 스타일)
+  const timeStr = thisYearMins >= 60
+    ? Math.floor(thisYearMins/60)+' h'
+    : (thisYearMins > 0 ? thisYearMins+' m' : '—');
+  const grid6 = [
+    {n: timeStr,                                              l:'시간'},
+    {n: thisYearPages>0 ? thisYearPages.toLocaleString()+' p' : '—', l:'페이지'},
+    {n: thisYearQuotes.length || '—',                        l:'문장'},
+    {n: avg,                                                  l:'평점 평균'},
+    {n: '—',                                                  l:'최장 연속'},
+    {n: Object.keys(aMap).length || '—',                     l:'올해 작가'},
   ];
-  items.forEach(it=>{
-    const el=document.createElement('div');
-    el.style.cssText='flex:1;min-width:68px;max-width:88px;background:var(--card);border:1px solid var(--border);border-radius:var(--rs);padding:.4rem .45rem;position:relative;overflow:hidden;';
-    const isLong=(it.l.includes('작가')||it.l.includes('출판사'));
-    el.innerHTML=`
-      <div style="font-size:.75rem;opacity:.6;margin-bottom:.1rem;">${it.ic||''}</div>
-      <div style="font-family:var(--fs);font-size:${isLong?'.65rem':'.85rem'};color:var(--tx1);line-height:1.15;word-break:break-all;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${it.n}</div>
-      <div style="font-size:.55rem;color:var(--tx3);margin-top:.08rem;">${it.l}</div>`;
-    sg.appendChild(el);
-  });
+  const gridEl = document.createElement('div');
+  gridEl.style.cssText = 'width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:.55rem;';
+  gridEl.innerHTML = grid6.map((it,i)=>`
+    <div style="display:inline-block;width:33.33%;box-sizing:border-box;padding:.55rem .7rem;${i<3?'border-bottom:1px solid var(--border);':''}${i%3<2?'border-right:1px solid var(--border);':''}vertical-align:top;">
+      <div style="font-size:.55rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.22rem;">${it.l}</div>
+      <div style="font-family:var(--fs);font-size:1.05rem;font-style:italic;color:var(--tx1);line-height:1;letter-spacing:-.01em;">${it.n}</div>
+    </div>`).join('');
+  sg.appendChild(gridEl);
   // 전리품 & 퀘스트 패널 초기 로드
   sb.from('profiles').select('user_title,completed_quests').eq('id',currentUser.id).single().then(({data:pf})=>{
     buildLoot(pf?.user_title, pf?.completed_quests||[]);
@@ -3849,15 +3843,32 @@ function buildGoalDisplay() {
     wrap.innerHTML='<div style="font-size:.7rem;color:var(--tx3);">목표를 설정하면 진행률을 볼 수 있어요.</div>';
     return;
   }
-  wrap.style.cssText='padding:.5rem 1rem .55rem;';
-  wrap.innerHTML=`<div style="font-size:.58rem;color:var(--tx3);margin-bottom:.35rem;letter-spacing:.03em;">${cy}년 독서 목표</div>`+items.map(it=>`
-    <div style="margin-bottom:.3rem;display:flex;align-items:center;gap:.55rem;">
-      <div style="font-size:.62rem;color:var(--tx3);width:52px;flex-shrink:0;">${it.label}</div>
-      <div style="flex:1;height:4px;background:#ede4d0;border-radius:2px;overflow:hidden;">
-        <div style="width:${it.pct}%;height:100%;background:${it.pct>=100?'var(--sage)':it.color};border-radius:2px;transition:width .5s;"></div>
+  // 대표 목표 1개 (완독 우선)
+  const main = items[0];
+  const rest = items.slice(1);
+  wrap.style.cssText = 'padding:.6rem .85rem .7rem;';
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.55rem;">
+      <div style="font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">${cy} 목표</div>
+      <button onclick="openGoalModal()" style="font-size:.62rem;padding:.15rem .55rem;border:1px solid var(--border2);border-radius:10px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);">편집</button>
+    </div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.5rem;">
+      <div style="font-family:var(--fs);font-size:2rem;color:var(--tx1);line-height:1;letter-spacing:-.02em;">
+        ${main.cur}<span style="font-size:1.1rem;color:var(--tx3);font-weight:300;"> / ${main.goal}${main.unit}</span>
       </div>
-      <div style="font-size:.6rem;color:var(--tx3);min-width:78px;text-align:right;">${it.cur}/${it.goal}${it.unit} ${it.pct>=100?'🏅':it.pct+'%'}</div>
-    </div>`).join('');
+      <div style="font-family:var(--fs);font-size:.9rem;font-style:italic;color:${main.pct>=100?'var(--sage)':'var(--rust)'};">${main.pct>=100?'완료':main.pct+'%'}</div>
+    </div>
+    <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:${rest.length?'.55rem':'0'};">
+      <div style="width:${main.pct}%;height:100%;background:${main.pct>=100?'var(--sage)':'var(--rust)'};border-radius:2px;transition:width .6s;"></div>
+    </div>
+    ${rest.map(it=>`
+    <div style="display:flex;align-items:center;gap:.55rem;padding-top:.35rem;border-top:1px solid var(--border);">
+      <div style="font-size:.62rem;color:var(--tx3);width:52px;flex-shrink:0;">${it.label}</div>
+      <div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;">
+        <div style="width:${it.pct}%;height:100%;background:${it.pct>=100?'var(--sage)':it.color};border-radius:2px;"></div>
+      </div>
+      <div style="font-size:.6rem;color:var(--tx3);min-width:70px;text-align:right;font-family:var(--fs);font-style:italic;">${it.cur}/${it.goal}${it.unit} ${it.pct>=100?'✓':it.pct+'%'}</div>
+    </div>`).join('')}`;
 }
 
 // ── 카테고리
@@ -5880,8 +5891,8 @@ async function saveLibraryPublic(val) {
 }
 
 // ── 모달 유틸
-function openModal(id){const el=document.getElementById(id);if(el){el.style.display='flex';history.pushState({modal:id},'',location.href);}const fab=document.getElementById('fab-add-book');if(fab)fab.style.display='none';}
-function closeModal(id){document.getElementById(id).style.display='none';const openModals=document.querySelectorAll('.modal-overlay[style*="flex"]');if(openModals.length===0){const fab=document.getElementById('fab-add-book');if(fab&&document.getElementById('p-books')?.classList.contains('on'))fab.style.display='flex';}}
+function openModal(id){const el=document.getElementById(id);if(el){el.style.display='flex';history.pushState({modal:id},'',location.href);}}
+function closeModal(id){document.getElementById(id).style.display='none';}
 // modal overlay click-outside: init에서 등록
 
 // ══════════════════════════════════════
