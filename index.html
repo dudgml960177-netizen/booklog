@@ -401,8 +401,8 @@
       <div class="panel" id="p-graph">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
           <div>
-            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">독서 통계</div>
-            <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">STATISTICS</div>
+            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">독서 연표</div>
+            <div id="stats-subtitle" style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">STATISTICS · <span id="stats-year"></span></div>
           </div>
         </div>
 
@@ -420,7 +420,7 @@
         </div>
 
         <!-- 그래프 -->
-        <div class="card" style="margin-bottom:.7rem;padding:.7rem .8rem .65rem;">
+        <div style="margin-bottom:.8rem;">
           <div class="gtabs">
             <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
             <button class="gst" onclick="showGraph('genre',this)">장르</button>
@@ -428,26 +428,28 @@
             <button class="gst" onclick="showGraph('author',this)">작가</button>
             <button class="gst" onclick="showGraph('pages',this)">페이지</button>
           </div>
-          <div id="g-monthly">
-            <div class="yr-row" id="yr-row-m" style="margin-bottom:.4rem;"></div>
-            <canvas id="chart-monthly" height="100"></canvas>
-            <div class="stat-row" id="monthly-stat" style="margin-top:.4rem;"></div>
+          <div id="g-monthly" style="padding-top:.7rem;">
+            <div class="yr-row" id="yr-row-m"></div>
+            <canvas id="chart-monthly" style="display:none;"></canvas>
+            <div id="monthly-viz"></div>
+            <div class="stat-row" id="monthly-stat"></div>
           </div>
-          <div id="g-genre" style="display:none;">
-            <div class="donut-layout" id="donut-layout"></div>
+          <div id="g-genre" style="display:none;padding-top:.7rem;">
+            <div id="donut-layout"></div>
             <div class="stat-row" id="genre-stat"></div>
           </div>
-          <div id="g-rating" style="display:none;">
-            <div class="yr-row" id="yr-row-r" style="margin-bottom:.4rem;"></div>
+          <div id="g-rating" style="display:none;padding-top:.7rem;">
+            <div class="yr-row" id="yr-row-r"></div>
             <div class="rating-layout" id="rating-layout"></div>
           </div>
-          <div id="g-author" style="display:none;">
+          <div id="g-author" style="display:none;padding-top:.7rem;">
             <div id="author-chart-wrap"></div>
           </div>
-          <div id="g-pages" style="display:none;">
-            <div class="yr-row" id="yr-row-pages" style="margin-bottom:.4rem;"></div>
-            <canvas id="chart-pages" height="100"></canvas>
-            <div class="stat-row" id="pages-stat" style="margin-top:.4rem;"></div>
+          <div id="g-pages" style="display:none;padding-top:.7rem;">
+            <div class="yr-row" id="yr-row-pages"></div>
+            <canvas id="chart-pages" style="display:none;"></canvas>
+            <div id="pages-viz"></div>
+            <div class="stat-row" id="pages-stat"></div>
           </div>
         </div>
 
@@ -1069,6 +1071,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=495"></script>
+<script src="app.js?v=496"></script>
 </body>
 </html>

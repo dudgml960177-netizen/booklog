@@ -3434,7 +3434,10 @@ function buildQuestPanel(completedIds) {
 // ── 통계
 function buildStats() {
   const sg=document.getElementById('stat-grid');
-  if(!sg) return; // 통계 탭이 아닐 때 안전하게 종료
+  if(!sg) return;
+  // 연도 subtitle 업데이트
+  const yearEl=document.getElementById('stats-year');
+  if(yearEl) yearEl.textContent=new Date().getFullYear();
   // 통계 카드만 제거 (loot-card, quest-card는 buildLoot가 관리)
   [...sg.children].filter(el=>!el.classList.contains('loot-card')&&!el.classList.contains('quest-card')).forEach(el=>el.remove());
   const done=allBooks.filter(b=>b.status==='완독');
@@ -3544,81 +3547,90 @@ function buildMonthly() {
   const YEARS=buildYrRow('yr-row-m',curYM,yr=>{curYM=yr;buildMonthly();});
   if(monthChart){monthChart.destroy();monthChart=null;}
   const done=allBooks.filter(b=>b.status==='완독'&&b.date_finish);
-  const canvas=document.getElementById('chart-monthly');
-  canvas.style.display='none';
-  let viz=document.getElementById('monthly-viz');
-  if(!viz){viz=document.createElement('div');viz.id='monthly-viz';canvas.insertAdjacentElement('afterend',viz);}
+  const viz=document.getElementById('monthly-viz');
   viz.innerHTML='';
   const MO=['1','2','3','4','5','6','7','8','9','10','11','12'];
   const now=new Date();
+  const BAR_DARK='#3a2a1a';
+  const BAR_HI='#c4714a';
+
+  // 섹션 레이블
+  const secLabel=document.createElement('div');
+  secLabel.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';
+  secLabel.textContent='월별 완독';
+  viz.appendChild(secLabel);
 
   if(curYM==='all') {
-    if(!YEARS.length){viz.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독 기록이 없어요.</div>';}
-    else {
+    if(!YEARS.length){
+      viz.innerHTML+='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독 기록이 없어요.</div>';
+    } else {
       YEARS.forEach(y=>{
         const c=YC[y]||{line:'#b07030'};
         const vals=Array(12).fill(0);
         done.filter(b=>parseInt(b.date_finish.slice(0,4))===y).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
-        const maxV=Math.max(...vals,1), total=vals.reduce((a,v)=>a+v,0);
+        const maxV=Math.max(...vals,1),total=vals.reduce((a,v)=>a+v,0);
         const row=document.createElement('div');
-        row.style.cssText='display:flex;align-items:center;gap:.55rem;margin-bottom:.55rem;';
+        row.style.cssText='display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem;';
         const yl=document.createElement('div');
-        yl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.82rem;color:${c.line};min-width:38px;line-height:1;`;
+        yl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.82rem;color:${c.line};min-width:36px;line-height:1;`;
         yl.textContent=y;
         const bars=document.createElement('div');
-        bars.style.cssText='flex:1;display:flex;align-items:flex-end;gap:2px;height:28px;';
+        bars.style.cssText='flex:1;display:flex;align-items:flex-end;gap:2px;height:32px;';
         MO.forEach((_,i)=>{
+          const isMax=vals[i]===maxV&&maxV>0;
+          const h=Math.max(vals[i]/maxV*28,vals[i]>0?3:0);
           const bar=document.createElement('div');
-          const h=Math.max(vals[i]/maxV*24,vals[i]>0?2:0);
-          bar.style.cssText=`flex:1;height:${h}px;background:${c.line};border-radius:1px 1px 0 0;opacity:${vals[i]===maxV&&maxV>0?'1':'.5'};`;
+          bar.style.cssText=`flex:1;height:${h}px;background:${isMax?BAR_HI:BAR_DARK};border-radius:1px 1px 0 0;`;
           bar.title=MO[i]+'월 '+vals[i]+'권';
           bars.appendChild(bar);
         });
         const tl=document.createElement('div');
-        tl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.75rem;color:${c.line};min-width:26px;text-align:right;`;
-        tl.textContent=total+'권';
+        tl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.78rem;color:${c.line};min-width:28px;text-align:right;`;
+        tl.textContent=total;
         row.appendChild(yl);row.appendChild(bars);row.appendChild(tl);
         viz.appendChild(row);
       });
-      // 월 레이블
       const lr=document.createElement('div');
-      lr.style.cssText='display:flex;align-items:center;gap:.55rem;margin-top:-.2rem;';
-      const sp=document.createElement('div');sp.style.cssText='min-width:38px;';
+      lr.style.cssText='display:flex;align-items:center;gap:.6rem;margin-top:.05rem;';
+      const sp=document.createElement('div');sp.style.minWidth='36px';
       const ml=document.createElement('div');ml.style.cssText='flex:1;display:flex;gap:2px;';
-      MO.forEach(m=>{const l=document.createElement('div');l.style.cssText='flex:1;font-size:.44rem;color:var(--tx3);text-align:center;';l.textContent=m;ml.appendChild(l);});
-      lr.appendChild(sp);lr.appendChild(ml);
-      viz.appendChild(lr);
+      MO.forEach((m,i)=>{
+        const l=document.createElement('div');
+        l.style.cssText=`flex:1;font-size:.42rem;color:${i%2===0?'var(--tx3)':'transparent'};text-align:center;`;
+        l.textContent=m;
+        ml.appendChild(l);
+      });
+      lr.appendChild(sp);lr.appendChild(ml);viz.appendChild(lr);
     }
   } else {
-    const c=YC[curYM]||{line:'#b07030'};
     const vals=Array(12).fill(0);
     done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
     const maxV=Math.max(...vals,1);
     const isCurrentYear=curYM===now.getFullYear();
+    const curMo=now.getMonth(); // 0-based
     const barsWrap=document.createElement('div');
-    barsWrap.style.cssText='display:flex;align-items:flex-end;gap:3px;height:84px;';
+    barsWrap.style.cssText='display:flex;align-items:flex-end;gap:4px;height:130px;';
     MO.forEach((m,i)=>{
-      const isCurMo=isCurrentYear&&(i+1)===now.getMonth()+1;
+      const isCurMo=isCurrentYear&&i===curMo;
       const isMax=vals[i]===maxV&&maxV>0;
-      const barH=Math.max(vals[i]/maxV*62,vals[i]>0?3:0);
+      const barH=Math.max(vals[i]/maxV*108,vals[i]>0?4:0);
       const col=document.createElement('div');
-      col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default;';
-      const countEl=document.createElement('div');
-      countEl.style.cssText=`font-size:.5rem;line-height:1;color:${vals[i]>0?(isMax?c.line:'var(--tx3)'):'transparent'};font-weight:${isMax?'700':'400'};`;
-      countEl.textContent=vals[i]||'.';
+      col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:0;';
       const bar=document.createElement('div');
-      bar.style.cssText=`width:100%;height:${barH}px;background:${isCurMo?'var(--rust)':c.line};border-radius:2px 2px 0 0;opacity:${isMax||isCurMo?'1':'.45'};transition:opacity .15s;`;
+      bar.style.cssText=`width:100%;height:${barH}px;background:${(isMax||isCurMo)?BAR_HI:BAR_DARK};border-radius:2px 2px 0 0;`;
       bar.title=m+'월 '+vals[i]+'권';
       const base=document.createElement('div');
-      base.style.cssText='width:100%;height:1px;background:var(--border);';
+      base.style.cssText='width:100%;height:1px;background:var(--border);margin-bottom:4px;';
       const lbl=document.createElement('div');
-      lbl.style.cssText=`font-size:.5rem;color:${isCurMo?c.line:'var(--tx3)'};font-weight:${isCurMo?'600':'400'};`;
+      // 홀수 인덱스(짝수 월번호 2,4,6...)는 레이블 숨김 — 1,3,5,7,9,11만 표시
+      lbl.style.cssText=`font-size:.5rem;color:${(isMax||isCurMo)?BAR_HI:'var(--tx3)'};visibility:${i%2===0?'visible':'hidden'};`;
       lbl.textContent=m;
-      col.appendChild(countEl);col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
+      col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
       barsWrap.appendChild(col);
     });
     viz.appendChild(barsWrap);
   }
+
   const filtered=curYM==='all'?done:done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM);
   const total=filtered.length,cnt=Array(12).fill(0);
   filtered.forEach(b=>cnt[parseInt(b.date_finish.slice(5,7))-1]++);
@@ -3634,30 +3646,34 @@ function buildGenre() {
   done.forEach(b=>{const g=Array.isArray(b.genre)?b.genre[0]:(b.genre||'미분류');genreMap[g]=(genreMap[g]||0)+1;});
   const dl=document.getElementById('donut-layout');
   dl.innerHTML='';
-  dl.style.cssText='display:block;';
   if(!Object.keys(genreMap).length){dl.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
   const sorted=Object.entries(genreMap).sort((a,b)=>b[1]-a[1]);
   const total=sorted.reduce((a,[,v])=>a+v,0)||1;
   const maxV=sorted[0][1]||1;
+
+  // 섹션 레이블
+  const secLabel=document.createElement('div');
+  secLabel.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';
+  secLabel.textContent='장르 분포';
+  dl.appendChild(secLabel);
+
   sorted.forEach(([g,v],i)=>{
-    const pct=Math.round(v/total*100);
     const barW=Math.round(v/maxV*100);
     const col=GCOLS[i%GCOLS.length];
     const row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:1fr auto;align-items:center;gap:.6rem;margin-bottom:.55rem;';
-    const left=document.createElement('div');
-    left.innerHTML=`
-      <div style="display:flex;align-items:center;gap:.38rem;margin-bottom:.22rem;">
-        <div style="width:7px;height:7px;border-radius:1px;background:${col};flex-shrink:0;margin-top:1px;"></div>
-        <span style="font-size:.67rem;color:var(--tx1);font-weight:500;">${g}</span>
-      </div>
-      <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;">
-        <div style="width:${barW}%;height:100%;background:${col};border-radius:3px;transition:width .5s ease;"></div>
-      </div>`;
-    const right=document.createElement('div');
-    right.style.cssText='text-align:right;flex-shrink:0;min-width:36px;';
-    right.innerHTML=`<div style="font-family:var(--fs);font-style:italic;font-size:.82rem;color:var(--tx1);line-height:1;">${v}</div><div style="font-size:.48rem;color:var(--tx3);letter-spacing:.04em;margin-top:.05rem;">${pct}%</div>`;
-    row.appendChild(left);row.appendChild(right);
+    row.style.cssText='display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:.65rem;margin-bottom:.55rem;';
+    const name=document.createElement('div');
+    name.style.cssText='font-size:.7rem;color:var(--tx1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    name.textContent=g;
+    const barWrap=document.createElement('div');
+    barWrap.style.cssText='height:8px;background:var(--bg);border-radius:2px;overflow:hidden;';
+    const barFill=document.createElement('div');
+    barFill.style.cssText=`height:100%;width:${barW}%;background:${col};border-radius:2px;transition:width .5s ease;`;
+    barWrap.appendChild(barFill);
+    const count=document.createElement('div');
+    count.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.85rem;color:var(--tx1);min-width:20px;text-align:right;`;
+    count.textContent=v;
+    row.appendChild(name);row.appendChild(barWrap);row.appendChild(count);
     dl.appendChild(row);
   });
   document.getElementById('genre-stat').innerHTML=`<div class="si"><span class="sn">${total}</span><span class="sl">총 완독</span></div><div class="si"><span class="sn">${sorted.length}</span><span class="sl">장르 수</span></div>`;
@@ -3671,6 +3687,11 @@ function buildRating() {
   const maxD=Math.max(...dist)||1,avg=total>0?(filtered.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(2):'—';
   const stars=s=>'★'.repeat(s)+'☆'.repeat(5-s);
   const layout=document.getElementById('rating-layout');layout.innerHTML='';
+  // 섹션 레이블
+  const rSecLabel=document.createElement('div');
+  rSecLabel.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;width:100%;';
+  rSecLabel.textContent='평점 분포';
+  layout.appendChild(rSecLabel);
   const barsEl=document.createElement('div');barsEl.className='rating-bars';
   [5,4,3,2,1].forEach((s,i)=>{
     const cnt=dist[i],pct=total>0?Math.round(cnt/total*100):0,wpct=Math.round(cnt/maxD*100);const inside=wpct>=22;
@@ -3704,6 +3725,12 @@ function buildAuthorChart() {
   const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]||((authorRating[b[0]]||0)-(authorRating[a[0]]||0)));
   const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
   if(!aSorted.length){wrap.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독한 책이 없어요.</div>';return;}
+
+  // 섹션 레이블
+  const authorSecLabel=document.createElement('div');
+  authorSecLabel.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';
+  authorSecLabel.textContent='작가 · 출판사';
+  wrap.appendChild(authorSecLabel);
 
   // ─ 명예의 전당
   const hallEl=document.createElement('div');
@@ -3808,11 +3835,15 @@ function buildPagesChart() {
     });
   }
 
-  const canvas = document.getElementById('chart-pages');
-  canvas.style.display = 'none';
-  let viz = document.getElementById('pages-viz');
-  if(!viz){viz=document.createElement('div');viz.id='pages-viz';canvas.insertAdjacentElement('afterend',viz);}
+  const viz = document.getElementById('pages-viz');
   viz.innerHTML = '';
+  const BAR_DARK='#3a2a1a', BAR_HI='#c4714a';
+
+  // 섹션 레이블
+  const secLabel=document.createElement('div');
+  secLabel.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';
+  secLabel.textContent='페이지 기록';
+  viz.appendChild(secLabel);
 
   let labels, vals, bookCounts;
   if(curPY === 'all') {
@@ -3822,7 +3853,7 @@ function buildPagesChart() {
     bookCounts = YEARS.map(y=>done.filter(b=>b.date_finish.startsWith(y)).length);
   } else {
     const yr = String(curPY);
-    labels = ['1','2','3','4','5','6','7','8','9','10','11','12'].map(m=>m+'월');
+    labels = ['1','2','3','4','5','6','7','8','9','10','11','12'];
     vals = Array.from({length:12},(_,i)=>{
       const mk=yr+'-'+String(i+1).padStart(2,'0');
       return done.filter(b=>b.date_finish.startsWith(mk)).reduce((a,b)=>a+(b.pages||0),0);
@@ -3834,28 +3865,25 @@ function buildPagesChart() {
   }
 
   const maxV = Math.max(...vals, 1);
-  const c = curPY==='all' ? {line:'#b07030'} : (YC[curPY]||{line:'#b07030'});
+  const isMonthly = curPY !== 'all';
   const barsWrap = document.createElement('div');
-  barsWrap.style.cssText = 'display:flex;align-items:flex-end;gap:3px;height:84px;';
+  barsWrap.style.cssText = `display:flex;align-items:flex-end;gap:${isMonthly?'4':'8'}px;height:130px;`;
 
   labels.forEach((lbl,i)=>{
     const isMax = vals[i]===maxV&&maxV>0;
-    const barH = Math.max(vals[i]/maxV*62, vals[i]>0?3:0);
-    const kVal = vals[i]>=1000 ? Math.round(vals[i]/100)/10+'k' : (vals[i]||'');
+    const barH = Math.max(vals[i]/maxV*108, vals[i]>0?4:0);
     const col = document.createElement('div');
-    col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default;';
-    const countEl = document.createElement('div');
-    countEl.style.cssText = `font-size:.42rem;line-height:1;color:${vals[i]>0?(isMax?c.line:'var(--tx3)'):'transparent'};font-weight:${isMax?'700':'400'};`;
-    countEl.textContent = kVal||'.';
+    col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;';
     const bar = document.createElement('div');
-    bar.style.cssText = `width:100%;height:${barH}px;background:${c.line};border-radius:2px 2px 0 0;opacity:${isMax?'1':'.45'};`;
+    bar.style.cssText = `width:100%;height:${barH}px;background:${isMax?BAR_HI:BAR_DARK};border-radius:2px 2px 0 0;`;
     bar.title = lbl+' '+vals[i].toLocaleString()+'p'+(bookCounts[i]?' ('+bookCounts[i]+'권)':'');
     const base = document.createElement('div');
-    base.style.cssText = 'width:100%;height:1px;background:var(--border);';
+    base.style.cssText = 'width:100%;height:1px;background:var(--border);margin-bottom:4px;';
     const label = document.createElement('div');
-    label.style.cssText = 'font-size:.44rem;color:var(--tx3);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;';
+    const showLabel = isMonthly ? i%2===0 : true;
+    label.style.cssText = `font-size:.5rem;color:${isMax?BAR_HI:'var(--tx3)'};text-align:center;visibility:${showLabel?'visible':'hidden'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;`;
     label.textContent = lbl;
-    col.appendChild(countEl);col.appendChild(bar);col.appendChild(base);col.appendChild(label);
+    col.appendChild(bar);col.appendChild(base);col.appendChild(label);
     barsWrap.appendChild(col);
   });
   viz.appendChild(barsWrap);
