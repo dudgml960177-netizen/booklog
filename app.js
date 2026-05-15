@@ -1265,8 +1265,8 @@ function renderQuotes() {
             </div>
           </div>
           <div style="display:flex;gap:.2rem;flex-shrink:0;">
-            ${qt.page ? `<span class="qcard-chip">p.${qt.page}</span>` : ''}
-            ${qt.tag ? `<span class="qcard-chip qcard-tag">${qt.tag}</span>` : ''}
+            ${qt.page&&String(qt.page)!=='null' ? `<span class="qcard-chip">p.${qt.page}</span>` : ''}
+            ${qt.tag&&String(qt.tag)!=='null' ? `<span class="qcard-chip qcard-tag">${qt.tag}</span>` : ''}
           </div>
         </div>
       </div>`;
@@ -1311,7 +1311,8 @@ function openEditQuote(qt) {
           style="border-radius:0 0 6px 6px;margin-bottom:.45rem;min-height:80px;">${
           (()=>{
             const t = qt.text||'';
-            if(/<[a-z]/i.test(t)) {
+            const hasHtml = /<[a-z]/i.test(t);
+            if(hasHtml) {
               return t
                 .replace(/<div><br\s*\/?><\/div>/gi,'<br>')
                 .replace(/<\/div>\s*<div>/gi,'<br>')
@@ -1323,7 +1324,8 @@ function openEditQuote(qt) {
                 .replace(/^(<br\s*\/?>\s*)+/,'')
                 .replace(/(<br\s*\/?>\s*)+$/,'');
             }
-            return /<[a-z]/i.test(t) ? t.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'<br>').replace(/<\/div>/gi,'').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\\n/g,'<br>').replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>').replace(/^(<br\s*\/?>\s*)+/,'').replace(/(<br\s*\/?>\s*)+$/,'') : t.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\\n/g,'<br>');
+            // 일반 텍스트: 줄바꿈→<br>, 특수문자 이스케이프
+            return t.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\n/g,'<br>');
           })()
         }</div>
         <div style="display:flex;gap:.35rem;margin-bottom:.6rem;">
@@ -1703,9 +1705,22 @@ function renderCal() {
       // 형광펜 바 (타이머·독서 기록 있는 날)
       if(hasActivity){
         el.style.position='relative';
+        // 어떤 책들이 해당 날짜에 읽혔는지 확인
+        const activeBks=allBooks.filter(bk=>bk.date_finish!==ds&&(bk.reading_time_log?.[ds]||0)>0);
+        const barColor=activeBks.length>0?GCOLS[allBooks.indexOf(activeBks[0])%GCOLS.length]:'#c4714a';
+        if(activeBks.length>0){
+          el.title=activeBks.map(bk=>bk.title+(bk.author?' · '+bk.author.split(/[,·]/)[0].trim():'')).join('\n');
+        }
         const bar=document.createElement('div');
-        bar.style.cssText='position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--rust);opacity:.45;border-radius:0 0 3px 3px;';
+        bar.style.cssText=`position:absolute;bottom:0;left:0;right:0;height:5px;background:${barColor};opacity:.62;border-radius:0 0 3px 3px;`;
         el.appendChild(bar);
+        // 2권 이상이면 보조 바
+        if(activeBks.length>1){
+          const bar2=document.createElement('div');
+          const col2=GCOLS[allBooks.indexOf(activeBks[1])%GCOLS.length];
+          bar2.style.cssText=`position:absolute;bottom:0;left:0;width:40%;height:5px;background:${col2};opacity:.55;border-radius:0 0 0 3px;`;
+          el.appendChild(bar2);
+        }
       }
       // 퀘스트 달성 뱃지
       if(questAch.length>0){
@@ -1810,7 +1825,9 @@ function buildWeeklyStats() {
       ${days.map(d=>{
         const h=d.mins?Math.max(d.mins/maxM*34,3):0;
         const isTd=d.ds===todayStr;
-        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;"><div style="width:100%;height:${h}px;background:${isTd?'var(--rust)':'var(--tx1)'};opacity:${isTd?'1':'.45'};border-radius:2px 2px 0 0;"></div></div>`;
+        const WEEK_COLS=['#6b8f6b','#5a7a8a','#c4a87a','#7a5a8a','#c4714a','#3a6858','#c87850'];
+        const barCol=isTd?'#c4714a':WEEK_COLS[d.dow];
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;" title="${d.mins?d.mins+'분':''}"><div style="width:100%;height:${h}px;background:${barCol};opacity:${isTd?'1':d.mins?'.75':'.18'};border-radius:2px 2px 0 0;transition:opacity .2s;"></div></div>`;
       }).join('')}
     </div>
     <div style="display:flex;gap:2px;">
@@ -4642,10 +4659,12 @@ function openDetail(bookId) {
     let txt=q.text||'';
     if(hasHtml){txt=txt.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'<br>').replace(/<\/div>/gi,'').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\n/g,'<br>').replace(/(<br\s*\/?>[\s]*){3,}/gi,'<br><br>').replace(/^(<br\s*\/?>\s*)+/,'').replace(/(<br\s*\/?>\s*)+$/,'');}
     else{txt=txt.replace(/&(?!amp;|lt;|gt;)/g,'&amp;').replace(/\n/g,'<br>');}
-    html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="border-bottom:2px solid ${color};padding:.38rem 0 .48rem;margin-bottom:.32rem;cursor:pointer;position:relative;" onmouseenter="this.querySelector('.q-eh').style.opacity='1'" onmouseleave="this.querySelector('.q-eh').style.opacity='0'">
+    const qp=q.page&&String(q.page)!=='null'?q.page:null;
+    const qt_=q.tag&&String(q.tag)!=='null'?q.tag:null;
+    html+=`<div onclick="openEditQuote(${JSON.stringify(q).replace(/"/g,'&quot;')})" style="border-left:3px solid ${color};padding:.38rem 0 .48rem .65rem;margin-bottom:.38rem;cursor:pointer;position:relative;" onmouseenter="this.querySelector('.q-eh').style.opacity='1'" onmouseleave="this.querySelector('.q-eh').style.opacity='0'">
       <span class="q-eh" style="position:absolute;top:.3rem;right:0;font-size:.52rem;color:var(--tx3);opacity:0;transition:opacity .13s;">✏️</span>
-      <div style="font-size:.7rem;font-family:var(--ff-disp);font-style:italic;line-height:1.78;color:var(--tx1);padding-right:1rem;">${txt}</div>
-      ${(q.page||q.tag)?`<div style="display:flex;gap:.22rem;margin-top:.28rem;flex-wrap:wrap;">${q.page?`<span style="font-size:.53rem;color:var(--tx3);">p.${q.page}</span>`:''}${q.tag?`<span style="font-size:.53rem;color:var(--acc2);">#${q.tag}</span>`:''}</div>`:''}
+      <div style="font-size:.7rem;font-family:var(--ff-disp);font-style:normal;line-height:1.78;color:var(--tx1);padding-right:1rem;">${txt}</div>
+      ${(qp||qt_)?`<div style="display:flex;gap:.22rem;margin-top:.28rem;flex-wrap:wrap;">${qp?`<span style="font-size:.53rem;color:var(--tx3);">p.${qp}</span>`:''}${qt_?`<span style="font-size:.53rem;color:var(--acc2);">#${qt_}</span>`:''}</div>`:''}
     </div>`;
   });
   if(!quotes.length) html+=`<div style="font-size:.68rem;color:var(--tx3);text-align:center;padding:.65rem 0;font-style:italic;">아직 수집된 문장이 없어요.</div>`;
