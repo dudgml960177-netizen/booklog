@@ -69,14 +69,16 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .row-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;}
 .empty-state{text-align:center;color:var(--tx3);font-size:.8rem;line-height:1.8;padding:3rem 1rem;grid-column:1/-1;}
 /* 서재 툴바 */
-.books-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;gap:.5rem;flex-wrap:wrap;}
-.filter-row{display:flex;gap:.35rem;flex-wrap:wrap;}
-.filter-btn{font-size:.67rem;padding:.2rem .6rem;border:1px solid var(--border2);border-radius:3px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;}
+.books-toolbar{display:block;margin-bottom:.8rem;}
+.lib-toolbar-row{display:flex;align-items:center;gap:.5rem;margin-bottom:16px;}
+.filter-row{display:flex;gap:10px;align-items:baseline;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-btn{font-size:.67rem;padding:.2rem .6rem;border:1px solid var(--border2);border-radius:3px;cursor:pointer;background:none;color:var(--tx3);font-family:var(--ff);transition:all .13s;white-space:nowrap;flex-shrink:0;}
 .filter-btn.on{background:var(--acc);color:#fff;border-color:var(--acc);}
-.toolbar-right{display:flex;gap:.3rem;align-items:center;}
+.toolbar-right{display:flex;gap:.3rem;align-items:center;flex-shrink:0;}
 .view-btn{width:30px;height:30px;border:1px solid var(--border2);border-radius:var(--rs);background:none;font-size:.95rem;cursor:pointer;color:var(--tx3);transition:all .13s;display:flex;align-items:center;justify-content:center;}
 .view-btn.on{background:var(--acc);color:#fff;border-color:var(--acc);}
-.cat-btn{height:30px;padding:0 .7rem;border:1px solid var(--border2);border-radius:var(--rs);background:none;font-size:.72rem;cursor:pointer;color:var(--tx2);font-family:var(--ff);white-space:nowrap;}
+.cat-btn{height:30px;padding:0 .65rem;border:1px solid var(--border2);border-radius:var(--rs);background:none;font-size:.72rem;cursor:pointer;color:var(--tx2);font-family:var(--ff);white-space:nowrap;}
 .cat-btn:hover{background:#ede4d0;}
 /* 갤러리 */
 .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;}
@@ -382,12 +384,30 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .profile-name{font-family:var(--fs);font-size:1.15rem;color:var(--tx1);text-align:center;margin-bottom:.18rem;}
 .profile-email{font-size:.72rem;color:var(--tx3);text-align:center;}
 /* 반응형 */
+@media(max-width:480px){
+  /* 헤더 */
+  .header-inner{padding:.5rem .85rem;}
+  .header-btn{width:27px;height:27px;font-size:.9rem;}
+  .header-actions{gap:.2rem;}
+  /* 메인 패딩 */
+  .app-main{padding:.85rem .85rem;}
+  /* 서재 툴바 — 2줄 레이아웃 */
+  .lib-toolbar-row{flex-wrap:wrap;gap:.35rem;margin-bottom:12px;}
+  .filter-row{flex:0 0 100%;gap:6px;order:1;}
+  .toolbar-right{width:100%;justify-content:flex-end;order:2;gap:.2rem;}
+  .cat-btn{padding:0 .45rem;font-size:.65rem;height:27px;}
+  .view-btn{width:27px;height:27px;font-size:.85rem;}
+  /* 정렬 select */
+  #sort-select{font-size:.62rem;padding:.15rem .3rem;max-width:70px;}
+}
 @media(max-width:360px){
   .gallery{grid-template-columns:repeat(3,1fr);}
   .ms-grid{grid-template-columns:repeat(2,1fr);}
   .form-row{grid-template-columns:1fr;}
   .timer-top{flex-direction:column;}
   .timer-clock-wrap{align-items:flex-start;}
+  .header-actions{gap:.15rem;}
+  .header-btn{width:25px;height:25px;font-size:.8rem;}
 }
 
 /* ── 기록 탭 (달력 + 타이머 통합) ── */
