@@ -426,9 +426,7 @@
           <div class="gtabs">
             <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
             <button class="gst" onclick="showGraph('genre',this)">장르</button>
-            <button class="gst" onclick="showGraph('rating',this)">평점</button>
-            <button class="gst" onclick="showGraph('author',this)">작가</button>
-            <button class="gst" onclick="showGraph('pages',this)">페이지</button>
+            <button class="gst" onclick="showGraph('rating',this)">평점·작가</button>
           </div>
           <div id="g-monthly" style="padding-top:.7rem;">
             <div class="yr-row" id="yr-row-m"></div>
@@ -443,15 +441,6 @@
           <div id="g-rating" style="display:none;padding-top:.7rem;">
             <div class="yr-row" id="yr-row-r"></div>
             <div class="rating-layout" id="rating-layout"></div>
-          </div>
-          <div id="g-author" style="display:none;padding-top:.7rem;">
-            <div id="author-chart-wrap"></div>
-          </div>
-          <div id="g-pages" style="display:none;padding-top:.7rem;">
-            <div class="yr-row" id="yr-row-pages"></div>
-            <canvas id="chart-pages" style="display:none;"></canvas>
-            <div id="pages-viz"></div>
-            <div class="stat-row" id="pages-stat"></div>
           </div>
         </div>
 
@@ -1110,6 +1099,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=502"></script>
+<script src="app.js?v=503"></script>
 </body>
 </html>

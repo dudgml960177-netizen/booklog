@@ -3732,7 +3732,7 @@ function buildStats() {
 
 function showGraph(name, btn) {
   if(btn){document.querySelectorAll('.gst').forEach(t=>t.classList.remove('on'));btn.classList.add('on');}
-  ['monthly','genre','rating','author','pages'].forEach(n=>document.getElementById('g-'+n).style.display=n===name?'':'none');
+  ['monthly','genre','rating'].forEach(n=>document.getElementById('g-'+n).style.display=n===name?'':'none');
   // Chart.js 기본값을 앱 디자인에 맞게 설정
   if(window.Chart) {
     Chart.defaults.color = '#a08c72';
@@ -3749,9 +3749,7 @@ function showGraph(name, btn) {
   }
   if(name==='monthly') buildMonthly();
   if(name==='genre')   buildGenre();
-  if(name==='rating')  buildRating();
-  if(name==='author')  buildAuthorChart();
-  if(name==='pages')   buildPagesChart();
+  if(name==='rating')  buildRatingAuthor();
 }
 
 function buildYrRow(elId, curYr, onChange) {
@@ -3872,7 +3870,69 @@ function buildMonthly() {
       col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
       barsWrap.appendChild(col);
     });
-    viz.appendChild(barsWrap);
+    // ── pages SVG overlay
+    const pagesDoneRaw = allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
+    const pageValsM = Array(12).fill(0);
+    pagesDoneRaw.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM)
+      .forEach(b=>pageValsM[parseInt(b.date_finish.slice(5,7))-1]+=(b.pages||0));
+    const hasPages = pageValsM.some(v=>v>0);
+    const wrapper=document.createElement('div');
+    wrapper.style.cssText='position:relative;';
+    wrapper.appendChild(barsWrap);
+    viz.appendChild(wrapper);
+    if(hasPages) {
+      const maxPM=Math.max(...pageValsM,1);
+      const svgNS='http://www.w3.org/2000/svg';
+      const svg=document.createElementNS(svgNS,'svg');
+      svg.setAttribute('viewBox','0 0 120 108');
+      svg.setAttribute('preserveAspectRatio','none');
+      svg.style.cssText='position:absolute;top:0;left:0;width:100%;height:108px;pointer-events:none;overflow:visible;';
+      // smooth bezier path
+      const pts=pageValsM.map((v,i)=>({x:i*10+5,y:v>0?8+92*(1-v/maxPM):null,v}));
+      let pathD=''; let prevPt=null;
+      pts.forEach(pt=>{
+        if(pt.y!==null){
+          if(!prevPt){pathD+=`M ${pt.x} ${pt.y}`;}
+          else{const cpx=(prevPt.x+pt.x)/2;pathD+=` C ${cpx} ${prevPt.y},${cpx} ${pt.y},${pt.x} ${pt.y}`;}
+          prevPt=pt;
+        } else { prevPt=null; }
+      });
+      if(pathD.length>1){
+        const path=document.createElementNS(svgNS,'path');
+        path.setAttribute('d',pathD);
+        path.setAttribute('fill','none');
+        path.setAttribute('stroke','#5a7a8a');
+        path.setAttribute('stroke-width','1.5');
+        path.setAttribute('stroke-dasharray','3 2');
+        path.setAttribute('opacity','0.72');
+        svg.appendChild(path);
+      }
+      pts.forEach(pt=>{
+        if(pt.y!==null){
+          const dot=document.createElementNS(svgNS,'circle');
+          dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
+          dot.setAttribute('r','2.8');dot.setAttribute('fill','#5a7a8a');
+          dot.setAttribute('opacity','0.85');
+          // invisible wider hit area for tooltip
+          const hit=document.createElementNS(svgNS,'circle');
+          hit.setAttribute('cx',pt.x);hit.setAttribute('cy',pt.y);
+          hit.setAttribute('r','8');hit.setAttribute('fill','transparent');
+          hit.setAttribute('style','pointer-events:all;cursor:default;');
+          const mo=parseInt(pt.x/10);
+          const pTip=`${curYM}년 ${MO[mo]}월<br><b>${pageValsM[mo].toLocaleString()}p</b>`;
+          hit.addEventListener('mouseenter',e=>{svg.style.pointerEvents='none';showTip(e,pTip);});
+          hit.addEventListener('mousemove',moveTip);
+          hit.addEventListener('mouseleave',hideTip);
+          svg.appendChild(dot);svg.appendChild(hit);
+        }
+      });
+      wrapper.appendChild(svg);
+      // legend
+      const leg=document.createElement('div');
+      leg.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.35rem;font-size:.55rem;color:var(--tx3);';
+      leg.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:12px;height:4px;background:${c.line};border-radius:2px;opacity:.7;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.3rem;"><svg width="10" height="10" style="overflow:visible;"><circle cx="5" cy="5" r="2.8" fill="#5a7a8a" opacity=".85"/></svg>페이지 수</span>`;
+      viz.appendChild(leg);
+    }
   }
 
   const filtered=curYM==='all'?done:done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM);
@@ -3961,6 +4021,105 @@ function buildRating() {
   const distEl=document.createElement('div');distEl.className='rs-dist';
   [5,4,3,2,1].forEach((s,i)=>{const r=document.createElement('div');r.className='rs-star-row';r.innerHTML=`<span class="rs-star" style="font-size:10px;">${'★'.repeat(s)}</span><div class="rs-mini"><div class="rs-mini-fill" style="width:${Math.round(dist[i]/maxD*100)}%;background:${RCOLS[i]}"></div></div>`;distEl.appendChild(r);});
   sumEl.appendChild(distEl);layout.appendChild(sumEl);
+}
+
+function buildRatingAuthor() {
+  buildYrRow('yr-row-r',curYR,yr=>{curYR=yr;buildRatingAuthor();});
+  const done=allBooks.filter(b=>b.status==='완독');
+  const filtered=curYR==='all'?done:done.filter(b=>parseInt(b.date_finish?.slice(0,4))===curYR);
+  const total=filtered.length;
+  const layout=document.getElementById('rating-layout');
+  layout.innerHTML='';
+  if(!total){layout.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
+
+  // ── 평점 분포
+  const secLbl=document.createElement('div');
+  secLbl.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';
+  secLbl.textContent='평점 분포';layout.appendChild(secLbl);
+  const dist=[5,4,3,2,1].map(s=>filtered.filter(b=>b.rating===s).length);
+  const maxD=Math.max(...dist)||1;
+  const avg=total>0?(filtered.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(2):'—';
+  const stars=s=>'★'.repeat(s)+'☆'.repeat(5-s);
+  const rFlex=document.createElement('div');rFlex.className='rating-layout';rFlex.style.marginBottom='1.2rem';
+  const sumEl=document.createElement('div');sumEl.className='rating-summary';
+  sumEl.innerHTML=`<div class="rs-avg">${avg}</div><div class="rs-lbl">평균 평점</div>`;
+  const distEl=document.createElement('div');distEl.className='rs-dist';
+  [5,4,3,2,1].forEach((s,i)=>{const r=document.createElement('div');r.className='rs-star-row';r.innerHTML=`<span class="rs-star" style="font-size:10px;">${'★'.repeat(s)}</span><div class="rs-mini"><div class="rs-mini-fill" style="width:${Math.round(dist[i]/maxD*100)}%;background:${RCOLS[i]}"></div></div>`;distEl.appendChild(r);});
+  sumEl.appendChild(distEl);
+  const barsEl=document.createElement('div');barsEl.className='rating-bars';
+  [5,4,3,2,1].forEach((s,i)=>{
+    const cnt=dist[i],pct=total>0?Math.round(cnt/total*100):0,wpct=Math.round(cnt/maxD*100);const inside=wpct>=22;
+    const row=document.createElement('div');row.className='rbar-row';
+    row.innerHTML=`<span class="rbar-label">${stars(s)}</span><div class="rbar-outer"><div class="rbar-fill" style="width:${wpct}%;background:${RCOLS[i]}">${inside?`<span class="rbar-val">${cnt}권</span>`:''}</div>${!inside&&cnt>0?`<span class="rbar-val-out" style="left:${wpct}%;">${cnt}권</span>`:''}</div><span style="font-size:.62rem;color:var(--tx3);min-width:24px;text-align:right;">${pct}%</span>`;
+    const rTip=`${stars(s)}<br><b>${cnt}권</b> · ${pct}%`;
+    row.addEventListener('mouseenter',e=>showTip(e,rTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
+    barsEl.appendChild(row);
+  });
+  rFlex.appendChild(sumEl);rFlex.appendChild(barsEl);layout.appendChild(rFlex);
+
+  // ── 작가 · 출판사 구분선
+  const div1=document.createElement('div');div1.style.cssText='border-top:1px solid var(--border);margin-bottom:.9rem;';layout.appendChild(div1);
+  const aLbl=document.createElement('div');aLbl.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';aLbl.textContent='작가 · 출판사';layout.appendChild(aLbl);
+
+  // build maps
+  const authorMap={},pubMap={},authorRating={},pubRating={};
+  filtered.forEach(b=>{
+    if(b.author){authorMap[b.author]=(authorMap[b.author]||0)+1;authorRating[b.author]=(authorRating[b.author]||0)+(b.rating||0);}
+    if(b.publisher){pubMap[b.publisher]=(pubMap[b.publisher]||0)+1;pubRating[b.publisher]=(pubRating[b.publisher]||0)+(b.rating||0);}
+  });
+  const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]||((authorRating[b[0]]||0)-(authorRating[a[0]]||0)));
+  const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
+  if(!aSorted.length){layout.innerHTML+='<div style="font-size:.75rem;color:var(--tx3);">작가 정보가 없어요.</div>';return;}
+
+  // 명예의 전당
+  const topA=aSorted[0],topP=pSorted[0];
+  const hallEl=document.createElement('div');hallEl.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem;';
+  hallEl.innerHTML=`<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .8rem;text-align:center;"><div style="font-size:.52rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.3rem;">최애 작가</div><div style="font-family:var(--fs);font-size:.95rem;font-style:italic;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topA[0]}">${topA[0]}</div><div style="font-size:.62rem;color:var(--rust);margin-top:.18rem;">${topA[1]}권 완독</div></div><div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .8rem;text-align:center;"><div style="font-size:.52rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.3rem;">최애 출판사</div><div style="font-family:var(--fs);font-size:.95rem;font-style:italic;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topP?topP[0]:'—'}">${topP?topP[0]:'—'}</div><div style="font-size:.62rem;color:var(--rust);margin-top:.18rem;">${topP?topP[1]+'권 완독':''}</div></div>`;
+  layout.appendChild(hallEl);
+
+  // 작가 목록
+  const h1=document.createElement('div');h1.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h1.textContent='작가별 독서';layout.appendChild(h1);
+  const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
+  const aList=authorExpanded?aSorted:aSorted.slice(0,5);const maxA=aSorted[0][1];
+  aList.forEach(([name,cnt],i)=>{
+    const pct=Math.round(cnt/maxA*100);const bg=AUTHOR_COLS[i%AUTHOR_COLS.length];
+    const avgR=authorRating[name]?(authorRating[name]/cnt).toFixed(1):null;
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:20px minmax(0,80px) 1fr auto;align-items:center;gap:.45rem;margin-bottom:.42rem;';
+    const rankEl=document.createElement('div');
+    rankEl.style.cssText=`width:18px;height:18px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
+    rankEl.innerHTML=`<span style="font-size:.55rem;font-weight:700;color:#fff;line-height:1;">${i+1}</span>`;
+    const nameEl=document.createElement('div');nameEl.style.cssText='font-size:.7rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';nameEl.title=name;nameEl.textContent=name;
+    const barOuter=document.createElement('div');barOuter.style.cssText='height:10px;background:var(--bg);border-radius:3px;overflow:hidden;';
+    barOuter.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};opacity:.7;border-radius:3px;"></div>`;
+    const countEl=document.createElement('div');countEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.82rem;color:${bg};min-width:24px;text-align:right;`;countEl.textContent=cnt;
+    const aTip=`${name}<br><b>${cnt}권</b> 완독${avgR?' · ★ '+avgR:''}`;
+    row.addEventListener('mouseenter',e=>showTip(e,aTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
+    row.appendChild(rankEl);row.appendChild(nameEl);row.appendChild(barOuter);row.appendChild(countEl);
+    layout.appendChild(row);
+  });
+  if(aSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.2rem;margin-bottom:.8rem;';btn.textContent=authorExpanded?'접기 ▲':`+${aSorted.length-5}명 더 보기`;btn.onclick=()=>{authorExpanded=!authorExpanded;buildRatingAuthor();};layout.appendChild(btn);}
+
+  // 출판사 목록
+  if(!pSorted.length)return;
+  const div2=document.createElement('div');div2.style.cssText='border-top:1px solid var(--border);margin:.6rem 0 .8rem;';layout.appendChild(div2);
+  const h2=document.createElement('div');h2.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h2.textContent='출판사별 독서';layout.appendChild(h2);
+  const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
+  const pList=pubExpanded?pSorted:pSorted.slice(0,5);const maxP=pSorted[0][1];
+  pList.forEach(([name,cnt],i)=>{
+    const pct=Math.round(cnt/maxP*100);const bg=PCOLS[i%PCOLS.length];
+    const row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:20px minmax(0,80px) 1fr auto;align-items:center;gap:.45rem;margin-bottom:.42rem;';
+    const rankEl=document.createElement('div');rankEl.style.cssText=`width:18px;height:18px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;rankEl.innerHTML=`<span style="font-size:.55rem;font-weight:700;color:#fff;line-height:1;">${i+1}</span>`;
+    const nameEl=document.createElement('div');nameEl.style.cssText='font-size:.7rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';nameEl.title=name;nameEl.textContent=name;
+    const barOuter=document.createElement('div');barOuter.style.cssText='height:10px;background:var(--bg);border-radius:3px;overflow:hidden;';barOuter.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};opacity:.7;border-radius:3px;"></div>`;
+    const countEl=document.createElement('div');countEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.82rem;color:${bg};min-width:24px;text-align:right;`;countEl.textContent=cnt;
+    const pTip=`${name}<br><b>${cnt}권</b> 완독`;
+    row.addEventListener('mouseenter',e=>showTip(e,pTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
+    row.appendChild(rankEl);row.appendChild(nameEl);row.appendChild(barOuter);row.appendChild(countEl);
+    layout.appendChild(row);
+  });
+  if(pSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.marginTop='.2rem';btn.textContent=pubExpanded?'접기 ▲':`+${pSorted.length-5}개 더 보기`;btn.onclick=()=>{pubExpanded=!pubExpanded;buildRatingAuthor();};layout.appendChild(btn);}
 }
 
 let authorExpanded=false, pubExpanded=false;
