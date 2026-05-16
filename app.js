@@ -3952,7 +3952,8 @@ function buildMonthly() {
         svg.appendChild(lp);
       });
     }
-    // ── 히트 영역 (툴팁, 맨 위)
+    // ── 히트 영역 (툴팁, 맨 위) — 첫 번째 hit 참조 저장
+    let firstHitRef=null;
     MO.forEach((m,i)=>{
       const hit=document.createElementNS(svgNS,'rect');
       hit.setAttribute('x',i*SLOT);hit.setAttribute('y','0');hit.setAttribute('width',SLOT);hit.setAttribute('height',H);
@@ -3962,22 +3963,38 @@ function buildMonthly() {
       hit.addEventListener('mouseenter',e=>showTip(e,tip));
       hit.addEventListener('mousemove',moveTip);
       hit.addEventListener('mouseleave',hideTip);
+      if(i===0)firstHitRef=hit;
       svg.appendChild(hit);
     });
-    // ── SVG + HTML 점 오버레이 (완벽한 원형 위해 HTML 사용)
+    // ── SVG를 래퍼에 삽입
     const chartOuter=document.createElement('div');
     chartOuter.style.cssText=`position:relative;height:${H}px;`;
-    svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;position:absolute;top:0;left:0;`;
+    svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;`;
     chartOuter.appendChild(svg);
+    viz.appendChild(chartOuter);
+    // ── 점: rAF로 실제 너비 측정 후 타원→정원 보정
     if(hasPg){
-      pageValsM.forEach((v,i)=>{
-        if(v===0)return;
-        const dot=document.createElement('div');
-        dot.style.cssText=`position:absolute;width:6px;height:6px;border-radius:50%;background:${c.line};opacity:.85;pointer-events:none;box-shadow:0 0 0 1.5px var(--card);transform:translate(-50%,-50%);left:${(i*SLOT+SLOT/2)/W*100}%;top:${(1-v/maxPM)*100}%;`;
-        chartOuter.appendChild(dot);
+      requestAnimationFrame(()=>{
+        const xScale=Math.max(chartOuter.getBoundingClientRect().width/W,0.01);
+        const DR=2.8; // 화면상 반지름(px)
+        pageValsM.forEach((v,i)=>{
+          if(v===0)return;
+          const cx=i*SLOT+SLOT/2,cy=H-v/maxPM*H;
+          // 배경 후광 (바 위에서도 선명하게 보이도록)
+          const halo=document.createElementNS(svgNS,'ellipse');
+          halo.setAttribute('cx',cx);halo.setAttribute('cy',cy);
+          halo.setAttribute('rx',(DR+1.5)/xScale);halo.setAttribute('ry',DR+1.5);
+          halo.setAttribute('fill','var(--card)');halo.setAttribute('opacity','.85');
+          if(firstHitRef)svg.insertBefore(halo,firstHitRef);else svg.appendChild(halo);
+          // 점
+          const dot=document.createElementNS(svgNS,'ellipse');
+          dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
+          dot.setAttribute('rx',DR/xScale);dot.setAttribute('ry',DR);
+          dot.setAttribute('fill',c.line);dot.setAttribute('opacity','.92');
+          if(firstHitRef)svg.insertBefore(dot,firstHitRef);else svg.appendChild(dot);
+        });
       });
     }
-    viz.appendChild(chartOuter);
     // ── 월 레이블 (HTML)
     const lblRow=document.createElement('div');
     lblRow.style.cssText='display:flex;margin-top:3px;';
