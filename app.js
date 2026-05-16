@@ -3892,7 +3892,7 @@ function buildMonthly() {
       }
     }
   } else {
-    // ── 단일 연도 — 완독 + 페이지 통합 바 차트
+    // ── 단일 연도 — 완독 바 + 페이지 면적 통합 차트 (SVG)
     const c=YC[curYM]||{line:'#8a7060'};
     const vals=Array(12).fill(0);
     done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
@@ -3904,65 +3904,91 @@ function buildMonthly() {
     const hasPg=pageValsM.some(v=>v>0);
     const isCurrentYear=curYM===now.getFullYear();
     const curMo=now.getMonth();
-    const barsWrap=document.createElement('div');
-    barsWrap.style.cssText='display:flex;align-items:flex-end;gap:3px;height:130px;';
+    const svgNS='http://www.w3.org/2000/svg';
+    const W=1200,H=108,SLOT=100,BARW=62;
+    const svg=document.createElementNS(svgNS,'svg');
+    svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio','none');
+    svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;`;
+    // ── 월별 완독 바
     MO.forEach((m,i)=>{
       const isCurMo=isCurrentYear&&i===curMo;
       const isMax=vals[i]===maxV&&maxV>0;
-      const bookH=Math.max(vals[i]/maxV*108,vals[i]>0?4:0);
-      const pgH=hasPg?Math.max(pageValsM[i]/maxPM*108,pageValsM[i]>0?3:0):0;
-      const pgCol=GCOLS[i%GCOLS.length];
-      const bookOpacity=(isMax||isCurMo)?'1':'.38';
-      const col=document.createElement('div');
-      col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;cursor:default;';
-      // 바 묶음 행
-      const barRow=document.createElement('div');
-      barRow.style.cssText='display:flex;align-items:flex-end;gap:1px;';
-      // 완독 바 (좌)
-      const bookBar=document.createElement('div');
-      bookBar.style.cssText=`flex:${hasPg?'11':'1'};height:${bookH}px;background:${(isMax||isCurMo)?c.line:BAR_DARK};opacity:${bookOpacity};border-radius:2px 2px 0 0;transition:opacity .15s;overflow:hidden;min-width:0;`;
-      if(vals[i]>=2&&bookH>18){
-        bookBar.style.display='flex';bookBar.style.alignItems='flex-start';bookBar.style.justifyContent='center';bookBar.style.paddingTop='3px';
-        const num=document.createElement('span');
-        num.style.cssText=`font-size:.42rem;color:#fff;opacity:.9;font-family:var(--fs);font-style:italic;`;
-        num.textContent=vals[i];bookBar.appendChild(num);
-      }
-      barRow.appendChild(bookBar);
-      // 페이지 바 (우)
-      let pgBar=null;
-      if(hasPg){
-        pgBar=document.createElement('div');
-        pgBar.style.cssText=`flex:9;height:${pgH}px;background:${pgCol};opacity:.68;border-radius:2px 2px 0 0;transition:opacity .15s;min-width:0;`;
-        barRow.appendChild(pgBar);
-      }
-      // 툴팁 & 호버
-      const pgLine=pageValsM[i]>0?`<br><span style="opacity:.8;">${pageValsM[i].toLocaleString()}p</span>`:'';
-      const mTip=`${curYM}년 ${m}월<br><b>${vals[i]}권</b> 완독${pgLine}`;
-      col.addEventListener('mouseenter',e=>{
-        bookBar.style.opacity='1';
-        if(pgBar)pgBar.style.opacity='1';
-        showTip(e,mTip);
-      });
-      col.addEventListener('mousemove',moveTip);
-      col.addEventListener('mouseleave',()=>{
-        bookBar.style.opacity=bookOpacity;
-        if(pgBar)pgBar.style.opacity='.68';
-        hideTip();
-      });
-      const base=document.createElement('div');
-      base.style.cssText='width:100%;height:1px;background:var(--border);margin-bottom:4px;';
-      const lbl=document.createElement('div');
-      lbl.style.cssText=`font-size:.5rem;color:${(isMax||isCurMo)?c.line:'var(--tx3)'};visibility:${i%2===0?'visible':'hidden'};text-align:center;`;
-      lbl.textContent=m;
-      col.appendChild(barRow);col.appendChild(base);col.appendChild(lbl);
-      barsWrap.appendChild(col);
+      const barH=vals[i]>0?Math.max(vals[i]/maxV*H,4):0;
+      const bx=i*SLOT+(SLOT-BARW)/2, by=H-barH;
+      const rect=document.createElementNS(svgNS,'rect');
+      rect.setAttribute('x',bx);rect.setAttribute('y',by);
+      rect.setAttribute('width',BARW);rect.setAttribute('height',barH);
+      rect.setAttribute('fill',(isMax||isCurMo)?c.line:BAR_DARK);
+      rect.setAttribute('opacity',(isMax||isCurMo)?'.92':'.32');
+      rect.setAttribute('rx','2');
+      svg.appendChild(rect);
     });
-    viz.appendChild(barsWrap);
-    // 범례
+    // ── 기준선
+    const bl=document.createElementNS(svgNS,'line');
+    bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
+    bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
+    svg.appendChild(bl);
+    // ── 페이지 면적 + 선 + 점
+    if(hasPg){
+      const pts=pageValsM.map((v,i)=>({x:i*SLOT+SLOT/2,y:v>0?H-v/maxPM*H:null,v,ix:i}));
+      let seg=[],segs=[];
+      pts.forEach(pt=>{if(pt.v>0)seg.push(pt);else{if(seg.length){segs.push(seg);seg=[];}}});
+      if(seg.length)segs.push(seg);
+      segs.forEach(s=>{
+        // 면적
+        let d=`M ${s[0].x} ${H}`;
+        if(s.length===1){d+=` L ${s[0].x} ${s[0].y}`;}
+        else{d+=` L ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;d+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
+        d+=` L ${s[s.length-1].x} ${H} Z`;
+        const ap=document.createElementNS(svgNS,'path');
+        ap.setAttribute('d',d);ap.setAttribute('fill',c.line);ap.setAttribute('fill-opacity','.14');
+        svg.appendChild(ap);
+        // 선
+        let ld=s.length===1?`M ${s[0].x-18} ${s[0].y} L ${s[0].x+18} ${s[0].y}`:`M ${s[0].x} ${s[0].y}`;
+        if(s.length>1){for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
+        const lp=document.createElementNS(svgNS,'path');
+        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',c.line);lp.setAttribute('stroke-width','2.5');lp.setAttribute('opacity','.52');
+        svg.appendChild(lp);
+        // 점 (월별 GCOLS)
+        s.forEach(pt=>{
+          const dot=document.createElementNS(svgNS,'circle');
+          dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);dot.setAttribute('r','5');
+          dot.setAttribute('fill',GCOLS[pt.ix%GCOLS.length]);dot.setAttribute('opacity','.88');
+          svg.appendChild(dot);
+        });
+      });
+    }
+    // ── 히트 영역 (툴팁, 맨 위)
+    MO.forEach((m,i)=>{
+      const hit=document.createElementNS(svgNS,'rect');
+      hit.setAttribute('x',i*SLOT);hit.setAttribute('y','0');hit.setAttribute('width',SLOT);hit.setAttribute('height',H);
+      hit.setAttribute('fill','transparent');hit.style.cursor='default';
+      const pgLine=pageValsM[i]>0?`<br><span style="opacity:.8;">${pageValsM[i].toLocaleString()}p</span>`:'';
+      const tip=`${curYM}년 ${m}월<br><b>${vals[i]}권</b> 완독${pgLine}`;
+      hit.addEventListener('mouseenter',e=>showTip(e,tip));
+      hit.addEventListener('mousemove',moveTip);
+      hit.addEventListener('mouseleave',hideTip);
+      svg.appendChild(hit);
+    });
+    viz.appendChild(svg);
+    // ── 월 레이블 (HTML)
+    const lblRow=document.createElement('div');
+    lblRow.style.cssText='display:flex;margin-top:3px;';
+    MO.forEach((m,i)=>{
+      const isCurMo=isCurrentYear&&i===curMo;
+      const isMax=vals[i]===maxV&&maxV>0;
+      const lbl=document.createElement('div');
+      lbl.style.cssText=`flex:1;font-size:.5rem;color:${(isMax||isCurMo)?c.line:'var(--tx3)'};visibility:${i%2===0?'visible':'hidden'};text-align:center;`;
+      lbl.textContent=m;
+      lblRow.appendChild(lbl);
+    });
+    viz.appendChild(lblRow);
+    // ── 범례
     if(hasPg){
       const legRow=document.createElement('div');
       legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.35rem;font-size:.52rem;color:var(--tx3);';
-      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${c.line};border-radius:1px;opacity:.75;vertical-align:middle;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${GCOLS[0]};border-radius:1px;opacity:.6;vertical-align:middle;"></span>읽은 페이지</span>`;
+      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${c.line};border-radius:1px;opacity:.75;vertical-align:middle;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:14px;height:2px;background:${c.line};border-radius:1px;opacity:.5;vertical-align:middle;"></span>읽은 페이지</span>`;
       viz.appendChild(legRow);
     }
   }
@@ -4128,14 +4154,9 @@ function buildRatingAuthor() {
   const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
   const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
 
-  // 공통 렌더 함수 — 깔끔한 목록형 레이아웃
-  function renderSection(sorted, cols, isAuthor) {
-    const label=isAuthor?'작가':'출판사';
+  // 공통 렌더 함수 — 목록형, 타겟 엘리먼트에 추가
+  function renderSection(sorted, cols, isAuthor, target) {
     const maxV=sorted[0][1];
-    const hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:.5rem;margin-top:.95rem;margin-bottom:.4rem;';
-    hdr.innerHTML=`<span style="font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">${label}</span><span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
-    layout.appendChild(hdr);
     const expanded=isAuthor?authorExpanded:pubExpanded;
     const list=expanded?sorted:sorted.slice(0,5);
     list.forEach(([name,cnt],i)=>{
@@ -4175,18 +4196,36 @@ function buildRatingAuthor() {
       item.addEventListener('mouseenter',e=>{barFill.style.opacity='.9';showTip(e,tip);});
       item.addEventListener('mousemove',moveTip);
       item.addEventListener('mouseleave',()=>{barFill.style.opacity='.55';hideTip();});
-      layout.appendChild(item);
+      target.appendChild(item);
     });
     if(sorted.length>5){
-      const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.2rem;';
-      btn.textContent=expanded?'접기 ▲':`+${sorted.length-5}${isAuthor?'명':'개'} 더 보기`;
+      const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.2rem;font-size:.6rem;';
+      btn.textContent=expanded?'접기 ▲':`+${sorted.length-5}${isAuthor?'명':'개'} 더`;
       btn.onclick=()=>{isAuthor?authorExpanded=!authorExpanded:pubExpanded=!pubExpanded;buildRatingAuthor();};
-      layout.appendChild(btn);
+      target.appendChild(btn);
     }
   }
 
-  renderSection(aSorted,AUTHOR_COLS,true);
-  if(pSorted.length) renderSection(pSorted,PCOLS,false);
+  // ── 작가(좌) + 출판사(우) 2열 레이아웃
+  const twoCol=document.createElement('div');
+  twoCol.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.95rem;align-items:start;';
+  const leftCol=document.createElement('div');
+  const aHdr=document.createElement('div');
+  aHdr.style.cssText='font-size:.52rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);';
+  aHdr.textContent='작가';
+  leftCol.appendChild(aHdr);
+  twoCol.appendChild(leftCol);
+  if(pSorted.length){
+    const rightCol=document.createElement('div');
+    const pHdr=document.createElement('div');
+    pHdr.style.cssText='font-size:.52rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);';
+    pHdr.textContent='출판사';
+    rightCol.appendChild(pHdr);
+    twoCol.appendChild(rightCol);
+    renderSection(pSorted,PCOLS,false,rightCol);
+  }
+  layout.appendChild(twoCol);
+  renderSection(aSorted,AUTHOR_COLS,true,leftCol);
 }
 
 let authorExpanded=false, pubExpanded=false;
