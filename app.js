@@ -4115,13 +4115,33 @@ function buildRatingAuthor() {
   if(!total){layout.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
 
   // ── 작가/출판사 데이터 (평점 카드용으로 미리 계산)
-  const authorMap={},pubMap={},authorRating={},pubRating={};
+  // 작가: b.author에 포함된 각 이름 정규화 (역할 괄호 제거, 구분자 분리)
+  const authorMap={},pubMap={},authorRating={},pubRating={},authorRatedCount={};
   filtered.forEach(b=>{
-    if(b.author){authorMap[b.author]=(authorMap[b.author]||0)+1;authorRating[b.author]=(authorRating[b.author]||0)+(b.rating||0);}
-    if(b.publisher){pubMap[b.publisher]=(pubMap[b.publisher]||0)+1;pubRating[b.publisher]=(pubRating[b.publisher]||0)+(b.rating||0);}
+    if(b.author){
+      const names=b.author.split(/[,·;]/)
+        .map(n=>n.replace(/\([^)]+\)/g,'').replace(/\[[^\]]+\]/g,'').trim())
+        .filter(n=>n.length>1);
+      names.forEach(name=>{
+        authorMap[name]=(authorMap[name]||0)+1;
+        if(b.rating>=1&&b.rating<=5){
+          authorRating[name]=(authorRating[name]||0)+b.rating;
+          authorRatedCount[name]=(authorRatedCount[name]||0)+1;
+        }
+      });
+    }
+    if(b.publisher){pubMap[b.publisher]=(pubMap[b.publisher]||0)+1;}
   });
-  const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]||((authorRating[b[0]]||0)-(authorRating[a[0]]||0)));
-  const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
+  // 1순위: 완독 수 많은 순, 2순위: 평점 평균 높은 순, 3순위: 이름 가나다순 (동점 안정성)
+  const aSorted=Object.entries(authorMap).sort((a,b)=>{
+    if(b[1]!==a[1])return b[1]-a[1];
+    const aAvg=authorRatedCount[a[0]]?authorRating[a[0]]/authorRatedCount[a[0]]:0;
+    const bAvg=authorRatedCount[b[0]]?authorRating[b[0]]/authorRatedCount[b[0]]:0;
+    if(Math.abs(bAvg-aAvg)>0.001)return bAvg-aAvg;
+    return a[0].localeCompare(b[0],'ko');
+  });
+  // 출판사: 완독 수 많은 순, 동점 시 이름순
+  const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||(a[0].localeCompare(b[0],'ko')));
   const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
   const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
 
