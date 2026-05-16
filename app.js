@@ -4925,6 +4925,30 @@ function openContact() {
   openModal('modal-contact');
 }
 
+async function submitContactMsg() {
+  const subj = (document.getElementById('contact-subject')?.value||'').trim();
+  const body = (document.getElementById('contact-body')?.value||'').trim();
+  if(!body){showAlert('내용을 입력해주세요.');return;}
+  try {
+    const { data: admins } = await sb.from('profiles').select('id').eq('role','admin');
+    if(!admins?.length){showAlert('관리자를 찾을 수 없어요. 이메일로 보내주세요.');return;}
+    const senderName = (await sb.from('profiles').select('display_name,username').eq('id',currentUser.id).single())?.data;
+    const name = senderName?.display_name || senderName?.username || currentUser.email?.split('@')[0] || '익명';
+    const msgText = `📩 문의 — ${subj?'['+subj+'] ':''}${body}\n\n— ${name} (${currentUser.email})`;
+    await sb.from('notifications').insert(
+      admins.map(a => ({
+        user_id: a.id, sender_id: currentUser.id,
+        type: 'inquiry',
+        message: msgText,
+        is_read: false,
+        created_at: new Date().toISOString()
+      }))
+    );
+    closeModal('modal-contact');
+    showAlert('문의가 전송됐어요. 빠르게 확인할게요!');
+  } catch(e) { showAlert('전송 오류: '+(e.message||'잠시 후 다시 시도해주세요.')); }
+}
+
 function submitContact() {
   const subj = (document.getElementById('contact-subject')?.value||'').trim();
   const body = (document.getElementById('contact-body')?.value||'').trim();

@@ -975,13 +975,19 @@
         <div style="font-size:.7rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;">제목</div>
         <input type="text" id="contact-subject" class="form-input" placeholder="문의 제목을 입력해주세요" style="font-size:.78rem;">
       </div>
-      <div style="margin-bottom:.9rem;">
+      <div style="margin-bottom:1rem;">
         <div style="font-size:.7rem;font-weight:600;color:var(--tx2);margin-bottom:.3rem;">내용</div>
         <textarea id="contact-body" class="form-input" rows="5" placeholder="문의 내용을 자유롭게 작성해주세요." style="font-size:.78rem;resize:vertical;min-height:110px;"></textarea>
       </div>
-      <div class="modal-footer" style="padding:0;">
-        <button class="btn-cancel" onclick="closeModal('modal-contact')">취소</button>
-        <button class="btn-save" onclick="submitContact()">이메일로 보내기</button>
+      <div style="display:flex;flex-direction:column;gap:.45rem;">
+        <button class="btn-save" style="width:100%;" onclick="submitContactMsg()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:.3rem;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          쪽지로 보내기
+        </button>
+        <button onclick="submitContact()" style="width:100%;background:transparent;border:1px solid var(--border2);border-radius:var(--rs);padding:.48rem .8rem;font-size:.74rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);transition:all .15s;" onmouseenter="this.style.color='var(--tx2)'" onmouseleave="this.style.color='var(--tx3)'">
+          이메일 앱으로 보내기
+        </button>
+        <button class="btn-cancel" style="width:100%;" onclick="closeModal('modal-contact')">취소</button>
       </div>
     </div>
   </div>
@@ -1104,6 +1110,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=501"></script>
+<script src="app.js?v=502"></script>
 </body>
 </html>
