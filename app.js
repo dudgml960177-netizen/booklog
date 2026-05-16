@@ -1718,17 +1718,25 @@ function renderCal() {
         // 어떤 책들이 해당 날짜에 읽혔는지 확인
         const activeBks=allBooks.filter(bk=>bk.date_finish!==ds&&(bk.reading_time_log?.[ds]||0)>0);
         const barColor=activeBks.length>0?GCOLS[allBooks.indexOf(activeBks[0])%GCOLS.length]:'#c4714a';
-        if(activeBks.length>0){
-          el.title=activeBks.map(bk=>bk.title+(bk.author?' · '+bk.author.split(/[,·]/)[0].trim():'')).join('\n');
-        }
+        const calTipLines=activeBks.map(bk=>{
+          const mins=bk.reading_time_log?.[ds]||0;
+          const t=mins>=60?Math.floor(mins/60)+'h '+(mins%60?mins%60+'m':''):mins+'m';
+          const auth=bk.author?bk.author.split(/[,·]/)[0].trim():'';
+          return `<b>${bk.title}</b>${auth?' · '+auth:''}<br><span style="opacity:.7;font-size:.85em;">${t}</span>`;
+        }).join('<br>');
         const bar=document.createElement('div');
-        bar.style.cssText=`position:absolute;bottom:0;left:0;right:0;height:5px;background:${barColor};opacity:.62;border-radius:0 0 3px 3px;`;
+        bar.style.cssText=`position:absolute;bottom:0;left:0;right:0;height:5px;background:${barColor};opacity:.62;border-radius:0 0 3px 3px;cursor:default;`;
+        if(calTipLines){
+          bar.addEventListener('mouseenter',e=>showTip(e,calTipLines));
+          bar.addEventListener('mousemove',moveTip);
+          bar.addEventListener('mouseleave',hideTip);
+        }
         el.appendChild(bar);
         // 2권 이상이면 보조 바
         if(activeBks.length>1){
           const bar2=document.createElement('div');
           const col2=GCOLS[allBooks.indexOf(activeBks[1])%GCOLS.length];
-          bar2.style.cssText=`position:absolute;bottom:0;left:0;width:40%;height:5px;background:${col2};opacity:.55;border-radius:0 0 0 3px;`;
+          bar2.style.cssText=`position:absolute;bottom:0;left:0;width:40%;height:5px;background:${col2};opacity:.55;border-radius:0 0 0 3px;pointer-events:none;`;
           el.appendChild(bar2);
         }
       }
@@ -3870,68 +3878,91 @@ function buildMonthly() {
       col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
       barsWrap.appendChild(col);
     });
-    // ── pages SVG overlay
-    const pagesDoneRaw = allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
-    const pageValsM = Array(12).fill(0);
+    viz.appendChild(barsWrap);
+    // ── pages area chart (below bars)
+    const pagesDoneRaw=allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
+    const pageValsM=Array(12).fill(0);
     pagesDoneRaw.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM)
       .forEach(b=>pageValsM[parseInt(b.date_finish.slice(5,7))-1]+=(b.pages||0));
-    const hasPages = pageValsM.some(v=>v>0);
-    const wrapper=document.createElement('div');
-    wrapper.style.cssText='position:relative;';
-    wrapper.appendChild(barsWrap);
-    viz.appendChild(wrapper);
-    if(hasPages) {
+    if(pageValsM.some(v=>v>0)){
       const maxPM=Math.max(...pageValsM,1);
+      const W=1000,H=56,PAD=4;
+      const slotW=W/12;
       const svgNS='http://www.w3.org/2000/svg';
+      // header row
+      const pgHdr=document.createElement('div');
+      pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.55rem;margin-bottom:.1rem;';
+      pgHdr.innerHTML=`<span style="font-size:.48rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);">PAGES</span><span style="flex:1;height:1px;background:var(--border);"></span>`;
+      viz.appendChild(pgHdr);
       const svg=document.createElementNS(svgNS,'svg');
-      svg.setAttribute('viewBox','0 0 120 108');
+      svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
       svg.setAttribute('preserveAspectRatio','none');
-      svg.style.cssText='position:absolute;top:0;left:0;width:100%;height:108px;pointer-events:none;overflow:visible;';
-      // smooth bezier path
-      const pts=pageValsM.map((v,i)=>({x:i*10+5,y:v>0?8+92*(1-v/maxPM):null,v}));
-      let pathD=''; let prevPt=null;
-      pts.forEach(pt=>{
-        if(pt.y!==null){
-          if(!prevPt){pathD+=`M ${pt.x} ${pt.y}`;}
-          else{const cpx=(prevPt.x+pt.x)/2;pathD+=` C ${cpx} ${prevPt.y},${cpx} ${pt.y},${pt.x} ${pt.y}`;}
-          prevPt=pt;
-        } else { prevPt=null; }
+      svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;cursor:default;`;
+      // build all 12 points (zero → baseline)
+      const allPts=pageValsM.map((v,i)=>({
+        x:i*slotW+slotW/2,
+        y:v>0?PAD+(H-PAD*2)*(1-v/maxPM):H,
+        v,ix:i
+      }));
+      // area + line per segment of consecutive non-zero values
+      let seg=[]; const segs=[];
+      allPts.forEach((pt,i)=>{
+        if(pt.v>0){seg.push(pt);}
+        else{if(seg.length){segs.push(seg);seg=[];}}
       });
-      if(pathD.length>1){
-        const path=document.createElementNS(svgNS,'path');
-        path.setAttribute('d',pathD);
-        path.setAttribute('fill','none');
-        path.setAttribute('stroke','#5a7a8a');
-        path.setAttribute('stroke-width','1.5');
-        path.setAttribute('stroke-dasharray','3 2');
-        path.setAttribute('opacity','0.72');
-        svg.appendChild(path);
-      }
-      pts.forEach(pt=>{
-        if(pt.y!==null){
+      if(seg.length) segs.push(seg);
+      segs.forEach(s=>{
+        // area fill
+        let d=`M ${s[0].x} ${H}`;
+        if(s.length===1){d+=` L ${s[0].x-slotW*.3} ${s[0].y} L ${s[0].x+slotW*.3} ${s[0].y}`;}
+        else{d+=` L ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;d+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
+        d+=` L ${s[s.length-1].x} ${H} Z`;
+        const ap=document.createElementNS(svgNS,'path');
+        ap.setAttribute('d',d);ap.setAttribute('fill','#5a7a8a');ap.setAttribute('fill-opacity','.18');
+        svg.appendChild(ap);
+        // line
+        let ld='';
+        if(s.length===1){ld=`M ${s[0].x-slotW*.3} ${s[0].y} L ${s[0].x+slotW*.3} ${s[0].y}`;}
+        else{ld=`M ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
+        const lp=document.createElementNS(svgNS,'path');
+        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke','#5a7a8a');lp.setAttribute('stroke-width','2');lp.setAttribute('opacity','.72');
+        svg.appendChild(lp);
+        // dots
+        s.forEach(pt=>{
           const dot=document.createElementNS(svgNS,'circle');
           dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
-          dot.setAttribute('r','2.8');dot.setAttribute('fill','#5a7a8a');
-          dot.setAttribute('opacity','0.85');
-          // invisible wider hit area for tooltip
-          const hit=document.createElementNS(svgNS,'circle');
-          hit.setAttribute('cx',pt.x);hit.setAttribute('cy',pt.y);
-          hit.setAttribute('r','8');hit.setAttribute('fill','transparent');
-          hit.setAttribute('style','pointer-events:all;cursor:default;');
-          const mo=parseInt(pt.x/10);
-          const pTip=`${curYM}년 ${MO[mo]}월<br><b>${pageValsM[mo].toLocaleString()}p</b>`;
-          hit.addEventListener('mouseenter',e=>{svg.style.pointerEvents='none';showTip(e,pTip);});
-          hit.addEventListener('mousemove',moveTip);
-          hit.addEventListener('mouseleave',hideTip);
-          svg.appendChild(dot);svg.appendChild(hit);
-        }
+          dot.setAttribute('r','3.2');dot.setAttribute('fill','#5a7a8a');dot.setAttribute('opacity','.88');
+          svg.appendChild(dot);
+        });
       });
-      wrapper.appendChild(svg);
-      // legend
-      const leg=document.createElement('div');
-      leg.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.35rem;font-size:.55rem;color:var(--tx3);';
-      leg.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:12px;height:4px;background:${c.line};border-radius:2px;opacity:.7;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.3rem;"><svg width="10" height="10" style="overflow:visible;"><circle cx="5" cy="5" r="2.8" fill="#5a7a8a" opacity=".85"/></svg>페이지 수</span>`;
-      viz.appendChild(leg);
+      // baseline
+      const bl=document.createElementNS(svgNS,'line');
+      bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
+      bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
+      svg.appendChild(bl);
+      // hover interaction — highlight column
+      const hl=document.createElementNS(svgNS,'rect');
+      hl.setAttribute('y','0');hl.setAttribute('width',slotW*.7);hl.setAttribute('height',H);
+      hl.setAttribute('fill','#5a7a8a');hl.setAttribute('opacity','0');hl.setAttribute('rx','2');
+      svg.appendChild(hl);
+      svg.addEventListener('mousemove',e=>{
+        const rect=svg.getBoundingClientRect();
+        const idx=Math.max(0,Math.min(11,Math.floor((e.clientX-rect.left)/rect.width*12)));
+        if(pageValsM[idx]>0){
+          hl.setAttribute('x',idx*slotW+slotW*.15);hl.setAttribute('opacity','.08');
+          showTip(e,`${curYM}년 ${MO[idx]}월<br><b>${pageValsM[idx].toLocaleString()}p</b>`);
+        } else {
+          hl.setAttribute('opacity','0');hideTip();
+        }
+        moveTip(e);
+      });
+      svg.addEventListener('mouseleave',()=>{hl.setAttribute('opacity','0');hideTip();});
+      viz.appendChild(svg);
+      // month label row (shared with bars above)
+      const legRow=document.createElement('div');
+      legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.3rem;font-size:.52rem;color:var(--tx3);';
+      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:${c.line};border-radius:1px;opacity:.75;"></span>권수</span><span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:#5a7a8a;border-radius:1px;opacity:.75;"></span>페이지</span>`;
+      viz.appendChild(legRow);
     }
   }
 
@@ -4071,55 +4102,68 @@ function buildRatingAuthor() {
   const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
   if(!aSorted.length){layout.innerHTML+='<div style="font-size:.75rem;color:var(--tx3);">작가 정보가 없어요.</div>';return;}
 
-  // 명예의 전당
-  const topA=aSorted[0],topP=pSorted[0];
-  const hallEl=document.createElement('div');hallEl.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem;';
-  hallEl.innerHTML=`<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .8rem;text-align:center;"><div style="font-size:.52rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.3rem;">최애 작가</div><div style="font-family:var(--fs);font-size:.95rem;font-style:italic;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topA[0]}">${topA[0]}</div><div style="font-size:.62rem;color:var(--rust);margin-top:.18rem;">${topA[1]}권 완독</div></div><div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.65rem .8rem;text-align:center;"><div style="font-size:.52rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.3rem;">최애 출판사</div><div style="font-family:var(--fs);font-size:.95rem;font-style:italic;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${topP?topP[0]:'—'}">${topP?topP[0]:'—'}</div><div style="font-size:.62rem;color:var(--rust);margin-top:.18rem;">${topP?topP[1]+'권 완독':''}</div></div>`;
-  layout.appendChild(hallEl);
-
-  // 작가 목록
-  const h1=document.createElement('div');h1.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h1.textContent='작가별 독서';layout.appendChild(h1);
+  // ── 작가 목록
+  const h1=document.createElement('div');
+  h1.style.cssText='font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem;';
+  h1.innerHTML=`작가 <span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
+  layout.appendChild(h1);
   const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
   const aList=authorExpanded?aSorted:aSorted.slice(0,5);const maxA=aSorted[0][1];
   aList.forEach(([name,cnt],i)=>{
     const pct=Math.round(cnt/maxA*100);const bg=AUTHOR_COLS[i%AUTHOR_COLS.length];
     const avgR=authorRating[name]?(authorRating[name]/cnt).toFixed(1):null;
-    const row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:20px minmax(0,80px) 1fr auto;align-items:center;gap:.45rem;margin-bottom:.42rem;';
-    const rankEl=document.createElement('div');
-    rankEl.style.cssText=`width:18px;height:18px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;
-    rankEl.innerHTML=`<span style="font-size:.55rem;font-weight:700;color:#fff;line-height:1;">${i+1}</span>`;
-    const nameEl=document.createElement('div');nameEl.style.cssText='font-size:.7rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';nameEl.title=name;nameEl.textContent=name;
-    const barOuter=document.createElement('div');barOuter.style.cssText='height:10px;background:var(--bg);border-radius:3px;overflow:hidden;';
-    barOuter.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};opacity:.7;border-radius:3px;"></div>`;
-    const countEl=document.createElement('div');countEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.82rem;color:${bg};min-width:24px;text-align:right;`;countEl.textContent=cnt;
+    const item=document.createElement('div');
+    item.style.cssText='margin-bottom:.72rem;cursor:default;';
+    const topRow=document.createElement('div');
+    topRow.style.cssText='display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;margin-bottom:.26rem;';
+    const leftEl=document.createElement('div');
+    leftEl.style.cssText='display:flex;align-items:baseline;gap:.38rem;min-width:0;flex:1;overflow:hidden;';
+    leftEl.innerHTML=`<span style="font-family:var(--fs);font-style:italic;font-size:.78rem;color:${bg};flex-shrink:0;line-height:1;min-width:10px;">${i+1}</span><span style="font-size:.75rem;color:var(--tx1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${name}">${name}</span>${avgR?`<span style="font-size:.58rem;color:var(--tx3);flex-shrink:0;margin-left:.1rem;">★${avgR}</span>`:''}`;
+    const rightEl=document.createElement('div');
+    rightEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.95rem;color:${bg};flex-shrink:0;line-height:1;`;
+    rightEl.textContent=cnt+'권';
+    topRow.appendChild(leftEl);topRow.appendChild(rightEl);
+    const barEl=document.createElement('div');
+    barEl.style.cssText=`height:4px;background:var(--bg2,#ece6db);border-radius:2px;overflow:hidden;`;
+    barEl.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};border-radius:2px;transition:width .5s ease;"></div>`;
     const aTip=`${name}<br><b>${cnt}권</b> 완독${avgR?' · ★ '+avgR:''}`;
-    row.addEventListener('mouseenter',e=>showTip(e,aTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
-    row.appendChild(rankEl);row.appendChild(nameEl);row.appendChild(barOuter);row.appendChild(countEl);
-    layout.appendChild(row);
+    item.addEventListener('mouseenter',e=>showTip(e,aTip));item.addEventListener('mousemove',moveTip);item.addEventListener('mouseleave',hideTip);
+    item.appendChild(topRow);item.appendChild(barEl);
+    layout.appendChild(item);
   });
-  if(aSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.2rem;margin-bottom:.8rem;';btn.textContent=authorExpanded?'접기 ▲':`+${aSorted.length-5}명 더 보기`;btn.onclick=()=>{authorExpanded=!authorExpanded;buildRatingAuthor();};layout.appendChild(btn);}
+  if(aSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.1rem;margin-bottom:.9rem;';btn.textContent=authorExpanded?'접기 ▲':`+${aSorted.length-5}명 더 보기`;btn.onclick=()=>{authorExpanded=!authorExpanded;buildRatingAuthor();};layout.appendChild(btn);}
 
-  // 출판사 목록
+  // ── 출판사 목록
   if(!pSorted.length)return;
-  const div2=document.createElement('div');div2.style.cssText='border-top:1px solid var(--border);margin:.6rem 0 .8rem;';layout.appendChild(div2);
-  const h2=document.createElement('div');h2.style.cssText='font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.5rem;';h2.textContent='출판사별 독서';layout.appendChild(h2);
+  const div2=document.createElement('div');div2.style.cssText='margin:.2rem 0 .75rem;';layout.appendChild(div2);
+  const h2=document.createElement('div');
+  h2.style.cssText='font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem;';
+  h2.innerHTML=`출판사 <span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
+  layout.appendChild(h2);
   const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
   const pList=pubExpanded?pSorted:pSorted.slice(0,5);const maxP=pSorted[0][1];
   pList.forEach(([name,cnt],i)=>{
     const pct=Math.round(cnt/maxP*100);const bg=PCOLS[i%PCOLS.length];
-    const row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:20px minmax(0,80px) 1fr auto;align-items:center;gap:.45rem;margin-bottom:.42rem;';
-    const rankEl=document.createElement('div');rankEl.style.cssText=`width:18px;height:18px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;`;rankEl.innerHTML=`<span style="font-size:.55rem;font-weight:700;color:#fff;line-height:1;">${i+1}</span>`;
-    const nameEl=document.createElement('div');nameEl.style.cssText='font-size:.7rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';nameEl.title=name;nameEl.textContent=name;
-    const barOuter=document.createElement('div');barOuter.style.cssText='height:10px;background:var(--bg);border-radius:3px;overflow:hidden;';barOuter.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};opacity:.7;border-radius:3px;"></div>`;
-    const countEl=document.createElement('div');countEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.82rem;color:${bg};min-width:24px;text-align:right;`;countEl.textContent=cnt;
+    const item=document.createElement('div');
+    item.style.cssText='margin-bottom:.72rem;cursor:default;';
+    const topRow=document.createElement('div');
+    topRow.style.cssText='display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;margin-bottom:.26rem;';
+    const leftEl=document.createElement('div');
+    leftEl.style.cssText='display:flex;align-items:baseline;gap:.38rem;min-width:0;flex:1;overflow:hidden;';
+    leftEl.innerHTML=`<span style="font-family:var(--fs);font-style:italic;font-size:.78rem;color:${bg};flex-shrink:0;line-height:1;min-width:10px;">${i+1}</span><span style="font-size:.75rem;color:var(--tx1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${name}">${name}</span>`;
+    const rightEl=document.createElement('div');
+    rightEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.95rem;color:${bg};flex-shrink:0;line-height:1;`;
+    rightEl.textContent=cnt+'권';
+    topRow.appendChild(leftEl);topRow.appendChild(rightEl);
+    const barEl=document.createElement('div');
+    barEl.style.cssText=`height:4px;background:var(--bg2,#ece6db);border-radius:2px;overflow:hidden;`;
+    barEl.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};border-radius:2px;transition:width .5s ease;"></div>`;
     const pTip=`${name}<br><b>${cnt}권</b> 완독`;
-    row.addEventListener('mouseenter',e=>showTip(e,pTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
-    row.appendChild(rankEl);row.appendChild(nameEl);row.appendChild(barOuter);row.appendChild(countEl);
-    layout.appendChild(row);
+    item.addEventListener('mouseenter',e=>showTip(e,pTip));item.addEventListener('mousemove',moveTip);item.addEventListener('mouseleave',hideTip);
+    item.appendChild(topRow);item.appendChild(barEl);
+    layout.appendChild(item);
   });
-  if(pSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.marginTop='.2rem';btn.textContent=pubExpanded?'접기 ▲':`+${pSorted.length-5}개 더 보기`;btn.onclick=()=>{pubExpanded=!pubExpanded;buildRatingAuthor();};layout.appendChild(btn);}
+  if(pSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.marginTop='.1rem';btn.textContent=pubExpanded?'접기 ▲':`+${pSorted.length-5}개 더 보기`;btn.onclick=()=>{pubExpanded=!pubExpanded;buildRatingAuthor();};layout.appendChild(btn);}
 }
 
 let authorExpanded=false, pubExpanded=false;
