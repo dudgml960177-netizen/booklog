@@ -3912,11 +3912,20 @@ function buildMonthly() {
         ap.setAttribute('d',d);ap.setAttribute('fill',c.line);ap.setAttribute('fill-opacity','.14');
         svg.appendChild(ap);
         // 선
-        let ld=s.length===1?`M ${s[0].x-18} ${s[0].y} L ${s[0].x+18} ${s[0].y}`:`M ${s[0].x} ${s[0].y}`;
-        if(s.length>1){for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
-        const lp=document.createElementNS(svgNS,'path');
-        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',c.line);lp.setAttribute('stroke-width','2.5');lp.setAttribute('opacity','.52');
-        svg.appendChild(lp);
+        if(s.length===1) {
+          // 단일 점: 선 생략 (dot이 표시)
+        } else {
+          let ld=`M ${s[0].x} ${s[0].y}`;
+          for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}
+          const lp=document.createElementNS(svgNS,'path');
+          lp.setAttribute('d',ld);
+          lp.setAttribute('fill','none');
+          lp.setAttribute('stroke',c.line);
+          lp.setAttribute('stroke-width','1.5');
+          lp.setAttribute('opacity','.55');
+          lp.setAttribute('vector-effect','non-scaling-stroke');
+          svg.appendChild(lp);
+        }
       });
     }
     // ── 히트 영역 (툴팁, 맨 위) — 첫 번째 hit 참조 저장
