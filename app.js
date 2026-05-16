@@ -324,11 +324,21 @@ function init() {
     });
   });
 
-  // 모바일 뒤로가기
+  // 모바일 뒤로가기 — 항상 pushState로 앱 밖 이탈 방지
   window.addEventListener('popstate', () => {
+    history.pushState(null, '', location.href); // 항상 상태 복원
     const open = [...document.querySelectorAll('.modal-overlay')].find(m => m.style.display !== 'none');
-    if(open) { open.style.display='none'; history.pushState(null,'',location.href); }
+    if(open) { open.style.display='none'; return; }
+    // 모달 없으면: 현재 탭이 서재가 아닌 경우 서재로 이동
+    const booksTab = document.querySelector('.tab[onclick*="\'books\'"]') ||
+                     document.querySelector('.tab[onclick*="books"]');
+    const bookPanel = document.getElementById('p-books');
+    if(booksTab && bookPanel && !bookPanel.classList.contains('on')) {
+      booksTab.click();
+    }
   });
+  // 초기 히스토리 2개: 첫 번째 뒤로가기가 앱 내에서 처리되도록
+  history.pushState(null, '', location.href);
   history.pushState(null, '', location.href);
 
   // URL 해시 토큰 처리 (비밀번호 재설정)
@@ -1892,6 +1902,7 @@ function toggleTimer() {
     if(_dtc > parseInt(localStorage.getItem('bl_daily_timer_max')||'0'))
       localStorage.setItem('bl_daily_timer_max', String(_dtc));
     timerBookId=sel?.value||null;timerRunning=true;
+    requestTimerNotifPerm();
     // 타이머 상태 localStorage 저장 (페이지 이탈/화면 꺼짐 복원용)
     localStorage.setItem('bl_timer_start', String(Date.now() - timerSeconds*1000));
     localStorage.setItem('bl_timer_book_id', timerBookId||'');
@@ -1914,13 +1925,44 @@ function updateTimerBtn() {
   }
 }
 
+// ── 백그라운드 타이머 알림
+let _timerNotif = null;
+async function requestTimerNotifPerm() {
+  if(!('Notification' in window)) return false;
+  if(Notification.permission === 'granted') return true;
+  if(Notification.permission === 'denied') return false;
+  const p = await Notification.requestPermission();
+  return p === 'granted';
+}
+function showTimerNotif() {
+  if(!timerRunning || !('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    _timerNotif?.close();
+    const h=Math.floor(timerSeconds/3600),m=Math.floor((timerSeconds%3600)/60);
+    const timeStr = h>0?`${h}시간 ${m}분`:`${m}분`;
+    const bookTitle = timerBookId ? (allBooks.find(b=>b.id===timerBookId)?.title||'') : '';
+    _timerNotif = new Notification('📚 독서 타이머 작동 중', {
+      body: (bookTitle?`"${bookTitle}" · `:'')+timeStr+' 경과',
+      tag: 'bl-reading-timer',
+      silent: true,
+      requireInteraction: true
+    });
+    _timerNotif.onclick = () => { window.focus(); _timerNotif?.close(); };
+  } catch(e) {}
+}
+function closeTimerNotif() {
+  try { _timerNotif?.close(); _timerNotif = null; } catch(e) {}
+}
+
 // 백그라운드·화면꺼짐·이탈 시 타이머 유지
 document.addEventListener('visibilitychange', () => {
   if(document.hidden && timerRunning) {
     // 페이지가 숨겨질 때: localStorage에 현재 시작 시각 저장 후 interval 정지
     localStorage.setItem('bl_timer_start', String(Date.now() - timerSeconds*1000));
     clearInterval(timerInterval); timerInterval=null;
+    showTimerNotif();
   } else if(!document.hidden) {
+    closeTimerNotif();
     const savedStart = localStorage.getItem('bl_timer_start');
     const savedBook  = localStorage.getItem('bl_timer_book_id');
     if(savedStart) {
@@ -3592,6 +3634,29 @@ function buildQuestPanel(completedIds) {
 }
 
 
+// ── 차트 툴팁 유틸리티
+function showTip(e, html) {
+  let tt=document.getElementById('_chart_tip');
+  if(!tt){
+    tt=document.createElement('div');
+    tt.id='_chart_tip';
+    tt.style.cssText='position:fixed;background:#2a1f10;color:#f5f0e8;font-size:.6rem;line-height:1.5;padding:.3rem .6rem;border-radius:5px;pointer-events:none;opacity:0;transition:opacity .12s;z-index:99999;white-space:pre;font-family:var(--ff);box-shadow:0 2px 8px rgba(0,0,0,.25);';
+    document.body.appendChild(tt);
+  }
+  tt.innerHTML=html;
+  tt.style.opacity='1';
+  _moveTip(e, tt);
+}
+function _moveTip(e, tt) {
+  tt=tt||document.getElementById('_chart_tip');
+  if(!tt) return;
+  const x=e.clientX, y=e.clientY, w=tt.offsetWidth||100, h=tt.offsetHeight||24;
+  tt.style.left=Math.min(x+12, window.innerWidth-w-8)+'px';
+  tt.style.top=(y-h-10<4?y+14:y-h-10)+'px';
+}
+function moveTip(e){ _moveTip(e); }
+function hideTip(){ const tt=document.getElementById('_chart_tip'); if(tt) tt.style.opacity='0'; }
+
 // ── 통계
 function buildStats() {
   const sg=document.getElementById('stat-grid');
@@ -3742,7 +3807,10 @@ function buildMonthly() {
           const cell=document.createElement('div');
           const opacity=v>0?Math.max(v/maxV*.85+.15,0.15):0.05;
           cell.style.cssText=`flex:1;height:16px;border-radius:2px;background:${c.line};opacity:${opacity.toFixed(2)};transition:opacity .2s;cursor:default;`;
-          cell.title=MO[i]+'월 '+v+'권';
+          const tipText=`${y}년 ${MO[i]}월<br><b>${v}권</b> 완독`;
+          cell.addEventListener('mouseenter',e=>showTip(e,tipText));
+          cell.addEventListener('mousemove',moveTip);
+          cell.addEventListener('mouseleave',hideTip);
           cells.appendChild(cell);
         });
         const tl=document.createElement('div');
@@ -3783,8 +3851,11 @@ function buildMonthly() {
       // 최고·현재월 = 년도 색(진하게), 나머지 = 년도 색(연하게)
       const barColor=(isMax||isCurMo)?c.line:BAR_DARK;
       const barOpacity=(isMax||isCurMo)?'1':'.38';
-      bar.style.cssText=`width:100%;height:${barH}px;background:${barColor};opacity:${barOpacity};border-radius:2px 2px 0 0;`;
-      bar.title=m+'월 '+vals[i]+'권';
+      bar.style.cssText=`width:100%;height:${barH}px;background:${barColor};opacity:${barOpacity};border-radius:2px 2px 0 0;cursor:default;`;
+      const mTip=`${curYM}년 ${m}월<br><b>${vals[i]}권</b> 완독`;
+      bar.addEventListener('mouseenter',e=>showTip(e,mTip));
+      bar.addEventListener('mousemove',moveTip);
+      bar.addEventListener('mouseleave',hideTip);
       // 바 안에 수 표시 (3권 이상이고 바가 충분히 클 때)
       if(vals[i]>=2&&barH>18){
         bar.style.display='flex';bar.style.alignItems='flex-start';bar.style.justifyContent='center';
@@ -3839,9 +3910,17 @@ function buildGenre() {
     name.style.cssText='font-size:.7rem;color:var(--tx1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
     name.textContent=g;
     const barWrap=document.createElement('div');
-    barWrap.style.cssText='height:10px;background:var(--bg);border-radius:3px;overflow:hidden;position:relative;';
+    barWrap.style.cssText='height:10px;background:var(--bg);border-radius:3px;overflow:hidden;position:relative;cursor:default;';
     const barFill=document.createElement('div');
     barFill.style.cssText=`height:100%;width:${barW}%;background:${col};border-radius:3px;transition:width .6s ease;`;
+    const gPct=Math.round(v/total*100);
+    const gTip=`${g}<br><b>${v}권</b> · ${gPct}%`;
+    barWrap.addEventListener('mouseenter',e=>showTip(e,gTip));
+    barWrap.addEventListener('mousemove',moveTip);
+    barWrap.addEventListener('mouseleave',hideTip);
+    row.addEventListener('mouseenter',e=>showTip(e,gTip));
+    row.addEventListener('mousemove',moveTip);
+    row.addEventListener('mouseleave',hideTip);
     barWrap.appendChild(barFill);
     const count=document.createElement('div');
     count.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.85rem;color:var(--tx1);min-width:20px;text-align:right;`;
@@ -3870,6 +3949,10 @@ function buildRating() {
     const cnt=dist[i],pct=total>0?Math.round(cnt/total*100):0,wpct=Math.round(cnt/maxD*100);const inside=wpct>=22;
     const row=document.createElement('div');row.className='rbar-row';
     row.innerHTML=`<span class="rbar-label">${stars(s)}</span><div class="rbar-outer"><div class="rbar-fill" style="width:${wpct}%;background:${RCOLS[i]}">${inside?`<span class="rbar-val">${cnt}권</span>`:''}</div>${!inside&&cnt>0?`<span class="rbar-val-out" style="left:${wpct}%;">${cnt}권</span>`:''}</div><span style="font-size:.62rem;color:var(--tx3);min-width:24px;text-align:right;">${pct}%</span>`;
+    const rTip=`${stars(s)}<br><b>${cnt}권</b> · ${pct}%`;
+    row.addEventListener('mouseenter',e=>showTip(e,rTip));
+    row.addEventListener('mousemove',moveTip);
+    row.addEventListener('mouseleave',hideTip);
     barsEl.appendChild(row);
   });
   layout.appendChild(barsEl);
@@ -3941,6 +4024,10 @@ function buildAuthorChart() {
         </div>
       </div>
       ${pct<=22?`<span style="font-size:.58rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
+    const aTip=`${name}<br><b>${cnt}권</b> 완독`;
+    row.addEventListener('mouseenter',e=>showTip(e,aTip));
+    row.addEventListener('mousemove',moveTip);
+    row.addEventListener('mouseleave',hideTip);
     sec1.appendChild(row);
   });
   if(aSorted.length>5){
@@ -3969,6 +4056,10 @@ function buildAuthorChart() {
         </div>
       </div>
       ${pct<=22?`<span style="font-size:.58rem;color:var(--tx3);min-width:22px;">${cnt}권</span>`:''}`;
+    const pTip=`${name}<br><b>${cnt}권</b> 완독`;
+    row.addEventListener('mouseenter',e=>showTip(e,pTip));
+    row.addEventListener('mousemove',moveTip);
+    row.addEventListener('mouseleave',hideTip);
     sec2.appendChild(row);
   });
   if(pSorted.length>5){
@@ -4051,8 +4142,11 @@ function buildPagesChart() {
     col.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;';
     const bar = document.createElement('div');
     const barOpacity = isMax?'1':'.38';
-    bar.style.cssText = `width:100%;height:${barH}px;background:${isMax?BAR_HI:BAR_DARK};opacity:${barOpacity};border-radius:2px 2px 0 0;`;
-    bar.title = lbl+' '+vals[i].toLocaleString()+'p'+(bookCounts[i]?' ('+bookCounts[i]+'권)':'');
+    bar.style.cssText = `width:100%;height:${barH}px;background:${isMax?BAR_HI:BAR_DARK};opacity:${barOpacity};border-radius:2px 2px 0 0;cursor:default;`;
+    const pTipTxt = `${lbl}<br><b>${vals[i].toLocaleString()}p</b>${bookCounts[i]?' · '+bookCounts[i]+'권':''}`;
+    bar.addEventListener('mouseenter',e=>showTip(e,pTipTxt));
+    bar.addEventListener('mousemove',moveTip);
+    bar.addEventListener('mouseleave',hideTip);
     const base = document.createElement('div');
     base.style.cssText = 'width:100%;height:1px;background:var(--border);margin-bottom:4px;';
     const label = document.createElement('div');
