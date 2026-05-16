@@ -236,28 +236,30 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input id="books-search-input" type="text" placeholder="제목, 작가, 출판사로 검색" style="flex:1;border:none;background:transparent;font-size:.78rem;color:var(--tx1);font-style:italic;font-family:var(--ff);outline:none;" oninput="filterBooksSearch(this.value)">
           </div>
-          <div class="filter-row" id="status-filter-row" style="display:flex;gap:18px;margin-bottom:18px;align-items:baseline;overflow-x:auto;">
-            <button class="filter-btn on" onclick="filterStatus('전체',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx1);font-weight:700;font-family:var(--ff);white-space:nowrap;position:relative;">전체 <span id="fc-all" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
-            <button class="filter-btn" onclick="filterStatus('완독',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">완독 <span id="fc-done" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
-            <button class="filter-btn" onclick="filterStatus('읽는중',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">읽는중 <span id="fc-now" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
-            <button class="filter-btn" onclick="filterStatus('읽고싶음',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">읽고싶음 <span id="fc-want" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
-            <button class="filter-btn" onclick="filterStatus('중단',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">중단 <span id="fc-stop" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
-          </div>
-          <div class="toolbar-right" style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;">
-            <!-- 정렬 -->
-            <select id="sort-select" class="view-btn" style="font-size:.68rem;padding:.18rem .4rem;cursor:pointer;border-radius:4px;" onchange="setSort(this.value)" title="정렬">
-              <option value="recent">최신순</option>
-              <option value="oldest">오래된순</option>
-              <option value="rating_high">별점높은순</option>
-              <option value="rating_low">별점낮은순</option>
-              <option value="title">제목순</option>
-              <option value="finish">완독일순</option>
-            </select>
-            <button class="view-btn on" id="view-gallery-btn" onclick="setView('gallery')" title="갤러리">⊞</button>
-            <button class="view-btn" id="view-list-btn" onclick="setView('list')" title="목록">≡</button>
-            <button class="cat-btn" onclick="openCategories()" title="카테고리">🗂</button>
-            <button class="cat-btn" id="select-mode-btn" onclick="toggleSelectMode()">☑ 선택</button>
-            <button class="cat-btn" id="bulk-delete-btn" onclick="bulkDelete()" style="display:none;color:#c0392b;border-color:#e8b8a8;">🗑 삭제</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:18px;">
+            <div class="filter-row" id="status-filter-row" style="display:flex;gap:14px;align-items:baseline;overflow-x:auto;flex:1;min-width:0;">
+              <button class="filter-btn on" onclick="filterStatus('전체',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx1);font-weight:700;font-family:var(--ff);white-space:nowrap;position:relative;">전체 <span id="fc-all" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
+              <button class="filter-btn" onclick="filterStatus('완독',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">완독 <span id="fc-done" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
+              <button class="filter-btn" onclick="filterStatus('읽는중',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">읽는중 <span id="fc-now" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
+              <button class="filter-btn" onclick="filterStatus('읽고싶음',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">읽고싶음 <span id="fc-want" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
+              <button class="filter-btn" onclick="filterStatus('중단',this)" style="font-size:.75rem;background:none;border:none;border-bottom:1.5px solid transparent;padding:0 0 6px;cursor:pointer;color:var(--tx2);font-weight:500;font-family:var(--ff);white-space:nowrap;">중단 <span id="fc-stop" style="font-family:var(--ff-disp);font-size:.65rem;font-style:italic;color:var(--rust);"></span></button>
+            </div>
+            <div class="toolbar-right" style="display:flex;gap:.25rem;align-items:center;flex-shrink:0;">
+              <!-- 정렬 -->
+              <select id="sort-select" class="view-btn" style="font-size:.68rem;padding:.18rem .4rem;cursor:pointer;border-radius:4px;" onchange="setSort(this.value)" title="정렬">
+                <option value="recent">최신순</option>
+                <option value="oldest">오래된순</option>
+                <option value="rating_high">별점높은순</option>
+                <option value="rating_low">별점낮은순</option>
+                <option value="title">제목순</option>
+                <option value="finish">완독일순</option>
+              </select>
+              <button class="view-btn on" id="view-gallery-btn" onclick="setView('gallery')" title="갤러리">⊞</button>
+              <button class="view-btn" id="view-list-btn" onclick="setView('list')" title="목록">≡</button>
+              <button class="cat-btn" onclick="openCategories()" title="카테고리">🗂</button>
+              <button class="cat-btn" id="select-mode-btn" onclick="toggleSelectMode()">☑ 선택</button>
+              <button class="cat-btn" id="bulk-delete-btn" onclick="bulkDelete()" style="display:none;color:#c0392b;border-color:#e8b8a8;">🗑 삭제</button>
+            </div>
           </div>
         </div>
         <!-- 갤러리 뷰 -->
@@ -1099,6 +1101,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=509"></script>
+<script src="app.js?v=511"></script>
 </body>
 </html>

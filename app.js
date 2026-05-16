@@ -3950,13 +3950,6 @@ function buildMonthly() {
         const lp=document.createElementNS(svgNS,'path');
         lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',c.line);lp.setAttribute('stroke-width','2.5');lp.setAttribute('opacity','.52');
         svg.appendChild(lp);
-        // 점 (월별 GCOLS)
-        s.forEach(pt=>{
-          const dot=document.createElementNS(svgNS,'circle');
-          dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);dot.setAttribute('r','5');
-          dot.setAttribute('fill',GCOLS[pt.ix%GCOLS.length]);dot.setAttribute('opacity','.88');
-          svg.appendChild(dot);
-        });
       });
     }
     // ── 히트 영역 (툴팁, 맨 위)
@@ -3971,7 +3964,20 @@ function buildMonthly() {
       hit.addEventListener('mouseleave',hideTip);
       svg.appendChild(hit);
     });
-    viz.appendChild(svg);
+    // ── SVG + HTML 점 오버레이 (완벽한 원형 위해 HTML 사용)
+    const chartOuter=document.createElement('div');
+    chartOuter.style.cssText=`position:relative;height:${H}px;`;
+    svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;position:absolute;top:0;left:0;`;
+    chartOuter.appendChild(svg);
+    if(hasPg){
+      pageValsM.forEach((v,i)=>{
+        if(v===0)return;
+        const dot=document.createElement('div');
+        dot.style.cssText=`position:absolute;width:6px;height:6px;border-radius:50%;background:${c.line};opacity:.85;pointer-events:none;box-shadow:0 0 0 1.5px var(--card);transform:translate(-50%,-50%);left:${(i*SLOT+SLOT/2)/W*100}%;top:${(1-v/maxPM)*100}%;`;
+        chartOuter.appendChild(dot);
+      });
+    }
+    viz.appendChild(chartOuter);
     // ── 월 레이블 (HTML)
     const lblRow=document.createElement('div');
     lblRow.style.cssText='display:flex;margin-top:3px;';
@@ -4091,57 +4097,7 @@ function buildRatingAuthor() {
   layout.style.cssText='display:block;';
   if(!total){layout.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
 
-  // ── 평점 ─────────────────────────────────────────────────────────────────
-  const dist=[5,4,3,2,1].map(s=>filtered.filter(b=>b.rating===s).length);
-  const maxD=Math.max(...dist)||1;
-  const ratedTotal=dist.reduce((a,v)=>a+v,0);
-  const avg=ratedTotal>0?(filtered.reduce((a,b)=>a+(b.rating||0),0)/ratedTotal).toFixed(1):'—';
-  const starsStr=s=>'★'.repeat(s)+'☆'.repeat(5-s);
-
-  // 섹션 헤더 (레이블 left + avg right)
-  const rHead=document.createElement('div');
-  rHead.style.cssText='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.75rem;';
-  rHead.innerHTML=`<span style="font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">평점</span>
-    <span style="display:flex;align-items:baseline;gap:.3rem;">
-      <span style="font-family:var(--fs);font-style:italic;font-size:1.55rem;color:var(--tx1);line-height:1;">${avg}</span>
-      <span style="font-size:.56rem;color:var(--tx3);padding-bottom:.1rem;">/ 5 &nbsp;·&nbsp; ${ratedTotal}권</span>
-    </span>`;
-  layout.appendChild(rHead);
-
-  // 5단계 바
-  [5,4,3,2,1].forEach((s,i)=>{
-    const cnt=dist[i],pct=ratedTotal>0?Math.round(cnt/ratedTotal*100):0;
-    const wpct=Math.round(cnt/maxD*100);
-    const row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;cursor:default;';
-    // 별 레이블
-    const starEl=document.createElement('div');
-    starEl.style.cssText=`font-size:.62rem;color:${RCOLS[i]};min-width:54px;letter-spacing:-.01em;line-height:1;`;
-    starEl.textContent=starsStr(s);
-    // 바
-    const bOuter=document.createElement('div');
-    bOuter.style.cssText='flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden;position:relative;';
-    const bFill=document.createElement('div');
-    bFill.style.cssText=`position:absolute;inset:0;width:${wpct}%;background:${RCOLS[i]};border-radius:3px;transition:width .5s ease;`;
-    bOuter.appendChild(bFill);
-    // 권수 레이블 (바 안 or 바 밖)
-    if(cnt>0){
-      const vEl=document.createElement('div');
-      vEl.style.cssText=`position:absolute;top:50%;transform:translateY(-50%);font-size:.55rem;font-weight:600;line-height:1;${wpct>=26?`right:5px;color:#fff;`:`left:calc(${wpct}% + 5px);color:var(--tx3);`}`;
-      vEl.textContent=cnt+'권';
-      bOuter.appendChild(vEl);
-    }
-    // % 레이블
-    const pEl=document.createElement('div');
-    pEl.style.cssText='font-size:.6rem;color:var(--tx3);min-width:28px;text-align:right;line-height:1;';
-    pEl.textContent=pct+'%';
-    const rTip=`${starsStr(s)}<br><b>${cnt}권</b> · ${pct}%`;
-    row.addEventListener('mouseenter',e=>showTip(e,rTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
-    row.appendChild(starEl);row.appendChild(bOuter);row.appendChild(pEl);
-    layout.appendChild(row);
-  });
-
-  // ── 작가 · 출판사 ─────────────────────────────────────────────────────────
+  // ── 작가/출판사 데이터 (평점 카드용으로 미리 계산)
   const authorMap={},pubMap={},authorRating={},pubRating={};
   filtered.forEach(b=>{
     if(b.author){authorMap[b.author]=(authorMap[b.author]||0)+1;authorRating[b.author]=(authorRating[b.author]||0)+(b.rating||0);}
@@ -4149,10 +4105,72 @@ function buildRatingAuthor() {
   });
   const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]||((authorRating[b[0]]||0)-(authorRating[a[0]]||0)));
   const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
-  if(!aSorted.length) return;
-
   const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
   const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
+
+  // ── 평점 바 (좌) + 최애 카드 (우)
+  const dist=[5,4,3,2,1].map(s=>filtered.filter(b=>b.rating===s).length);
+  const maxD=Math.max(...dist)||1;
+  const ratedTotal=dist.reduce((a,v)=>a+v,0);
+  const avg=ratedTotal>0?(dist.reduce((a,v,i)=>a+v*(5-i),0)/ratedTotal).toFixed(1):'—';
+  const starsStr=s=>'★'.repeat(s)+'☆'.repeat(5-s);
+
+  const ratingWrap=document.createElement('div');
+  ratingWrap.style.cssText='display:grid;grid-template-columns:1fr auto;gap:.9rem;align-items:start;margin-bottom:.2rem;';
+  const rLeft=document.createElement('div');
+  // 평점 헤더
+  const rHead=document.createElement('div');
+  rHead.style.cssText='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.75rem;';
+  rHead.innerHTML=`<span style="font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">평점</span>
+    <span style="display:flex;align-items:baseline;gap:.3rem;">
+      <span style="font-family:var(--fs);font-style:italic;font-size:1.55rem;color:var(--tx1);line-height:1;">${avg}</span>
+      <span style="font-size:.56rem;color:var(--tx3);padding-bottom:.1rem;">/ 5 &nbsp;·&nbsp; ${ratedTotal}권</span>
+    </span>`;
+  rLeft.appendChild(rHead);
+  // 5단계 바
+  [5,4,3,2,1].forEach((s,i)=>{
+    const cnt=dist[i],pct=ratedTotal>0?Math.round(cnt/ratedTotal*100):0;
+    const wpct=Math.round(cnt/maxD*100);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;cursor:default;';
+    const starEl=document.createElement('div');
+    starEl.style.cssText=`font-size:.62rem;color:${RCOLS[i]};min-width:54px;letter-spacing:-.01em;line-height:1;`;
+    starEl.textContent=starsStr(s);
+    const bOuter=document.createElement('div');
+    bOuter.style.cssText='flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden;position:relative;';
+    const bFill=document.createElement('div');
+    bFill.style.cssText=`position:absolute;inset:0;width:${wpct}%;background:${RCOLS[i]};border-radius:3px;transition:width .5s ease;`;
+    bOuter.appendChild(bFill);
+    if(cnt>0){
+      const vEl=document.createElement('div');
+      vEl.style.cssText=`position:absolute;top:50%;transform:translateY(-50%);font-size:.55rem;font-weight:600;line-height:1;${wpct>=26?`right:5px;color:#fff;`:`left:calc(${wpct}% + 5px);color:var(--tx3);`}`;
+      vEl.textContent=cnt+'권';
+      bOuter.appendChild(vEl);
+    }
+    const pEl=document.createElement('div');
+    pEl.style.cssText='font-size:.6rem;color:var(--tx3);min-width:28px;text-align:right;line-height:1;';
+    pEl.textContent=pct+'%';
+    const rTip=`${starsStr(s)}<br><b>${cnt}권</b> · ${pct}%`;
+    row.addEventListener('mouseenter',e=>showTip(e,rTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
+    row.appendChild(starEl);row.appendChild(bOuter);row.appendChild(pEl);
+    rLeft.appendChild(row);
+  });
+  // 최애 카드 (우)
+  const rRight=document.createElement('div');
+  rRight.style.cssText='display:flex;flex-direction:column;gap:.4rem;width:90px;flex-shrink:0;';
+  function makeTopCard(title,name,cnt,col){
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.48rem .6rem;overflow:hidden;';
+    const esc=s=>s.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    card.innerHTML=`<div style="font-size:.43rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin-bottom:.18rem;">${title}</div><div style="font-family:var(--fs);font-style:italic;font-size:.78rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(name)}">${esc(name)}</div><div style="font-size:.52rem;color:${col};margin-top:.1rem;">${cnt}권</div>`;
+    return card;
+  }
+  if(aSorted.length) rRight.appendChild(makeTopCard('최애 작가',aSorted[0][0],aSorted[0][1],AUTHOR_COLS[0]));
+  if(pSorted.length) rRight.appendChild(makeTopCard('최애 출판사',pSorted[0][0],pSorted[0][1],PCOLS[0]));
+  ratingWrap.appendChild(rLeft);ratingWrap.appendChild(rRight);
+  layout.appendChild(ratingWrap);
+
+  if(!aSorted.length) return;
 
   // 공통 렌더 함수 — 목록형, 타겟 엘리먼트에 추가
   function renderSection(sorted, cols, isAuthor, target) {
@@ -4208,7 +4226,7 @@ function buildRatingAuthor() {
 
   // ── 작가(좌) + 출판사(우) 2열 레이아웃
   const twoCol=document.createElement('div');
-  twoCol.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.95rem;align-items:start;';
+  twoCol.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:.95rem;align-items:start;';
   const leftCol=document.createElement('div');
   const aHdr=document.createElement('div');
   aHdr.style.cssText='font-size:.52rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);';
