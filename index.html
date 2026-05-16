@@ -385,16 +385,22 @@
 
       <!-- 게시판 -->
       <div class="panel" id="p-board">
-        <div class="board-toolbar">
-          <div style="display:flex;gap:.4rem;align-items:center;flex:1;flex-wrap:wrap;">
+        <!-- 헤더 -->
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
+          <div>
+            <div style="font-family:var(--ff-disp);font-size:1.75rem;color:var(--tx1);line-height:1;letter-spacing:-0.01em;">산책로</div>
+            <div style="font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:5px;">READING WALK · COMMUNITY</div>
+          </div>
+          <button onclick="openPostWrite()" style="font-size:.72rem;padding:.3rem .8rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);cursor:pointer;font-family:var(--ff);font-weight:600;flex-shrink:0;">글쓰기</button>
+        </div>
+        <!-- 필터 + 검색 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.8rem;">
+          <div style="display:flex;gap:.3rem;align-items:center;flex:1;flex-wrap:wrap;">
             <button class="filter-btn on" id="board-all-btn" onclick="filterBoard('all',this)">전체</button>
             <button class="filter-btn" id="board-notice-btn" onclick="filterBoard('notice',this)">📌 공지</button>
             <button class="filter-btn" id="board-mine-btn" onclick="showMyPosts()">✏️ 내 글</button>
           </div>
-          <div style="display:flex;gap:.4rem;">
-            <input type="text" id="board-search" class="search-input" placeholder="검색..." style="width:140px;font-size:.75rem;" oninput="boardPage=1;renderBoardList()">
-            <button class="search-btn" onclick="openPostWrite()">글쓰기</button>
-          </div>
+          <input type="text" id="board-search" class="search-input" placeholder="검색..." style="width:120px;font-size:.75rem;flex-shrink:0;" oninput="boardPage=1;renderBoardList()">
         </div>
         <div id="board-notice-wrap"></div>
         <div id="board-list"></div>
@@ -1101,6 +1107,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=512"></script>
+<script src="app.js?v=513"></script>
 </body>
 </html>

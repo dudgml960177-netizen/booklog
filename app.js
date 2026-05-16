@@ -1295,9 +1295,9 @@ function openEditQuote(qt) {
   overlay.style.display = 'flex';
   overlay.innerHTML = `
     <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <div style="font-size:.82rem;font-weight:700;color:#fff;font-family:var(--fs);">문장 수정</div>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:.8rem;">✕</button>
+      <div style="background:var(--card);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div style="font-size:.82rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">문장 수정</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;border-radius:50%;width:26px;height:26px;color:var(--tx3);cursor:pointer;font-size:.8rem;">✕</button>
       </div>
       <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
         ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
@@ -3900,8 +3900,6 @@ function buildMonthly() {
     allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages&&parseInt(b.date_finish.slice(0,4))===curYM)
       .forEach(b=>pageValsM[parseInt(b.date_finish.slice(5,7))-1]+=(b.pages||0));
     const maxV=Math.max(...vals,1);
-    const maxPM=Math.max(...pageValsM,1);
-    const hasPg=pageValsM.some(v=>v>0);
     const isCurrentYear=curYM===now.getFullYear();
     const curMo=now.getMonth();
     const svgNS='http://www.w3.org/2000/svg';
@@ -3929,31 +3927,7 @@ function buildMonthly() {
     bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
     bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
     svg.appendChild(bl);
-    // ── 페이지 면적 + 선 + 점
-    if(hasPg){
-      const pts=pageValsM.map((v,i)=>({x:i*SLOT+SLOT/2,y:v>0?H-v/maxPM*H:null,v,ix:i}));
-      let seg=[],segs=[];
-      pts.forEach(pt=>{if(pt.v>0)seg.push(pt);else{if(seg.length){segs.push(seg);seg=[];}}});
-      if(seg.length)segs.push(seg);
-      segs.forEach(s=>{
-        // 면적
-        let d=`M ${s[0].x} ${H}`;
-        if(s.length===1){d+=` L ${s[0].x} ${s[0].y}`;}
-        else{d+=` L ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;d+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
-        d+=` L ${s[s.length-1].x} ${H} Z`;
-        const ap=document.createElementNS(svgNS,'path');
-        ap.setAttribute('d',d);ap.setAttribute('fill',c.line);ap.setAttribute('fill-opacity','.14');
-        svg.appendChild(ap);
-        // 선
-        let ld=s.length===1?`M ${s[0].x-18} ${s[0].y} L ${s[0].x+18} ${s[0].y}`:`M ${s[0].x} ${s[0].y}`;
-        if(s.length>1){for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
-        const lp=document.createElementNS(svgNS,'path');
-        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',c.line);lp.setAttribute('stroke-width','2.5');lp.setAttribute('opacity','.52');
-        svg.appendChild(lp);
-      });
-    }
-    // ── 히트 영역 (툴팁, 맨 위) — 첫 번째 hit 참조 저장
-    let firstHitRef=null;
+    // ── 히트 영역 (툴팁, 맨 위)
     MO.forEach((m,i)=>{
       const hit=document.createElementNS(svgNS,'rect');
       hit.setAttribute('x',i*SLOT);hit.setAttribute('y','0');hit.setAttribute('width',SLOT);hit.setAttribute('height',H);
@@ -3963,7 +3937,6 @@ function buildMonthly() {
       hit.addEventListener('mouseenter',e=>showTip(e,tip));
       hit.addEventListener('mousemove',moveTip);
       hit.addEventListener('mouseleave',hideTip);
-      if(i===0)firstHitRef=hit;
       svg.appendChild(hit);
     });
     // ── SVG를 래퍼에 삽입
@@ -3972,29 +3945,6 @@ function buildMonthly() {
     svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;`;
     chartOuter.appendChild(svg);
     viz.appendChild(chartOuter);
-    // ── 점: rAF로 실제 너비 측정 후 타원→정원 보정
-    if(hasPg){
-      requestAnimationFrame(()=>{
-        const xScale=Math.max(chartOuter.getBoundingClientRect().width/W,0.01);
-        const DR=2.8; // 화면상 반지름(px)
-        pageValsM.forEach((v,i)=>{
-          if(v===0)return;
-          const cx=i*SLOT+SLOT/2,cy=H-v/maxPM*H;
-          // 배경 후광 (바 위에서도 선명하게 보이도록)
-          const halo=document.createElementNS(svgNS,'ellipse');
-          halo.setAttribute('cx',cx);halo.setAttribute('cy',cy);
-          halo.setAttribute('rx',(DR+1.5)/xScale);halo.setAttribute('ry',DR+1.5);
-          halo.setAttribute('fill','var(--card)');halo.setAttribute('opacity','.85');
-          if(firstHitRef)svg.insertBefore(halo,firstHitRef);else svg.appendChild(halo);
-          // 점
-          const dot=document.createElementNS(svgNS,'ellipse');
-          dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
-          dot.setAttribute('rx',DR/xScale);dot.setAttribute('ry',DR);
-          dot.setAttribute('fill',c.line);dot.setAttribute('opacity','.92');
-          if(firstHitRef)svg.insertBefore(dot,firstHitRef);else svg.appendChild(dot);
-        });
-      });
-    }
     // ── 월 레이블 (HTML)
     const lblRow=document.createElement('div');
     lblRow.style.cssText='display:flex;margin-top:3px;';
@@ -4007,13 +3957,6 @@ function buildMonthly() {
       lblRow.appendChild(lbl);
     });
     viz.appendChild(lblRow);
-    // ── 범례
-    if(hasPg){
-      const legRow=document.createElement('div');
-      legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.35rem;font-size:.52rem;color:var(--tx3);';
-      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${c.line};border-radius:1px;opacity:.75;vertical-align:middle;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:14px;height:2px;background:${c.line};border-radius:1px;opacity:.5;vertical-align:middle;"></span>읽은 페이지</span>`;
-      viz.appendChild(legRow);
-    }
   }
 
   const filtered=curYM==='all'?done:done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM);
@@ -4217,7 +4160,8 @@ function buildRatingAuthor() {
     list.forEach(([name,cnt],i)=>{
       const pct=Math.round(cnt/maxV*100);
       const col=cols[i%cols.length];
-      const avgR=isAuthor&&authorRating[name]?(authorRating[name]/cnt).toFixed(1):null;
+      const ratedCnt=isAuthor?(authorRatedCount[name]||0):0;
+      const avgR=isAuthor&&ratedCnt>0?(authorRating[name]/ratedCnt).toFixed(1):null;
       const item=document.createElement('div');
       item.style.cssText='padding:.38rem 0;border-bottom:1px solid var(--border);cursor:default;';
       // 상단 행: 순위 · 이름 · [공간] · 별점평균 · 권수
@@ -4756,11 +4700,44 @@ function selectBook(book) {
   const coverHTML=book.cover?`<img class="selected-cover" src="${book.cover}" alt="${book.title}">`:`<div class="selected-cover" style="background:linear-gradient(150deg,#a07040,#5c3010);"></div>`;
   const pagesInfo = book.pages ? `<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${book.pages}p</span>` : '';
   document.getElementById('selected-book-info').innerHTML=`${coverHTML}<div class="selected-info"><div class="selected-title">${book.title}${pagesInfo}</div><div class="selected-author">${book.author}</div><div class="selected-desc">${book.description||''}</div><span class="selected-change" onclick="changeBook()">다른 책 선택</span></div>`;
-  // 페이지 수 무조건 채우기 (있으면)
+  // 페이지 수 채우기 (있으면)
   const pagesEl = document.getElementById('book-pages');
   if(pagesEl) {
     if(book.pages) { pagesEl.value = book.pages; }
-    else { pagesEl.value = ''; }
+    else {
+      pagesEl.value = '';
+      // ISBN으로 2차 시도
+      if(book.isbn) {
+        pagesEl.placeholder = '검색 중...';
+        fetch(`${NAVER_PROXY}?query=${encodeURIComponent(book.isbn)}&display=5`, {
+          headers: { Authorization: `Bearer ${NAVER_KEY}` }
+        }).then(r=>r.json()).then(data=>{
+          const items = data.items||[];
+          const bt = book.title.toLowerCase().slice(0,10);
+          const item = items.find(it=>it.title.replace(/<[^>]+>/g,'').toLowerCase().includes(bt)) || items[0];
+          let pg = null;
+          if(item?.itemPage && parseInt(item.itemPage)) pg = parseInt(item.itemPage);
+          else if(item?.sub_info?.itemPage) pg = parseInt(item.sub_info.itemPage);
+          const pe = document.getElementById('book-pages');
+          if(pe) {
+            if(pg && !pe.value) {
+              pe.value = pg;
+              if(selectedBook) selectedBook.pages = pg;
+              // 선택된 책 정보 표시 업데이트
+              const pagesInfo = document.querySelector('.selected-title span');
+              if(!pagesInfo) {
+                const titleEl = document.querySelector('.selected-title');
+                if(titleEl) titleEl.insertAdjacentHTML('beforeend',`<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${pg}p</span>`);
+              }
+            }
+            pe.placeholder = '예: 320';
+          }
+        }).catch(()=>{
+          const pe = document.getElementById('book-pages');
+          if(pe) pe.placeholder = '예: 320';
+        });
+      }
+    }
   }
 }
 function changeBook() {
@@ -6719,18 +6696,24 @@ function renderPostItems(list, posts, count, catLabel) {
       el.onclick = () => openPostDetail(p.id);
       const isBlind = p.is_hidden;
       const cat = catLabel[p.category]||'';
+      const excerpt = isBlind ? '' : (()=>{
+        const txt=(p.content||'').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+        return txt.length>80?txt.slice(0,80)+'…':txt;
+      })();
       el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.22rem;flex-wrap:wrap;">
-          ${p.is_notice?'<span class="post-badge-notice">📌 공지</span>':''}
-          ${cat?`<span class="board-cat">${cat}</span>`:''}
-          <span class="board-title" style="${isBlind?'color:var(--tx3);font-style:italic;':''}">
-            ${isBlind?'🚫 신고 게시글로 분류되었습니다.':p.title}
-          </span>
-        </div>
-        <div style="display:flex;align-items:center;gap:.6rem;">
-          <span class="board-meta">산책자</span>
-          <span class="board-meta">${p.created_at?.slice(0,10)}</span>
-          <span class="board-meta" style="margin-left:auto;">❤️ ${p.likes||0}</span>
+        <div style="display:flex;align-items:flex-start;gap:.5rem;">
+          <div style="flex:1;min-width:0;">
+            ${(p.is_notice||cat)?`<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.22rem;">
+              ${p.is_notice?'<span class="post-badge-notice">📌 공지</span>':''}
+              ${cat?`<span class="board-cat">${cat}</span>`:''}
+            </div>`:''}
+            <div class="board-title" style="${isBlind?'color:var(--tx3);font-style:italic;':''}">${isBlind?'🚫 신고 게시글로 분류되었습니다.':p.title}</div>
+            ${excerpt?`<div style="font-size:.7rem;color:var(--tx3);margin-top:.18rem;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${excerpt}</div>`:''}
+          </div>
+          <div style="flex-shrink:0;text-align:right;padding-left:.3rem;">
+            <div class="board-meta" style="margin-bottom:.15rem;">${p.created_at?.slice(5,10).replace('-','.')}</div>
+            <div class="board-meta" style="color:var(--acc);font-size:.63rem;">❤ ${p.likes||0}</div>
+          </div>
         </div>`;
       list.appendChild(el);
     });
