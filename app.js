@@ -4916,6 +4916,26 @@ async function openProfile() {
       +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
   }
 }
+function openContact() {
+  closeModal('modal-profile');
+  const subj = document.getElementById('contact-subject');
+  const body = document.getElementById('contact-body');
+  if(subj) subj.value = '';
+  if(body) body.value = '';
+  openModal('modal-contact');
+}
+
+function submitContact() {
+  const subj = (document.getElementById('contact-subject')?.value||'').trim();
+  const body = (document.getElementById('contact-body')?.value||'').trim();
+  if(!body){showAlert('내용을 입력해주세요.');return;}
+  const from = currentUser?.email ? `\n\n— ${currentUser.email}` : '';
+  const mailto = `mailto:booklog.help@gmail.com?subject=${encodeURIComponent(subj||'북로그 문의')}&body=${encodeURIComponent(body+from)}`;
+  window.open(mailto, '_blank');
+  closeModal('modal-contact');
+  showAlert('이메일 앱이 열립니다. 전송 후 문의가 완료돼요.');
+}
+
 async function saveProfile() {
   const name = document.getElementById('profile-display-name')?.value.trim();
   if(!name){alert('닉네임을 입력해주세요.');return;}
