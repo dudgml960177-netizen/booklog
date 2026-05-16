@@ -3892,133 +3892,77 @@ function buildMonthly() {
       }
     }
   } else {
-    // ── 단일 연도 수직 바 차트
+    // ── 단일 연도 — 완독 + 페이지 통합 바 차트
     const c=YC[curYM]||{line:'#8a7060'};
     const vals=Array(12).fill(0);
     done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
+    const pageValsM=Array(12).fill(0);
+    allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages&&parseInt(b.date_finish.slice(0,4))===curYM)
+      .forEach(b=>pageValsM[parseInt(b.date_finish.slice(5,7))-1]+=(b.pages||0));
     const maxV=Math.max(...vals,1);
+    const maxPM=Math.max(...pageValsM,1);
+    const hasPg=pageValsM.some(v=>v>0);
     const isCurrentYear=curYM===now.getFullYear();
     const curMo=now.getMonth();
     const barsWrap=document.createElement('div');
-    barsWrap.style.cssText='display:flex;align-items:flex-end;gap:4px;height:130px;';
+    barsWrap.style.cssText='display:flex;align-items:flex-end;gap:3px;height:130px;';
     MO.forEach((m,i)=>{
       const isCurMo=isCurrentYear&&i===curMo;
       const isMax=vals[i]===maxV&&maxV>0;
-      const barH=Math.max(vals[i]/maxV*108,vals[i]>0?4:0);
+      const bookH=Math.max(vals[i]/maxV*108,vals[i]>0?4:0);
+      const pgH=hasPg?Math.max(pageValsM[i]/maxPM*108,pageValsM[i]>0?3:0):0;
+      const pgCol=GCOLS[i%GCOLS.length];
+      const bookOpacity=(isMax||isCurMo)?'1':'.38';
       const col=document.createElement('div');
-      col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;';
-      const bar=document.createElement('div');
-      // 최고·현재월 = 년도 색(진하게), 나머지 = 년도 색(연하게)
-      const barColor=(isMax||isCurMo)?c.line:BAR_DARK;
-      const barOpacity=(isMax||isCurMo)?'1':'.38';
-      bar.style.cssText=`width:100%;height:${barH}px;background:${barColor};opacity:${barOpacity};border-radius:2px 2px 0 0;cursor:default;`;
-      const mTip=`${curYM}년 ${m}월<br><b>${vals[i]}권</b> 완독`;
-      bar.addEventListener('mouseenter',e=>showTip(e,mTip));
-      bar.addEventListener('mousemove',moveTip);
-      bar.addEventListener('mouseleave',hideTip);
-      // 바 안에 수 표시 (3권 이상이고 바가 충분히 클 때)
-      if(vals[i]>=2&&barH>18){
-        bar.style.display='flex';bar.style.alignItems='flex-start';bar.style.justifyContent='center';
-        bar.style.paddingTop='3px';
+      col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;cursor:default;';
+      // 바 묶음 행
+      const barRow=document.createElement('div');
+      barRow.style.cssText='display:flex;align-items:flex-end;gap:1px;';
+      // 완독 바 (좌)
+      const bookBar=document.createElement('div');
+      bookBar.style.cssText=`flex:${hasPg?'11':'1'};height:${bookH}px;background:${(isMax||isCurMo)?c.line:BAR_DARK};opacity:${bookOpacity};border-radius:2px 2px 0 0;transition:opacity .15s;overflow:hidden;min-width:0;`;
+      if(vals[i]>=2&&bookH>18){
+        bookBar.style.display='flex';bookBar.style.alignItems='flex-start';bookBar.style.justifyContent='center';bookBar.style.paddingTop='3px';
         const num=document.createElement('span');
-        num.style.cssText=`font-size:.45rem;color:#fff;opacity:.9;font-family:var(--fs);font-style:italic;`;
-        num.textContent=vals[i]; bar.appendChild(num);
+        num.style.cssText=`font-size:.42rem;color:#fff;opacity:.9;font-family:var(--fs);font-style:italic;`;
+        num.textContent=vals[i];bookBar.appendChild(num);
       }
+      barRow.appendChild(bookBar);
+      // 페이지 바 (우)
+      let pgBar=null;
+      if(hasPg){
+        pgBar=document.createElement('div');
+        pgBar.style.cssText=`flex:9;height:${pgH}px;background:${pgCol};opacity:.68;border-radius:2px 2px 0 0;transition:opacity .15s;min-width:0;`;
+        barRow.appendChild(pgBar);
+      }
+      // 툴팁 & 호버
+      const pgLine=pageValsM[i]>0?`<br><span style="opacity:.8;">${pageValsM[i].toLocaleString()}p</span>`:'';
+      const mTip=`${curYM}년 ${m}월<br><b>${vals[i]}권</b> 완독${pgLine}`;
+      col.addEventListener('mouseenter',e=>{
+        bookBar.style.opacity='1';
+        if(pgBar)pgBar.style.opacity='1';
+        showTip(e,mTip);
+      });
+      col.addEventListener('mousemove',moveTip);
+      col.addEventListener('mouseleave',()=>{
+        bookBar.style.opacity=bookOpacity;
+        if(pgBar)pgBar.style.opacity='.68';
+        hideTip();
+      });
       const base=document.createElement('div');
       base.style.cssText='width:100%;height:1px;background:var(--border);margin-bottom:4px;';
       const lbl=document.createElement('div');
-      lbl.style.cssText=`font-size:.5rem;color:${(isMax||isCurMo)?c.line:'var(--tx3)'};visibility:${i%2===0?'visible':'hidden'};`;
+      lbl.style.cssText=`font-size:.5rem;color:${(isMax||isCurMo)?c.line:'var(--tx3)'};visibility:${i%2===0?'visible':'hidden'};text-align:center;`;
       lbl.textContent=m;
-      col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
+      col.appendChild(barRow);col.appendChild(base);col.appendChild(lbl);
       barsWrap.appendChild(col);
     });
     viz.appendChild(barsWrap);
-    // ── pages area chart (below bars)
-    const pagesDoneRaw=allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages);
-    const pageValsM=Array(12).fill(0);
-    pagesDoneRaw.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM)
-      .forEach(b=>pageValsM[parseInt(b.date_finish.slice(5,7))-1]+=(b.pages||0));
-    if(pageValsM.some(v=>v>0)){
-      const maxPM=Math.max(...pageValsM,1);
-      const W=1000,H=56,PAD=4;
-      const slotW=W/12;
-      const svgNS='http://www.w3.org/2000/svg';
-      // 연도 색상 기반 보조색 (바 차트와 구분되도록 약간 투명하게)
-      const pgCol=c.line;
-      // header row
-      const pgHdr=document.createElement('div');
-      pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.55rem;margin-bottom:.1rem;';
-      pgHdr.innerHTML=`<span style="font-size:.48rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);">PAGES</span><span style="flex:1;height:1px;background:var(--border);"></span>`;
-      viz.appendChild(pgHdr);
-      const svg=document.createElementNS(svgNS,'svg');
-      svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-      svg.setAttribute('preserveAspectRatio','none');
-      svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;cursor:default;`;
-      // build all 12 points (zero → baseline)
-      const allPts=pageValsM.map((v,i)=>({
-        x:i*slotW+slotW/2,
-        y:v>0?PAD+(H-PAD*2)*(1-v/maxPM):H,
-        v,ix:i
-      }));
-      // area + line per segment of consecutive non-zero values
-      let seg=[]; const segs=[];
-      allPts.forEach((pt,i)=>{
-        if(pt.v>0){seg.push(pt);}
-        else{if(seg.length){segs.push(seg);seg=[];}}
-      });
-      if(seg.length) segs.push(seg);
-      segs.forEach(s=>{
-        // area fill
-        let d=`M ${s[0].x} ${H}`;
-        if(s.length===1){d+=` L ${s[0].x-slotW*.3} ${s[0].y} L ${s[0].x+slotW*.3} ${s[0].y}`;}
-        else{d+=` L ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;d+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
-        d+=` L ${s[s.length-1].x} ${H} Z`;
-        const ap=document.createElementNS(svgNS,'path');
-        ap.setAttribute('d',d);ap.setAttribute('fill',pgCol);ap.setAttribute('fill-opacity','.18');
-        svg.appendChild(ap);
-        // line
-        let ld='';
-        if(s.length===1){ld=`M ${s[0].x-slotW*.3} ${s[0].y} L ${s[0].x+slotW*.3} ${s[0].y}`;}
-        else{ld=`M ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
-        const lp=document.createElementNS(svgNS,'path');
-        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',pgCol);lp.setAttribute('stroke-width','2');lp.setAttribute('opacity','.72');
-        svg.appendChild(lp);
-        // dots — 월별 GCOLS 순환으로 다채롭게
-        s.forEach((pt,ki)=>{
-          const dotCol=GCOLS[(pt.ix)%GCOLS.length];
-          const dot=document.createElementNS(svgNS,'circle');
-          dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
-          dot.setAttribute('r','3.2');dot.setAttribute('fill',dotCol);dot.setAttribute('opacity','.9');
-          svg.appendChild(dot);
-        });
-      });
-      // baseline
-      const bl=document.createElementNS(svgNS,'line');
-      bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
-      bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
-      svg.appendChild(bl);
-      // hover interaction — highlight column
-      const hl=document.createElementNS(svgNS,'rect');
-      hl.setAttribute('y','0');hl.setAttribute('width',slotW*.7);hl.setAttribute('height',H);
-      hl.setAttribute('fill',pgCol);hl.setAttribute('opacity','0');hl.setAttribute('rx','2');
-      svg.appendChild(hl);
-      svg.addEventListener('mousemove',e=>{
-        const rect=svg.getBoundingClientRect();
-        const idx=Math.max(0,Math.min(11,Math.floor((e.clientX-rect.left)/rect.width*12)));
-        if(pageValsM[idx]>0){
-          hl.setAttribute('x',idx*slotW+slotW*.15);hl.setAttribute('opacity','.08');
-          showTip(e,`${curYM}년 ${MO[idx]}월<br><b>${pageValsM[idx].toLocaleString()}p</b>`);
-        } else {
-          hl.setAttribute('opacity','0');hideTip();
-        }
-        moveTip(e);
-      });
-      svg.addEventListener('mouseleave',()=>{hl.setAttribute('opacity','0');hideTip();});
-      viz.appendChild(svg);
-      // month label row (shared with bars above)
+    // 범례
+    if(hasPg){
       const legRow=document.createElement('div');
-      legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.3rem;font-size:.52rem;color:var(--tx3);';
-      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:${c.line};border-radius:1px;opacity:.75;"></span>권수</span><span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:${pgCol};border-radius:1px;opacity:.55;"></span>페이지</span>`;
+      legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.35rem;font-size:.52rem;color:var(--tx3);';
+      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${c.line};border-radius:1px;opacity:.75;vertical-align:middle;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${GCOLS[0]};border-radius:1px;opacity:.6;vertical-align:middle;"></span>읽은 페이지</span>`;
       viz.appendChild(legRow);
     }
   }
@@ -4118,6 +4062,7 @@ function buildRatingAuthor() {
   const total=filtered.length;
   const layout=document.getElementById('rating-layout');
   layout.innerHTML='';
+  layout.style.cssText='display:block;';
   if(!total){layout.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
 
   // ── 평점 ─────────────────────────────────────────────────────────────────
@@ -4183,64 +4128,57 @@ function buildRatingAuthor() {
   const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
   const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
 
-  // 공통 렌더 함수 — 배경 fill 레이아웃
+  // 공통 렌더 함수 — 깔끔한 목록형 레이아웃
   function renderSection(sorted, cols, isAuthor) {
     const label=isAuthor?'작가':'출판사';
     const maxV=sorted[0][1];
-    // 섹션 헤더
     const hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:.5rem;margin-top:1rem;margin-bottom:.4rem;';
+    hdr.style.cssText='display:flex;align-items:center;gap:.5rem;margin-top:.95rem;margin-bottom:.4rem;';
     hdr.innerHTML=`<span style="font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">${label}</span><span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
     layout.appendChild(hdr);
     const expanded=isAuthor?authorExpanded:pubExpanded;
     const list=expanded?sorted:sorted.slice(0,5);
     list.forEach(([name,cnt],i)=>{
       const pct=Math.round(cnt/maxV*100);
-      const bg=cols[i%cols.length];
+      const col=cols[i%cols.length];
       const avgR=isAuthor&&authorRating[name]?(authorRating[name]/cnt).toFixed(1):null;
       const item=document.createElement('div');
-      // 배경 fill로 비율 표현 — border + tint 방식
-      item.style.cssText=`position:relative;overflow:hidden;border-radius:5px;margin-bottom:.28rem;cursor:default;transition:background .15s;`;
-      // 배경 바
-      const bgFill=document.createElement('div');
-      bgFill.style.cssText=`position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${bg};opacity:.1;transition:opacity .15s;border-radius:5px;`;
-      // 좌측 컬러 accent 선
-      const accent=document.createElement('div');
-      accent.style.cssText=`position:absolute;top:10%;left:0;width:2.5px;height:80%;background:${bg};border-radius:0 2px 2px 0;opacity:.6;`;
-      // 콘텐츠
-      const row=document.createElement('div');
-      row.style.cssText='position:relative;z-index:1;display:flex;align-items:center;gap:.45rem;padding:.45rem .65rem .45rem .7rem;';
-      // 순위
+      item.style.cssText='padding:.38rem 0;border-bottom:1px solid var(--border);cursor:default;';
+      // 상단 행: 순위 · 이름 · [공간] · 별점평균 · 권수
+      const topRow=document.createElement('div');
+      topRow.style.cssText='display:flex;align-items:baseline;gap:.4rem;';
       const rankEl=document.createElement('span');
-      rankEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.72rem;color:${bg};opacity:.8;flex-shrink:0;line-height:1;min-width:14px;`;
+      rankEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.7rem;color:${col};flex-shrink:0;min-width:13px;line-height:1;`;
       rankEl.textContent=i+1;
-      // 이름
       const nameEl=document.createElement('span');
       nameEl.style.cssText='font-size:.73rem;color:var(--tx1);font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;';
       nameEl.title=name;nameEl.textContent=name;
-      // 별점 평균
+      topRow.appendChild(rankEl);topRow.appendChild(nameEl);
       if(avgR){
         const rEl=document.createElement('span');
-        rEl.style.cssText='font-size:.58rem;color:var(--tx3);flex-shrink:0;';
-        rEl.textContent='★'+avgR;
-        row.appendChild(rankEl);row.appendChild(nameEl);row.appendChild(rEl);
-      } else {
-        row.appendChild(rankEl);row.appendChild(nameEl);
+        rEl.style.cssText='font-size:.6rem;color:var(--tx3);flex-shrink:0;letter-spacing:-.01em;';
+        rEl.textContent='★ '+avgR;
+        topRow.appendChild(rEl);
       }
-      // 권수
       const cntEl=document.createElement('span');
-      cntEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.9rem;color:${bg};flex-shrink:0;line-height:1;`;
+      cntEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.85rem;color:${col};flex-shrink:0;line-height:1;`;
       cntEl.textContent=cnt+'권';
-      row.appendChild(cntEl);
-      item.appendChild(bgFill);item.appendChild(accent);item.appendChild(row);
+      topRow.appendChild(cntEl);
+      // 하단 비율 바 (2px, 은은하게)
+      const barWrap=document.createElement('div');
+      barWrap.style.cssText='margin-top:.26rem;height:2px;background:var(--bg);border-radius:2px;overflow:hidden;';
+      const barFill=document.createElement('div');
+      barFill.style.cssText=`height:100%;width:${pct}%;background:${col};border-radius:2px;opacity:.55;transition:opacity .15s;`;
+      barWrap.appendChild(barFill);
+      item.appendChild(topRow);item.appendChild(barWrap);
       const tip=`${name}<br><b>${cnt}권</b> 완독${avgR?' · ★'+avgR:''}`;
-      item.addEventListener('mouseenter',e=>{bgFill.style.opacity='.2';accent.style.opacity='1';showTip(e,tip);});
+      item.addEventListener('mouseenter',e=>{barFill.style.opacity='.9';showTip(e,tip);});
       item.addEventListener('mousemove',moveTip);
-      item.addEventListener('mouseleave',()=>{bgFill.style.opacity='.1';accent.style.opacity='.6';hideTip();});
+      item.addEventListener('mouseleave',()=>{barFill.style.opacity='.55';hideTip();});
       layout.appendChild(item);
     });
     if(sorted.length>5){
-      const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.15rem;';
+      const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.2rem;';
       btn.textContent=expanded?'접기 ▲':`+${sorted.length-5}${isAuthor?'명':'개'} 더 보기`;
       btn.onclick=()=>{isAuthor?authorExpanded=!authorExpanded:pubExpanded=!pubExpanded;buildRatingAuthor();};
       layout.appendChild(btn);
