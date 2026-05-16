@@ -3857,73 +3857,38 @@ function buildMonthly() {
       });
       lr.appendChild(sp);lr.appendChild(ml);viz.appendChild(lr);
 
-      // ── 연도별 페이지 면적 그래프
+      // ── 연도별 페이지 바 차트 (YC 컬러)
       if(YEARS.some(y=>pagesByYear[y]>0)){
         const pgHdr=document.createElement('div');
-        pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.7rem;margin-bottom:.1rem;';
+        pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.7rem;margin-bottom:.35rem;';
         pgHdr.innerHTML=`<span style="font-size:.48rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);">PAGES</span><span style="flex:1;height:1px;background:var(--border);"></span>`;
         viz.appendChild(pgHdr);
-        const W=1000,H=52,PAD=4,svgNS='http://www.w3.org/2000/svg';
-        const svg=document.createElementNS(svgNS,'svg');
-        svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-        svg.setAttribute('preserveAspectRatio','none');
-        svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;cursor:default;`;
-        const n=YEARS.length;
-        const slotW=W/n;
         const yVals=YEARS.map(y=>pagesByYear[y]||0);
         const maxPY=Math.max(...yVals,1);
-        const allPts=yVals.map((v,i)=>({x:i*slotW+slotW/2,y:v>0?PAD+(H-PAD*2)*(1-v/maxPY):H,v,ix:i}));
-        // area fill
-        let d=`M ${allPts[0].x} ${H}`;
-        allPts.forEach((pt,i)=>{
-          if(i===0){d+=` L ${pt.x} ${pt.y}`;}
-          else{const cx=(allPts[i-1].x+pt.x)/2;d+=` C ${cx} ${allPts[i-1].y},${cx} ${pt.y},${pt.x} ${pt.y}`;}
+        const pgBarsWrap=document.createElement('div');
+        pgBarsWrap.style.cssText='display:flex;align-items:flex-end;gap:4px;height:58px;';
+        YEARS.forEach((y,i)=>{
+          const v=yVals[i];
+          const yc=YC[y]||{line:'#8a7060'};
+          const isMax=v===maxPY&&maxPY>0;
+          const barH=Math.max(v/maxPY*44, v>0?3:0);
+          const col=document.createElement('div');
+          col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:default;';
+          const bar=document.createElement('div');
+          bar.style.cssText=`width:100%;height:${barH}px;background:${yc.line};opacity:${isMax?'.9':'.52'};border-radius:2px 2px 0 0;transition:opacity .15s;`;
+          const base=document.createElement('div');
+          base.style.cssText='width:100%;height:1px;background:var(--border);margin-bottom:3px;';
+          const lbl=document.createElement('div');
+          lbl.style.cssText=`font-size:.46rem;color:${isMax?yc.line:'var(--tx3)'};text-align:center;line-height:1;white-space:nowrap;`;
+          lbl.textContent=y;
+          const tip=`${y}년<br><b>${v.toLocaleString()}p</b>`;
+          col.addEventListener('mouseenter',e=>{bar.style.opacity='1';showTip(e,tip);});
+          col.addEventListener('mousemove',moveTip);
+          col.addEventListener('mouseleave',()=>{bar.style.opacity=isMax?'.9':'.52';hideTip();});
+          col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
+          pgBarsWrap.appendChild(col);
         });
-        d+=` L ${allPts[allPts.length-1].x} ${H} Z`;
-        const ap=document.createElementNS(svgNS,'path');
-        ap.setAttribute('d',d);ap.setAttribute('fill','#5a7a8a');ap.setAttribute('fill-opacity','.18');
-        svg.appendChild(ap);
-        // line
-        let ld=`M ${allPts[0].x} ${allPts[0].y}`;
-        allPts.forEach((pt,i)=>{if(i>0){const cx=(allPts[i-1].x+pt.x)/2;ld+=` C ${cx} ${allPts[i-1].y},${cx} ${pt.y},${pt.x} ${pt.y}`;}});
-        const lp=document.createElementNS(svgNS,'path');
-        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke','#5a7a8a');lp.setAttribute('stroke-width','2');lp.setAttribute('opacity','.72');
-        svg.appendChild(lp);
-        // dots + year labels
-        allPts.forEach((pt,i)=>{
-          if(pt.v>0){
-            const dot=document.createElementNS(svgNS,'circle');
-            dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
-            dot.setAttribute('r','3.2');dot.setAttribute('fill','#5a7a8a');dot.setAttribute('opacity','.88');
-            svg.appendChild(dot);
-          }
-          const lbl=document.createElementNS(svgNS,'text');
-          lbl.setAttribute('x',pt.x);lbl.setAttribute('y',H-1);
-          lbl.setAttribute('text-anchor','middle');lbl.setAttribute('font-size','48');
-          lbl.setAttribute('fill','var(--tx3)');lbl.setAttribute('opacity','.7');
-          lbl.textContent=YEARS[i];
-          svg.appendChild(lbl);
-        });
-        // baseline
-        const bl=document.createElementNS(svgNS,'line');
-        bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
-        bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
-        svg.appendChild(bl);
-        // hover
-        const hl=document.createElementNS(svgNS,'rect');
-        hl.setAttribute('y','0');hl.setAttribute('width',slotW*.6);hl.setAttribute('height',H);
-        hl.setAttribute('fill','#5a7a8a');hl.setAttribute('opacity','0');hl.setAttribute('rx','3');
-        svg.appendChild(hl);
-        svg.addEventListener('mousemove',e=>{
-          const rect=svg.getBoundingClientRect();
-          const idx=Math.max(0,Math.min(n-1,Math.floor((e.clientX-rect.left)/rect.width*n)));
-          hl.setAttribute('x',idx*slotW+slotW*.2);hl.setAttribute('opacity',yVals[idx]>0?'.07':'0');
-          if(yVals[idx]>0) showTip(e,`${YEARS[idx]}년<br><b>${yVals[idx].toLocaleString()}p</b>`);
-          else hideTip();
-          moveTip(e);
-        });
-        svg.addEventListener('mouseleave',()=>{hl.setAttribute('opacity','0');hideTip();});
-        viz.appendChild(svg);
+        viz.appendChild(pgBarsWrap);
       }
     }
   } else {
@@ -3978,6 +3943,8 @@ function buildMonthly() {
       const W=1000,H=56,PAD=4;
       const slotW=W/12;
       const svgNS='http://www.w3.org/2000/svg';
+      // 연도 색상 기반 보조색 (바 차트와 구분되도록 약간 투명하게)
+      const pgCol=c.line;
       // header row
       const pgHdr=document.createElement('div');
       pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.55rem;margin-bottom:.1rem;';
@@ -4007,20 +3974,21 @@ function buildMonthly() {
         else{d+=` L ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;d+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
         d+=` L ${s[s.length-1].x} ${H} Z`;
         const ap=document.createElementNS(svgNS,'path');
-        ap.setAttribute('d',d);ap.setAttribute('fill','#5a7a8a');ap.setAttribute('fill-opacity','.18');
+        ap.setAttribute('d',d);ap.setAttribute('fill',pgCol);ap.setAttribute('fill-opacity','.18');
         svg.appendChild(ap);
         // line
         let ld='';
         if(s.length===1){ld=`M ${s[0].x-slotW*.3} ${s[0].y} L ${s[0].x+slotW*.3} ${s[0].y}`;}
         else{ld=`M ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
         const lp=document.createElementNS(svgNS,'path');
-        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke','#5a7a8a');lp.setAttribute('stroke-width','2');lp.setAttribute('opacity','.72');
+        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',pgCol);lp.setAttribute('stroke-width','2');lp.setAttribute('opacity','.72');
         svg.appendChild(lp);
-        // dots
-        s.forEach(pt=>{
+        // dots — 월별 GCOLS 순환으로 다채롭게
+        s.forEach((pt,ki)=>{
+          const dotCol=GCOLS[(pt.ix)%GCOLS.length];
           const dot=document.createElementNS(svgNS,'circle');
           dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
-          dot.setAttribute('r','3.2');dot.setAttribute('fill','#5a7a8a');dot.setAttribute('opacity','.88');
+          dot.setAttribute('r','3.2');dot.setAttribute('fill',dotCol);dot.setAttribute('opacity','.9');
           svg.appendChild(dot);
         });
       });
@@ -4032,7 +4000,7 @@ function buildMonthly() {
       // hover interaction — highlight column
       const hl=document.createElementNS(svgNS,'rect');
       hl.setAttribute('y','0');hl.setAttribute('width',slotW*.7);hl.setAttribute('height',H);
-      hl.setAttribute('fill','#5a7a8a');hl.setAttribute('opacity','0');hl.setAttribute('rx','2');
+      hl.setAttribute('fill',pgCol);hl.setAttribute('opacity','0');hl.setAttribute('rx','2');
       svg.appendChild(hl);
       svg.addEventListener('mousemove',e=>{
         const rect=svg.getBoundingClientRect();
@@ -4050,7 +4018,7 @@ function buildMonthly() {
       // month label row (shared with bars above)
       const legRow=document.createElement('div');
       legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.3rem;font-size:.52rem;color:var(--tx3);';
-      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:${c.line};border-radius:1px;opacity:.75;"></span>권수</span><span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:#5a7a8a;border-radius:1px;opacity:.75;"></span>페이지</span>`;
+      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:${c.line};border-radius:1px;opacity:.75;"></span>권수</span><span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="display:inline-block;width:10px;height:3px;background:${pgCol};border-radius:1px;opacity:.55;"></span>페이지</span>`;
       viz.appendChild(legRow);
     }
   }
@@ -4152,36 +4120,57 @@ function buildRatingAuthor() {
   layout.innerHTML='';
   if(!total){layout.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
 
-  // ── 평점 분포
-  const secLbl=document.createElement('div');
-  secLbl.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';
-  secLbl.textContent='평점 분포';layout.appendChild(secLbl);
+  // ── 평점 ─────────────────────────────────────────────────────────────────
   const dist=[5,4,3,2,1].map(s=>filtered.filter(b=>b.rating===s).length);
   const maxD=Math.max(...dist)||1;
-  const avg=total>0?(filtered.reduce((a,b)=>a+(b.rating||0),0)/total).toFixed(2):'—';
-  const stars=s=>'★'.repeat(s)+'☆'.repeat(5-s);
-  const rFlex=document.createElement('div');rFlex.className='rating-layout';rFlex.style.marginBottom='1.2rem';
-  const sumEl=document.createElement('div');sumEl.className='rating-summary';
-  sumEl.innerHTML=`<div class="rs-avg">${avg}</div><div class="rs-lbl">평균 평점</div>`;
-  const distEl=document.createElement('div');distEl.className='rs-dist';
-  [5,4,3,2,1].forEach((s,i)=>{const r=document.createElement('div');r.className='rs-star-row';r.innerHTML=`<span class="rs-star" style="font-size:10px;">${'★'.repeat(s)}</span><div class="rs-mini"><div class="rs-mini-fill" style="width:${Math.round(dist[i]/maxD*100)}%;background:${RCOLS[i]}"></div></div>`;distEl.appendChild(r);});
-  sumEl.appendChild(distEl);
-  const barsEl=document.createElement('div');barsEl.className='rating-bars';
+  const ratedTotal=dist.reduce((a,v)=>a+v,0);
+  const avg=ratedTotal>0?(filtered.reduce((a,b)=>a+(b.rating||0),0)/ratedTotal).toFixed(1):'—';
+  const starsStr=s=>'★'.repeat(s)+'☆'.repeat(5-s);
+
+  // 섹션 헤더 (레이블 left + avg right)
+  const rHead=document.createElement('div');
+  rHead.style.cssText='display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.75rem;';
+  rHead.innerHTML=`<span style="font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">평점</span>
+    <span style="display:flex;align-items:baseline;gap:.3rem;">
+      <span style="font-family:var(--fs);font-style:italic;font-size:1.55rem;color:var(--tx1);line-height:1;">${avg}</span>
+      <span style="font-size:.56rem;color:var(--tx3);padding-bottom:.1rem;">/ 5 &nbsp;·&nbsp; ${ratedTotal}권</span>
+    </span>`;
+  layout.appendChild(rHead);
+
+  // 5단계 바
   [5,4,3,2,1].forEach((s,i)=>{
-    const cnt=dist[i],pct=total>0?Math.round(cnt/total*100):0,wpct=Math.round(cnt/maxD*100);const inside=wpct>=22;
-    const row=document.createElement('div');row.className='rbar-row';
-    row.innerHTML=`<span class="rbar-label">${stars(s)}</span><div class="rbar-outer"><div class="rbar-fill" style="width:${wpct}%;background:${RCOLS[i]}">${inside?`<span class="rbar-val">${cnt}권</span>`:''}</div>${!inside&&cnt>0?`<span class="rbar-val-out" style="left:${wpct}%;">${cnt}권</span>`:''}</div><span style="font-size:.62rem;color:var(--tx3);min-width:24px;text-align:right;">${pct}%</span>`;
-    const rTip=`${stars(s)}<br><b>${cnt}권</b> · ${pct}%`;
+    const cnt=dist[i],pct=ratedTotal>0?Math.round(cnt/ratedTotal*100):0;
+    const wpct=Math.round(cnt/maxD*100);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:.5rem;margin-bottom:.38rem;cursor:default;';
+    // 별 레이블
+    const starEl=document.createElement('div');
+    starEl.style.cssText=`font-size:.62rem;color:${RCOLS[i]};min-width:54px;letter-spacing:-.01em;line-height:1;`;
+    starEl.textContent=starsStr(s);
+    // 바
+    const bOuter=document.createElement('div');
+    bOuter.style.cssText='flex:1;height:14px;background:var(--bg);border-radius:3px;overflow:hidden;position:relative;';
+    const bFill=document.createElement('div');
+    bFill.style.cssText=`position:absolute;inset:0;width:${wpct}%;background:${RCOLS[i]};border-radius:3px;transition:width .5s ease;`;
+    bOuter.appendChild(bFill);
+    // 권수 레이블 (바 안 or 바 밖)
+    if(cnt>0){
+      const vEl=document.createElement('div');
+      vEl.style.cssText=`position:absolute;top:50%;transform:translateY(-50%);font-size:.55rem;font-weight:600;line-height:1;${wpct>=26?`right:5px;color:#fff;`:`left:calc(${wpct}% + 5px);color:var(--tx3);`}`;
+      vEl.textContent=cnt+'권';
+      bOuter.appendChild(vEl);
+    }
+    // % 레이블
+    const pEl=document.createElement('div');
+    pEl.style.cssText='font-size:.6rem;color:var(--tx3);min-width:28px;text-align:right;line-height:1;';
+    pEl.textContent=pct+'%';
+    const rTip=`${starsStr(s)}<br><b>${cnt}권</b> · ${pct}%`;
     row.addEventListener('mouseenter',e=>showTip(e,rTip));row.addEventListener('mousemove',moveTip);row.addEventListener('mouseleave',hideTip);
-    barsEl.appendChild(row);
+    row.appendChild(starEl);row.appendChild(bOuter);row.appendChild(pEl);
+    layout.appendChild(row);
   });
-  rFlex.appendChild(sumEl);rFlex.appendChild(barsEl);layout.appendChild(rFlex);
 
-  // ── 작가 · 출판사 구분선
-  const div1=document.createElement('div');div1.style.cssText='border-top:1px solid var(--border);margin-bottom:.9rem;';layout.appendChild(div1);
-  const aLbl=document.createElement('div');aLbl.style.cssText='font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.65rem;';aLbl.textContent='작가 · 출판사';layout.appendChild(aLbl);
-
-  // build maps
+  // ── 작가 · 출판사 ─────────────────────────────────────────────────────────
   const authorMap={},pubMap={},authorRating={},pubRating={};
   filtered.forEach(b=>{
     if(b.author){authorMap[b.author]=(authorMap[b.author]||0)+1;authorRating[b.author]=(authorRating[b.author]||0)+(b.rating||0);}
@@ -4189,70 +4178,77 @@ function buildRatingAuthor() {
   });
   const aSorted=Object.entries(authorMap).sort((a,b)=>b[1]-a[1]||((authorRating[b[0]]||0)-(authorRating[a[0]]||0)));
   const pSorted=Object.entries(pubMap).sort((a,b)=>b[1]-a[1]||((pubRating[b[0]]||0)-(pubRating[a[0]]||0)));
-  if(!aSorted.length){layout.innerHTML+='<div style="font-size:.75rem;color:var(--tx3);">작가 정보가 없어요.</div>';return;}
+  if(!aSorted.length) return;
 
-  // ── 작가 목록
-  const h1=document.createElement('div');
-  h1.style.cssText='font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem;';
-  h1.innerHTML=`작가 <span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
-  layout.appendChild(h1);
   const AUTHOR_COLS=['#c4714a','#c4a87a','#8a3a28','#c87850','#9a5040','#b06030'];
-  const aList=authorExpanded?aSorted:aSorted.slice(0,5);const maxA=aSorted[0][1];
-  aList.forEach(([name,cnt],i)=>{
-    const pct=Math.round(cnt/maxA*100);const bg=AUTHOR_COLS[i%AUTHOR_COLS.length];
-    const avgR=authorRating[name]?(authorRating[name]/cnt).toFixed(1):null;
-    const item=document.createElement('div');
-    item.style.cssText='margin-bottom:.72rem;cursor:default;';
-    const topRow=document.createElement('div');
-    topRow.style.cssText='display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;margin-bottom:.26rem;';
-    const leftEl=document.createElement('div');
-    leftEl.style.cssText='display:flex;align-items:baseline;gap:.38rem;min-width:0;flex:1;overflow:hidden;';
-    leftEl.innerHTML=`<span style="font-family:var(--fs);font-style:italic;font-size:.78rem;color:${bg};flex-shrink:0;line-height:1;min-width:10px;">${i+1}</span><span style="font-size:.75rem;color:var(--tx1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${name}">${name}</span>${avgR?`<span style="font-size:.58rem;color:var(--tx3);flex-shrink:0;margin-left:.1rem;">★${avgR}</span>`:''}`;
-    const rightEl=document.createElement('div');
-    rightEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.95rem;color:${bg};flex-shrink:0;line-height:1;`;
-    rightEl.textContent=cnt+'권';
-    topRow.appendChild(leftEl);topRow.appendChild(rightEl);
-    const barEl=document.createElement('div');
-    barEl.style.cssText=`height:4px;background:var(--bg2,#ece6db);border-radius:2px;overflow:hidden;`;
-    barEl.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};border-radius:2px;transition:width .5s ease;"></div>`;
-    const aTip=`${name}<br><b>${cnt}권</b> 완독${avgR?' · ★ '+avgR:''}`;
-    item.addEventListener('mouseenter',e=>showTip(e,aTip));item.addEventListener('mousemove',moveTip);item.addEventListener('mouseleave',hideTip);
-    item.appendChild(topRow);item.appendChild(barEl);
-    layout.appendChild(item);
-  });
-  if(aSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.1rem;margin-bottom:.9rem;';btn.textContent=authorExpanded?'접기 ▲':`+${aSorted.length-5}명 더 보기`;btn.onclick=()=>{authorExpanded=!authorExpanded;buildRatingAuthor();};layout.appendChild(btn);}
-
-  // ── 출판사 목록
-  if(!pSorted.length)return;
-  const div2=document.createElement('div');div2.style.cssText='margin:.2rem 0 .75rem;';layout.appendChild(div2);
-  const h2=document.createElement('div');
-  h2.style.cssText='font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);margin-bottom:.7rem;display:flex;align-items:center;gap:.5rem;';
-  h2.innerHTML=`출판사 <span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
-  layout.appendChild(h2);
   const PCOLS=['#5a7a8a','#6b8f6b','#7a5a8a','#3a6858','#4a6888','#6a8a50'];
-  const pList=pubExpanded?pSorted:pSorted.slice(0,5);const maxP=pSorted[0][1];
-  pList.forEach(([name,cnt],i)=>{
-    const pct=Math.round(cnt/maxP*100);const bg=PCOLS[i%PCOLS.length];
-    const item=document.createElement('div');
-    item.style.cssText='margin-bottom:.72rem;cursor:default;';
-    const topRow=document.createElement('div');
-    topRow.style.cssText='display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;margin-bottom:.26rem;';
-    const leftEl=document.createElement('div');
-    leftEl.style.cssText='display:flex;align-items:baseline;gap:.38rem;min-width:0;flex:1;overflow:hidden;';
-    leftEl.innerHTML=`<span style="font-family:var(--fs);font-style:italic;font-size:.78rem;color:${bg};flex-shrink:0;line-height:1;min-width:10px;">${i+1}</span><span style="font-size:.75rem;color:var(--tx1);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${name}">${name}</span>`;
-    const rightEl=document.createElement('div');
-    rightEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.95rem;color:${bg};flex-shrink:0;line-height:1;`;
-    rightEl.textContent=cnt+'권';
-    topRow.appendChild(leftEl);topRow.appendChild(rightEl);
-    const barEl=document.createElement('div');
-    barEl.style.cssText=`height:4px;background:var(--bg2,#ece6db);border-radius:2px;overflow:hidden;`;
-    barEl.innerHTML=`<div style="width:${pct}%;height:100%;background:${bg};border-radius:2px;transition:width .5s ease;"></div>`;
-    const pTip=`${name}<br><b>${cnt}권</b> 완독`;
-    item.addEventListener('mouseenter',e=>showTip(e,pTip));item.addEventListener('mousemove',moveTip);item.addEventListener('mouseleave',hideTip);
-    item.appendChild(topRow);item.appendChild(barEl);
-    layout.appendChild(item);
-  });
-  if(pSorted.length>5){const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.marginTop='.1rem';btn.textContent=pubExpanded?'접기 ▲':`+${pSorted.length-5}개 더 보기`;btn.onclick=()=>{pubExpanded=!pubExpanded;buildRatingAuthor();};layout.appendChild(btn);}
+
+  // 공통 렌더 함수 — 배경 fill 레이아웃
+  function renderSection(sorted, cols, isAuthor) {
+    const label=isAuthor?'작가':'출판사';
+    const maxV=sorted[0][1];
+    // 섹션 헤더
+    const hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:.5rem;margin-top:1rem;margin-bottom:.4rem;';
+    hdr.innerHTML=`<span style="font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);">${label}</span><span style="flex:1;height:1px;background:var(--border);display:inline-block;"></span>`;
+    layout.appendChild(hdr);
+    const expanded=isAuthor?authorExpanded:pubExpanded;
+    const list=expanded?sorted:sorted.slice(0,5);
+    list.forEach(([name,cnt],i)=>{
+      const pct=Math.round(cnt/maxV*100);
+      const bg=cols[i%cols.length];
+      const avgR=isAuthor&&authorRating[name]?(authorRating[name]/cnt).toFixed(1):null;
+      const item=document.createElement('div');
+      // 배경 fill로 비율 표현 — border + tint 방식
+      item.style.cssText=`position:relative;overflow:hidden;border-radius:5px;margin-bottom:.28rem;cursor:default;transition:background .15s;`;
+      // 배경 바
+      const bgFill=document.createElement('div');
+      bgFill.style.cssText=`position:absolute;top:0;left:0;width:${pct}%;height:100%;background:${bg};opacity:.1;transition:opacity .15s;border-radius:5px;`;
+      // 좌측 컬러 accent 선
+      const accent=document.createElement('div');
+      accent.style.cssText=`position:absolute;top:10%;left:0;width:2.5px;height:80%;background:${bg};border-radius:0 2px 2px 0;opacity:.6;`;
+      // 콘텐츠
+      const row=document.createElement('div');
+      row.style.cssText='position:relative;z-index:1;display:flex;align-items:center;gap:.45rem;padding:.45rem .65rem .45rem .7rem;';
+      // 순위
+      const rankEl=document.createElement('span');
+      rankEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.72rem;color:${bg};opacity:.8;flex-shrink:0;line-height:1;min-width:14px;`;
+      rankEl.textContent=i+1;
+      // 이름
+      const nameEl=document.createElement('span');
+      nameEl.style.cssText='font-size:.73rem;color:var(--tx1);font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1;';
+      nameEl.title=name;nameEl.textContent=name;
+      // 별점 평균
+      if(avgR){
+        const rEl=document.createElement('span');
+        rEl.style.cssText='font-size:.58rem;color:var(--tx3);flex-shrink:0;';
+        rEl.textContent='★'+avgR;
+        row.appendChild(rankEl);row.appendChild(nameEl);row.appendChild(rEl);
+      } else {
+        row.appendChild(rankEl);row.appendChild(nameEl);
+      }
+      // 권수
+      const cntEl=document.createElement('span');
+      cntEl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.9rem;color:${bg};flex-shrink:0;line-height:1;`;
+      cntEl.textContent=cnt+'권';
+      row.appendChild(cntEl);
+      item.appendChild(bgFill);item.appendChild(accent);item.appendChild(row);
+      const tip=`${name}<br><b>${cnt}권</b> 완독${avgR?' · ★'+avgR:''}`;
+      item.addEventListener('mouseenter',e=>{bgFill.style.opacity='.2';accent.style.opacity='1';showTip(e,tip);});
+      item.addEventListener('mousemove',moveTip);
+      item.addEventListener('mouseleave',()=>{bgFill.style.opacity='.1';accent.style.opacity='.6';hideTip();});
+      layout.appendChild(item);
+    });
+    if(sorted.length>5){
+      const btn=document.createElement('button');btn.className='add-quote-btn';btn.style.cssText='margin-top:.15rem;';
+      btn.textContent=expanded?'접기 ▲':`+${sorted.length-5}${isAuthor?'명':'개'} 더 보기`;
+      btn.onclick=()=>{isAuthor?authorExpanded=!authorExpanded:pubExpanded=!pubExpanded;buildRatingAuthor();};
+      layout.appendChild(btn);
+    }
+  }
+
+  renderSection(aSorted,AUTHOR_COLS,true);
+  if(pSorted.length) renderSection(pSorted,PCOLS,false);
 }
 
 let authorExpanded=false, pubExpanded=false;
