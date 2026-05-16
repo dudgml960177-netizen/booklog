@@ -3796,12 +3796,26 @@ function buildMonthly() {
     if(!YEARS.length){
       viz.innerHTML+='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독 기록이 없어요.</div>';
     } else {
+      // 연도별 페이지 합계 미리 계산
+      const pagesByYear={};
+      const pagesByYearMonth={};
+      allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages).forEach(b=>{
+        const yr=parseInt(b.date_finish.slice(0,4));
+        const mo=parseInt(b.date_finish.slice(5,7))-1;
+        pagesByYear[yr]=(pagesByYear[yr]||0)+(b.pages||0);
+        if(!pagesByYearMonth[yr]) pagesByYearMonth[yr]=Array(12).fill(0);
+        pagesByYearMonth[yr][mo]+=(b.pages||0);
+      });
+      const maxYearPages=Math.max(...YEARS.map(y=>pagesByYear[y]||0),1);
+
       // ── 전체 연도 히트맵 뷰
       YEARS.forEach(y=>{
         const c=YC[y]||{line:'#8a7060'};
         const vals=Array(12).fill(0);
         done.filter(b=>parseInt(b.date_finish.slice(0,4))===y).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
         const maxV=Math.max(...vals,1), total=vals.reduce((a,v)=>a+v,0);
+        const yPages=pagesByYear[y]||0;
+        const moPages=pagesByYearMonth[y]||Array(12).fill(0);
         const row=document.createElement('div');
         row.style.cssText='display:flex;align-items:center;gap:.55rem;margin-bottom:.4rem;';
         const yl=document.createElement('div');
@@ -3813,16 +3827,22 @@ function buildMonthly() {
           const cell=document.createElement('div');
           const opacity=v>0?Math.max(v/maxV*.85+.15,0.15):0.05;
           cell.style.cssText=`flex:1;height:16px;border-radius:2px;background:${c.line};opacity:${opacity.toFixed(2)};transition:opacity .2s;cursor:default;`;
-          const tipText=`${y}년 ${MO[i]}월<br><b>${v}권</b> 완독`;
+          const mp=moPages[i]||0;
+          const tipText=`${y}년 ${MO[i]}월<br><b>${v}권</b> 완독${mp?'<br>'+mp.toLocaleString()+'p':''}`;
           cell.addEventListener('mouseenter',e=>showTip(e,tipText));
           cell.addEventListener('mousemove',moveTip);
           cell.addEventListener('mouseleave',hideTip);
           cells.appendChild(cell);
         });
+        // 권수
         const tl=document.createElement('div');
-        tl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.78rem;color:${c.line};min-width:26px;text-align:right;line-height:1;`;
+        tl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.78rem;color:${c.line};min-width:22px;text-align:right;line-height:1;`;
         tl.textContent=total;
-        row.appendChild(yl);row.appendChild(cells);row.appendChild(tl);
+        // 페이지 수 (muted, smaller)
+        const pl=document.createElement('div');
+        pl.style.cssText=`font-size:.58rem;color:var(--tx3);min-width:46px;text-align:right;line-height:1;white-space:nowrap;`;
+        pl.textContent=yPages?yPages.toLocaleString()+'p':'';
+        row.appendChild(yl);row.appendChild(cells);row.appendChild(tl);row.appendChild(pl);
         viz.appendChild(row);
       });
       // 월 레이블
@@ -3836,6 +3856,75 @@ function buildMonthly() {
         l.textContent=m; ml.appendChild(l);
       });
       lr.appendChild(sp);lr.appendChild(ml);viz.appendChild(lr);
+
+      // ── 연도별 페이지 면적 그래프
+      if(YEARS.some(y=>pagesByYear[y]>0)){
+        const pgHdr=document.createElement('div');
+        pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.7rem;margin-bottom:.1rem;';
+        pgHdr.innerHTML=`<span style="font-size:.48rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);">PAGES</span><span style="flex:1;height:1px;background:var(--border);"></span>`;
+        viz.appendChild(pgHdr);
+        const W=1000,H=52,PAD=4,svgNS='http://www.w3.org/2000/svg';
+        const svg=document.createElementNS(svgNS,'svg');
+        svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+        svg.setAttribute('preserveAspectRatio','none');
+        svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;cursor:default;`;
+        const n=YEARS.length;
+        const slotW=W/n;
+        const yVals=YEARS.map(y=>pagesByYear[y]||0);
+        const maxPY=Math.max(...yVals,1);
+        const allPts=yVals.map((v,i)=>({x:i*slotW+slotW/2,y:v>0?PAD+(H-PAD*2)*(1-v/maxPY):H,v,ix:i}));
+        // area fill
+        let d=`M ${allPts[0].x} ${H}`;
+        allPts.forEach((pt,i)=>{
+          if(i===0){d+=` L ${pt.x} ${pt.y}`;}
+          else{const cx=(allPts[i-1].x+pt.x)/2;d+=` C ${cx} ${allPts[i-1].y},${cx} ${pt.y},${pt.x} ${pt.y}`;}
+        });
+        d+=` L ${allPts[allPts.length-1].x} ${H} Z`;
+        const ap=document.createElementNS(svgNS,'path');
+        ap.setAttribute('d',d);ap.setAttribute('fill','#5a7a8a');ap.setAttribute('fill-opacity','.18');
+        svg.appendChild(ap);
+        // line
+        let ld=`M ${allPts[0].x} ${allPts[0].y}`;
+        allPts.forEach((pt,i)=>{if(i>0){const cx=(allPts[i-1].x+pt.x)/2;ld+=` C ${cx} ${allPts[i-1].y},${cx} ${pt.y},${pt.x} ${pt.y}`;}});
+        const lp=document.createElementNS(svgNS,'path');
+        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke','#5a7a8a');lp.setAttribute('stroke-width','2');lp.setAttribute('opacity','.72');
+        svg.appendChild(lp);
+        // dots + year labels
+        allPts.forEach((pt,i)=>{
+          if(pt.v>0){
+            const dot=document.createElementNS(svgNS,'circle');
+            dot.setAttribute('cx',pt.x);dot.setAttribute('cy',pt.y);
+            dot.setAttribute('r','3.2');dot.setAttribute('fill','#5a7a8a');dot.setAttribute('opacity','.88');
+            svg.appendChild(dot);
+          }
+          const lbl=document.createElementNS(svgNS,'text');
+          lbl.setAttribute('x',pt.x);lbl.setAttribute('y',H-1);
+          lbl.setAttribute('text-anchor','middle');lbl.setAttribute('font-size','48');
+          lbl.setAttribute('fill','var(--tx3)');lbl.setAttribute('opacity','.7');
+          lbl.textContent=YEARS[i];
+          svg.appendChild(lbl);
+        });
+        // baseline
+        const bl=document.createElementNS(svgNS,'line');
+        bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
+        bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
+        svg.appendChild(bl);
+        // hover
+        const hl=document.createElementNS(svgNS,'rect');
+        hl.setAttribute('y','0');hl.setAttribute('width',slotW*.6);hl.setAttribute('height',H);
+        hl.setAttribute('fill','#5a7a8a');hl.setAttribute('opacity','0');hl.setAttribute('rx','3');
+        svg.appendChild(hl);
+        svg.addEventListener('mousemove',e=>{
+          const rect=svg.getBoundingClientRect();
+          const idx=Math.max(0,Math.min(n-1,Math.floor((e.clientX-rect.left)/rect.width*n)));
+          hl.setAttribute('x',idx*slotW+slotW*.2);hl.setAttribute('opacity',yVals[idx]>0?'.07':'0');
+          if(yVals[idx]>0) showTip(e,`${YEARS[idx]}년<br><b>${yVals[idx].toLocaleString()}p</b>`);
+          else hideTip();
+          moveTip(e);
+        });
+        svg.addEventListener('mouseleave',()=>{hl.setAttribute('opacity','0');hideTip();});
+        viz.appendChild(svg);
+      }
     }
   } else {
     // ── 단일 연도 수직 바 차트
