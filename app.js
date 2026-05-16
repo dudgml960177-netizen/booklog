@@ -3857,39 +3857,6 @@ function buildMonthly() {
       });
       lr.appendChild(sp);lr.appendChild(ml);viz.appendChild(lr);
 
-      // ── 연도별 페이지 바 차트 (YC 컬러)
-      if(YEARS.some(y=>pagesByYear[y]>0)){
-        const pgHdr=document.createElement('div');
-        pgHdr.style.cssText='display:flex;align-items:center;gap:.4rem;margin-top:.7rem;margin-bottom:.35rem;';
-        pgHdr.innerHTML=`<span style="font-size:.48rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);">PAGES</span><span style="flex:1;height:1px;background:var(--border);"></span>`;
-        viz.appendChild(pgHdr);
-        const yVals=YEARS.map(y=>pagesByYear[y]||0);
-        const maxPY=Math.max(...yVals,1);
-        const pgBarsWrap=document.createElement('div');
-        pgBarsWrap.style.cssText='display:flex;align-items:flex-end;gap:4px;height:58px;';
-        YEARS.forEach((y,i)=>{
-          const v=yVals[i];
-          const yc=YC[y]||{line:'#8a7060'};
-          const isMax=v===maxPY&&maxPY>0;
-          const barH=Math.max(v/maxPY*44, v>0?3:0);
-          const col=document.createElement('div');
-          col.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:default;';
-          const bar=document.createElement('div');
-          bar.style.cssText=`width:100%;height:${barH}px;background:${yc.line};opacity:${isMax?'.9':'.52'};border-radius:2px 2px 0 0;transition:opacity .15s;`;
-          const base=document.createElement('div');
-          base.style.cssText='width:100%;height:1px;background:var(--border);margin-bottom:3px;';
-          const lbl=document.createElement('div');
-          lbl.style.cssText=`font-size:.46rem;color:${isMax?yc.line:'var(--tx3)'};text-align:center;line-height:1;white-space:nowrap;`;
-          lbl.textContent=y;
-          const tip=`${y}년<br><b>${v.toLocaleString()}p</b>`;
-          col.addEventListener('mouseenter',e=>{bar.style.opacity='1';showTip(e,tip);});
-          col.addEventListener('mousemove',moveTip);
-          col.addEventListener('mouseleave',()=>{bar.style.opacity=isMax?'.9':'.52';hideTip();});
-          col.appendChild(bar);col.appendChild(base);col.appendChild(lbl);
-          pgBarsWrap.appendChild(col);
-        });
-        viz.appendChild(pgBarsWrap);
-      }
     }
   } else {
     // ── 단일 연도 — 완독 바 + 페이지 면적 통합 차트 (SVG)
@@ -3900,6 +3867,8 @@ function buildMonthly() {
     allBooks.filter(b=>b.status==='완독'&&b.date_finish&&b.pages&&parseInt(b.date_finish.slice(0,4))===curYM)
       .forEach(b=>pageValsM[parseInt(b.date_finish.slice(5,7))-1]+=(b.pages||0));
     const maxV=Math.max(...vals,1);
+    const maxPM=Math.max(...pageValsM,1);
+    const hasPg=pageValsM.some(v=>v>0);
     const isCurrentYear=curYM===now.getFullYear();
     const curMo=now.getMonth();
     const svgNS='http://www.w3.org/2000/svg';
@@ -3927,7 +3896,31 @@ function buildMonthly() {
     bl.setAttribute('x1','0');bl.setAttribute('y1',H);bl.setAttribute('x2',W);bl.setAttribute('y2',H);
     bl.setAttribute('stroke','var(--border)');bl.setAttribute('stroke-width','1');
     svg.appendChild(bl);
-    // ── 히트 영역 (툴팁, 맨 위)
+    // ── 페이지 면적 + 선 + 점
+    if(hasPg){
+      const pts=pageValsM.map((v,i)=>({x:i*SLOT+SLOT/2,y:v>0?H-v/maxPM*H:null,v,ix:i}));
+      let seg=[],segs=[];
+      pts.forEach(pt=>{if(pt.v>0)seg.push(pt);else{if(seg.length){segs.push(seg);seg=[];}}});
+      if(seg.length)segs.push(seg);
+      segs.forEach(s=>{
+        // 면적
+        let d=`M ${s[0].x} ${H}`;
+        if(s.length===1){d+=` L ${s[0].x} ${s[0].y}`;}
+        else{d+=` L ${s[0].x} ${s[0].y}`;for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;d+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
+        d+=` L ${s[s.length-1].x} ${H} Z`;
+        const ap=document.createElementNS(svgNS,'path');
+        ap.setAttribute('d',d);ap.setAttribute('fill',c.line);ap.setAttribute('fill-opacity','.14');
+        svg.appendChild(ap);
+        // 선
+        let ld=s.length===1?`M ${s[0].x-18} ${s[0].y} L ${s[0].x+18} ${s[0].y}`:`M ${s[0].x} ${s[0].y}`;
+        if(s.length>1){for(let k=1;k<s.length;k++){const cx=(s[k-1].x+s[k].x)/2;ld+=` C ${cx} ${s[k-1].y},${cx} ${s[k].y},${s[k].x} ${s[k].y}`;}}
+        const lp=document.createElementNS(svgNS,'path');
+        lp.setAttribute('d',ld);lp.setAttribute('fill','none');lp.setAttribute('stroke',c.line);lp.setAttribute('stroke-width','2.5');lp.setAttribute('opacity','.52');
+        svg.appendChild(lp);
+      });
+    }
+    // ── 히트 영역 (툴팁, 맨 위) — 첫 번째 hit 참조 저장
+    let firstHitRef=null;
     MO.forEach((m,i)=>{
       const hit=document.createElementNS(svgNS,'rect');
       hit.setAttribute('x',i*SLOT);hit.setAttribute('y','0');hit.setAttribute('width',SLOT);hit.setAttribute('height',H);
@@ -3937,6 +3930,7 @@ function buildMonthly() {
       hit.addEventListener('mouseenter',e=>showTip(e,tip));
       hit.addEventListener('mousemove',moveTip);
       hit.addEventListener('mouseleave',hideTip);
+      if(i===0)firstHitRef=hit;
       svg.appendChild(hit);
     });
     // ── SVG를 래퍼에 삽입
@@ -3945,6 +3939,27 @@ function buildMonthly() {
     svg.style.cssText=`width:100%;height:${H}px;display:block;overflow:visible;`;
     chartOuter.appendChild(svg);
     viz.appendChild(chartOuter);
+    // ── 점: rAF로 실제 너비 측정 후 타원→정원 보정
+    if(hasPg){
+      requestAnimationFrame(()=>{
+        const xScale=Math.max(chartOuter.getBoundingClientRect().width/W,0.01);
+        const DR=2.8;
+        pageValsM.forEach((v,i)=>{
+          if(v===0)return;
+          const cx=i*SLOT+SLOT/2,cy=H-v/maxPM*H;
+          const halo=document.createElementNS(svgNS,'ellipse');
+          halo.setAttribute('cx',cx);halo.setAttribute('cy',cy);
+          halo.setAttribute('rx',(DR+1.5)/xScale);halo.setAttribute('ry',DR+1.5);
+          halo.setAttribute('fill','var(--card)');halo.setAttribute('opacity','.85');
+          if(firstHitRef)svg.insertBefore(halo,firstHitRef);else svg.appendChild(halo);
+          const dot=document.createElementNS(svgNS,'ellipse');
+          dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);
+          dot.setAttribute('rx',DR/xScale);dot.setAttribute('ry',DR);
+          dot.setAttribute('fill',c.line);dot.setAttribute('opacity','.92');
+          if(firstHitRef)svg.insertBefore(dot,firstHitRef);else svg.appendChild(dot);
+        });
+      });
+    }
     // ── 월 레이블 (HTML)
     const lblRow=document.createElement('div');
     lblRow.style.cssText='display:flex;margin-top:3px;';
@@ -3957,6 +3972,13 @@ function buildMonthly() {
       lblRow.appendChild(lbl);
     });
     viz.appendChild(lblRow);
+    // ── 범례
+    if(hasPg){
+      const legRow=document.createElement('div');
+      legRow.style.cssText='display:flex;align-items:center;gap:1.2rem;margin-top:.35rem;font-size:.52rem;color:var(--tx3);';
+      legRow.innerHTML=`<span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:7px;height:11px;background:${c.line};border-radius:1px;opacity:.75;vertical-align:middle;"></span>완독 권수</span><span style="display:inline-flex;align-items:center;gap:.28rem;"><span style="display:inline-block;width:14px;height:2px;background:${c.line};border-radius:1px;opacity:.5;vertical-align:middle;"></span>읽은 페이지</span>`;
+      viz.appendChild(legRow);
+    }
   }
 
   const filtered=curYM==='all'?done:done.filter(b=>parseInt(b.date_finish.slice(0,4))===curYM);
