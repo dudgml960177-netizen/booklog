@@ -4724,6 +4724,30 @@ function _renderSearchItems(res, items) {
   });
 }
 
+// 네이버 + 알라딘 결과 병합: 알라딘 페이지 수로 네이버 항목 보충, 알라딘 단독 항목 추가
+function _mergeSearchResults(naverItems, aladinItems) {
+  if(!naverItems.length && !aladinItems.length) return [];
+  if(!naverItems.length) return aladinItems;
+  if(!aladinItems.length) return naverItems;
+  const toIsbn = item => item.isbn13 || item.isbn?.match(/97[89]\d{10}/)?.[0] || '';
+  const aladinByIsbn = new Map();
+  aladinItems.forEach(ai => { const k = toIsbn(ai); if(k) aladinByIsbn.set(k, ai); });
+  const naverIsbns = new Set();
+  const merged = naverItems.map(ni => {
+    const k = toIsbn(ni); if(k) naverIsbns.add(k);
+    const ai = aladinByIsbn.get(k);
+    if(ai && !ni.subInfo?.itemPage && !ni.itemPage) {
+      return { ...ni, subInfo: ai.subInfo, itemPage: ai.itemPage };
+    }
+    return ni;
+  });
+  aladinItems.forEach(ai => {
+    const k = toIsbn(ai);
+    if(!k || !naverIsbns.has(k)) merged.push(ai);
+  });
+  return merged;
+}
+
 // 알라딘 아이템 배열을 공통 포맷으로 변환
 function _aladinToItems(aladinData) {
   return (aladinData?.item||[]).map(it=>({
@@ -4773,9 +4797,9 @@ async function searchBook() {
     const naverItems = naverResp.status==='fulfilled' ? (naverResp.value?.items||[]) : [];
     const aladinItems = aladinResp.status==='fulfilled' ? _aladinToItems(aladinResp.value) : [];
 
-    // 네이버 우선, 없으면 알라딘
-    if(naverItems.length) { _renderSearchItems(res, naverItems); return; }
-    if(aladinItems.length) { _renderSearchItems(res, aladinItems); return; }
+    // 네이버+알라딘 병합 (알라딘 페이지 수로 보충)
+    const merged = _mergeSearchResults(naverItems, aladinItems);
+    if(merged.length) { _renderSearchItems(res, merged); return; }
 
     // 2단계: 괄호·권수 제거 후 재시도 (네이버 + 알라딘)
     if(q2 && q2 !== q) {
@@ -4785,8 +4809,8 @@ async function searchBook() {
       ]);
       const ni2 = n2.status==='fulfilled'?(n2.value?.items||[]):[];
       const ai2 = a2.status==='fulfilled'?_aladinToItems(a2.value):[];
-      if(ni2.length) { _renderSearchItems(res, ni2); return; }
-      if(ai2.length) { _renderSearchItems(res, ai2); return; }
+      const merged2 = _mergeSearchResults(ni2, ai2);
+      if(merged2.length) { _renderSearchItems(res, merged2); return; }
     }
 
     // 3단계: 핵심 단어만
@@ -4799,8 +4823,8 @@ async function searchBook() {
       ]);
       const ni3 = n3.status==='fulfilled'?(n3.value?.items||[]):[];
       const ai3 = a3.status==='fulfilled'?_aladinToItems(a3.value):[];
-      if(ni3.length) { _renderSearchItems(res, ni3); return; }
-      if(ai3.length) { _renderSearchItems(res, ai3); return; }
+      const merged3 = _mergeSearchResults(ni3, ai3);
+      if(merged3.length) { _renderSearchItems(res, merged3); return; }
     }
 
     // 4단계: Google Books fallback
@@ -5380,10 +5404,12 @@ function applyAvatarToEl(el, src) {
 
 async function doSaveAvatar(blob) {
   if(!blob || !currentUser) throw new Error('저장할 이미지가 없어요.');
+  const hint = document.getElementById('avatar-hint');
   let avatarUrl = null;
 
   // 1차: Supabase Storage 업로드 → 짧은 공개 URL (DB 컬럼 크기 제한 없음)
   try {
+    if(hint) hint.textContent = 'Storage 업로드 중...';
     const path = `${currentUser.id}.jpg`;
     const { error: upErr } = await sb.storage.from('avatars').upload(path, blob, {
       contentType: 'image/jpeg', upsert: true
@@ -5391,13 +5417,19 @@ async function doSaveAvatar(blob) {
     if(!upErr) {
       const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
       if(urlData?.publicUrl) {
-        // ?t= 파라미터로 CDN 캐시 무효화 (같은 경로에 덮어쓸 때 최신 이미지 표시)
         avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        if(hint) hint.textContent = 'Storage 저장 완료';
       }
+    } else {
+      console.warn('[avatar] Storage 업로드 오류:', upErr.message, upErr);
+      if(hint) hint.textContent = `Storage 오류: ${upErr.message}`;
     }
-  } catch(e) { /* Storage 미설정 시 base64 폴백 */ }
+  } catch(e) {
+    console.warn('[avatar] Storage 연결 실패:', e.message);
+    if(hint) hint.textContent = 'Storage 연결 실패, 대체 저장 중...';
+  }
 
-  // 2차 폴백: base64 직접 저장 (Storage 버킷이 없는 환경)
+  // 2차 폴백: base64 직접 저장 (Storage 버킷 없거나 권한 없을 때)
   if(!avatarUrl) {
     avatarUrl = await new Promise((res, rej) => {
       const reader = new FileReader();

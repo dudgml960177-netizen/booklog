@@ -264,6 +264,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(46,31,14,.45);z-index:200;display:flex;align-items:center;justify-content:center;user-select:none;}
 .modal-overlay .modal,.modal-overlay .modal-wide,.modal-overlay [class*="modal"]{user-select:text;}
+/* 확인/알림 팝업은 항상 최상위 (다른 동적 오버레이 위) */
+#modal-confirm{z-index:200000;}
 .modal{background:var(--card);border-radius:12px;width:calc(100% - 2rem);max-width:520px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
 .modal-wide{max-width:640px;}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.05rem;border-bottom:1px solid var(--border);flex-shrink:0;}
