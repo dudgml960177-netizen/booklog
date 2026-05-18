@@ -5244,31 +5244,38 @@ function applyAvatarToEl(el, src) {
   el.textContent = '';
 }
 
-// ⭐ 수정된 프로필 저장 함수
+// ⭐ 수정 및 보강된 프로필 저장 함수
 async function doSaveAvatar(blob) {
-  if(!blob || !currentUser) return;
+  if(!blob) return;
+
+  // Supabase에 로그인된 진짜 유저 정보를 직접 가져옵니다.
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) {
+    console.error("로그인된 유저 정보가 없습니다.");
+    return;
+  }
+
   const b64 = await new Promise(r => {
     const reader = new FileReader();
     reader.onload = e => r(e.target.result);
     reader.readAsDataURL(blob);
   });
-  // localStorage에 저장 (항상 작동)
-  localStorage.setItem(`bl_avatar_${currentUser.id}`, b64);
   
-  // Supabase Storage 시도 (성공하면 cross-device 동기화)
+  // localStorage에 저장
+  localStorage.setItem(`bl_avatar_${user.id}`, b64);
+  
   try {
-    // 경로에 '${currentUser.id}/'를 추가하여 자동 폴더 생성을 유도하고 정책을 통과시킵니다.
-    await sb.storage.from('avatars').upload(`${currentUser.id}/${currentUser.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
+    // 확실하게 조회된 user.id를 사용하여 폴더를 만들고 업로드합니다.
+    await sb.storage.from('avatars').upload(`${user.id}/${user.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
     
-    // 가져올 Public URL 주소 경로도 똑같이 유저 폴더 안을 가리키도록 수정합니다.
-    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${currentUser.id}/${currentUser.id}.jpg`);
+    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${user.id}/${user.id}.jpg`);
     
     if(ud?.publicUrl) {
-      await sb.from('profiles').update({avatar_url: ud.publicUrl}).eq('id', currentUser.id).catch(()=>{});
+      await sb.from('profiles').update({avatar_url: ud.publicUrl}).eq('id', user.id).catch(()=>{});
+      console.log("Supabase 업로드 및 DB 갱신 성공!");
     }
   } catch(e) { 
-    console.error("Storage 업로드 실패:", e); 
-    /* Storage 미설정 시 localStorage로 대체 */ 
+    console.error("Storage 업로드 실패 원인:", e); 
   }
 }
 
