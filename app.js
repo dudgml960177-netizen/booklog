@@ -5281,20 +5281,21 @@ function editBook() {
 let _pendingAvatarBlob = null;
 
 function compressAvatar(file) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = reject;
     reader.onload = e => {
       const img = new Image();
+      img.onerror = reject;
       img.onload = () => {
-        const SIZE = 120;
+        const SIZE = 96; // 96×96px — base64 약 5~8KB
         const canvas = document.createElement('canvas');
         canvas.width = SIZE; canvas.height = SIZE;
         const ctx = canvas.getContext('2d');
-        // 정사각형 center-crop
         const min = Math.min(img.width, img.height);
         const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
         ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('압축 실패')), 'image/jpeg', 0.72);
       };
       img.src = e.target.result;
     };
@@ -5304,47 +5305,61 @@ function compressAvatar(file) {
 
 function previewAvatar(input) {
   if(!input.files?.[0]) return;
+  const hint = document.getElementById('avatar-hint');
+  if(hint) hint.textContent = '처리 중...';
   compressAvatar(input.files[0]).then(blob => {
     _pendingAvatarBlob = blob;
     const url = URL.createObjectURL(blob);
     applyAvatarToEl(document.getElementById('profile-avatar'), url);
+    if(hint) hint.textContent = '저장 버튼을 눌러 적용하세요';
+  }).catch(() => {
+    if(hint) hint.textContent = '이미지 처리 실패. 다시 시도해주세요.';
   });
   input.value = '';
 }
 
 function applyAvatarToEl(el, src) {
-  if(!el || !src) return;
-  el.style.backgroundImage = `url(${src})`;
-  el.style.backgroundSize = 'cover';
-  el.style.backgroundPosition = 'center';
-  el.textContent = '';
+  if(!el) return;
+  if(src) {
+    el.style.backgroundImage = `url('${src.replace(/'/g,'%27')}')`;
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.textContent = '';
+  } else {
+    el.style.backgroundImage = '';
+  }
 }
 
 async function doSaveAvatar(blob) {
-  if(!blob || !currentUser) return;
-  const b64 = await new Promise(r => {
+  if(!blob || !currentUser) throw new Error('저장할 이미지가 없어요.');
+  // blob → base64 data URL
+  const b64 = await new Promise((res, rej) => {
     const reader = new FileReader();
-    reader.onload = e => r(e.target.result);
+    reader.onerror = rej;
+    reader.onload = e => res(e.target.result);
     reader.readAsDataURL(blob);
   });
-  // localStorage에 저장 (항상 작동)
-  localStorage.setItem(`bl_avatar_${currentUser.id}`, b64);
-  // Supabase Storage 시도 (성공하면 cross-device 동기화)
-  try {
-    await sb.storage.from('avatars').upload(`${currentUser.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
-    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${currentUser.id}.jpg`);
-    if(ud?.publicUrl) {
-      await sb.from('profiles').update({avatar_url: ud.publicUrl}).eq('id', currentUser.id).catch(()=>{});
-    }
-  } catch(e) { /* Storage 미설정 시 localStorage로 대체 */ }
+  // 1. profiles.avatar_url에 base64 직접 저장 (Storage 불필요, 모든 기기 즉시 반영)
+  const { error } = await sb.from('profiles').update({ avatar_url: b64 }).eq('id', currentUser.id);
+  if(error) throw new Error('DB 저장 실패: ' + error.message);
+  // 2. localStorage 캐시 갱신
+  try { localStorage.setItem(`bl_avatar_${currentUser.id}`, b64); } catch(e) {}
 }
 
 function loadAvatarForProfile(profile) {
   const el = document.getElementById('profile-avatar');
   if(!el || !currentUser) return;
-  const src = localStorage.getItem(`bl_avatar_${currentUser.id}`) || profile?.avatar_url;
-  if(src) { applyAvatarToEl(el, src); }
-  else {
+  // DB 값 → localStorage 동기화
+  const dbSrc = profile?.avatar_url;
+  if(dbSrc) {
+    try { localStorage.setItem(`bl_avatar_${currentUser.id}`, dbSrc); } catch(e){}
+  } else {
+    localStorage.removeItem(`bl_avatar_${currentUser.id}`);
+  }
+  const src = dbSrc || null;
+  if(src) {
+    applyAvatarToEl(el, src);
+  } else {
     el.style.backgroundImage = '';
     const name = profile?.display_name || profile?.username || currentUser.email?.split('@')[0] || '?';
     el.textContent = name.slice(0,1).toUpperCase();
@@ -5382,8 +5397,8 @@ async function openProfile() {
 
   // 닉네임 (DB에서 가져온 값 우선)
   const name = profile?.display_name||profile?.username||tempName;
-  document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
   _pendingAvatarBlob = null;
+  // loadAvatarForProfile이 textContent/backgroundImage를 모두 담당
   loadAvatarForProfile(profile);
   document.getElementById('profile-name').textContent=name;
   document.getElementById('profile-display-name').value=name;
@@ -5472,19 +5487,27 @@ function submitContact() {
 async function saveProfile() {
   const name = document.getElementById('profile-display-name')?.value.trim();
   if(!name){alert('닉네임을 입력해주세요.');return;}
+  const saveBtn = document.querySelector('#modal-profile .btn-save, #modal-profile [onclick*="saveProfile"]');
+  if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
   try {
     if(_pendingAvatarBlob) {
       await doSaveAvatar(_pendingAvatarBlob);
       _pendingAvatarBlob = null;
+      const hint = document.getElementById('avatar-hint');
+      if(hint) hint.textContent = '탭해서 사진 변경';
     }
     const titleEl = document.getElementById('profile-title-select');
     const updateData = {display_name:name};
     if(titleEl) updateData.user_title = titleEl.value || null;
     const {error} = await sb.from('profiles').update(updateData).eq('id',currentUser.id);
     if(error) throw error;
+    if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
     closeModal('modal-profile');
     await showAlert('저장되었어요!');
-  } catch(e){ alert('저장 오류: '+(e.message||JSON.stringify(e))); }
+  } catch(e){
+    if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+    alert('저장 오류: '+(e.message||JSON.stringify(e)));
+  }
 }
 
 
@@ -6488,7 +6511,9 @@ function makeAvatarHtml(name, avatarUrl, size=32) {
   const color = colors[n.charCodeAt(0) % colors.length];
   const base = `width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;overflow:hidden;`;
   if(avatarUrl) {
-    return `<div style="${base}background:${color} url('${avatarUrl}') center/cover no-repeat;"></div>`;
+    // CSS url()에 single-quote 사용 → HTML double-quote 충돌 없음
+    const sUrl = avatarUrl.replace(/'/g, '%27');
+    return `<div style="${base}background:${color};background-image:url('${sUrl}');background-size:cover;background-position:center;"></div>`;
   }
   return `<div style="${base}background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.4)}px;font-weight:700;">${initial}</div>`;
 }
