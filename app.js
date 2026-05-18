@@ -6479,6 +6479,19 @@ async function restoreBackup(file) {
 // ══════════════════════════════════════
 // 친구 & 파도타기 (서재 구경)
 // ══════════════════════════════════════
+
+// 아바타 HTML 생성 (사진 있으면 사진, 없으면 이니셜 원)
+function makeAvatarHtml(name, avatarUrl, size=32) {
+  const n = name || '?';
+  const initial = n.slice(0,1).toUpperCase();
+  const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
+  const color = colors[n.charCodeAt(0) % colors.length];
+  const base = `width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;overflow:hidden;`;
+  if(avatarUrl) {
+    return `<div style="${base}background:${color} url('${avatarUrl}') center/cover no-repeat;"></div>`;
+  }
+  return `<div style="${base}background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.4)}px;font-weight:700;">${initial}</div>`;
+}
 async function openSocialModal() {
   openModal('modal-social');
   loadFriends();
@@ -6490,8 +6503,8 @@ async function loadFriends() {
   wrap.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">불러오는 중...</div>';
   const { data } = await sb.from('friendships').select(`
     id, status, requester_id, receiver_id,
-    requester:profiles!friendships_requester_id_fkey(id,display_name,username,user_title),
-    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username,user_title)
+    requester:profiles!friendships_requester_id_fkey(id,display_name,username,user_title,avatar_url),
+    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username,user_title,avatar_url)
   `).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
 
   wrap.innerHTML = '';
@@ -6507,13 +6520,9 @@ async function loadFriends() {
     const isMine = f.requester_id === currentUser.id;
     const other = isMine ? f.receiver : f.requester;
     const name = other?.display_name || other?.username || '산책자';
-    const initial = name.slice(0,1).toUpperCase();
-    const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
-    const color = colors[name.charCodeAt(0) % colors.length];
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.7rem;padding:.55rem .2rem;border-bottom:1px solid var(--border);';
-    // 아바타
-    const avatar = `<div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">${initial}</div>`;
+    const avatar = makeAvatarHtml(name, other?.avatar_url, 36);
     if(f.status === 'accepted') {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
@@ -6547,8 +6556,8 @@ async function searchFriend() {
   const resultEl = document.getElementById('friend-search-result');
   if(!q || !resultEl) return;
   const [_r1,_r2] = await Promise.all([
-    sb.from('profiles').select('id,display_name,username').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
-    sb.from('profiles').select('id,display_name,username').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
+    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
+    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);
   const _seen=new Set();
   const data=[...(_r1.data||[]),...(_r2.data||[])].filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
@@ -6559,18 +6568,15 @@ async function searchFriend() {
   }
   data.forEach(u => {
     const name = u.display_name || u.username;
-    const initial = name.slice(0,1).toUpperCase();
-    const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
-    const color = colors[name.charCodeAt(0) % colors.length];
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-bottom:1px solid var(--border);background:#fff;';
     el.onmouseenter = () => el.style.background = '#faf6ef';
     el.onmouseleave = () => el.style.background = '#fff';
     el.innerHTML = `
-      <div style="width:30px;height:30px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">${initial}</div>
-      <span style="flex:1;font-size:.82rem;font-weight:500;color:var(--tx1);">${name}</span>
-      <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);">+ 친구</button>
-      <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);">서재</button>`;
+      ${makeAvatarHtml(name, u.avatar_url, 32)}
+      <span style="flex:1;min-width:0;font-size:.82rem;font-weight:500;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+      <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);flex-shrink:0;">+ 친구</button>
+      <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);flex-shrink:0;">서재</button>`;
     resultEl.appendChild(el);
   });
 }
@@ -6630,7 +6636,7 @@ async function openLibrary(userId, userName) {
 
   // 1단계: 프로필 먼저 확인 (공개 범위 체크)
   const { data: targetProfile } = await sb.from('profiles')
-    .select('library_public,library_visibility,category_visibility,categories,user_title')
+    .select('library_public,library_visibility,category_visibility,categories,user_title,avatar_url')
     .eq('id',userId).single();
   const visibility = targetProfile?.library_visibility ||
     (targetProfile?.library_public === false ? 'private' : 'public');
@@ -6675,13 +6681,11 @@ async function openLibrary(userId, userName) {
   const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
   const cats = canSeeCat ? (targetProfile.categories||[]) : [];
 
-  const initial = userName.slice(0,1).toUpperCase();
-
   header.innerHTML = `
     <div style="padding:1.1rem 1.2rem .9rem;border-bottom:1px solid var(--border);position:relative;background:var(--card);">
       <button onclick="closeModal('modal-library')" style="position:absolute;top:.8rem;right:.9rem;width:28px;height:28px;border:none;border-radius:50%;background:var(--border);color:var(--tx2);cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
       <div style="display:flex;align-items:center;gap:.85rem;padding-right:2rem;">
-        <div style="width:44px;height:44px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-family:var(--fs);font-size:1.3rem;font-style:italic;color:#fff;flex-shrink:0;">${initial}</div>
+        ${makeAvatarHtml(userName, targetProfile?.avatar_url, 44)}
         <div>
           <div style="font-family:var(--fs);font-size:1.15rem;color:var(--tx1);line-height:1.2;">${userName}님의 서재</div>
           <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:.25rem;">${targetProfile?.user_title||'함께 읽는 산책자'}</div>
