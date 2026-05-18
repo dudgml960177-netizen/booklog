@@ -259,6 +259,7 @@ async function startApp(user) {
       
     if(typeof loadNotifications === 'function') setTimeout(loadNotifications, 500);
     if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
+    if(typeof checkBoardNew === 'function') setTimeout(checkBoardNew, 2000);
     restoreTimerOnLoad();
   } catch(e) {
     console.error('startApp error:', e);
@@ -4733,30 +4734,38 @@ async function searchBook() {
 }
 // ISBN으로 페이지 수를 여러 API에서 순차 조회
 async function fetchPageCount(isbn) {
-  // 1단계: 네이버 ISBN 검색 (itemPage 필드)
+  // 네이버는 "ISBN13 ISBN10" 형식으로 반환하기도 함 → ISBN-13만 추출
+  const clean = isbn?.match(/97[89]\d{10}/)?.[0] || isbn?.trim().split(/[\s,]+/)[0] || isbn;
+  if(!clean) return null;
+
+  // 1단계: 네이버 ISBN 검색 (itemPage 필드 + 설명 파싱)
   try {
-    const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(isbn)}&display=5`, {
+    const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(clean)}&display=5`, {
       headers: {Authorization:`Bearer ${NAVER_KEY}`}
     }).then(r=>r.json());
     const it = (d.items||[])[0];
     if(it?.itemPage && parseInt(it.itemPage)) return parseInt(it.itemPage);
     if(it?.sub_info?.itemPage) return parseInt(it.sub_info.itemPage);
-    // description에서 페이지 수 추출
-    const desc = it?.description||'';
-    const m = desc.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
-    if(m) return parseInt(m[1]);
+    const haystack = [it?.description, it?.title].filter(Boolean).join(' ');
+    const m = haystack.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
+    if(m && parseInt(m[1]) >= 10) return parseInt(m[1]);
   } catch(e){}
-  // 2단계: Google Books API (국제 서적에 유효)
+  // 2단계: Google Books API
   try {
-    const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`).then(r=>r.json());
+    const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${clean}`).then(r=>r.json());
     const pc = d.items?.[0]?.volumeInfo?.pageCount;
-    if(pc) return parseInt(pc);
+    if(pc && pc >= 10) return parseInt(pc);
   } catch(e){}
-  // 3단계: Open Library API (비영어권 서적 포함)
+  // 3단계: Open Library books API
   try {
-    const d = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`).then(r=>r.json());
-    const bk = d[`ISBN:${isbn}`];
-    if(bk?.number_of_pages) return parseInt(bk.number_of_pages);
+    const d = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${clean}&format=json&jscmd=data`).then(r=>r.json());
+    const bk = d[`ISBN:${clean}`];
+    if(bk?.number_of_pages && bk.number_of_pages >= 10) return parseInt(bk.number_of_pages);
+  } catch(e){}
+  // 4단계: Open Library ISBN 직접 조회
+  try {
+    const d = await fetch(`https://openlibrary.org/isbn/${clean}.json`).then(r=>r.json());
+    if(d?.number_of_pages && d.number_of_pages >= 10) return parseInt(d.number_of_pages);
   } catch(e){}
   return null;
 }
@@ -5192,6 +5201,80 @@ function editBook() {
   },150);
 }
 
+// ── 프로필 사진
+let _pendingAvatarBlob = null;
+
+function compressAvatar(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const SIZE = 120;
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        // 정사각형 center-crop
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function previewAvatar(input) {
+  if(!input.files?.[0]) return;
+  compressAvatar(input.files[0]).then(blob => {
+    _pendingAvatarBlob = blob;
+    const url = URL.createObjectURL(blob);
+    applyAvatarToEl(document.getElementById('profile-avatar'), url);
+  });
+  input.value = '';
+}
+
+function applyAvatarToEl(el, src) {
+  if(!el || !src) return;
+  el.style.backgroundImage = `url(${src})`;
+  el.style.backgroundSize = 'cover';
+  el.style.backgroundPosition = 'center';
+  el.textContent = '';
+}
+
+async function doSaveAvatar(blob) {
+  if(!blob || !currentUser) return;
+  const b64 = await new Promise(r => {
+    const reader = new FileReader();
+    reader.onload = e => r(e.target.result);
+    reader.readAsDataURL(blob);
+  });
+  // localStorage에 저장 (항상 작동)
+  localStorage.setItem(`bl_avatar_${currentUser.id}`, b64);
+  // Supabase Storage 시도 (성공하면 cross-device 동기화)
+  try {
+    await sb.storage.from('avatars').upload(`${currentUser.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
+    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${currentUser.id}.jpg`);
+    if(ud?.publicUrl) {
+      await sb.from('profiles').update({avatar_url: ud.publicUrl}).eq('id', currentUser.id).catch(()=>{});
+    }
+  } catch(e) { /* Storage 미설정 시 localStorage로 대체 */ }
+}
+
+function loadAvatarForProfile(profile) {
+  const el = document.getElementById('profile-avatar');
+  if(!el || !currentUser) return;
+  const src = localStorage.getItem(`bl_avatar_${currentUser.id}`) || profile?.avatar_url;
+  if(src) { applyAvatarToEl(el, src); }
+  else {
+    el.style.backgroundImage = '';
+    const name = profile?.display_name || profile?.username || currentUser.email?.split('@')[0] || '?';
+    el.textContent = name.slice(0,1).toUpperCase();
+  }
+}
+
 // ── 프로필
 function saveGVisionKey() {
   const key = document.getElementById('gvision-key-input')?.value.trim();
@@ -5224,6 +5307,8 @@ async function openProfile() {
   // 닉네임 (DB에서 가져온 값 우선)
   const name = profile?.display_name||profile?.username||tempName;
   document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
+  _pendingAvatarBlob = null;
+  loadAvatarForProfile(profile);
   document.getElementById('profile-name').textContent=name;
   document.getElementById('profile-display-name').value=name;
   // 칭호 선택 드롭다운
@@ -5312,6 +5397,10 @@ async function saveProfile() {
   const name = document.getElementById('profile-display-name')?.value.trim();
   if(!name){alert('닉네임을 입력해주세요.');return;}
   try {
+    if(_pendingAvatarBlob) {
+      await doSaveAvatar(_pendingAvatarBlob);
+      _pendingAvatarBlob = null;
+    }
     const titleEl = document.getElementById('profile-title-select');
     const updateData = {display_name:name};
     if(titleEl) updateData.user_title = titleEl.value || null;
@@ -6686,7 +6775,28 @@ async function loadUserRole() {
   } catch(e) { curUserRole = 'user'; }
 }
 
+// ── 산책 게시판 새 글 알림 (3일 이내)
+async function checkBoardNew() {
+  try {
+    const lastSeen = localStorage.getItem('bl_board_last_seen') || new Date(0).toISOString();
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await sb.from('posts')
+      .select('id', {count:'exact', head:true})
+      .eq('is_notice', false)
+      .gt('created_at', lastSeen)
+      .gte('created_at', threeDaysAgo);
+    const dot = document.getElementById('board-new-dot');
+    if(dot) dot.style.display = (count && count > 0) ? 'block' : 'none';
+  } catch(e) {}
+}
+function markBoardSeen() {
+  localStorage.setItem('bl_board_last_seen', new Date().toISOString());
+  const dot = document.getElementById('board-new-dot');
+  if(dot) dot.style.display = 'none';
+}
+
 async function buildBoard() {
+  markBoardSeen();
   if(curUserRole === 'user') await loadUserRole();
   // 공지 표시
   const nWrap = document.getElementById('board-notice-wrap');

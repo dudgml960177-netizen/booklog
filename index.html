@@ -213,7 +213,7 @@
       <button class="tab" onclick="sw('quotes',this)">문장</button>
       <button class="tab" onclick="sw('record',this)">기록</button>
       <button class="tab" onclick="sw('graph',this)">통계</button>
-      <button class="tab tab-right" onclick="sw('board',this)">산책</button>
+      <button class="tab tab-right" id="board-tab" onclick="sw('board',this)" style="position:relative;">산책<span id="board-new-dot" style="display:none;position:absolute;top:4px;right:3px;width:7px;height:7px;background:#e03030;border-radius:50%;box-shadow:0 0 0 1.5px var(--bg);pointer-events:none;"></span></button>
     </div>
   </div>
 
@@ -596,7 +596,15 @@
       <button class="modal-close" onclick="closeModal('modal-profile')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="profile-avatar" id="profile-avatar"></div>
+      <!-- 프로필 사진 (클릭하면 업로드) -->
+      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:.65rem;">
+        <div style="position:relative;width:72px;height:72px;cursor:pointer;" onclick="document.getElementById('avatar-file-input').click()" title="프로필 사진 변경">
+          <div class="profile-avatar" id="profile-avatar" style="margin:0;width:72px;height:72px;font-size:1.65rem;"></div>
+          <div style="position:absolute;bottom:1px;right:1px;width:22px;height:22px;background:var(--acc2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);">📷</div>
+        </div>
+        <div id="avatar-hint" style="font-size:.6rem;color:var(--tx3);margin-top:.3rem;">탭해서 사진 변경</div>
+      </div>
+      <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="previewAvatar(this)">
       <div class="profile-name" id="profile-name"></div>
       <div class="profile-email" id="profile-email"></div>
       <div class="form-group" style="margin-top:1rem;">
