@@ -5244,6 +5244,7 @@ function applyAvatarToEl(el, src) {
   el.textContent = '';
 }
 
+// ⭐ 수정된 프로필 저장 함수
 async function doSaveAvatar(blob) {
   if(!blob || !currentUser) return;
   const b64 = await new Promise(r => {
@@ -5253,14 +5254,22 @@ async function doSaveAvatar(blob) {
   });
   // localStorage에 저장 (항상 작동)
   localStorage.setItem(`bl_avatar_${currentUser.id}`, b64);
+  
   // Supabase Storage 시도 (성공하면 cross-device 동기화)
   try {
-    await sb.storage.from('avatars').upload(`${currentUser.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
-    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${currentUser.id}.jpg`);
+    // 경로에 '${currentUser.id}/'를 추가하여 자동 폴더 생성을 유도하고 정책을 통과시킵니다.
+    await sb.storage.from('avatars').upload(`${currentUser.id}/${currentUser.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
+    
+    // 가져올 Public URL 주소 경로도 똑같이 유저 폴더 안을 가리키도록 수정합니다.
+    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${currentUser.id}/${currentUser.id}.jpg`);
+    
     if(ud?.publicUrl) {
       await sb.from('profiles').update({avatar_url: ud.publicUrl}).eq('id', currentUser.id).catch(()=>{});
     }
-  } catch(e) { /* Storage 미설정 시 localStorage로 대체 */ }
+  } catch(e) { 
+    console.error("Storage 업로드 실패:", e); 
+    /* Storage 미설정 시 localStorage로 대체 */ 
+  }
 }
 
 function loadAvatarForProfile(profile) {
