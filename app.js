@@ -15,6 +15,7 @@ const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const NAVER_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
+const ALADIN_PROXY = '/api/aladin';
 
 // 표지 검색 - 제목+작가+출판사 엄격 매칭
 async function fetchBookCover(title, author='', publisher='') {
@@ -4693,32 +4694,55 @@ function openAddBook() {
   openModal('modal-book');
 }
 // 네이버 검색 결과를 UI에 렌더링
+// 검색 결과 아이템 렌더링 (네이버/알라딘/Google Books 공통)
 function _renderSearchItems(res, items) {
   items.forEach(item=>{
     const el=document.createElement('div');el.className='search-item';
-    const cover=item.image||'',title=(item.title||'').replace(/<[^>]+>/g,''),author=(item.author||item.volumeInfo?.authors?.join(', ')||'').replace(/<[^>]+>/g,''),publisher=(item.publisher||item.volumeInfo?.publisher||''),desc=(item.description||item.volumeInfo?.description||'').replace(/<[^>]+>/g,'');
+    const raw = s => (s||'').replace(/<[^>]+>/g,'').trim();
+    const cover = item.image||item.cover||item.volumeInfo?.imageLinks?.thumbnail?.replace('http:','https:') || '';
+    const title = raw(item.title);
+    const author = raw(item.author || (item.volumeInfo?.authors||[]).join(', '));
+    const publisher = raw(item.publisher||item.volumeInfo?.publisher||'');
+    const desc = raw(item.description||item.volumeInfo?.description||'');
+    // 페이지 수: 알라딘 subInfo > 네이버 itemPage > Google Books pageCount > 설명 파싱
     let pages = null;
-    if(item.itemPage && parseInt(item.itemPage)) pages = parseInt(item.itemPage);
-    else if(item.sub_info?.itemPage) pages = parseInt(item.sub_info.itemPage);
-    else if(item.volumeInfo?.pageCount) pages = parseInt(item.volumeInfo.pageCount);
+    const p1 = item.subInfo?.itemPage || item.itemPage || item.sub_info?.itemPage;
+    if(p1 && parseInt(p1)>=10) pages = parseInt(p1);
+    else if(item.volumeInfo?.pageCount >= 10) pages = item.volumeInfo.pageCount;
     else {
-      const allText = (item.description||'')+(item.title||'');
-      const pm = allText.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
-      if(pm && parseInt(pm[1])>=10) pages = parseInt(pm[1]);
+      const m = (item.description||'').match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
+      if(m && parseInt(m[1])>=10) pages = parseInt(m[1]);
     }
+    // ISBN13 추출
+    const isbn = (item.isbn13||'').replace(/\s.*$/,'') ||
+      item.isbn?.match(/97[89]\d{10}/)?.[0] ||
+      item.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier || '';
     const pagesLabel = pages ? `<div style="font-size:.62rem;color:var(--acc);">${pages}p</div>` : '';
-    const isbn = item.isbn || item.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier || item.volumeInfo?.industryIdentifiers?.[0]?.identifier || '';
     el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div>${pagesLabel}</div>`;
     el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn,pages});
     res.appendChild(el);
   });
 }
 
+// 알라딘 아이템 배열을 공통 포맷으로 변환
+function _aladinToItems(aladinData) {
+  return (aladinData?.item||[]).map(it=>({
+    title: it.title||'',
+    author: it.author||'',
+    publisher: it.publisher||'',
+    cover: it.cover||'',
+    description: it.description||'',
+    isbn: it.isbn13||it.isbn||'',
+    isbn13: it.isbn13||'',
+    subInfo: it.subInfo,
+    itemPage: it.subInfo?.itemPage
+  }));
+}
+
 // Google Books API fallback 검색
 async function _searchGoogleBooks(q) {
   try {
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=40&langRestrict=ko`;
-    const d = await fetch(url).then(r=>r.json());
+    const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=40&langRestrict=ko`).then(r=>r.json());
     if(!d.items?.length) return [];
     return d.items.map(it=>({
       title: it.volumeInfo?.title||'',
@@ -4726,7 +4750,7 @@ async function _searchGoogleBooks(q) {
       publisher: it.volumeInfo?.publisher||'',
       image: it.volumeInfo?.imageLinks?.thumbnail?.replace('http:','https:')||'',
       description: it.volumeInfo?.description||'',
-      isbn: it.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier||it.volumeInfo?.industryIdentifiers?.[0]?.identifier||'',
+      isbn: it.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier||'',
       volumeInfo: it.volumeInfo
     }));
   } catch(e){ return []; }
@@ -4737,50 +4761,89 @@ async function searchBook() {
   const q = rawQ.replace(/[<>]/g,'').trim();
   const res=document.getElementById('search-results');
   res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 중...</div>';
+  const q2 = q.replace(/[(\[（【].*?[)\]）】]/g,'').replace(/\d+권|\d+편|\d+부/g,'').replace(/\s+/g,' ').trim();
   try {
-    // 1단계: 네이버 display=100
-    const resp=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
-    const data=await resp.json();
+    // 1단계: 네이버 + 알라딘 병렬 검색
+    const [naverResp, aladinResp] = await Promise.allSettled([
+      fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
+      fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q)}`).then(r=>r.json())
+    ]);
     res.innerHTML='';
 
-    if(data.items?.length) {
-      _renderSearchItems(res, data.items);
-      return;
-    }
+    const naverItems = naverResp.status==='fulfilled' ? (naverResp.value?.items||[]) : [];
+    const aladinItems = aladinResp.status==='fulfilled' ? _aladinToItems(aladinResp.value) : [];
 
-    // 2단계: 괄호·권수 제거 후 재시도
-    const q2 = q.replace(/[(\[（【].*?[)\]）】]/g,'').replace(/\d+권|\d+편|\d+부/g,'').replace(/\s+/g,' ').trim();
+    // 네이버 우선, 없으면 알라딘
+    if(naverItems.length) { _renderSearchItems(res, naverItems); return; }
+    if(aladinItems.length) { _renderSearchItems(res, aladinItems); return; }
+
+    // 2단계: 괄호·권수 제거 후 재시도 (네이버 + 알라딘)
     if(q2 && q2 !== q) {
-      const resp2=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q2)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
-      const data2=await resp2.json();
-      if(data2.items?.length) { _renderSearchItems(res, data2.items); return; }
+      const [n2, a2] = await Promise.allSettled([
+        fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q2)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}`).then(r=>r.json())
+      ]);
+      const ni2 = n2.status==='fulfilled'?(n2.value?.items||[]):[];
+      const ai2 = a2.status==='fulfilled'?_aladinToItems(a2.value):[];
+      if(ni2.length) { _renderSearchItems(res, ni2); return; }
+      if(ai2.length) { _renderSearchItems(res, ai2); return; }
     }
 
-    // 3단계: 첫 단어만으로 재검색 (저자명이나 핵심 제목어)
+    // 3단계: 핵심 단어만
     const words = q.trim().split(/\s+/);
     if(words.length > 1) {
       const qCore = words.slice(0,2).join(' ');
-      const resp3=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(qCore)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
-      const data3=await resp3.json();
-      if(data3.items?.length) { _renderSearchItems(res, data3.items); return; }
+      const [n3, a3] = await Promise.allSettled([
+        fetch(`${NAVER_PROXY}?query=${encodeURIComponent(qCore)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}`).then(r=>r.json())
+      ]);
+      const ni3 = n3.status==='fulfilled'?(n3.value?.items||[]):[];
+      const ai3 = a3.status==='fulfilled'?_aladinToItems(a3.value):[];
+      if(ni3.length) { _renderSearchItems(res, ni3); return; }
+      if(ai3.length) { _renderSearchItems(res, ai3); return; }
     }
 
     // 4단계: Google Books fallback
     const gbItems = await _searchGoogleBooks(q);
     if(gbItems.length) { _renderSearchItems(res, gbItems); return; }
-
-    // 5단계: Google Books — 영문 쿼리 허용 (intitle/inauthor 없이)
     const gbItems2 = await _searchGoogleBooks(q2||q);
     if(gbItems2.length) { _renderSearchItems(res, gbItems2); return; }
 
     res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요. 제목이나 저자명을 달리 입력해보세요.</div>';
   } catch(e){res.innerHTML='<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';}
 }
-// ISBN으로 페이지 수를 여러 API에서 순차 조회
+// 알라딘 아이템 배열에서 페이지 수 추출
+function _aladinItemPage(items) {
+  for(const it of (items||[])) {
+    const p = it.subInfo?.itemPage || it.itemPage;
+    if(p && parseInt(p) >= 10) return parseInt(p);
+  }
+  return null;
+}
+
+// ISBN/제목으로 페이지 수 순차 조회 (알라딘 우선)
 async function fetchPageCount(isbn, title, author) {
   const clean = isbn?.match(/97[89]\d{10}/)?.[0] || isbn?.trim().split(/[\s,]+/)[0] || isbn;
 
-  // 1단계: 네이버 ISBN 검색
+  // 1순위: 알라딘 ISBN 조회 (한국 도서 DB 최고 품질)
+  if(clean) {
+    try {
+      const d = await fetch(`${ALADIN_PROXY}?isbn=${clean}`).then(r=>r.json());
+      const pg = _aladinItemPage(d.item);
+      if(pg) return pg;
+    } catch(e){}
+  }
+
+  // 2순위: 알라딘 제목 검색
+  if(title) {
+    try {
+      const d = await fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(title)}`).then(r=>r.json());
+      const pg = _aladinItemPage(d.item);
+      if(pg) return pg;
+    } catch(e){}
+  }
+
+  // 3순위: 네이버 ISBN 검색
   if(clean) {
     try {
       const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(clean)}&display=5`, {
@@ -4788,14 +4851,14 @@ async function fetchPageCount(isbn, title, author) {
       }).then(r=>r.json());
       const it = (d.items||[])[0];
       if(it?.itemPage && parseInt(it.itemPage) >= 10) return parseInt(it.itemPage);
-      if(it?.sub_info?.itemPage && parseInt(it.sub_info.itemPage) >= 10) return parseInt(it.sub_info.itemPage);
-      const haystack = [it?.description, it?.title].filter(Boolean).join(' ');
-      const m = haystack.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
+      if(it?.sub_info?.itemPage) return parseInt(it.sub_info.itemPage);
+      const hay = [it?.description, it?.title].filter(Boolean).join(' ');
+      const m = hay.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
       if(m && parseInt(m[1]) >= 10) return parseInt(m[1]);
     } catch(e){}
   }
 
-  // 2단계: Google Books — ISBN으로
+  // 4순위: Google Books ISBN
   if(clean) {
     try {
       const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${clean}`).then(r=>r.json());
@@ -4804,10 +4867,10 @@ async function fetchPageCount(isbn, title, author) {
     } catch(e){}
   }
 
-  // 3단계: Google Books — 제목+저자로 검색
+  // 5순위: Google Books 제목+저자
   if(title) {
     try {
-      const gq = `intitle:${encodeURIComponent(title)}${author?'+inauthor:'+encodeURIComponent(author.split(' ')[0]):''}`;
+      const gq = `intitle:${encodeURIComponent(title)}${author?'+inauthor:'+encodeURIComponent(author.split(/\s/)[0]):''}`;
       const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${gq}&maxResults=5`).then(r=>r.json());
       for(const it of (d.items||[])) {
         const pc = it.volumeInfo?.pageCount;
@@ -4816,31 +4879,16 @@ async function fetchPageCount(isbn, title, author) {
     } catch(e){}
   }
 
-  // 4단계: Open Library — ISBN
+  // 6순위: Open Library ISBN
   if(clean) {
     try {
       const d = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${clean}&format=json&jscmd=data`).then(r=>r.json());
-      const bk = d[`ISBN:${clean}`];
-      if(bk?.number_of_pages && bk.number_of_pages >= 10) return parseInt(bk.number_of_pages);
+      const pg = d[`ISBN:${clean}`]?.number_of_pages;
+      if(pg && pg >= 10) return parseInt(pg);
     } catch(e){}
     try {
       const d = await fetch(`https://openlibrary.org/isbn/${clean}.json`).then(r=>r.json());
-      if(d?.number_of_pages && d.number_of_pages >= 10) return parseInt(d.number_of_pages);
-    } catch(e){}
-  }
-
-  // 5단계: 네이버 제목 검색에서 설명 파싱
-  if(title) {
-    try {
-      const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(title)}&display=5`, {
-        headers: {Authorization:`Bearer ${SUPABASE_KEY}`}
-      }).then(r=>r.json());
-      for(const it of (d.items||[])) {
-        if(it.itemPage && parseInt(it.itemPage) >= 10) return parseInt(it.itemPage);
-        const hay = [it.description, it.title].filter(Boolean).join(' ');
-        const m = hay.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
-        if(m && parseInt(m[1]) >= 10) return parseInt(m[1]);
-      }
+      if(d?.number_of_pages >= 10) return parseInt(d.number_of_pages);
     } catch(e){}
   }
   return null;
