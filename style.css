@@ -410,6 +410,10 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 /* ── 기록 탭 (달력 + 타이머 통합) ── */
 .record-top{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.7rem;}
 @media(max-width:560px){.record-top{grid-template-columns:1fr;}}
+/* 기록 탭 overflow 방지 — 그리드 셀이 컬럼 폭을 초과하지 않도록 */
+.record-top > *{min-width:0;}
+#timer-tracker-grid{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+#p-record{overflow-x:hidden;}
 .record-cal-card{padding:.75rem;}
 .record-timer-card{padding:.85rem;}
 

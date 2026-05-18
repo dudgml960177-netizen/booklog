@@ -4731,6 +4731,35 @@ async function searchBook() {
     });
   } catch(e){res.innerHTML='<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';}
 }
+// ISBN으로 페이지 수를 여러 API에서 순차 조회
+async function fetchPageCount(isbn) {
+  // 1단계: 네이버 ISBN 검색 (itemPage 필드)
+  try {
+    const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(isbn)}&display=5`, {
+      headers: {Authorization:`Bearer ${NAVER_KEY}`}
+    }).then(r=>r.json());
+    const it = (d.items||[])[0];
+    if(it?.itemPage && parseInt(it.itemPage)) return parseInt(it.itemPage);
+    if(it?.sub_info?.itemPage) return parseInt(it.sub_info.itemPage);
+    // description에서 페이지 수 추출
+    const desc = it?.description||'';
+    const m = desc.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
+    if(m) return parseInt(m[1]);
+  } catch(e){}
+  // 2단계: Google Books API (국제 서적에 유효)
+  try {
+    const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`).then(r=>r.json());
+    const pc = d.items?.[0]?.volumeInfo?.pageCount;
+    if(pc) return parseInt(pc);
+  } catch(e){}
+  // 3단계: Open Library API (비영어권 서적 포함)
+  try {
+    const d = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`).then(r=>r.json());
+    const bk = d[`ISBN:${isbn}`];
+    if(bk?.number_of_pages) return parseInt(bk.number_of_pages);
+  } catch(e){}
+  return null;
+}
 function selectBook(book) {
   selectedBook=book;
   document.getElementById('search-section').style.display='none';
@@ -4738,51 +4767,27 @@ function selectBook(book) {
   const coverHTML=book.cover?`<img class="selected-cover" src="${book.cover}" alt="${book.title}">`:`<div class="selected-cover" style="background:linear-gradient(150deg,#a07040,#5c3010);"></div>`;
   const pagesInfo = book.pages ? `<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${book.pages}p</span>` : '';
   document.getElementById('selected-book-info').innerHTML=`${coverHTML}<div class="selected-info"><div class="selected-title">${book.title}${pagesInfo}</div><div class="selected-author">${book.author}</div><div class="selected-desc">${book.description||''}</div><span class="selected-change" onclick="changeBook()">다른 책 선택</span></div>`;
-  // 페이지 수 채우기 (있으면)
+  // 페이지 수 채우기
   const pagesEl = document.getElementById('book-pages');
   if(pagesEl) {
     if(book.pages) {
       pagesEl.value = book.pages;
-    } else {
+    } else if(book.isbn) {
       pagesEl.value = '';
-      if(book.isbn) {
-        pagesEl.placeholder = '검색 중...';
-        const applyPages = (pg) => {
-          const pe = document.getElementById('book-pages');
-          if(pe && pg && !pe.value) {
-            pe.value = pg;
-            if(selectedBook) selectedBook.pages = pg;
-            const pagesInfo = document.querySelector('.selected-title span');
-            if(!pagesInfo) {
-              const titleEl = document.querySelector('.selected-title');
-              if(titleEl) titleEl.insertAdjacentHTML('beforeend',`<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${pg}p</span>`);
-            }
+      pagesEl.placeholder = '검색 중...';
+      fetchPageCount(book.isbn).then(pg => {
+        const pe = document.getElementById('book-pages');
+        if(!pe) return;
+        if(pg && !pe.value) {
+          pe.value = pg;
+          if(selectedBook) selectedBook.pages = pg;
+          const titleEl = document.querySelector('.selected-title');
+          if(titleEl && !titleEl.querySelector('span')) {
+            titleEl.insertAdjacentHTML('beforeend',`<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${pg}p</span>`);
           }
-          if(pe) pe.placeholder = '예: 320';
-        };
-        const fetchGoogleBooks = (isbn) =>
-          fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`)
-            .then(r=>r.json())
-            .then(d=>{const pc=d.items?.[0]?.volumeInfo?.pageCount;return pc?parseInt(pc):null;})
-            .catch(()=>null);
-        // 네이버 ISBN 검색 → Google Books 순서로 시도
-        fetch(`${NAVER_PROXY}?query=${encodeURIComponent(book.isbn)}&display=5`, {
-          headers: { Authorization: `Bearer ${NAVER_KEY}` }
-        }).then(r=>r.json()).then(async data=>{
-          const items = data.items||[];
-          const bt = book.title.toLowerCase().slice(0,10);
-          const item = items.find(it=>it.title.replace(/<[^>]+>/g,'').toLowerCase().includes(bt)) || items[0];
-          let pg = null;
-          if(item?.itemPage && parseInt(item.itemPage)) pg = parseInt(item.itemPage);
-          else if(item?.sub_info?.itemPage) pg = parseInt(item.sub_info.itemPage);
-          // 네이버에서 못 얻으면 Google Books로 재시도
-          if(!pg) pg = await fetchGoogleBooks(book.isbn);
-          applyPages(pg);
-        }).catch(async ()=>{
-          const pg = await fetchGoogleBooks(book.isbn);
-          applyPages(pg);
-        });
-      }
+        }
+        pe.placeholder = '예: 320';
+      });
     }
   }
 }
