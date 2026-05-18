@@ -5380,18 +5380,36 @@ function applyAvatarToEl(el, src) {
 
 async function doSaveAvatar(blob) {
   if(!blob || !currentUser) throw new Error('저장할 이미지가 없어요.');
-  // blob → base64 data URL
-  const b64 = await new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onerror = rej;
-    reader.onload = e => res(e.target.result);
-    reader.readAsDataURL(blob);
-  });
-  // 1. profiles.avatar_url에 base64 직접 저장 (Storage 불필요, 모든 기기 즉시 반영)
-  const { error } = await sb.from('profiles').update({ avatar_url: b64 }).eq('id', currentUser.id);
+  let avatarUrl = null;
+
+  // 1차: Supabase Storage 업로드 → 짧은 공개 URL (DB 컬럼 크기 제한 없음)
+  try {
+    const path = `${currentUser.id}.jpg`;
+    const { error: upErr } = await sb.storage.from('avatars').upload(path, blob, {
+      contentType: 'image/jpeg', upsert: true
+    });
+    if(!upErr) {
+      const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+      if(urlData?.publicUrl) {
+        // ?t= 파라미터로 CDN 캐시 무효화 (같은 경로에 덮어쓸 때 최신 이미지 표시)
+        avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      }
+    }
+  } catch(e) { /* Storage 미설정 시 base64 폴백 */ }
+
+  // 2차 폴백: base64 직접 저장 (Storage 버킷이 없는 환경)
+  if(!avatarUrl) {
+    avatarUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onerror = rej;
+      reader.onload = e => res(e.target.result);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  const { error } = await sb.from('profiles').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
   if(error) throw new Error('DB 저장 실패: ' + error.message);
-  // 2. localStorage 캐시 갱신
-  try { localStorage.setItem(`bl_avatar_${currentUser.id}`, b64); } catch(e) {}
+  try { localStorage.setItem(`bl_avatar_${currentUser.id}`, avatarUrl); } catch(e) {}
 }
 
 function loadAvatarForProfile(profile) {
