@@ -4002,10 +4002,14 @@ function buildGenre() {
   if(donutChart){donutChart.destroy();donutChart=null;}
   const done=allBooks.filter(b=>b.status==='완독');
   const genreMap={};
-  done.forEach(b=>{const g=Array.isArray(b.genre)?b.genre[0]:(b.genre||'미분류');genreMap[g]=(genreMap[g]||0)+1;});
+  done.forEach(b=>{
+    const g=Array.isArray(b.genre)?(b.genre[0]||''):(b.genre||'');
+    if(!g) return;
+    genreMap[g]=(genreMap[g]||0)+1;
+  });
   const dl=document.getElementById('donut-layout');
   dl.innerHTML='';
-  if(!Object.keys(genreMap).length){dl.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">완독된 책이 없어요.</div>';return;}
+  if(!Object.keys(genreMap).length){dl.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem 0;">장르가 설정된 완독 책이 없어요.</div>';return;}
   const sorted=Object.entries(genreMap).sort((a,b)=>b[1]-a[1]);
   const total=sorted.reduce((a,[,v])=>a+v,0)||1;
   const maxV=sorted[0][1]||1;
@@ -4043,7 +4047,7 @@ function buildGenre() {
     row.appendChild(name);row.appendChild(barWrap);row.appendChild(count);
     dl.appendChild(row);
   });
-  document.getElementById('genre-stat').innerHTML=`<div class="si"><span class="sn">${total}</span><span class="sl">총 완독</span></div><div class="si"><span class="sn">${sorted.length}</span><span class="sl">장르 수</span></div>`;
+  document.getElementById('genre-stat').innerHTML=`<div class="si"><span class="sn">${total}</span><span class="sl">장르 완독</span></div><div class="si"><span class="sn">${sorted.length}</span><span class="sl">장르 수</span></div>`;
 }
 
 function buildRating() {
@@ -4714,7 +4718,10 @@ async function searchBook() {
       if(item.itemPage && parseInt(item.itemPage)) pages = parseInt(item.itemPage);
       else if(item.sub_info?.itemPage) pages = parseInt(item.sub_info.itemPage);
       else {
-        const pageMatch = (item.description||'').match(/(\d{2,4})\s*p /i) || (item.description||'').match(/(\d{2,4})쪽/);
+        const allText = (item.description||'')+' '+(item.title||'');
+        const pageMatch = allText.match(/(\d{2,4})\s*쪽/) ||
+          allText.match(/(\d{2,4})\s*페이지/) ||
+          allText.match(/(\d{2,4})\s*p\b/i);
         if(pageMatch) pages = parseInt(pageMatch[1]);
       }
       const pagesLabel = pages ? `<div style="font-size:.62rem;color:var(--acc);">${pages}p</div>` : '';
@@ -4734,38 +4741,46 @@ function selectBook(book) {
   // 페이지 수 채우기 (있으면)
   const pagesEl = document.getElementById('book-pages');
   if(pagesEl) {
-    if(book.pages) { pagesEl.value = book.pages; }
-    else {
+    if(book.pages) {
+      pagesEl.value = book.pages;
+    } else {
       pagesEl.value = '';
-      // ISBN으로 2차 시도
       if(book.isbn) {
         pagesEl.placeholder = '검색 중...';
+        const applyPages = (pg) => {
+          const pe = document.getElementById('book-pages');
+          if(pe && pg && !pe.value) {
+            pe.value = pg;
+            if(selectedBook) selectedBook.pages = pg;
+            const pagesInfo = document.querySelector('.selected-title span');
+            if(!pagesInfo) {
+              const titleEl = document.querySelector('.selected-title');
+              if(titleEl) titleEl.insertAdjacentHTML('beforeend',`<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${pg}p</span>`);
+            }
+          }
+          if(pe) pe.placeholder = '예: 320';
+        };
+        const fetchGoogleBooks = (isbn) =>
+          fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`)
+            .then(r=>r.json())
+            .then(d=>{const pc=d.items?.[0]?.volumeInfo?.pageCount;return pc?parseInt(pc):null;})
+            .catch(()=>null);
+        // 네이버 ISBN 검색 → Google Books 순서로 시도
         fetch(`${NAVER_PROXY}?query=${encodeURIComponent(book.isbn)}&display=5`, {
           headers: { Authorization: `Bearer ${NAVER_KEY}` }
-        }).then(r=>r.json()).then(data=>{
+        }).then(r=>r.json()).then(async data=>{
           const items = data.items||[];
           const bt = book.title.toLowerCase().slice(0,10);
           const item = items.find(it=>it.title.replace(/<[^>]+>/g,'').toLowerCase().includes(bt)) || items[0];
           let pg = null;
           if(item?.itemPage && parseInt(item.itemPage)) pg = parseInt(item.itemPage);
           else if(item?.sub_info?.itemPage) pg = parseInt(item.sub_info.itemPage);
-          const pe = document.getElementById('book-pages');
-          if(pe) {
-            if(pg && !pe.value) {
-              pe.value = pg;
-              if(selectedBook) selectedBook.pages = pg;
-              // 선택된 책 정보 표시 업데이트
-              const pagesInfo = document.querySelector('.selected-title span');
-              if(!pagesInfo) {
-                const titleEl = document.querySelector('.selected-title');
-                if(titleEl) titleEl.insertAdjacentHTML('beforeend',`<span style="font-size:.65rem;color:var(--acc);margin-left:.3rem;">${pg}p</span>`);
-              }
-            }
-            pe.placeholder = '예: 320';
-          }
-        }).catch(()=>{
-          const pe = document.getElementById('book-pages');
-          if(pe) pe.placeholder = '예: 320';
+          // 네이버에서 못 얻으면 Google Books로 재시도
+          if(!pg) pg = await fetchGoogleBooks(book.isbn);
+          applyPages(pg);
+        }).catch(async ()=>{
+          const pg = await fetchGoogleBooks(book.isbn);
+          applyPages(pg);
         });
       }
     }
