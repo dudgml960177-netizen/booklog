@@ -43,6 +43,9 @@
   "functions": {
     "api/vision-ocr.js": {
       "maxDuration": 30
+    },
+    "api/aladin.js": {
+      "maxDuration": 10
     }
   }
 }

@@ -264,6 +264,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 /* 모달 */
 .modal-overlay{position:fixed;inset:0;background:rgba(46,31,14,.45);z-index:200;display:flex;align-items:center;justify-content:center;user-select:none;}
 .modal-overlay .modal,.modal-overlay .modal-wide,.modal-overlay [class*="modal"]{user-select:text;}
+/* 확인/알림 팝업은 항상 최상위 (다른 동적 오버레이 위) */
+#modal-confirm{z-index:200000;}
 .modal{background:var(--card);border-radius:12px;width:calc(100% - 2rem);max-width:520px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
 .modal-wide{max-width:640px;}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.05rem;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -409,17 +411,20 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 
 /* ── 기록 탭 (달력 + 타이머 통합) ── */
 .record-top{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.7rem;}
-@media(max-width:560px){.record-top{grid-template-columns:1fr;}}
-/* 기록 탭 overflow 방지 — 그리드 셀이 컬럼 폭을 초과하지 않도록 */
-.record-top > *{min-width:0;}
-#timer-tracker-grid{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+@media(max-width:600px){.record-top{grid-template-columns:1fr;}}
+/* 기록 탭 overflow 방지 */
+.record-top > *{min-width:0;overflow:hidden;}
+.record-top > div{overflow:visible;}/* flex 컬럼 컨테이너는 visible 유지, 카드만 hidden */
+.record-top > div > .card{overflow:hidden;min-width:0;}
+#timer-tracker-grid{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;min-width:0;}
 #p-record{overflow-x:hidden;}
-.record-cal-card{padding:.75rem;}
-.record-timer-card{padding:.85rem;}
+#p-record .card{max-width:100%;box-sizing:border-box;}
+.record-cal-card{padding:.75rem;overflow:hidden;}
+.record-timer-card{padding:.85rem;overflow:hidden;}
 
 /* 달력 컴팩트 */
-.record-cal-card .cal-hd{margin-bottom:.45rem;}
-.record-cal-card .cal-ttl{font-size:.88rem;}
+.record-cal-card .cal-hd{margin-bottom:.45rem;flex-wrap:wrap;gap:.2rem;}
+.record-cal-card .cal-ttl{font-size:.88rem;flex:1;min-width:60px;}
 .record-cal-card .dow{font-size:.55rem;padding:.08rem 0;}
 .record-cal-card .day{font-size:.6rem;}
 .record-cal-card .cal-list{margin-top:.5rem;padding-top:.45rem;}
@@ -428,7 +433,11 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 
 /* 타이머 컴팩트 */
 .record-timer-card .timer-display{font-size:1.9rem;text-align:center;}
-.record-timer-card .timer-btns{justify-content:center;gap:.4rem;}
+.record-timer-card .timer-btns{justify-content:center;gap:.4rem;flex-wrap:wrap;}
+/* 타이머 통계 overflow 방지 */
+#timer-weekly{overflow:hidden;min-width:0;}
+#timer-weekly > *{min-width:0;}
+.tracker-period-row{display:flex;align-items:center;gap:.18rem;flex-wrap:wrap;}
 
 /* ── 폴더 행 스크롤바 숨김 ── */
 #lib-folder-row::-webkit-scrollbar{display:none;}

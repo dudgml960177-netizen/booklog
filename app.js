@@ -15,6 +15,7 @@ const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
 const NAVER_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
+const ALADIN_PROXY = '/api/aladin';
 
 // 표지 검색 - 제목+작가+출판사 엄격 매칭
 async function fetchBookCover(title, author='', publisher='') {
@@ -329,6 +330,8 @@ function init() {
   window.addEventListener('popstate', () => {
     history.pushState(null, '', location.href); // 항상 상태 복원
     const open = [...document.querySelectorAll('.modal-overlay')].find(m => m.style.display !== 'none');
+    // 파일 선택기가 열려있으면 모달 닫지 않음 (iOS에서 파일 픽커가 popstate 유발)
+    if(open && _avatarPickerActive) return;
     if(open) { open.style.display='none'; return; }
     // 모달 없으면: 현재 탭이 서재가 아닌 경우 서재로 이동
     const booksTab = document.querySelector('.tab[onclick*="\'books\'"]') ||
@@ -1836,20 +1839,21 @@ function buildWeeklyStats() {
   const diffColor=diff>=0?'#7a9e7e':'#c4714a';
   el.innerHTML=`
     <div style="font-size:.48rem;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);margin-bottom:.45rem;">이 주의 통계</div>
-    <div style="display:flex;align-items:baseline;gap:.35rem;margin-bottom:.6rem;">
-      <span style="font-family:var(--ff-disp);font-style:italic;font-size:1.35rem;color:var(--tx1);line-height:1;">${totalH}h ${totalMin}m</span>
-      <span style="font-size:.53rem;color:${diffColor};">${diffStr}</span>
+    <div style="display:flex;align-items:baseline;gap:.35rem;margin-bottom:.6rem;min-width:0;overflow:hidden;">
+      <span style="font-family:var(--ff-disp);font-style:italic;font-size:1.2rem;color:var(--tx1);line-height:1;white-space:nowrap;flex-shrink:0;">${totalH}h ${totalMin}m</span>
+      <span style="font-size:.53rem;color:${diffColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">${diffStr}</span>
     </div>
-    <div style="display:flex;align-items:flex-end;gap:2px;height:38px;margin-bottom:.2rem;">
+    <div style="display:flex;align-items:flex-end;gap:2px;height:38px;margin-bottom:.2rem;width:100%;">
       ${days.map(d=>{
         const h=d.mins?Math.max(d.mins/maxM*34,3):0;
         const isTd=d.ds===todayStr;
         const WEEK_COLS=['#6b8f6b','#5a7a8a','#c4a87a','#7a5a8a','#c4714a','#3a6858','#c87850'];
         const barCol=isTd?'#c4714a':WEEK_COLS[d.dow];
-        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;" title="${d.mins?d.mins+'분':''}"><div style="width:100%;height:${h}px;background:${barCol};opacity:${isTd?'1':d.mins?'.75':'.18'};border-radius:2px 2px 0 0;transition:opacity .2s;"></div></div>`;
+        return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;" title="${d.mins?d.mins+'분':''}"><div style="width:100%;height:${h}px;background:${barCol};opacity:${isTd?'1':d.mins?'.75':'.18'};border-radius:2px 2px 0 0;transition:opacity .2s;"></div></div>`;
       }).join('')}
     </div>
-    <div style="display:flex;gap:2px;">
+    <div style="display:flex;gap:2px;width:100%;">
+
       ${days.map(d=>`<div style="flex:1;text-align:center;font-size:.44rem;color:var(--tx3);">${DOW[d.dow]}</div>`).join('')}
     </div>`;
 }
@@ -3709,7 +3713,13 @@ function buildStats() {
     // 폴백 없음 — last_read 기반 전체 reading_time은 과다 집계 유발
     return sum;
   }, 0);
-  const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
+  // 완독 외 읽는중·중단 페이지도 반영
+  const thisYearPages = allBooks.reduce((a, b) => {
+    if(b.status==='완독' && b.date_finish?.startsWith(cyStr)) return a+(b.pages||0);
+    if(b.status==='읽는중') return a+(b.current_page||0);
+    if(b.status==='중단' && b.date_start?.startsWith(cyStr)) return a+(b.current_page||0);
+    return a;
+  }, 0);
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
   // 6개 핵심 지표 — 3×2 hairline 그리드 (컨셉 이미지 스타일)
@@ -4691,82 +4701,254 @@ function openAddBook() {
   updateBookCategorySelect();
   openModal('modal-book');
 }
+// 네이버 검색 결과를 UI에 렌더링
+// 검색 결과 아이템 렌더링 (네이버/알라딘/Google Books 공통)
+function _renderSearchItems(res, items) {
+  items.forEach(item=>{
+    const el=document.createElement('div');el.className='search-item';
+    const raw = s => (s||'').replace(/<[^>]+>/g,'').trim();
+    const cover = item.image||item.cover||item.volumeInfo?.imageLinks?.thumbnail?.replace('http:','https:') || '';
+    const title = raw(item.title);
+    const author = raw(item.author || (item.volumeInfo?.authors||[]).join(', '));
+    const publisher = raw(item.publisher||item.volumeInfo?.publisher||'');
+    const desc = raw(item.description||item.volumeInfo?.description||'');
+    // 페이지 수: 알라딘 subInfo > 네이버 itemPage > Google Books pageCount > 설명 파싱
+    let pages = null;
+    const p1 = item.subInfo?.itemPage || item.itemPage || item.sub_info?.itemPage;
+    if(p1 && parseInt(p1)>=10) pages = parseInt(p1);
+    else if(item.volumeInfo?.pageCount >= 10) pages = item.volumeInfo.pageCount;
+    else {
+      const m = (item.description||'').match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
+      if(m && parseInt(m[1])>=10) pages = parseInt(m[1]);
+    }
+    // ISBN13 추출
+    const isbn = (item.isbn13||'').replace(/\s.*$/,'') ||
+      item.isbn?.match(/97[89]\d{10}/)?.[0] ||
+      item.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier || '';
+    const pagesLabel = pages ? `<div style="font-size:.62rem;color:var(--acc);">${pages}p</div>` : '';
+    el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div>${pagesLabel}</div>`;
+    el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn,pages});
+    res.appendChild(el);
+  });
+}
+
+// 네이버 + 알라딘 결과 병합: 알라딘 페이지 수로 네이버 항목 보충, 알라딘 단독 항목 추가
+function _mergeSearchResults(naverItems, aladinItems) {
+  if(!naverItems.length && !aladinItems.length) return [];
+  if(!naverItems.length) return aladinItems;
+  if(!aladinItems.length) return naverItems;
+  const toIsbn = item => item.isbn13 || item.isbn?.match(/97[89]\d{10}/)?.[0] || '';
+  const aladinByIsbn = new Map();
+  aladinItems.forEach(ai => { const k = toIsbn(ai); if(k) aladinByIsbn.set(k, ai); });
+  const naverIsbns = new Set();
+  const merged = naverItems.map(ni => {
+    const k = toIsbn(ni); if(k) naverIsbns.add(k);
+    const ai = aladinByIsbn.get(k);
+    if(ai && !ni.subInfo?.itemPage && !ni.itemPage) {
+      return { ...ni, subInfo: ai.subInfo, itemPage: ai.itemPage };
+    }
+    return ni;
+  });
+  aladinItems.forEach(ai => {
+    const k = toIsbn(ai);
+    if(!k || !naverIsbns.has(k)) merged.push(ai);
+  });
+  return merged;
+}
+
+// 알라딘 아이템 배열을 공통 포맷으로 변환
+function _aladinToItems(aladinData) {
+  return (aladinData?.item||[]).map(it=>({
+    title: it.title||'',
+    author: it.author||'',
+    publisher: it.publisher||'',
+    cover: it.cover||'',
+    description: it.description||'',
+    isbn: it.isbn13||it.isbn||'',
+    isbn13: it.isbn13||'',
+    subInfo: it.subInfo,
+    itemPage: it.subInfo?.itemPage
+  }));
+}
+
+// Google Books API fallback 검색
+async function _searchGoogleBooks(q) {
+  try {
+    const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=40&langRestrict=ko`).then(r=>r.json());
+    if(!d.items?.length) return [];
+    return d.items.map(it=>({
+      title: it.volumeInfo?.title||'',
+      author: (it.volumeInfo?.authors||[]).join(', '),
+      publisher: it.volumeInfo?.publisher||'',
+      image: it.volumeInfo?.imageLinks?.thumbnail?.replace('http:','https:')||'',
+      description: it.volumeInfo?.description||'',
+      isbn: it.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier||'',
+      volumeInfo: it.volumeInfo
+    }));
+  } catch(e){ return []; }
+}
+
 async function searchBook() {
   const rawQ=document.getElementById('book-search-input').value.trim();if(!rawQ)return;
-  // 검색어 전처리: 특수문자·괄호 제거 후 핵심어 추출
   const q = rawQ.replace(/[<>]/g,'').trim();
   const res=document.getElementById('search-results');
   res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 중...</div>';
+  const q2 = q.replace(/[(\[（【].*?[)\]）】]/g,'').replace(/\d+권|\d+편|\d+부/g,'').replace(/\s+/g,' ').trim();
   try {
-    // display=20으로 결과 수 증가
-    const resp=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}&display=20`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
-    const data=await resp.json();res.innerHTML='';
-    if(!data.items?.length){
-      // 검색 결과 없으면 괄호 등 제거 후 재시도
-      const q2 = q.replace(/[(\[（【].*?[)\]）】]/g,'').replace(/\d+권|\d+편|\d+부/g,'').trim();
-      if(q2 && q2 !== q) {
-        const resp2=await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q2)}&display=20`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}});
-        const data2=await resp2.json();
-        if(data2.items?.length) { data.items = data2.items; }
-      }
-      if(!data.items?.length){res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요.</div>';return;}
+    // 1단계: 네이버 + 알라딘 병렬 검색
+    const [naverResp, aladinResp] = await Promise.allSettled([
+      fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
+      fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q)}`).then(r=>r.json())
+    ]);
+    res.innerHTML='';
+
+    const naverItems = naverResp.status==='fulfilled' ? (naverResp.value?.items||[]) : [];
+    const aladinItems = aladinResp.status==='fulfilled' ? _aladinToItems(aladinResp.value) : [];
+
+    // 네이버+알라딘 병합 (알라딘 페이지 수로 보충)
+    const merged = _mergeSearchResults(naverItems, aladinItems);
+    if(merged.length) { _renderSearchItems(res, merged); return; }
+
+    // 2단계: 괄호·권수 제거 후 재시도 (네이버 + 알라딘)
+    if(q2 && q2 !== q) {
+      const [n2, a2] = await Promise.allSettled([
+        fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q2)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}`).then(r=>r.json())
+      ]);
+      const ni2 = n2.status==='fulfilled'?(n2.value?.items||[]):[];
+      const ai2 = a2.status==='fulfilled'?_aladinToItems(a2.value):[];
+      const merged2 = _mergeSearchResults(ni2, ai2);
+      if(merged2.length) { _renderSearchItems(res, merged2); return; }
     }
-    data.items.forEach(item=>{
-      const el=document.createElement('div');el.className='search-item';
-      const cover=item.image||'',title=item.title.replace(/<[^>]+>/g,''),author=item.author.replace(/<[^>]+>/g,''),publisher=item.publisher||'',desc=item.description.replace(/<[^>]+>/g,'');
-      // 페이지 수: itemPage(네이버 상세검색), description 파싱, sub 필드 등 다양한 곳 시도
-      let pages = null;
-      if(item.itemPage && parseInt(item.itemPage)) pages = parseInt(item.itemPage);
-      else if(item.sub_info?.itemPage) pages = parseInt(item.sub_info.itemPage);
-      else {
-        const allText = (item.description||'')+' '+(item.title||'');
-        const pageMatch = allText.match(/(\d{2,4})\s*쪽/) ||
-          allText.match(/(\d{2,4})\s*페이지/) ||
-          allText.match(/(\d{2,4})\s*p\b/i);
-        if(pageMatch) pages = parseInt(pageMatch[1]);
-      }
-      const pagesLabel = pages ? `<div style="font-size:.62rem;color:var(--acc);">${pages}p</div>` : '';
-      el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="${title}">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div>${pagesLabel}</div>`;
-      el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn:item.isbn,pages});
-      res.appendChild(el);
-    });
+
+    // 3단계: 핵심 단어만
+    const words = q.trim().split(/\s+/);
+    if(words.length > 1) {
+      const qCore = words.slice(0,2).join(' ');
+      const [n3, a3] = await Promise.allSettled([
+        fetch(`${NAVER_PROXY}?query=${encodeURIComponent(qCore)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}`).then(r=>r.json())
+      ]);
+      const ni3 = n3.status==='fulfilled'?(n3.value?.items||[]):[];
+      const ai3 = a3.status==='fulfilled'?_aladinToItems(a3.value):[];
+      const merged3 = _mergeSearchResults(ni3, ai3);
+      if(merged3.length) { _renderSearchItems(res, merged3); return; }
+    }
+
+    // 4단계: Google Books fallback
+    const gbItems = await _searchGoogleBooks(q);
+    if(gbItems.length) { _renderSearchItems(res, gbItems); return; }
+    const gbItems2 = await _searchGoogleBooks(q2||q);
+    if(gbItems2.length) { _renderSearchItems(res, gbItems2); return; }
+
+    res.innerHTML=`<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요. 제목이나 저자명을 달리 입력해보세요.</div>
+    <div style="padding:.3rem .5rem;">
+      <button onclick="showManualBookEntry()" style="font-size:.7rem;color:var(--acc);background:none;border:1px solid var(--acc);border-radius:8px;padding:.25rem .7rem;cursor:pointer;font-family:var(--ff);">웹소설·직접 입력하기</button>
+    </div>`;
   } catch(e){res.innerHTML='<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';}
 }
-// ISBN으로 페이지 수를 여러 API에서 순차 조회
-async function fetchPageCount(isbn) {
-  // 네이버는 "ISBN13 ISBN10" 형식으로 반환하기도 함 → ISBN-13만 추출
-  const clean = isbn?.match(/97[89]\d{10}/)?.[0] || isbn?.trim().split(/[\s,]+/)[0] || isbn;
-  if(!clean) return null;
 
-  // 1단계: 네이버 ISBN 검색 (itemPage 필드 + 설명 파싱)
-  try {
-    const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(clean)}&display=5`, {
-      headers: {Authorization:`Bearer ${NAVER_KEY}`}
-    }).then(r=>r.json());
-    const it = (d.items||[])[0];
-    if(it?.itemPage && parseInt(it.itemPage)) return parseInt(it.itemPage);
-    if(it?.sub_info?.itemPage) return parseInt(it.sub_info.itemPage);
-    const haystack = [it?.description, it?.title].filter(Boolean).join(' ');
-    const m = haystack.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
-    if(m && parseInt(m[1]) >= 10) return parseInt(m[1]);
-  } catch(e){}
-  // 2단계: Google Books API
-  try {
-    const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${clean}`).then(r=>r.json());
-    const pc = d.items?.[0]?.volumeInfo?.pageCount;
-    if(pc && pc >= 10) return parseInt(pc);
-  } catch(e){}
-  // 3단계: Open Library books API
-  try {
-    const d = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${clean}&format=json&jscmd=data`).then(r=>r.json());
-    const bk = d[`ISBN:${clean}`];
-    if(bk?.number_of_pages && bk.number_of_pages >= 10) return parseInt(bk.number_of_pages);
-  } catch(e){}
-  // 4단계: Open Library ISBN 직접 조회
-  try {
-    const d = await fetch(`https://openlibrary.org/isbn/${clean}.json`).then(r=>r.json());
-    if(d?.number_of_pages && d.number_of_pages >= 10) return parseInt(d.number_of_pages);
-  } catch(e){}
+function showManualBookEntry() {
+  const res = document.getElementById('search-results');
+  res.innerHTML = `
+    <div style="padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--card);margin-top:.3rem;">
+      <div style="font-size:.62rem;color:var(--tx3);margin-bottom:.5rem;">웹소설·직접 입력</div>
+      <input type="text" id="manual-book-title" placeholder="제목 (필수)" class="form-input" style="font-size:.78rem;margin-bottom:.35rem;">
+      <input type="text" id="manual-book-author" placeholder="저자 (선택)" class="form-input" style="font-size:.78rem;margin-bottom:.45rem;">
+      <div style="display:flex;gap:.4rem;">
+        <button onclick="submitManualBook()" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:.28rem .8rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);line-height:1.2;">추가</button>
+        <button onclick="document.getElementById('search-results').innerHTML=''" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:.28rem .7rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);color:var(--tx3);line-height:1.2;">취소</button>
+      </div>
+    </div>`;
+  setTimeout(() => document.getElementById('manual-book-title')?.focus(), 50);
+}
+
+function submitManualBook() {
+  const title = document.getElementById('manual-book-title')?.value.trim();
+  if(!title) { alert('제목을 입력해주세요.'); return; }
+  const author = document.getElementById('manual-book-author')?.value.trim() || '';
+  selectBook({ title, author, publisher: '', cover: '', description: '', isbn: '', pages: null });
+}
+
+// 알라딘 아이템 배열에서 페이지 수 추출
+function _aladinItemPage(items) {
+  for(const it of (items||[])) {
+    const p = it.subInfo?.itemPage || it.itemPage;
+    if(p && parseInt(p) >= 10) return parseInt(p);
+  }
+  return null;
+}
+
+// ISBN/제목으로 페이지 수 순차 조회 (알라딘 우선)
+async function fetchPageCount(isbn, title, author) {
+  const clean = isbn?.match(/97[89]\d{10}/)?.[0] || isbn?.trim().split(/[\s,]+/)[0] || isbn;
+
+  // 1순위: 알라딘 ISBN 조회 (한국 도서 DB 최고 품질)
+  if(clean) {
+    try {
+      const d = await fetch(`${ALADIN_PROXY}?isbn=${clean}`).then(r=>r.json());
+      const pg = _aladinItemPage(d.item);
+      if(pg) return pg;
+    } catch(e){}
+  }
+
+  // 2순위: 알라딘 제목 검색
+  if(title) {
+    try {
+      const d = await fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(title)}`).then(r=>r.json());
+      const pg = _aladinItemPage(d.item);
+      if(pg) return pg;
+    } catch(e){}
+  }
+
+  // 3순위: 네이버 ISBN 검색
+  if(clean) {
+    try {
+      const d = await fetch(`${NAVER_PROXY}?query=${encodeURIComponent(clean)}&display=5`, {
+        headers: {Authorization:`Bearer ${SUPABASE_KEY}`}
+      }).then(r=>r.json());
+      const it = (d.items||[])[0];
+      if(it?.itemPage && parseInt(it.itemPage) >= 10) return parseInt(it.itemPage);
+      if(it?.sub_info?.itemPage) return parseInt(it.sub_info.itemPage);
+      const hay = [it?.description, it?.title].filter(Boolean).join(' ');
+      const m = hay.match(/(\d{2,4})\s*(?:쪽|페이지|p\b)/i);
+      if(m && parseInt(m[1]) >= 10) return parseInt(m[1]);
+    } catch(e){}
+  }
+
+  // 4순위: Google Books ISBN
+  if(clean) {
+    try {
+      const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${clean}`).then(r=>r.json());
+      const pc = d.items?.[0]?.volumeInfo?.pageCount;
+      if(pc && pc >= 10) return parseInt(pc);
+    } catch(e){}
+  }
+
+  // 5순위: Google Books 제목+저자
+  if(title) {
+    try {
+      const gq = `intitle:${encodeURIComponent(title)}${author?'+inauthor:'+encodeURIComponent(author.split(/\s/)[0]):''}`;
+      const d = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${gq}&maxResults=5`).then(r=>r.json());
+      for(const it of (d.items||[])) {
+        const pc = it.volumeInfo?.pageCount;
+        if(pc && pc >= 10) return parseInt(pc);
+      }
+    } catch(e){}
+  }
+
+  // 6순위: Open Library ISBN
+  if(clean) {
+    try {
+      const d = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${clean}&format=json&jscmd=data`).then(r=>r.json());
+      const pg = d[`ISBN:${clean}`]?.number_of_pages;
+      if(pg && pg >= 10) return parseInt(pg);
+    } catch(e){}
+    try {
+      const d = await fetch(`https://openlibrary.org/isbn/${clean}.json`).then(r=>r.json());
+      if(d?.number_of_pages >= 10) return parseInt(d.number_of_pages);
+    } catch(e){}
+  }
   return null;
 }
 function selectBook(book) {
@@ -4781,10 +4963,10 @@ function selectBook(book) {
   if(pagesEl) {
     if(book.pages) {
       pagesEl.value = book.pages;
-    } else if(book.isbn) {
+    } else {
       pagesEl.value = '';
       pagesEl.placeholder = '검색 중...';
-      fetchPageCount(book.isbn).then(pg => {
+      fetchPageCount(book.isbn, book.title, book.author).then(pg => {
         const pe = document.getElementById('book-pages');
         if(!pe) return;
         if(pg && !pe.value) {
@@ -5088,10 +5270,10 @@ function openDetail(bookId) {
     const pct2=tp&&cp?Math.min(100,Math.round(cp/tp*100)):0;
     html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
       <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
-      <div style="display:flex;align-items:center;gap:.45rem;">
+      <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
         <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}" placeholder="현재 쪽" style="width:68px;padding:.28rem .4rem;border:1px solid var(--border2);border-radius:5px;font-size:.76rem;font-family:var(--ff);text-align:center;">
         ${tp?`<span style="font-size:.62rem;color:var(--tx3);">/ ${tp}p</span>`:''}
-        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:5px;padding:.26rem .62rem;font-size:.66rem;cursor:pointer;font-family:var(--ff);">저장</button>
+        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:7px;padding:.26rem .6rem;font-size:.68rem;line-height:1.2;cursor:pointer;font-family:var(--ff);">저장</button>
       </div>
       ${tp&&cp?`<div style="margin-top:.4rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct2}%;height:100%;background:var(--acc);border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.51rem;color:var(--tx3);margin-top:.1rem;">${cp}p · ${pct2}% · ${tp-cp}p 남음</div></div>`:''}
     </div>`;
@@ -5102,7 +5284,7 @@ function openDetail(bookId) {
   html+=`<div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
       <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
-      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.58rem;padding:.15rem .48rem;border:1px solid var(--acc);border-radius:9px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);">＋ 추가</button>
+      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.68rem;padding:.2rem .5rem;border:1px solid var(--acc);border-radius:7px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);line-height:1.2;">＋ 추가</button>
     </div>`;
   quotes.forEach((q,i)=>{
     const color=QCOLORS[i%QCOLORS.length];
@@ -5203,22 +5385,30 @@ function editBook() {
 
 // ── 프로필 사진
 let _pendingAvatarBlob = null;
+let _avatarPickerActive = false; // 파일 선택기 열려있는 동안 모달 닫힘 방지
+
+// 아바타 파일 선택기 열기 (flag 설정 후 input 클릭)
+function triggerAvatarPicker() {
+  _avatarPickerActive = true;
+  document.getElementById('avatar-file-input').click();
+}
 
 function compressAvatar(file) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = reject;
     reader.onload = e => {
       const img = new Image();
+      img.onerror = reject;
       img.onload = () => {
-        const SIZE = 120;
+        const SIZE = 96; // 96×96px — base64 약 5~8KB
         const canvas = document.createElement('canvas');
         canvas.width = SIZE; canvas.height = SIZE;
         const ctx = canvas.getContext('2d');
-        // 정사각형 center-crop
         const min = Math.min(img.width, img.height);
         const sx = (img.width - min) / 2, sy = (img.height - min) / 2;
         ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('압축 실패')), 'image/jpeg', 0.72);
       };
       img.src = e.target.result;
     };
@@ -5227,64 +5417,99 @@ function compressAvatar(file) {
 }
 
 function previewAvatar(input) {
+  _avatarPickerActive = false; // 파일 선택기 닫힘
   if(!input.files?.[0]) return;
+  const hint = document.getElementById('avatar-hint');
+  if(hint) hint.textContent = '처리 중...';
   compressAvatar(input.files[0]).then(blob => {
     _pendingAvatarBlob = blob;
     const url = URL.createObjectURL(blob);
     applyAvatarToEl(document.getElementById('profile-avatar'), url);
+    if(hint) hint.textContent = '✅ 저장 버튼을 눌러 적용하세요';
+  }).catch(() => {
+    _avatarPickerActive = false;
+    if(hint) hint.textContent = '이미지 처리 실패. 다시 시도해주세요.';
   });
   input.value = '';
 }
 
 function applyAvatarToEl(el, src) {
-  if(!el || !src) return;
-  el.style.backgroundImage = `url(${src})`;
-  el.style.backgroundSize = 'cover';
-  el.style.backgroundPosition = 'center';
-  el.textContent = '';
+  if(!el) return;
+  if(src) {
+    el.style.backgroundImage = `url('${src.replace(/'/g,'%27')}')`;
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    el.textContent = '';
+  } else {
+    el.style.backgroundImage = '';
+  }
 }
 
 // ⭐ 수정 및 보강된 프로필 저장 함수
 async function doSaveAvatar(blob) {
-  if(!blob) return;
+  if(!blob || !currentUser) throw new Error('저장할 이미지가 없어요.');
+  const hint = document.getElementById('avatar-hint');
+  let avatarUrl = null;
 
-  // Supabase에 로그인된 진짜 유저 정보를 직접 가져옵니다.
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) {
-    console.error("로그인된 유저 정보가 없습니다.");
-    return;
-  }
-
-  const b64 = await new Promise(r => {
-    const reader = new FileReader();
-    reader.onload = e => r(e.target.result);
-    reader.readAsDataURL(blob);
-  });
-  
-  // localStorage에 저장
-  localStorage.setItem(`bl_avatar_${user.id}`, b64);
-  
+  // 1차: Supabase Storage 업로드 — userId/userId.jpg 폴더 구조 (RLS 정책 호환)
   try {
-    // 확실하게 조회된 user.id를 사용하여 폴더를 만들고 업로드합니다.
-    await sb.storage.from('avatars').upload(`${user.id}/${user.id}.jpg`, blob, {upsert:true, contentType:'image/jpeg'});
-    
-    const { data: ud } = sb.storage.from('avatars').getPublicUrl(`${user.id}/${user.id}.jpg`);
-    
-    if(ud?.publicUrl) {
-      await sb.from('profiles').update({avatar_url: ud.publicUrl}).eq('id', user.id).catch(()=>{});
-      console.log("Supabase 업로드 및 DB 갱신 성공!");
+    if(hint) hint.textContent = 'Storage 업로드 중...';
+    const path = `${currentUser.id}/${currentUser.id}.jpg`;
+    const { error: upErr } = await sb.storage.from('avatars').upload(path, blob, {
+      contentType: 'image/jpeg', upsert: true
+    });
+    if(!upErr) {
+      const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+      if(urlData?.publicUrl) {
+        avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        if(hint) hint.textContent = 'Storage 저장 완료';
+      }
+    } else {
+      console.warn('[avatar] Storage 업로드 오류:', upErr.message, upErr);
+      if(hint) hint.textContent = `Storage 오류: ${upErr.message}`;
     }
-  } catch(e) { 
-    console.error("Storage 업로드 실패 원인:", e); 
+  } catch(e) {
+    console.warn('[avatar] Storage 연결 실패:', e.message);
+    if(hint) hint.textContent = 'Storage 연결 실패, 대체 저장 중...';
   }
+
+  // 2차 폴백: base64 직접 저장 (Storage 버킷 없거나 권한 없을 때)
+  if(!avatarUrl) {
+    avatarUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onerror = rej;
+      reader.onload = e => res(e.target.result);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  const { error } = await sb.from('profiles').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
+  if(error) throw new Error('DB 저장 실패: ' + error.message);
+  try { localStorage.setItem(`bl_avatar_${currentUser.id}`, avatarUrl); } catch(e) {}
 }
 
 function loadAvatarForProfile(profile) {
   const el = document.getElementById('profile-avatar');
   if(!el || !currentUser) return;
-  const src = localStorage.getItem(`bl_avatar_${currentUser.id}`) || profile?.avatar_url;
-  if(src) { applyAvatarToEl(el, src); }
-  else {
+  // 미저장 프리뷰가 있으면 그것을 우선 표시 (모달이 닫혔다 다시 열려도 유지)
+  if(_pendingAvatarBlob) {
+    const hint = document.getElementById('avatar-hint');
+    if(hint && hint.textContent !== '✅ 저장 버튼을 눌러 적용하세요') {
+      hint.textContent = '✅ 저장 버튼을 눌러 적용하세요';
+    }
+    return;
+  }
+  // DB 값 → localStorage 동기화
+  const dbSrc = profile?.avatar_url;
+  if(dbSrc) {
+    try { localStorage.setItem(`bl_avatar_${currentUser.id}`, dbSrc); } catch(e){}
+  } else {
+    localStorage.removeItem(`bl_avatar_${currentUser.id}`);
+  }
+  const src = dbSrc || null;
+  if(src) {
+    applyAvatarToEl(el, src);
+  } else {
     el.style.backgroundImage = '';
     const name = profile?.display_name || profile?.username || currentUser.email?.split('@')[0] || '?';
     el.textContent = name.slice(0,1).toUpperCase();
@@ -5322,8 +5547,8 @@ async function openProfile() {
 
   // 닉네임 (DB에서 가져온 값 우선)
   const name = profile?.display_name||profile?.username||tempName;
-  document.getElementById('profile-avatar').textContent=name.slice(0,1).toUpperCase();
-  _pendingAvatarBlob = null;
+  // _pendingAvatarBlob은 여기서 초기화하지 않음 — 파일 선택 후 모달이 닫혔다 다시 열려도 blob 유지
+  // loadAvatarForProfile이 textContent/backgroundImage를 모두 담당
   loadAvatarForProfile(profile);
   document.getElementById('profile-name').textContent=name;
   document.getElementById('profile-display-name').value=name;
@@ -5412,19 +5637,34 @@ function submitContact() {
 async function saveProfile() {
   const name = document.getElementById('profile-display-name')?.value.trim();
   if(!name){alert('닉네임을 입력해주세요.');return;}
+  const saveBtn = document.querySelector('#modal-profile .btn-save, #modal-profile [onclick*="saveProfile"]');
+  if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
   try {
+    let avatarSaved = false;
     if(_pendingAvatarBlob) {
       await doSaveAvatar(_pendingAvatarBlob);
       _pendingAvatarBlob = null;
+      avatarSaved = true;
+      const hint = document.getElementById('avatar-hint');
+      if(hint) hint.textContent = '탭해서 사진 변경';
+      // DB에 실제로 저장됐는지 재확인
+      const { data: check } = await sb.from('profiles').select('avatar_url').eq('id', currentUser.id).single();
+      if(!check?.avatar_url) {
+        throw new Error('프사가 DB에 저장되지 않았어요. 다시 시도해주세요.');
+      }
     }
     const titleEl = document.getElementById('profile-title-select');
     const updateData = {display_name:name};
     if(titleEl) updateData.user_title = titleEl.value || null;
     const {error} = await sb.from('profiles').update(updateData).eq('id',currentUser.id);
     if(error) throw error;
+    if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
     closeModal('modal-profile');
-    await showAlert('저장되었어요!');
-  } catch(e){ alert('저장 오류: '+(e.message||JSON.stringify(e))); }
+    await showAlert(avatarSaved ? '저장되었어요! 프로필 사진도 적용됐어요.' : '저장되었어요!');
+  } catch(e){
+    if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
+    alert('저장 오류: '+(e.message||JSON.stringify(e)));
+  }
 }
 
 
@@ -6419,6 +6659,21 @@ async function restoreBackup(file) {
 // ══════════════════════════════════════
 // 친구 & 파도타기 (서재 구경)
 // ══════════════════════════════════════
+
+// 아바타 HTML 생성 (사진 있으면 사진, 없으면 이니셜 원)
+function makeAvatarHtml(name, avatarUrl, size=32) {
+  const n = name || '?';
+  const initial = n.slice(0,1).toUpperCase();
+  const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
+  const color = colors[n.charCodeAt(0) % colors.length];
+  const base = `width:${size}px;height:${size}px;border-radius:50%;flex-shrink:0;overflow:hidden;`;
+  if(avatarUrl) {
+    // CSS url()에 single-quote 사용 → HTML double-quote 충돌 없음
+    const sUrl = avatarUrl.replace(/'/g, '%27');
+    return `<div style="${base}background:${color};background-image:url('${sUrl}');background-size:cover;background-position:center;"></div>`;
+  }
+  return `<div style="${base}background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.4)}px;font-weight:700;">${initial}</div>`;
+}
 async function openSocialModal() {
   openModal('modal-social');
   loadFriends();
@@ -6433,6 +6688,13 @@ async function loadFriends() {
     requester:profiles!friendships_requester_id_fkey(id,display_name,username,user_title),
     receiver:profiles!friendships_receiver_id_fkey(id,display_name,username,user_title)
   `).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+  // avatar_url은 JOIN이 아닌 직접 쿼리로 별도 조회 (스키마 캐시 문제 우회)
+  const friendIds = (data||[]).map(f => f.requester_id===currentUser.id ? f.receiver_id : f.requester_id).filter(Boolean);
+  const avatarMap = new Map();
+  if(friendIds.length) {
+    const {data:av} = await sb.from('profiles').select('id,avatar_url').in('id', friendIds);
+    (av||[]).forEach(p => avatarMap.set(p.id, p.avatar_url));
+  }
 
   wrap.innerHTML = '';
   if(!data?.length) {
@@ -6447,13 +6709,9 @@ async function loadFriends() {
     const isMine = f.requester_id === currentUser.id;
     const other = isMine ? f.receiver : f.requester;
     const name = other?.display_name || other?.username || '산책자';
-    const initial = name.slice(0,1).toUpperCase();
-    const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
-    const color = colors[name.charCodeAt(0) % colors.length];
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.7rem;padding:.55rem .2rem;border-bottom:1px solid var(--border);';
-    // 아바타
-    const avatar = `<div style="width:32px;height:32px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0;">${initial}</div>`;
+    const avatar = makeAvatarHtml(name, avatarMap.get(other?.id)||other?.avatar_url, 36);
     if(f.status === 'accepted') {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
@@ -6487,8 +6745,8 @@ async function searchFriend() {
   const resultEl = document.getElementById('friend-search-result');
   if(!q || !resultEl) return;
   const [_r1,_r2] = await Promise.all([
-    sb.from('profiles').select('id,display_name,username').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
-    sb.from('profiles').select('id,display_name,username').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
+    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
+    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);
   const _seen=new Set();
   const data=[...(_r1.data||[]),...(_r2.data||[])].filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
@@ -6499,18 +6757,15 @@ async function searchFriend() {
   }
   data.forEach(u => {
     const name = u.display_name || u.username;
-    const initial = name.slice(0,1).toUpperCase();
-    const colors = ['#c4714a','#6b8f6b','#5a7a8a','#8b6b8b','#c8a050'];
-    const color = colors[name.charCodeAt(0) % colors.length];
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-bottom:1px solid var(--border);background:#fff;';
     el.onmouseenter = () => el.style.background = '#faf6ef';
     el.onmouseleave = () => el.style.background = '#fff';
     el.innerHTML = `
-      <div style="width:30px;height:30px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0;">${initial}</div>
-      <span style="flex:1;font-size:.82rem;font-weight:500;color:var(--tx1);">${name}</span>
-      <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);">+ 친구</button>
-      <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);">서재</button>`;
+      ${makeAvatarHtml(name, u.avatar_url, 32)}
+      <span style="flex:1;min-width:0;font-size:.82rem;font-weight:500;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+      <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);flex-shrink:0;">+ 친구</button>
+      <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);flex-shrink:0;">서재</button>`;
     resultEl.appendChild(el);
   });
 }
@@ -6570,7 +6825,7 @@ async function openLibrary(userId, userName) {
 
   // 1단계: 프로필 먼저 확인 (공개 범위 체크)
   const { data: targetProfile } = await sb.from('profiles')
-    .select('library_public,library_visibility,category_visibility,categories,user_title')
+    .select('library_public,library_visibility,category_visibility,categories,user_title,avatar_url')
     .eq('id',userId).single();
   const visibility = targetProfile?.library_visibility ||
     (targetProfile?.library_public === false ? 'private' : 'public');
@@ -6615,13 +6870,11 @@ async function openLibrary(userId, userName) {
   const totalReading = _libBooks.filter(b=>b.status==='읽는중').length;
   const cats = canSeeCat ? (targetProfile.categories||[]) : [];
 
-  const initial = userName.slice(0,1).toUpperCase();
-
   header.innerHTML = `
     <div style="padding:1.1rem 1.2rem .9rem;border-bottom:1px solid var(--border);position:relative;background:var(--card);">
       <button onclick="closeModal('modal-library')" style="position:absolute;top:.8rem;right:.9rem;width:28px;height:28px;border:none;border-radius:50%;background:var(--border);color:var(--tx2);cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;">✕</button>
       <div style="display:flex;align-items:center;gap:.85rem;padding-right:2rem;">
-        <div style="width:44px;height:44px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-family:var(--fs);font-size:1.3rem;font-style:italic;color:#fff;flex-shrink:0;">${initial}</div>
+        ${makeAvatarHtml(userName, targetProfile?.avatar_url, 44)}
         <div>
           <div style="font-family:var(--fs);font-size:1.15rem;color:var(--tx1);line-height:1.2;">${userName}님의 서재</div>
           <div style="font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-top:.25rem;">${targetProfile?.user_title||'함께 읽는 산책자'}</div>

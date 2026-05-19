@@ -317,7 +317,7 @@
           </div>
 
           <!-- 타이머 + 트래커 (우측, 세로 배치) -->
-          <div style="display:flex;flex-direction:column;gap:.6rem;">
+          <div style="display:flex;flex-direction:column;gap:.6rem;min-width:0;overflow:hidden;">
             <!-- 타이머 -->
             <div class="card record-timer-card" style="padding:.8rem;">
               <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem;">⏱ 독서 타이머</div>
@@ -346,21 +346,21 @@
 
             <!-- 트래커 (타이머 바로 아래) -->
             <div class="card" style="padding:.7rem .75rem;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;flex-wrap:wrap;gap:.2rem;">
                 <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;">트래커</div>
-                <div style="display:flex;align-items:center;gap:.18rem;">
+                <div style="display:flex;align-items:center;gap:.18rem;flex-shrink:0;">
                   <button class="tracker-period-btn" data-period="week" onclick="setTimerPeriod('week')">주간</button>
                   <button class="tracker-period-btn on" data-period="month" onclick="setTimerPeriod('month')">월간</button>
                   <button class="tracker-period-btn" data-period="year" onclick="setTimerPeriod('year')">연간</button>
                 </div>
               </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">
-                <div style="display:flex;gap:2px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;min-width:0;">
+                <div style="display:flex;gap:2px;min-width:0;flex:1;">
                   <button class="cal-nav" onclick="moveTimerMonth(-1)" style="font-size:.6rem;padding:.1rem .3rem;">◀</button>
-                  <span id="timer-month-label" style="font-size:.6rem;color:var(--tx2);font-weight:600;min-width:70px;text-align:center;"></span>
+                  <span id="timer-month-label" style="font-size:.6rem;color:var(--tx2);font-weight:600;min-width:0;flex:1;text-align:center;"></span>
                   <button class="cal-nav" onclick="moveTimerMonth(1)" style="font-size:.6rem;padding:.1rem .3rem;">▶</button>
                 </div>
-                <span id="tracker-summary" style="font-size:.58rem;color:var(--acc);font-weight:600;"></span>
+                <span id="tracker-summary" style="font-size:.58rem;color:var(--acc);font-weight:600;white-space:nowrap;margin-left:.3rem;flex-shrink:0;"></span>
               </div>
               <div id="timer-tracker-grid"></div>
               <div style="display:flex;align-items:center;gap:.25rem;margin-top:.28rem;">
@@ -543,7 +543,7 @@
             <select id="book-genre" class="form-input" style="font-size:.75rem;padding:.3rem .5rem;">
               <option value="">선택</option>
               <option>소설</option><option>한국소설</option><option>외국소설</option>
-              <option>SF/판타지</option><option>추리/스릴러</option>
+              <option>웹소설</option><option>SF/판타지</option><option>추리/스릴러</option>
               <option>에세이</option><option>시/시집</option>
               <option>인문</option><option>철학</option><option>역사</option><option>사회/정치</option>
               <option>자기계발</option><option>경제/경영</option>
@@ -598,7 +598,7 @@
     <div class="modal-body">
       <!-- 프로필 사진 (클릭하면 업로드) -->
       <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:.65rem;">
-        <div style="position:relative;width:72px;height:72px;cursor:pointer;" onclick="document.getElementById('avatar-file-input').click()" title="프로필 사진 변경">
+        <div style="position:relative;width:72px;height:72px;cursor:pointer;" onclick="triggerAvatarPicker()" title="프로필 사진 변경">
           <div class="profile-avatar" id="profile-avatar" style="margin:0;width:72px;height:72px;font-size:1.65rem;"></div>
           <div style="position:absolute;bottom:1px;right:1px;width:22px;height:22px;background:var(--acc2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);">📷</div>
         </div>
