@@ -3696,10 +3696,10 @@ function buildStats() {
   const topA=Object.entries(aMap).sort((a,b)=>b[1]-a[1]||(aRating[b[0]]||0)-(aRating[a[0]]||0))[0];
   const topP=Object.entries(pMap).sort((a,b)=>b[1]-a[1]||(pRating[b[0]]||0)-(pRating[a[0]]||0))[0];
   const cy = new Date().getFullYear();
+  const cyStr = String(cy);
   // 올해 기준 통계 - dayMap에서 올해 날짜만 합산 (정확한 날짜별 기록 기반)
   // 올해 독서 시간: reading_time_log(날짜별) > reading_time_year(연별) > last_read 폴백
   const thisYearMins = allBooks.reduce((sum, b) => {
-    const cyStr = String(cy);
     // 1순위: 날짜별 로그에서 올해 합산 (가장 정확)
     if(b.reading_time_log && typeof b.reading_time_log === 'object') {
       const logSum = Object.entries(b.reading_time_log)
