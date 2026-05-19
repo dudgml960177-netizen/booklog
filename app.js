@@ -5445,15 +5445,16 @@ function applyAvatarToEl(el, src) {
   }
 }
 
+// ⭐ 수정 및 보강된 프로필 저장 함수
 async function doSaveAvatar(blob) {
   if(!blob || !currentUser) throw new Error('저장할 이미지가 없어요.');
   const hint = document.getElementById('avatar-hint');
   let avatarUrl = null;
 
-  // 1차: Supabase Storage 업로드 → 짧은 공개 URL (DB 컬럼 크기 제한 없음)
+  // 1차: Supabase Storage 업로드 — userId/userId.jpg 폴더 구조 (RLS 정책 호환)
   try {
     if(hint) hint.textContent = 'Storage 업로드 중...';
-    const path = `${currentUser.id}.jpg`;
+    const path = `${currentUser.id}/${currentUser.id}.jpg`;
     const { error: upErr } = await sb.storage.from('avatars').upload(path, blob, {
       contentType: 'image/jpeg', upsert: true
     });
