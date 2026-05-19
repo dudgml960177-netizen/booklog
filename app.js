@@ -3713,7 +3713,13 @@ function buildStats() {
     // 폴백 없음 — last_read 기반 전체 reading_time은 과다 집계 유발
     return sum;
   }, 0);
-  const thisYearPages = thisYear.reduce((a,b)=>a+(b.pages||0),0);
+  // 완독 외 읽는중·중단 페이지도 반영
+  const thisYearPages = allBooks.reduce((a, b) => {
+    if(b.status==='완독' && b.date_finish?.startsWith(cyStr)) return a+(b.pages||0);
+    if(b.status==='읽는중') return a+(b.current_page||0);
+    if(b.status==='중단' && b.date_start?.startsWith(cyStr)) return a+(b.current_page||0);
+    return a;
+  }, 0);
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
   // 6개 핵심 지표 — 3×2 hairline 그리드 (컨셉 이미지 스타일)
@@ -4835,9 +4841,35 @@ async function searchBook() {
     const gbItems2 = await _searchGoogleBooks(q2||q);
     if(gbItems2.length) { _renderSearchItems(res, gbItems2); return; }
 
-    res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요. 제목이나 저자명을 달리 입력해보세요.</div>';
+    res.innerHTML=`<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요. 제목이나 저자명을 달리 입력해보세요.</div>
+    <div style="padding:.3rem .5rem;">
+      <button onclick="showManualBookEntry()" style="font-size:.7rem;color:var(--acc);background:none;border:1px solid var(--acc);border-radius:8px;padding:.25rem .7rem;cursor:pointer;font-family:var(--ff);">웹소설·직접 입력하기</button>
+    </div>`;
   } catch(e){res.innerHTML='<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';}
 }
+
+function showManualBookEntry() {
+  const res = document.getElementById('search-results');
+  res.innerHTML = `
+    <div style="padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--card);margin-top:.3rem;">
+      <div style="font-size:.62rem;color:var(--tx3);margin-bottom:.5rem;">웹소설·직접 입력</div>
+      <input type="text" id="manual-book-title" placeholder="제목 (필수)" class="form-input" style="font-size:.78rem;margin-bottom:.35rem;">
+      <input type="text" id="manual-book-author" placeholder="저자 (선택)" class="form-input" style="font-size:.78rem;margin-bottom:.45rem;">
+      <div style="display:flex;gap:.4rem;">
+        <button onclick="submitManualBook()" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:.28rem .8rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);line-height:1.2;">추가</button>
+        <button onclick="document.getElementById('search-results').innerHTML=''" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:.28rem .7rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);color:var(--tx3);line-height:1.2;">취소</button>
+      </div>
+    </div>`;
+  setTimeout(() => document.getElementById('manual-book-title')?.focus(), 50);
+}
+
+function submitManualBook() {
+  const title = document.getElementById('manual-book-title')?.value.trim();
+  if(!title) { alert('제목을 입력해주세요.'); return; }
+  const author = document.getElementById('manual-book-author')?.value.trim() || '';
+  selectBook({ title, author, publisher: '', cover: '', description: '', isbn: '', pages: null });
+}
+
 // 알라딘 아이템 배열에서 페이지 수 추출
 function _aladinItemPage(items) {
   for(const it of (items||[])) {
@@ -5238,10 +5270,10 @@ function openDetail(bookId) {
     const pct2=tp&&cp?Math.min(100,Math.round(cp/tp*100)):0;
     html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
       <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
-      <div style="display:flex;align-items:center;gap:.45rem;">
+      <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
         <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}" placeholder="현재 쪽" style="width:68px;padding:.28rem .4rem;border:1px solid var(--border2);border-radius:5px;font-size:.76rem;font-family:var(--ff);text-align:center;">
         ${tp?`<span style="font-size:.62rem;color:var(--tx3);">/ ${tp}p</span>`:''}
-        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:5px;padding:.26rem .62rem;font-size:.66rem;cursor:pointer;font-family:var(--ff);">저장</button>
+        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:7px;padding:.26rem .6rem;font-size:.68rem;line-height:1.2;cursor:pointer;font-family:var(--ff);">저장</button>
       </div>
       ${tp&&cp?`<div style="margin-top:.4rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct2}%;height:100%;background:var(--acc);border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.51rem;color:var(--tx3);margin-top:.1rem;">${cp}p · ${pct2}% · ${tp-cp}p 남음</div></div>`:''}
     </div>`;
@@ -5252,7 +5284,7 @@ function openDetail(bookId) {
   html+=`<div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
       <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
-      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.58rem;padding:.15rem .48rem;border:1px solid var(--acc);border-radius:9px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);">＋ 추가</button>
+      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.68rem;padding:.2rem .5rem;border:1px solid var(--acc);border-radius:7px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);line-height:1.2;">＋ 추가</button>
     </div>`;
   quotes.forEach((q,i)=>{
     const color=QCOLORS[i%QCOLORS.length];
@@ -6652,9 +6684,16 @@ async function loadFriends() {
   wrap.innerHTML = '<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">불러오는 중...</div>';
   const { data } = await sb.from('friendships').select(`
     id, status, requester_id, receiver_id,
-    requester:profiles!friendships_requester_id_fkey(id,display_name,username,user_title,avatar_url),
-    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username,user_title,avatar_url)
+    requester:profiles!friendships_requester_id_fkey(id,display_name,username,user_title),
+    receiver:profiles!friendships_receiver_id_fkey(id,display_name,username,user_title)
   `).or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+  // avatar_url은 JOIN이 아닌 직접 쿼리로 별도 조회 (스키마 캐시 문제 우회)
+  const friendIds = (data||[]).map(f => f.requester_id===currentUser.id ? f.receiver_id : f.requester_id).filter(Boolean);
+  const avatarMap = new Map();
+  if(friendIds.length) {
+    const {data:av} = await sb.from('profiles').select('id,avatar_url').in('id', friendIds);
+    (av||[]).forEach(p => avatarMap.set(p.id, p.avatar_url));
+  }
 
   wrap.innerHTML = '';
   if(!data?.length) {
@@ -6671,7 +6710,7 @@ async function loadFriends() {
     const name = other?.display_name || other?.username || '산책자';
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.7rem;padding:.55rem .2rem;border-bottom:1px solid var(--border);';
-    const avatar = makeAvatarHtml(name, other?.avatar_url, 36);
+    const avatar = makeAvatarHtml(name, avatarMap.get(other?.id)||other?.avatar_url, 36);
     if(f.status === 'accepted') {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
