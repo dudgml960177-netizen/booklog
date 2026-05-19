@@ -330,6 +330,8 @@ function init() {
   window.addEventListener('popstate', () => {
     history.pushState(null, '', location.href); // 항상 상태 복원
     const open = [...document.querySelectorAll('.modal-overlay')].find(m => m.style.display !== 'none');
+    // 파일 선택기가 열려있으면 모달 닫지 않음 (iOS에서 파일 픽커가 popstate 유발)
+    if(open && _avatarPickerActive) return;
     if(open) { open.style.display='none'; return; }
     // 모달 없으면: 현재 탭이 서재가 아닌 경우 서재로 이동
     const booksTab = document.querySelector('.tab[onclick*="\'books\'"]') ||
@@ -5351,6 +5353,13 @@ function editBook() {
 
 // ── 프로필 사진
 let _pendingAvatarBlob = null;
+let _avatarPickerActive = false; // 파일 선택기 열려있는 동안 모달 닫힘 방지
+
+// 아바타 파일 선택기 열기 (flag 설정 후 input 클릭)
+function triggerAvatarPicker() {
+  _avatarPickerActive = true;
+  document.getElementById('avatar-file-input').click();
+}
 
 function compressAvatar(file) {
   return new Promise((resolve, reject) => {
@@ -5376,6 +5385,7 @@ function compressAvatar(file) {
 }
 
 function previewAvatar(input) {
+  _avatarPickerActive = false; // 파일 선택기 닫힘
   if(!input.files?.[0]) return;
   const hint = document.getElementById('avatar-hint');
   if(hint) hint.textContent = '처리 중...';
@@ -5383,8 +5393,9 @@ function previewAvatar(input) {
     _pendingAvatarBlob = blob;
     const url = URL.createObjectURL(blob);
     applyAvatarToEl(document.getElementById('profile-avatar'), url);
-    if(hint) hint.textContent = '저장 버튼을 눌러 적용하세요';
+    if(hint) hint.textContent = '✅ 저장 버튼을 눌러 적용하세요';
   }).catch(() => {
+    _avatarPickerActive = false;
     if(hint) hint.textContent = '이미지 처리 실패. 다시 시도해주세요.';
   });
   input.value = '';
@@ -5447,6 +5458,14 @@ async function doSaveAvatar(blob) {
 function loadAvatarForProfile(profile) {
   const el = document.getElementById('profile-avatar');
   if(!el || !currentUser) return;
+  // 미저장 프리뷰가 있으면 그것을 우선 표시 (모달이 닫혔다 다시 열려도 유지)
+  if(_pendingAvatarBlob) {
+    const hint = document.getElementById('avatar-hint');
+    if(hint && hint.textContent !== '✅ 저장 버튼을 눌러 적용하세요') {
+      hint.textContent = '✅ 저장 버튼을 눌러 적용하세요';
+    }
+    return;
+  }
   // DB 값 → localStorage 동기화
   const dbSrc = profile?.avatar_url;
   if(dbSrc) {
@@ -5495,7 +5514,7 @@ async function openProfile() {
 
   // 닉네임 (DB에서 가져온 값 우선)
   const name = profile?.display_name||profile?.username||tempName;
-  _pendingAvatarBlob = null;
+  // _pendingAvatarBlob은 여기서 초기화하지 않음 — 파일 선택 후 모달이 닫혔다 다시 열려도 blob 유지
   // loadAvatarForProfile이 textContent/backgroundImage를 모두 담당
   loadAvatarForProfile(profile);
   document.getElementById('profile-name').textContent=name;
@@ -5588,11 +5607,18 @@ async function saveProfile() {
   const saveBtn = document.querySelector('#modal-profile .btn-save, #modal-profile [onclick*="saveProfile"]');
   if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
   try {
+    let avatarSaved = false;
     if(_pendingAvatarBlob) {
       await doSaveAvatar(_pendingAvatarBlob);
       _pendingAvatarBlob = null;
+      avatarSaved = true;
       const hint = document.getElementById('avatar-hint');
       if(hint) hint.textContent = '탭해서 사진 변경';
+      // DB에 실제로 저장됐는지 재확인
+      const { data: check } = await sb.from('profiles').select('avatar_url').eq('id', currentUser.id).single();
+      if(!check?.avatar_url) {
+        throw new Error('프사가 DB에 저장되지 않았어요. 다시 시도해주세요.');
+      }
     }
     const titleEl = document.getElementById('profile-title-select');
     const updateData = {display_name:name};
@@ -5601,7 +5627,7 @@ async function saveProfile() {
     if(error) throw error;
     if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
     closeModal('modal-profile');
-    await showAlert('저장되었어요!');
+    await showAlert(avatarSaved ? '저장되었어요! 프로필 사진도 적용됐어요.' : '저장되었어요!');
   } catch(e){
     if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
     alert('저장 오류: '+(e.message||JSON.stringify(e)));
