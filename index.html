@@ -480,12 +480,15 @@
     <div class="modal-body" style="padding:.85rem 1rem;">
       <!-- 검색 -->
       <div class="search-section" id="search-section">
-        <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
+        <div style="display:flex;gap:.4rem;margin-bottom:.3rem;">
           <input type="text" id="book-search-input" class="search-input"
             placeholder="책 제목으로 검색..."
             style="flex:1;border-radius:20px;background:#f5f0e8;border-color:transparent;font-size:.78rem;"
             onkeydown="if(event.key==='Enter')searchBook()">
           <button onclick="searchBook()" style="background:var(--acc);border:none;border-radius:50%;width:34px;height:34px;color:#fff;cursor:pointer;font-size:.85rem;flex-shrink:0;">→</button>
+        </div>
+        <div style="margin-bottom:.4rem;">
+          <button onclick="showManualBookEntry()" style="font-size:.65rem;color:var(--tx3);background:none;border:none;padding:0;cursor:pointer;font-family:var(--ff);text-decoration:underline;text-underline-offset:2px;">웹소설·독립출판·직접 입력</button>
         </div>
         <div id="search-results" class="search-results"></div>
       </div>

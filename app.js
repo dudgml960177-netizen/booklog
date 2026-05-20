@@ -4841,10 +4841,7 @@ async function searchBook() {
     const gbItems2 = await _searchGoogleBooks(q2||q);
     if(gbItems2.length) { _renderSearchItems(res, gbItems2); return; }
 
-    res.innerHTML=`<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요. 제목이나 저자명을 달리 입력해보세요.</div>
-    <div style="padding:.3rem .5rem;">
-      <button onclick="showManualBookEntry()" style="font-size:.7rem;color:var(--acc);background:none;border:1px solid var(--acc);border-radius:8px;padding:.25rem .7rem;cursor:pointer;font-family:var(--ff);">웹소설·직접 입력하기</button>
-    </div>`;
+    res.innerHTML=`<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 결과가 없어요. 제목이나 저자명을 달리 입력하거나, 위 '직접 입력'을 이용해보세요.</div>`;
   } catch(e){res.innerHTML='<div style="font-size:.75rem;color:#c0392b;padding:.5rem;">검색 실패. 잠시 후 다시 시도해주세요.</div>';}
 }
 
