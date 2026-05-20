@@ -4725,8 +4725,10 @@ function _renderSearchItems(res, items) {
     const isbn = (item.isbn13||'').replace(/\s.*$/,'') ||
       item.isbn?.match(/97[89]\d{10}/)?.[0] ||
       item.volumeInfo?.industryIdentifiers?.find(x=>x.type==='ISBN_13')?.identifier || '';
-    const pagesLabel = pages ? `<div style="font-size:.62rem;color:var(--acc);">${pages}p</div>` : '';
-    el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div>${pagesLabel}</div>`;
+    const pagesLabel = pages ? `<span style="font-size:.62rem;color:var(--acc);">${pages}p</span>` : '';
+    const ebookBadge = item.isEbook ? `<span style="font-size:.55rem;color:var(--slate);border:1px solid var(--slate);border-radius:3px;padding:0 .25rem;margin-left:.3rem;line-height:1.4;">e북</span>` : '';
+    const metaRow = (pagesLabel || ebookBadge) ? `<div style="display:flex;align-items:center;margin-top:.1rem;">${pagesLabel}${ebookBadge}</div>` : '';
+    el.innerHTML=`${cover?`<img class="search-item-cover" src="${cover}" alt="">`:'<div class="search-item-cover"></div>'}<div class="search-item-info"><div class="search-item-title">${title}</div><div class="search-item-author">${author}</div><div class="search-item-pub">${publisher}</div>${metaRow}</div>`;
     el.onclick=()=>selectBook({title,author,publisher,cover,description:desc,isbn,pages});
     res.appendChild(el);
   });
@@ -4767,7 +4769,8 @@ function _aladinToItems(aladinData) {
     isbn: it.isbn13||it.isbn||'',
     isbn13: it.isbn13||'',
     subInfo: it.subInfo,
-    itemPage: it.subInfo?.itemPage
+    itemPage: it.subInfo?.itemPage,
+    isEbook: it.categoryName?.includes('eBook') || it.mallType === 'ebook' || false
   }));
 }
 
@@ -4795,29 +4798,33 @@ async function searchBook() {
   res.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.5rem;">검색 중...</div>';
   const q2 = q.replace(/[(\[（【].*?[)\]）】]/g,'').replace(/\d+권|\d+편|\d+부/g,'').replace(/\s+/g,' ').trim();
   try {
-    // 1단계: 네이버 + 알라딘 병렬 검색
-    const [naverResp, aladinResp] = await Promise.allSettled([
+    // 1단계: 네이버 + 알라딘(단행본+eBook) 병렬 검색
+    const [naverResp, aladinResp, aladinEbResp] = await Promise.allSettled([
       fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
-      fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q)}`).then(r=>r.json())
+      fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q)}`).then(r=>r.json()),
+      fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q)}&target=eBook`).then(r=>r.json())
     ]);
     res.innerHTML='';
 
-    const naverItems = naverResp.status==='fulfilled' ? (naverResp.value?.items||[]) : [];
-    const aladinItems = aladinResp.status==='fulfilled' ? _aladinToItems(aladinResp.value) : [];
+    const naverItems  = naverResp.status==='fulfilled'  ? (naverResp.value?.items||[])   : [];
+    const aladinItems = aladinResp.status==='fulfilled'  ? _aladinToItems(aladinResp.value)  : [];
+    const aladinEbItems = aladinEbResp.status==='fulfilled' ? _aladinToItems(aladinEbResp.value) : [];
+    const allAladinItems = _mergeSearchResults(aladinItems, aladinEbItems);
 
-    // 네이버+알라딘 병합 (알라딘 페이지 수로 보충)
-    const merged = _mergeSearchResults(naverItems, aladinItems);
+    const merged = _mergeSearchResults(naverItems, allAladinItems);
     if(merged.length) { _renderSearchItems(res, merged); return; }
 
-    // 2단계: 괄호·권수 제거 후 재시도 (네이버 + 알라딘)
+    // 2단계: 괄호·권수 제거 후 재시도
     if(q2 && q2 !== q) {
-      const [n2, a2] = await Promise.allSettled([
+      const [n2, a2, ae2] = await Promise.allSettled([
         fetch(`${NAVER_PROXY}?query=${encodeURIComponent(q2)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
-        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}`).then(r=>r.json())
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}`).then(r=>r.json()),
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}&target=eBook`).then(r=>r.json())
       ]);
       const ni2 = n2.status==='fulfilled'?(n2.value?.items||[]):[];
       const ai2 = a2.status==='fulfilled'?_aladinToItems(a2.value):[];
-      const merged2 = _mergeSearchResults(ni2, ai2);
+      const ae2i = ae2.status==='fulfilled'?_aladinToItems(ae2.value):[];
+      const merged2 = _mergeSearchResults(ni2, _mergeSearchResults(ai2, ae2i));
       if(merged2.length) { _renderSearchItems(res, merged2); return; }
     }
 
@@ -4825,13 +4832,15 @@ async function searchBook() {
     const words = q.trim().split(/\s+/);
     if(words.length > 1) {
       const qCore = words.slice(0,2).join(' ');
-      const [n3, a3] = await Promise.allSettled([
+      const [n3, a3, ae3] = await Promise.allSettled([
         fetch(`${NAVER_PROXY}?query=${encodeURIComponent(qCore)}&display=100`,{headers:{Authorization:`Bearer ${SUPABASE_KEY}`}}).then(r=>r.json()),
-        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}`).then(r=>r.json())
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}`).then(r=>r.json()),
+        fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}&target=eBook`).then(r=>r.json())
       ]);
       const ni3 = n3.status==='fulfilled'?(n3.value?.items||[]):[];
       const ai3 = a3.status==='fulfilled'?_aladinToItems(a3.value):[];
-      const merged3 = _mergeSearchResults(ni3, ai3);
+      const ae3i = ae3.status==='fulfilled'?_aladinToItems(ae3.value):[];
+      const merged3 = _mergeSearchResults(ni3, _mergeSearchResults(ai3, ae3i));
       if(merged3.length) { _renderSearchItems(res, merged3); return; }
     }
 

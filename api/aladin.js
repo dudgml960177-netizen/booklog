@@ -7,7 +7,8 @@ export default async function handler(req, res) {
   // 환경변수 우선, 없으면 발급받은 키 사용
   const TTB_KEY = process.env.ALADIN_TTB_KEY || 'ttbk_tenten1721001';
 
-  const { query, isbn } = req.query;
+  const { query, isbn, target } = req.query;
+  const searchTarget = target === 'eBook' ? 'eBook' : 'Book';
   let url;
 
   if (isbn) {
@@ -17,7 +18,7 @@ export default async function handler(req, res) {
   } else if (query) {
     url = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${TTB_KEY}` +
       `&Query=${encodeURIComponent(query)}&QueryType=Keyword` +
-      `&MaxResults=50&start=1&SearchTarget=Book` +
+      `&MaxResults=50&start=1&SearchTarget=${searchTarget}` +
       `&output=js&Version=20131101&OptResult=subInfo&Cover=Big`;
   } else {
     return res.status(400).json({ errorCode: 400, errorMessage: 'query 또는 isbn 파라미터 필요' });
