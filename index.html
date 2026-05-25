@@ -194,6 +194,10 @@
   </g>
 </svg></div>
       <div class="header-actions" style="display:flex;align-items:center;gap:6px;">
+        <span id="online-badge" title="현재 접속자" style="display:none;align-items:center;gap:3px;font-size:.6rem;color:var(--tx3);padding:0 .4rem;cursor:default;user-select:none;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#6abf69;display:inline-block;flex-shrink:0;"></span>
+          <span id="online-count">0</span>
+        </span>
         <button class="header-btn" onclick="surfLibrary()" title="파도타기" style="font-size:1.05rem;font-family:'Georgia',serif;">≈</button>
         <button class="header-btn" onclick="openSocialModal()" title="친구"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg></button>
         <button class="header-btn" onclick="openModal('modal-backup')" title="백업"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></button>
