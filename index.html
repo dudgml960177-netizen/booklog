@@ -391,14 +391,12 @@
       <!-- 게시판 -->
       <div class="panel" id="p-board">
 
-        <!-- ── 도서관 입장 카드 ── -->
-        <div onclick="openLibraryEntry()" class="card" style="margin-bottom:1rem;cursor:pointer;padding:.7rem .9rem;background:linear-gradient(110deg,#fdf6ec 60%,#f0e4cc);border:1px solid var(--border2);border-left:3px solid var(--acc);display:flex;align-items:center;justify-content:space-between;gap:.6rem;">
-          <div style="min-width:0;">
-            <div style="font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:.18rem;">Reading Space</div>
-            <div style="font-size:.82rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">도서관</div>
-            <div id="library-entry-count" style="font-size:.59rem;color:var(--tx3);margin-top:.12rem;min-height:.9rem;"></div>
-          </div>
-          <div style="font-size:1.6rem;line-height:1;opacity:.7;flex-shrink:0;">📚</div>
+        <!-- ── 도서관 입장 ── -->
+        <div onclick="openLibraryEntry()" style="cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.38rem .72rem;margin-bottom:.85rem;background:rgba(160,100,30,.06);border:1px solid rgba(160,100,30,.16);border-radius:var(--rs);transition:background .15s;">
+          <span style="font-size:.84rem;line-height:1;flex-shrink:0;">📚</span>
+          <span style="font-size:.73rem;font-weight:700;color:var(--tx1);font-family:var(--fs);flex-shrink:0;">도서관</span>
+          <span id="library-entry-count" style="font-size:.62rem;color:var(--tx3);flex:1;min-width:0;"></span>
+          <span style="font-size:.64rem;color:var(--acc);font-weight:600;flex-shrink:0;letter-spacing:.01em;">입장 →</span>
         </div>
 
         <!-- 헤더 -->
