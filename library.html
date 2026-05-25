@@ -286,7 +286,10 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth:{ persistSession:true, storageKey:'booklog-auth', storage:window.localStorage, autoRefreshToken:true }
 });
 
-let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myUserId=null, localSelf=null;
+let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myUserId=null;
+let localSelf=null;       // 본인 payload (즉시 표시용)
+let bcMembers={};         // Broadcast 기반 멤버 맵 {user_id → payload}
+let myPayload=null;       // 브로드캐스트에 재사용할 payload 참조
 
 /* ── 시계 ── */
 function startClock() {
@@ -384,7 +387,10 @@ function getMembers(){
       list=Object.values(channel.presenceState()||{}).flat().filter(m=>!m.is_observer);
     }catch(e){ console.error('[lib] presenceState error',e); }
   }
-  /* presenceState에 본인이 없으면 localSelf로 보완 → 프로필 즉시 표시 보장 */
+  /* Broadcast로 받은 멤버 중 presence에 없는 사람 추가 */
+  const presIds=new Set(list.map(m=>m.user_id));
+  Object.values(bcMembers).forEach(m=>{ if(!presIds.has(m.user_id)) list.push(m); });
+  /* 본인이 아직 없으면 localSelf로 보완 */
   if(localSelf && !list.some(m=>m.user_id===myUserId)){
     list=[localSelf,...list];
   }
@@ -437,6 +443,7 @@ async function leaveLibrary(){
   clearInterval(clockTick);
   clearInterval(renderTick);
   if(channel){
+    if(myUserId) try{ await channel.send({type:'broadcast',event:'bl_leave',payload:{user_id:myUserId}}); }catch(e){}
     try{await channel.untrack();}catch(e){}
     try{await channel.unsubscribe();}catch(e){}
     channel=null;
@@ -466,7 +473,7 @@ function saveTime(){
 
 /* ── 초기화 ── */
 async function init(){
-  console.log('[lib] v1.1.0 init');
+  console.log('[lib] v1.2.0 init');
   startClock();
 
   const isInline=localStorage.getItem('bl_lib_from_app')&&!(window.opener&&window.opener!==window);
@@ -521,6 +528,7 @@ async function init(){
 
   /* presenceState가 늦게 동기화되더라도 본인 프로필은 즉시 표시 */
   localSelf=payload;
+  myPayload=payload;
 
   console.log('[lib] payload:', JSON.stringify(payload));
 
@@ -542,17 +550,51 @@ async function init(){
   initGrid();
   render();
 
-  channel=sb.channel('bl_library',{config:{presence:{key:myUserId}}});
+  channel=sb.channel('bl_library',{
+    config:{
+      presence:{key:myUserId},
+      broadcast:{self:false}
+    }
+  });
 
   channel
+    /* ── Presence ── */
     .on('presence',{event:'sync'},()=>{ console.log('[lib] sync',Object.keys(channel.presenceState())); render(); })
     .on('presence',{event:'join'},()=>{ console.log('[lib] join',Object.keys(channel.presenceState())); render(); })
     .on('presence',{event:'leave'},()=>{ console.log('[lib] leave',Object.keys(channel.presenceState())); render(); })
+    /* ── Broadcast: 새 사람 입장 알림 ── */
+    .on('broadcast',{event:'bl_join'},({payload:p})=>{
+      if(!p?.user_id) return;
+      console.log('[lib] bc bl_join',p.user_id);
+      bcMembers[p.user_id]={...p,_seen:Date.now()};
+      render();
+      /* 새로 입장한 사람에게 내 상태 알려주기 */
+      channel.send({type:'broadcast',event:'bl_heartbeat',payload:myPayload}).catch(()=>{});
+    })
+    /* ── Broadcast: 기존 사람들이 응답하는 상태 공유 ── */
+    .on('broadcast',{event:'bl_heartbeat'},({payload:p})=>{
+      if(!p?.user_id) return;
+      console.log('[lib] bc bl_heartbeat',p.user_id);
+      bcMembers[p.user_id]={...p,_seen:Date.now()};
+      render();
+    })
+    /* ── Broadcast: 나에게 응답 요청 ── */
+    .on('broadcast',{event:'bl_hello'},()=>{
+      console.log('[lib] bc bl_hello → sending heartbeat');
+      channel.send({type:'broadcast',event:'bl_heartbeat',payload:myPayload}).catch(()=>{});
+    })
+    /* ── Broadcast: 퇴장 ── */
+    .on('broadcast',{event:'bl_leave'},({payload:p})=>{
+      if(!p?.user_id) return;
+      console.log('[lib] bc bl_leave',p.user_id);
+      delete bcMembers[p.user_id];
+      render();
+    })
     .subscribe(async status=>{
       console.log('[lib] channel status:',status);
 
       if(status==='SUBSCRIBED'){
-        render(); // presenceState에 이미 있는 사람들 반영
+        render();
 
         const ok=await doTrack();
         if(!ok){
@@ -566,19 +608,18 @@ async function init(){
         }
 
         render();
-        /* 최대 5초간 자신이 presenceState에 나타날 때까지 체크 */
-        let polls=0;
-        const pollSelf=setInterval(()=>{
-          polls++;
-          const found=getMembers().some(m=>m.user_id===myUserId);
-          console.log('[lib] poll',polls,'self found:',found);
-          if(found||polls>=10){
-            clearInterval(pollSelf);
-            render();
-          }
-        },500);
 
-        renderTick=setInterval(render,60000); // 잔류시간 갱신
+        /* 입장 알림 + 기존 사용자들에게 응답 요청 */
+        await channel.send({type:'broadcast',event:'bl_join',payload:myPayload}).catch(()=>{});
+        await channel.send({type:'broadcast',event:'bl_hello',payload:{user_id:myUserId}}).catch(()=>{});
+
+        /* renderTick: 30초마다 잔류시간 갱신 + 하트비트 + 오래된 bc멤버 정리 */
+        renderTick=setInterval(async()=>{
+          await channel?.send({type:'broadcast',event:'bl_heartbeat',payload:myPayload}).catch(()=>{});
+          const cutoff=Date.now()-3*60*1000;
+          Object.keys(bcMembers).forEach(uid=>{ if(bcMembers[uid]._seen<cutoff) delete bcMembers[uid]; });
+          render();
+        },30000);
 
       } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         console.error('[lib] channel error:',status);
