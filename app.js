@@ -262,6 +262,7 @@ async function startApp(user) {
     if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
     if(typeof checkBoardNew === 'function') setTimeout(checkBoardNew, 2000);
     restoreTimerOnLoad();
+    joinPresence();
   } catch(e) {
     console.error('startApp error:', e);
     _appState = 'idle';
@@ -4759,7 +4760,7 @@ function _mergeSearchResults(naverItems, aladinItems) {
 }
 
 // 알라딘 아이템 배열을 공통 포맷으로 변환
-function _aladinToItems(aladinData) {
+function _aladinToItems(aladinData, isEbook = false) {
   return (aladinData?.item||[]).map(it=>({
     title: it.title||'',
     author: it.author||'',
@@ -4770,7 +4771,7 @@ function _aladinToItems(aladinData) {
     isbn13: it.isbn13||'',
     subInfo: it.subInfo,
     itemPage: it.subInfo?.itemPage,
-    isEbook: it.categoryName?.includes('eBook') || it.mallType === 'ebook' || false
+    isEbook: isEbook || it.categoryName?.includes('eBook') || it.mallType === 'ebook' || false
   }));
 }
 
@@ -4806,9 +4807,9 @@ async function searchBook() {
     ]);
     res.innerHTML='';
 
-    const naverItems  = naverResp.status==='fulfilled'  ? (naverResp.value?.items||[])   : [];
-    const aladinItems = aladinResp.status==='fulfilled'  ? _aladinToItems(aladinResp.value)  : [];
-    const aladinEbItems = aladinEbResp.status==='fulfilled' ? _aladinToItems(aladinEbResp.value) : [];
+    const naverItems    = naverResp.status==='fulfilled'    ? (naverResp.value?.items||[])          : [];
+    const aladinItems   = aladinResp.status==='fulfilled'   ? _aladinToItems(aladinResp.value, false)  : [];
+    const aladinEbItems = aladinEbResp.status==='fulfilled' ? _aladinToItems(aladinEbResp.value, true) : [];
     const allAladinItems = _mergeSearchResults(aladinItems, aladinEbItems);
 
     const merged = _mergeSearchResults(naverItems, allAladinItems);
@@ -4821,9 +4822,9 @@ async function searchBook() {
         fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}`).then(r=>r.json()),
         fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(q2)}&target=eBook`).then(r=>r.json())
       ]);
-      const ni2 = n2.status==='fulfilled'?(n2.value?.items||[]):[];
-      const ai2 = a2.status==='fulfilled'?_aladinToItems(a2.value):[];
-      const ae2i = ae2.status==='fulfilled'?_aladinToItems(ae2.value):[];
+      const ni2  = n2.status==='fulfilled'  ? (n2.value?.items||[])             : [];
+      const ai2  = a2.status==='fulfilled'  ? _aladinToItems(a2.value, false)    : [];
+      const ae2i = ae2.status==='fulfilled' ? _aladinToItems(ae2.value, true)    : [];
       const merged2 = _mergeSearchResults(ni2, _mergeSearchResults(ai2, ae2i));
       if(merged2.length) { _renderSearchItems(res, merged2); return; }
     }
@@ -4837,9 +4838,9 @@ async function searchBook() {
         fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}`).then(r=>r.json()),
         fetch(`${ALADIN_PROXY}?query=${encodeURIComponent(qCore)}&target=eBook`).then(r=>r.json())
       ]);
-      const ni3 = n3.status==='fulfilled'?(n3.value?.items||[]):[];
-      const ai3 = a3.status==='fulfilled'?_aladinToItems(a3.value):[];
-      const ae3i = ae3.status==='fulfilled'?_aladinToItems(ae3.value):[];
+      const ni3  = n3.status==='fulfilled'  ? (n3.value?.items||[])             : [];
+      const ai3  = a3.status==='fulfilled'  ? _aladinToItems(a3.value, false)    : [];
+      const ae3i = ae3.status==='fulfilled' ? _aladinToItems(ae3.value, true)    : [];
       const merged3 = _mergeSearchResults(ni3, _mergeSearchResults(ai3, ae3i));
       if(merged3.length) { _renderSearchItems(res, merged3); return; }
     }
@@ -7510,4 +7511,30 @@ async function deletePost(postId) {
     if(error) throw error;
     safeBoardRefresh();
   } catch(e) { console.error('delete error:', e); }
+}
+
+// ── 실시간 접속자 수 (Supabase Realtime Presence)
+let _presenceChannel = null;
+
+function joinPresence() {
+  if(!currentUser || _presenceChannel) return;
+  _presenceChannel = sb.channel('bl_presence', {
+    config: { presence: { key: currentUser.id } }
+  });
+  _presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = _presenceChannel.presenceState();
+      const count = Object.keys(state).length;
+      const badge = document.getElementById('online-badge');
+      const countEl = document.getElementById('online-count');
+      if(badge && countEl) {
+        countEl.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+      }
+    })
+    .subscribe(async status => {
+      if(status === 'SUBSCRIBED') {
+        await _presenceChannel.track({ user_id: currentUser.id });
+      }
+    });
 }
