@@ -392,15 +392,13 @@
       <div class="panel" id="p-board">
 
         <!-- ── 도서관 입장 카드 ── -->
-        <div class="card" style="margin-bottom:1rem;padding:.65rem .85rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:linear-gradient(135deg,#fdf8f0,#f5ead8);border:1px solid var(--border2);">
-          <div style="display:flex;align-items:center;gap:.5rem;min-width:0;">
-            <span style="font-size:1.2rem;line-height:1;flex-shrink:0;">📚</span>
-            <div style="min-width:0;">
-              <div style="font-size:.76rem;font-weight:700;color:var(--tx1);font-family:var(--fs);letter-spacing:-.01em;">도서관 입장</div>
-              <div id="library-entry-count" style="font-size:.62rem;color:var(--tx3);margin-top:1px;">불러오는 중…</div>
-            </div>
+        <div onclick="openLibraryEntry()" class="card" style="margin-bottom:1rem;cursor:pointer;padding:.7rem .9rem;background:linear-gradient(110deg,#fdf6ec 60%,#f0e4cc);border:1px solid var(--border2);border-left:3px solid var(--acc);display:flex;align-items:center;justify-content:space-between;gap:.6rem;">
+          <div style="min-width:0;">
+            <div style="font-size:.55rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:.18rem;">Reading Space</div>
+            <div style="font-size:.82rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">도서관</div>
+            <div id="library-entry-count" style="font-size:.59rem;color:var(--tx3);margin-top:.12rem;min-height:.9rem;"></div>
           </div>
-          <button onclick="openLibraryEntry()" style="font-size:.65rem;padding:.24rem .6rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);cursor:pointer;font-family:var(--ff);font-weight:600;flex-shrink:0;white-space:nowrap;">입장</button>
+          <div style="font-size:1.6rem;line-height:1;opacity:.7;flex-shrink:0;">📚</div>
         </div>
 
         <!-- 헤더 -->
@@ -1136,35 +1134,38 @@
 
 <!-- ── 도서관 입장 팝업 ── -->
 <div id="modal-library-entry" class="modal-overlay" style="display:none;">
-  <div class="modal" style="max-width:330px;">
-    <div class="modal-header">
-      <div class="modal-title" style="font-family:var(--fs);">📚 도서관 입장</div>
+  <div class="modal" style="max-width:260px;">
+    <div class="modal-header" style="padding:.7rem .9rem .6rem;border-bottom:none;">
+      <div style="display:flex;flex-direction:column;gap:.06rem;">
+        <div style="font-size:.5rem;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Reading Space</div>
+        <div class="modal-title" style="font-size:.96rem;">도서관 입장</div>
+      </div>
       <button class="modal-close" onclick="closeModal('modal-library-entry')">✕</button>
     </div>
-    <div class="modal-body" style="padding:.85rem 1rem 1rem;display:flex;flex-direction:column;gap:.7rem;">
+    <div class="modal-body" style="padding:.2rem .9rem .85rem;display:flex;flex-direction:column;gap:.55rem;">
       <!-- 책 선택 -->
       <div id="lib-book-select-wrap">
-        <div style="font-size:.7rem;color:var(--tx2);font-weight:600;margin-bottom:.3rem;">📖 오늘 읽는 책</div>
-        <select id="lib-book-select" style="width:100%;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--rs);font-size:.78rem;font-family:var(--ff);background:var(--bg);color:var(--tx1);cursor:pointer;outline:none;">
+        <div style="font-size:.6rem;color:var(--tx3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.25rem;">읽는 책</div>
+        <select id="lib-book-select" style="width:100%;padding:.38rem .55rem;border:1px solid var(--border);border-radius:var(--rs);font-size:.74rem;font-family:var(--ff);background:var(--bg);color:var(--tx1);cursor:pointer;outline:none;">
           <option value="">표시 안함</option>
         </select>
       </div>
       <!-- 유령 모드 토글 -->
-      <div onclick="toggleLibGhost()" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;padding:.5rem .65rem;background:#f5f0e8;border-radius:var(--rs);border:1px solid var(--border);user-select:none;">
-        <span style="font-size:1.05rem;">👻</span>
-        <div style="flex:1;">
-          <div style="font-size:.74rem;color:var(--tx1);font-weight:600;">유령(익명)으로 들어가기</div>
-          <div style="font-size:.61rem;color:var(--tx3);margin-top:1px;">이름·아바타는 숨기고 읽는 책만 표시</div>
+      <div onclick="toggleLibGhost()" style="display:flex;align-items:center;gap:.4rem;cursor:pointer;padding:.4rem .55rem;background:#f7f1e8;border-radius:var(--rs);border:1px solid var(--border);user-select:none;">
+        <span style="font-size:.9rem;flex-shrink:0;">👻</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.68rem;color:var(--tx1);font-weight:600;">익명으로 입장</div>
+          <div style="font-size:.57rem;color:var(--tx3);margin-top:.08rem;">이름·아바타 숨김</div>
         </div>
-        <span class="lib-toggle-wrap">
+        <span class="lib-toggle-wrap" style="flex-shrink:0;">
           <input type="checkbox" id="library-ghost-toggle" style="display:none;">
           <span class="lib-toggle-track" id="lib-ghost-track"></span>
         </span>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal('modal-library-entry')">취소</button>
-      <button class="btn-save" onclick="joinLibraryRoom()">입장</button>
+    <div class="modal-footer" style="padding:.6rem .9rem;gap:.4rem;">
+      <button class="btn-cancel" onclick="closeModal('modal-library-entry')" style="font-size:.74rem;padding:.5rem;">취소</button>
+      <button class="btn-save" onclick="joinLibraryRoom()" style="font-size:.74rem;padding:.5rem;">입장</button>
     </div>
   </div>
 </div>
