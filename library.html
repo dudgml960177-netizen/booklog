@@ -95,12 +95,17 @@
       background:var(--tbl);
       border:1px solid var(--tbl);
       border-radius:16px;
-      overflow:hidden;
+      overflow:visible; /* 생각 말풍선이 셀 위로 튀어나올 수 있도록 */
       box-shadow:
         0 10px 36px rgba(30,15,0,.18),
         0 3px 10px rgba(30,15,0,.09),
         inset 0 1px 0 rgba(255,240,200,.18);
     }
+    /* overflow:visible 대응 — 모서리 셀에 직접 라운딩 */
+    .tbl-grid>*:first-child     {border-radius:15px 0 0 0;}
+    .tbl-grid>*:nth-child(4)    {border-radius:0 15px 0 0;}
+    .tbl-grid>*:nth-last-child(4){border-radius:0 0 0 15px;}
+    .tbl-grid>*:last-child      {border-radius:0 0 15px 0;}
 
     /* 일반 좌석 */
     .tbl-cell{
@@ -538,7 +543,14 @@ async function init(){
 
   try{
     const raw=localStorage.getItem('bl_lib_params');
-    if(raw){ params=JSON.parse(raw); localStorage.removeItem('bl_lib_params'); }
+    if(raw){
+      params=JSON.parse(raw);
+      localStorage.removeItem('bl_lib_params');
+      sessionStorage.setItem('bl_lib_session',raw); // 새로고침 시에도 유지
+    } else {
+      const sess=sessionStorage.getItem('bl_lib_session');
+      if(sess) params=JSON.parse(sess);
+    }
   }catch(e){ params={}; }
   console.log('[lib] params:', JSON.stringify(params));
 

@@ -7638,6 +7638,14 @@ function joinPresence() {
 let _libChannel = null;
 
 // ── 입장 팝업 열기 (책 목록 채우기)
+function toggleLibGhost() {
+  const cb = document.getElementById('library-ghost-toggle');
+  const track = document.getElementById('lib-ghost-track');
+  if(!cb) return;
+  cb.checked = !cb.checked;
+  if(track) track.classList.toggle('on', cb.checked);
+}
+
 function openLibraryEntry() {
   const sel = document.getElementById('lib-book-select');
   if(sel) {
@@ -7654,7 +7662,7 @@ function openLibraryEntry() {
     if(wrap) wrap.style.display = reading.length > 0 ? '' : 'none';
   }
   const toggle = document.getElementById('library-ghost-toggle');
-  const track  = toggle ? toggle.nextElementSibling : null;
+  const track  = document.getElementById('lib-ghost-track');
   if(toggle) toggle.checked = false;
   if(track)  track.classList.remove('on');
   openModal('modal-library-entry');

@@ -1150,7 +1150,7 @@
         </select>
       </div>
       <!-- 유령 모드 토글 -->
-      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;padding:.5rem .65rem;background:#f5f0e8;border-radius:var(--rs);border:1px solid var(--border);">
+      <div onclick="toggleLibGhost()" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;padding:.5rem .65rem;background:#f5f0e8;border-radius:var(--rs);border:1px solid var(--border);user-select:none;">
         <span style="font-size:1.05rem;">👻</span>
         <div style="flex:1;">
           <div style="font-size:.74rem;color:var(--tx1);font-weight:600;">유령(익명)으로 들어가기</div>
@@ -1158,9 +1158,9 @@
         </div>
         <span class="lib-toggle-wrap">
           <input type="checkbox" id="library-ghost-toggle" style="display:none;">
-          <span class="lib-toggle-track" onclick="event.stopPropagation();this.previousElementSibling.checked=!this.previousElementSibling.checked;this.classList.toggle('on',this.previousElementSibling.checked);"></span>
+          <span class="lib-toggle-track" id="lib-ghost-track"></span>
         </span>
-      </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-library-entry')">취소</button>
