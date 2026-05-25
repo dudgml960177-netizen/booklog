@@ -370,6 +370,7 @@ function saveTime(){
 
 /* ── 초기화 ── */
 async function init(){
+  console.log('[library] v1.0.5 init');
   startClock();
   const isInline=localStorage.getItem('bl_lib_from_app')&&!(window.opener&&window.opener!==window);
   if(isInline){
@@ -380,6 +381,7 @@ async function init(){
     const raw=localStorage.getItem('bl_lib_params');
     if(raw){params=JSON.parse(raw);localStorage.removeItem('bl_lib_params');}
   }catch(e){params={};}
+  console.log('[library] params:',JSON.stringify(params));
 
   let session=null;
   try{
@@ -391,9 +393,11 @@ async function init(){
   }catch(e){}
 
   if(!session?.user){
+    console.warn('[library] no session');
     document.getElementById('lib-main').innerHTML=`<div class="empty"><div class="empty-icon">🔒</div><div class="empty-txt">로그인이 필요해요.<br>북로그에서 로그인 후 다시 시도해주세요.</div></div>`;
     return;
   }
+  console.log('[library] session ok, uid:', session.user.id);
 
   joinedAt=Date.now();
   myUserId=session.user.id;
@@ -409,18 +413,36 @@ async function init(){
       book_title:params.bookTitle||null,book_cover:params.bookCover||null,
       user_id:myUserId,joined_at:joinedAt};
 
+  async function doTrack(){
+    for(let i=0;i<3;i++){
+      try{
+        const st=await channel.track(payload);
+        console.log('[library] track attempt',i+1,'→',st);
+        if(st==='ok') return true;
+      }catch(e){ console.error('[library] track error',e); }
+      await new Promise(r=>setTimeout(r,1200));
+    }
+    console.error('[library] track failed after 3 attempts');
+    return false;
+  }
+
   channel
-    .on('presence',{event:'sync'},render)
-    .on('presence',{event:'join'},render)
-    .on('presence',{event:'leave'},render)
+    .on('presence',{event:'sync'},()=>{console.log('[library] sync',channel.presenceState());render();})
+    .on('presence',{event:'join'},()=>{console.log('[library] join',channel.presenceState());render();})
+    .on('presence',{event:'leave'},()=>{console.log('[library] leave',channel.presenceState());render();})
     .subscribe(async status=>{
+      console.log('[library] channel status:',status);
       if(status==='SUBSCRIBED'){
-        try{await channel.track(payload);}catch(e){}
         document.querySelector('.loading')?.remove();
         render();
-        setTimeout(render,600);
-        setTimeout(render,2200);
-        // 잔류 시간 갱신
+        const ok=await doTrack();
+        if(ok){
+          render();
+          setTimeout(render,800);
+        } else {
+          const main=document.getElementById('lib-main');
+          if(main) main.innerHTML=`<div class="empty"><div class="empty-icon">📡</div><div class="empty-txt">Presence 연결 실패.<br>새로고침 후 다시 시도해주세요.</div></div>`;
+        }
         renderTick=setInterval(render,60000);
       } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         document.getElementById('lib-main').innerHTML=`<div class="empty"><div class="empty-icon">📡</div><div class="empty-txt">연결에 실패했어요.<br>잠시 후 다시 시도해주세요.</div></div>`;
