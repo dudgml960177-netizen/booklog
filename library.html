@@ -219,17 +219,21 @@
       box-shadow:2px 3px 10px rgba(30,15,0,.22);
     }
     .bubble-info{
-      display:flex;flex-direction:column;gap:.24rem;
-      flex:1;min-width:0;padding-top:.1rem;
+      display:flex;flex-direction:column;gap:.16rem;
+      flex:1;min-width:0;padding-top:.08rem;
     }
-    .bubble-book{
-      font-size:.64rem;font-weight:700;color:var(--tx1);
-      line-height:1.45;
-      display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
-      overflow:hidden;white-space:normal;max-width:115px;
+    /* 흘러가는 텍스트 */
+    .bmq-wrap{
+      overflow:hidden;white-space:nowrap;max-width:118px;
+      mask-image:linear-gradient(to right,transparent,#000 6px,#000 calc(100% - 6px),transparent);
+      -webkit-mask-image:linear-gradient(to right,transparent,#000 6px,#000 calc(100% - 6px),transparent);
     }
+    .bmq-inner{display:inline-block;animation:bmqAnim 6s linear infinite;}
+    @keyframes bmqAnim{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .bubble-author{font-size:.54rem;color:var(--tx3);font-weight:500;}
+    .bubble-title{font-size:.62rem;font-weight:700;color:var(--tx1);}
     .bubble-time{
-      font-size:.6rem;color:var(--acc);font-weight:700;white-space:nowrap;
+      font-size:.6rem;color:var(--acc);font-weight:700;white-space:nowrap;margin-top:.04rem;
     }
     .bubble-nobook{
       font-size:.58rem;color:var(--tx3);font-style:italic;white-space:nowrap;
@@ -290,6 +294,7 @@ let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myU
 let localSelf=null;       // 본인 payload (즉시 표시용)
 let bcMembers={};         // Broadcast 기반 멤버 맵 {user_id → payload}
 let myPayload=null;       // 브로드캐스트에 재사용할 payload 참조
+let localBc=null;         // BroadcastChannel (같은 기기 탭간 동기화)
 
 /* ── 시계 ── */
 function startClock() {
@@ -348,18 +353,30 @@ function makeBookCard(m){
   return `<div class="tbl-book">${cover}<span class="tbl-book-title">${esc(short)}</span></div>`;
 }
 
+/* ── 흘러가는 텍스트 (긴 경우 마퀴 루프) ── */
+function makeMarqueeTxt(text,cls){
+  if(!text) return '';
+  const t=esc(text);
+  if(text.length<=13) return `<div class="${cls}">${t}</div>`;
+  const sep='&nbsp;&nbsp;·&nbsp;&nbsp;';
+  return `<div class="bmq-wrap"><span class="bmq-inner ${cls}">${t}${sep}${t}${sep}</span></div>`;
+}
+
 /* ── 생각 말풍선 ── */
 function makeBubble(m){
   const elapsed=elapsedStr(m.joined_at);
-  const hasCover=!!m.book_cover;
-  const coverEl=hasCover
+  const coverEl=m.book_cover
     ?`<img src="${esc(m.book_cover)}" class="bubble-cover" onerror="this.className='bubble-cover';this.removeAttribute('src')">`
     :`<div class="bubble-cover"></div>`;
-  const bookEl=m.book_title
-    ?`<div class="bubble-book">${esc(m.book_title)}</div>`
-    :`<div class="bubble-nobook">읽는 책 미설정</div>`;
-  const timeEl=elapsed?`<div class="bubble-time">⏱ ${elapsed}</div>`:'';
-  return `<div class="tbl-bubble">${coverEl}<div class="bubble-info">${bookEl}${timeEl}</div></div>`;
+  let info='';
+  if(m.book_title){
+    if(m.book_author) info+=makeMarqueeTxt(m.book_author,'bubble-author');
+    info+=makeMarqueeTxt(m.book_title,'bubble-title');
+  } else {
+    info+=`<div class="bubble-nobook">읽는 책 미설정</div>`;
+  }
+  if(elapsed) info+=`<div class="bubble-time">⏱ ${elapsed}</div>`;
+  return `<div class="tbl-bubble">${coverEl}<div class="bubble-info">${info}</div></div>`;
 }
 
 /* ── 좌석 셀 HTML ── */
@@ -368,9 +385,13 @@ function makeSeatCell(m){
   const bubble=makeBubble(m);
 
   if(m.is_ghost){
+    const badge=isSelf?'<div class="tbl-me">나</div>':'';
     return `<div class="tbl-cell">
       ${bubble}
-      <div class="tbl-ghost-ico">👻</div>
+      <div class="tbl-av" style="position:relative;">
+        <div class="tbl-ghost-ico">👻</div>${badge}
+      </div>
+      <div class="tbl-name">도서관 유령</div>
       ${makeBookCard(m)}
     </div>`;
   }
@@ -444,13 +465,39 @@ function initGrid(){
     </div>`;
 }
 
+/* ── Broadcast 이벤트 통합 핸들러 ── */
+function handleBcMsg(event,p){
+  if(!p?.user_id||p.user_id===myUserId) return;
+  if(event==='bl_join'||event==='bl_heartbeat'){
+    bcMembers[p.user_id]={...p,_seen:Date.now()};
+    render();
+    if(event==='bl_join') sendBc('bl_heartbeat',myPayload);  // 새 입장자에게 내 상태 응답
+  } else if(event==='bl_hello'){
+    sendBc('bl_heartbeat',myPayload);
+  } else if(event==='bl_leave'){
+    delete bcMembers[p.user_id];
+    render();
+  }
+}
+
+/* ── Broadcast 전송 (같은 기기 + Supabase 동시) ── */
+function sendBc(event,payload){
+  try{ localBc?.postMessage({event,payload}); }catch(e){}
+  if(channel){
+    channel.send({type:'broadcast',event,payload})
+      .then(r=>{ if(r!=='ok'&&r!==undefined) console.warn('[lib] bc send',event,'→',r); })
+      .catch(e=>console.error('[lib] bc error',event,e));
+  }
+}
+
 /* ── 나가기 ── */
 async function leaveLibrary(){
+  sendBc('bl_leave',{user_id:myUserId});
+  try{ localBc?.close(); localBc=null; }catch(e){}
   saveTime();
   clearInterval(clockTick);
   clearInterval(renderTick);
   if(channel){
-    if(myUserId) try{ await channel.send({type:'broadcast',event:'bl_leave',payload:{user_id:myUserId}}); }catch(e){}
     try{await channel.untrack();}catch(e){}
     try{await channel.unsubscribe();}catch(e){}
     channel=null;
@@ -525,17 +572,25 @@ async function init(){
 
   const payload=params.isGhost
     ?{is_ghost:true,is_observer:false,
-      book_title:params.bookTitle||null,book_cover:params.bookCover||null,
+      display_name:'도서관 유령',
+      book_title:params.bookTitle||null,book_cover:params.bookCover||null,book_author:params.bookAuthor||null,
       user_id:myUserId,joined_at:joinedAt}
     :{is_ghost:false,is_observer:false,
       display_name:params.displayName||'독자',
       avatar_url:params.avatarUrl||null,
-      book_title:params.bookTitle||null,book_cover:params.bookCover||null,
+      book_title:params.bookTitle||null,book_cover:params.bookCover||null,book_author:params.bookAuthor||null,
       user_id:myUserId,joined_at:joinedAt};
 
   /* presenceState가 늦게 동기화되더라도 본인 프로필은 즉시 표시 */
   localSelf=payload;
   myPayload=payload;
+
+  /* 같은 기기 탭간 BroadcastChannel 초기화 */
+  try{
+    localBc=new BroadcastChannel('bl_library_v1');
+    localBc.onmessage=e=>{ const{event,payload:p}=e.data||{}; if(event) handleBcMsg(event,p); };
+    console.log('[lib] BroadcastChannel ok');
+  }catch(e){ console.warn('[lib] BroadcastChannel unavailable'); }
 
   console.log('[lib] payload:', JSON.stringify(payload));
 
@@ -565,38 +620,13 @@ async function init(){
   });
 
   channel
-    /* ── Presence ── */
-    .on('presence',{event:'sync'},()=>{ console.log('[lib] sync',Object.keys(channel.presenceState())); render(); })
-    .on('presence',{event:'join'},()=>{ console.log('[lib] join',Object.keys(channel.presenceState())); render(); })
-    .on('presence',{event:'leave'},()=>{ console.log('[lib] leave',Object.keys(channel.presenceState())); render(); })
-    /* ── Broadcast: 새 사람 입장 알림 ── */
-    .on('broadcast',{event:'bl_join'},({payload:p})=>{
-      if(!p?.user_id) return;
-      console.log('[lib] bc bl_join',p.user_id);
-      bcMembers[p.user_id]={...p,_seen:Date.now()};
-      render();
-      /* 새로 입장한 사람에게 내 상태 알려주기 */
-      channel.send({type:'broadcast',event:'bl_heartbeat',payload:myPayload}).catch(()=>{});
-    })
-    /* ── Broadcast: 기존 사람들이 응답하는 상태 공유 ── */
-    .on('broadcast',{event:'bl_heartbeat'},({payload:p})=>{
-      if(!p?.user_id) return;
-      console.log('[lib] bc bl_heartbeat',p.user_id);
-      bcMembers[p.user_id]={...p,_seen:Date.now()};
-      render();
-    })
-    /* ── Broadcast: 나에게 응답 요청 ── */
-    .on('broadcast',{event:'bl_hello'},()=>{
-      console.log('[lib] bc bl_hello → sending heartbeat');
-      channel.send({type:'broadcast',event:'bl_heartbeat',payload:myPayload}).catch(()=>{});
-    })
-    /* ── Broadcast: 퇴장 ── */
-    .on('broadcast',{event:'bl_leave'},({payload:p})=>{
-      if(!p?.user_id) return;
-      console.log('[lib] bc bl_leave',p.user_id);
-      delete bcMembers[p.user_id];
-      render();
-    })
+    .on('presence',{event:'sync'}, ()=>{ console.log('[lib] presence sync',Object.keys(channel.presenceState())); render(); })
+    .on('presence',{event:'join'}, ()=>{ render(); })
+    .on('presence',{event:'leave'},()=>{ render(); })
+    .on('broadcast',{event:'bl_join'},      ({payload:p})=>handleBcMsg('bl_join',p))
+    .on('broadcast',{event:'bl_heartbeat'}, ({payload:p})=>handleBcMsg('bl_heartbeat',p))
+    .on('broadcast',{event:'bl_hello'},     ()=>{ if(myPayload) sendBc('bl_heartbeat',myPayload); })
+    .on('broadcast',{event:'bl_leave'},     ({payload:p})=>handleBcMsg('bl_leave',p))
     .subscribe(async status=>{
       console.log('[lib] channel status:',status);
 
@@ -616,17 +646,17 @@ async function init(){
 
         render();
 
-        /* 입장 알림 + 기존 사용자들에게 응답 요청 */
-        await channel.send({type:'broadcast',event:'bl_join',payload:myPayload}).catch(()=>{});
-        await channel.send({type:'broadcast',event:'bl_hello',payload:{user_id:myUserId}}).catch(()=>{});
+        /* 입장 알림 + 기존 사용자 응답 요청 (Supabase + BroadcastChannel 동시) */
+        sendBc('bl_join', myPayload);
+        setTimeout(()=>sendBc('bl_hello', {user_id:myUserId}), 500);
 
-        /* renderTick: 30초마다 잔류시간 갱신 + 하트비트 + 오래된 bc멤버 정리 */
-        renderTick=setInterval(async()=>{
-          await channel?.send({type:'broadcast',event:'bl_heartbeat',payload:myPayload}).catch(()=>{});
+        /* 15초마다: 잔류시간 갱신 + 하트비트 + 오래된 멤버 정리 */
+        renderTick=setInterval(()=>{
+          sendBc('bl_heartbeat', myPayload);
           const cutoff=Date.now()-3*60*1000;
-          Object.keys(bcMembers).forEach(uid=>{ if(bcMembers[uid]._seen<cutoff) delete bcMembers[uid]; });
+          Object.keys(bcMembers).forEach(uid=>{ if((bcMembers[uid]._seen||0)<cutoff) delete bcMembers[uid]; });
           render();
-        },30000);
+        },15000);
 
       } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
         console.error('[lib] channel error:',status);
