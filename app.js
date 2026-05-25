@@ -5306,15 +5306,15 @@ function openDetail(bookId) {
     ${b.cover?`<img src="${b.cover}" alt="" style="width:68px;height:102px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.14);">`:`<div style="width:68px;height:102px;background:var(--bg);border:1px solid var(--border);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--tx3);">표지</div>`}
     <div style="flex:1;min-width:0;">
       ${b.rating?`<div style="display:flex;align-items:baseline;gap:.28rem;margin-bottom:.45rem;"><span style="font-size:.82rem;color:#c8a050;letter-spacing:.02em;">${starStr(b.rating)}</span><span style="font-family:var(--ff-disp);font-style:italic;font-size:.78rem;color:var(--tx2);">${b.rating}</span></div>`:''}
-      <div style="display:flex;flex-wrap:wrap;gap:.22rem;">
-        ${b.status?`<span style="font-size:.57rem;font-weight:600;padding:.1rem .45rem;border-radius:9px;background:${statusBg};color:${statusColor};">${b.status}</span>`:''}
-        ${genre?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${genre}</span>`:''}
-        ${b.pages?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.pages}p</span>`:''}
-        ${b.date_start?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.date_start}</span>`:''}
-        ${b.date_finish?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.date_finish}</span>`:''}
-        ${b.reading_time?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">⏱ ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>`:''}
-        ${b.source?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">${b.source}</span>`:''}
-        ${b.reread?`<span style="font-size:.57rem;padding:.1rem .4rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);">🔁 재독</span>`:''}
+      <div style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;">
+        ${b.status?`<span style="font-size:.57rem;font-weight:600;padding:.18rem .48rem;border-radius:9px;background:${statusBg};color:${statusColor};display:inline-flex;align-items:center;line-height:1;">${b.status}</span>`:''}
+        ${genre?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${genre}</span>`:''}
+        ${b.pages?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.pages}p</span>`:''}
+        ${b.date_start?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.date_start}</span>`:''}
+        ${b.date_finish?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.date_finish}</span>`:''}
+        ${b.reading_time?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">⏱ ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>`:''}
+        ${b.source?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.source}</span>`:''}
+        ${b.reread?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">🔁 재독</span>`:''}
       </div>
       ${b.status==='읽는중'&&pct?`<div style="margin-top:.55rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;"></div></div><div style="font-size:.52rem;color:var(--tx3);margin-top:.12rem;">${b.current_page}p / ${b.pages}p · ${pct}%</div></div>`:''}
     </div>

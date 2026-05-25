@@ -320,15 +320,22 @@ function elapsedStr(ts) {
 /* ── HTML 이스케이프 ── */
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+/* ── 아바타 onerror 핸들러 (이중 따옴표 충돌 방지용 전역 함수) ── */
+function avErr(img){
+  const init=img.dataset.init||'?';
+  const bg=img.dataset.bg||'#888';
+  const sz=Number(img.dataset.sz)||40;
+  img.outerHTML=`<div style="width:${sz}px;height:${sz}px;border-radius:50%;border:2px solid #ddd0b4;box-shadow:0 2px 8px rgba(30,15,0,.14);background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*.38)}px;font-weight:700;color:#fff;">${init}</div>`;
+}
+
 /* ── 아바타 HTML ── */
 function makeAv(name,url,size){
   const initial=(name||'독').slice(0,1).toUpperCase();
   const pal=['#b07030','#6b8f6b','#5a7a8a','#8b6b8b','#c4714a','#7a5a3a'];
   const bg=pal[(name||'독').charCodeAt(0)%pal.length];
   const base=`width:${size}px;height:${size}px;border-radius:50%;border:2px solid #ddd0b4;box-shadow:0 2px 8px rgba(30,15,0,.14);object-fit:cover;display:block;`;
-  const fallback=`<div style="${base}background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:700;color:#fff;">${initial}</div>`;
-  if(!url) return fallback;
-  return `<img src="${url.replace(/'/g,'%27')}" style="${base}" onerror="this.outerHTML='${fallback.replace(/'/g,"&#39;")}'">`;
+  if(!url) return `<div style="${base}background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:700;color:#fff;">${initial}</div>`;
+  return `<img src="${esc(url)}" style="${base}" data-init="${initial}" data-bg="${bg}" data-sz="${size}" onerror="avErr(this)">`;
 }
 
 /* ── 책 카드 ── */

@@ -1158,7 +1158,7 @@
         </div>
         <span class="lib-toggle-wrap">
           <input type="checkbox" id="library-ghost-toggle" style="display:none;">
-          <span class="lib-toggle-track" onclick="this.previousElementSibling.checked=!this.previousElementSibling.checked;this.classList.toggle('on',this.previousElementSibling.checked);"></span>
+          <span class="lib-toggle-track" onclick="event.stopPropagation();this.previousElementSibling.checked=!this.previousElementSibling.checked;this.classList.toggle('on',this.previousElementSibling.checked);"></span>
         </span>
       </label>
     </div>
