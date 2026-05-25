@@ -486,4 +486,190 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 
 .qcard-share-btn{position:absolute;top:.5rem;right:.5rem;background:none;border:none;font-size:.8rem;cursor:pointer;opacity:0;transition:opacity .15s;padding:.15rem .3rem;border-radius:4px;z-index:2;}
 .qcard:hover .qcard-share-btn{opacity:.6;}
+
+/* ── 독서 도서관 ── */
+
+/* 유령 모드 토글 스위치 */
+.lib-toggle-wrap{display:inline-flex;align-items:center;flex-shrink:0;}
+.lib-toggle-track{display:inline-block;width:36px;height:20px;background:var(--border2);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.lib-toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.lib-toggle-track.on{background:var(--acc);}
+.lib-toggle-track.on::after{transform:translateX(16px);}
+
+/* 도서관 테이블 (갈색 직사각형) */
+.lib-table-desk{
+  width:min(520px,90vw);
+  min-height:56px;
+  background:linear-gradient(160deg,#b07030,#8a5520);
+  border-radius:14px;
+  margin:.6rem 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:rgba(255,255,255,.55);
+  box-shadow:0 4px 18px rgba(100,50,10,.22),0 2px 0 rgba(255,255,255,.08) inset;
+  flex-shrink:0;
+}
+
+/* 좌석 가로 스크롤 행 */
+.lib-seats-row{
+  display:flex;
+  flex-direction:row;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:.6rem;
+  padding:.4rem .2rem;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.lib-seats-row::-webkit-scrollbar{display:none;}
+
+/* 개별 좌석 카드 */
+.lib-seat{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:.3rem;
+  padding:.55rem .5rem .45rem;
+  min-width:72px;
+  max-width:96px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  position:relative;
+  flex-shrink:0;
+  transition:box-shadow .15s;
+}
+.lib-seat:hover{box-shadow:0 2px 10px rgba(100,50,10,.12);}
+
+/* 아바타 (이니셜 폴백용 래퍼) */
+.lib-avatar{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  border:2px solid var(--border2);
+  background:var(--card);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  flex-shrink:0;
+}
+
+/* 이름 */
+.lib-name{
+  font-size:.62rem;
+  color:var(--tx2);
+  font-weight:600;
+  max-width:80px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:center;
+  font-family:var(--ff);
+}
+
+/* 말풍선 */
+.lib-bubble{
+  position:relative;
+  background:#fdf8f0;
+  border:1px solid var(--border);
+  border-radius:7px;
+  padding:.22rem .45rem;
+  font-size:.6rem;
+  color:var(--tx2);
+  max-width:84px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.3;
+  cursor:default;
+}
+/* 말풍선 위쪽 삼각형 포인터 */
+.lib-bubble::before{
+  content:'';
+  position:absolute;
+  top:-5px;
+  left:50%;
+  transform:translateX(-50%);
+  border:4px solid transparent;
+  border-bottom-color:var(--border);
+}
+.lib-bubble::after{
+  content:'';
+  position:absolute;
+  top:-3.5px;
+  left:50%;
+  transform:translateX(-50%);
+  border:4px solid transparent;
+  border-bottom-color:#fdf8f0;
+}
+
+/* 책 제목 hover 툴팁 */
+.lib-book-tip{
+  display:none;
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(30,18,6,.88);
+  color:#fdf8f0;
+  font-size:.62rem;
+  line-height:1.5;
+  padding:.35rem .55rem;
+  border-radius:7px;
+  white-space:nowrap;
+  max-width:180px;
+  white-space:normal;
+  z-index:200;
+  pointer-events:none;
+  text-align:center;
+}
+.lib-seat:hover .lib-book-tip{display:block;}
+
+/* 유령 좌석 */
+.lib-ghost-seat{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:.3rem;
+  padding:.55rem .5rem .45rem;
+  min-width:64px;
+  background:rgba(242,236,224,.6);
+  border:1px dashed var(--border2);
+  border-radius:10px;
+  position:relative;
+  flex-shrink:0;
+  cursor:default;
+}
+.lib-ghost-emoji{font-size:1.7rem;line-height:1;filter:opacity(.75);}
+
+/* 유령 툴팁 */
+.lib-ghost-tip{
+  display:none;
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(30,18,6,.88);
+  color:#fdf8f0;
+  font-size:.62rem;
+  line-height:1.5;
+  padding:.35rem .55rem;
+  border-radius:7px;
+  white-space:nowrap;
+  z-index:200;
+  pointer-events:none;
+}
+.lib-ghost-seat:hover .lib-ghost-tip{display:block;}
+
+/* 모바일: 시계/타이머 인라인 (헤더 내부) */
+.lib-time-inline{display:block;}
+
+@media(max-width:480px){
+  .lib-table-desk{min-height:44px;border-radius:10px;}
+  .lib-seat,.lib-ghost-seat{min-width:62px;padding:.4rem .35rem .35rem;}
+  .lib-bubble{max-width:68px;font-size:.57rem;}
+}
 .qcard-share-btn:hover{opacity:1!important;background:var(--border);}

@@ -159,6 +159,7 @@ const TRACKER_COLORS = [
 ];
 
 // ── 초기화
+let _loadingRetryTimer = null;
 function showScreen(name) {
   ['loading','auth','app'].forEach(n => {
     const el = document.getElementById('screen-'+n);
@@ -166,6 +167,17 @@ function showScreen(name) {
   });
   const el = document.getElementById('screen-'+name);
   if (el) { el.style.display = 'flex'; el.style.flexDirection = 'column'; }
+  // 로딩 화면 10초 후 "다시 시도" 버튼 노출
+  clearTimeout(_loadingRetryTimer);
+  if(name === 'loading') {
+    _loadingRetryTimer = setTimeout(() => {
+      const btn = document.getElementById('loading-retry-btn');
+      if(btn && _appState !== 'running') btn.style.display = 'block';
+    }, 10000);
+  } else {
+    const btn = document.getElementById('loading-retry-btn');
+    if(btn) btn.style.display = 'none';
+  }
 }
 
 
@@ -223,7 +235,19 @@ let _appState = 'idle'; // idle | starting | running | auth
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
   _appState = 'starting';
-  showScreen('loading'); // 데이터 로딩 중 로딩 화면 표시
+  showScreen('loading');
+
+  // 20초 절대 타임아웃 — 네트워크 불량/세션 오염 시 로딩 화면에서 탈출
+  const _abortTimer = setTimeout(() => {
+    if(_appState === 'starting') {
+      console.warn('[startApp] 타임아웃 — 인증 화면으로 복귀');
+      _appState = 'idle';
+      currentUser = null;
+      showScreen('auth');
+      loadSavedEmail();
+    }
+  }, 20000);
+
   try {
     currentUser = user;
     // 데이터 로딩 (타임아웃 없이 완전히 기다림 - 중간에 강제 종료 시 데이터 누락)
@@ -238,10 +262,16 @@ async function startApp(user) {
     ]);
 
     try {
-      const { data: pf } = await sb.from('profiles').select('font_size').eq('id', user.id).single();
+      // 3초 타임아웃 — font_size 쿼리가 무한정 걸리지 않게
+      const pfRace = Promise.race([
+        sb.from('profiles').select('font_size').eq('id', user.id).single(),
+        new Promise(res => setTimeout(() => res({ data: null }), 3000))
+      ]);
+      const { data: pf } = await pfRace;
       if(pf?.font_size) initFontSize(String(pf.font_size));
     } catch(e) {}
-    
+
+    clearTimeout(_abortTimer);
     initSystemFont();
     _appState = 'running';
     showScreen('app');
@@ -249,7 +279,7 @@ async function startApp(user) {
     // FAB 버튼 초기 표시 (기본 서재 탭)
     const fabInit = document.getElementById('fab-add-book');
     if(fabInit) fabInit.style.display = 'flex';
-    
+
     // 방문 횟수 카운트
     const _vtd=new Date().toISOString().slice(0,10);
     const _vk='bl_visit_'+_vtd;
@@ -257,17 +287,18 @@ async function startApp(user) {
     localStorage.setItem(_vk, String(_vc));
     if(_vc > parseInt(localStorage.getItem('bl_daily_visit_max')||'0'))
       localStorage.setItem('bl_daily_visit_max', String(_vc));
-      
+
     if(typeof loadNotifications === 'function') setTimeout(loadNotifications, 500);
     if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
     if(typeof checkBoardNew === 'function') setTimeout(checkBoardNew, 2000);
     restoreTimerOnLoad();
     joinPresence();
+    joinLibraryObserver();
   } catch(e) {
+    clearTimeout(_abortTimer);
     console.error('startApp error:', e);
     _appState = 'idle';
     currentUser = null;
-    // 에러 시 로그인 화면으로
     showScreen('auth');
     loadSavedEmail();
   }
@@ -368,15 +399,18 @@ function init() {
 
 async function _initSession(retry=0) {
   try {
-    // getSession: 로컬 세션 확인 + 만료 시 자동 갱신 (Supabase 내부 처리)
-    const { data: { session }, error } = await sb.auth.getSession();
+    // 5초 타임아웃 — 손상된 토큰/네트워크 불량으로 getSession이 무한 대기하는 상황 방지
+    const sessionRace = Promise.race([
+      sb.auth.getSession(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('session_timeout')), 5000))
+    ]);
+    const { data: { session }, error } = await sessionRace;
     if(error) throw error;
     if(session?.user) {
       await startApp(session.user);
     } else {
-      // 세션 없음 → 재시도 1회 (3초 후)
       if(retry < 1) {
-        setTimeout(() => _initSession(retry+1), 3000);
+        setTimeout(() => _initSession(retry+1), 2000);
       } else {
         _appState = 'auth';
         showScreen('auth');
@@ -385,9 +419,10 @@ async function _initSession(retry=0) {
     }
   } catch(e) {
     if(retry < 1) {
-      // 오류 시 3초 후 재시도 1회
-      setTimeout(() => _initSession(retry+1), 3000);
+      setTimeout(() => _initSession(retry+1), 2000);
     } else {
+      // 재시도 모두 실패 → 세션 강제 초기화 후 로그인 화면
+      try { await sb.auth.signOut(); } catch(_) {}
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
@@ -408,6 +443,12 @@ async function loadData() {
     const { data: pf } = await sb.from('profiles').select('categories').eq('id',currentUser.id).single();
     allCategories = pf?.categories || JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]');
   } catch(e) { try { allCategories = JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]'); } catch(e2){ allCategories=[]; } }
+  // '소장 중' 폴더가 없으면 기본으로 추가 (기존 사용자 포함)
+  if(!allCategories.includes('소장 중')) {
+    allCategories = ['소장 중', ...allCategories];
+    sb.from('profiles').update({categories: allCategories}).eq('id', currentUser.id).catch(()=>{});
+    try { localStorage.setItem('bl_cats_'+currentUser.id, JSON.stringify(allCategories)); } catch(_) {}
+  }
 }
 
 // ── 인증
@@ -7544,6 +7585,402 @@ function joinPresence() {
     .subscribe(async status => {
       if(status === 'SUBSCRIBED') {
         await _presenceChannel.track({ user_id: currentUser.id });
+      }
+    });
+}
+
+// ── 독서 도서관 시스템 (Supabase Realtime Presence)
+let _libChannel = null;
+let _libJoinedAt = null;
+let _libTimerInterval = null;
+let _libIsGhost = false;
+let _libTracking = false;
+
+function openLibraryEntry() {
+  openModal('modal-library-entry');
+}
+
+async function joinLibraryRoom() {
+  const isGhost = document.getElementById('library-ghost-toggle')?.checked || false;
+  _libIsGhost = isGhost;
+  closeModal('modal-library-entry');
+
+  // 읽는중인 첫 번째 책
+  const readingBook = allBooks.find(b => b.status === '읽는중') || null;
+
+  // 내 프로필 (이름·아바타)
+  let myName = '', myAvatar = '';
+  try {
+    const { data: pf } = await sb.from('profiles').select('display_name,username,avatar_url').eq('id', currentUser.id).single();
+    myName = pf?.display_name || pf?.username || currentUser.email?.split('@')[0] || '산책자';
+    myAvatar = pf?.avatar_url || '';
+  } catch(e) { myName = currentUser.email?.split('@')[0] || '산책자'; }
+
+  // 기존 옵저버 채널 재활용 또는 새로 생성
+  if(_libChannel) {
+    _libChannel.unsubscribe();
+    _libChannel = null;
+  }
+  _libTracking = true;
+  _libChannel = sb.channel('bl_library', { config: { presence: { key: currentUser.id } } });
+  _libChannel
+    .on('presence', { event: 'sync' }, _renderLibraryRoom)
+    .subscribe(async status => {
+      if(status === 'SUBSCRIBED') {
+        await _libChannel.track({
+          user_id: currentUser.id,
+          display_name: isGhost ? null : myName,
+          avatar_url: isGhost ? null : myAvatar,
+          is_ghost: isGhost,
+          current_book: (!isGhost && readingBook) ? { title: readingBook.title, cover: readingBook.cover || '' } : null,
+          joined_at: new Date().toISOString()
+        });
+      }
+    });
+
+  _libJoinedAt = Date.now();
+  const room = document.getElementById('modal-library-room');
+  if(room) room.style.display = 'flex';
+  clearInterval(_libTimerInterval);
+  _libTimerInterval = setInterval(_libTimerTick, 1000);
+  _libTimerTick();
+}
+
+function leaveLibraryRoom() {
+  clearInterval(_libTimerInterval);
+  _libTimerInterval = null;
+  _libTracking = false;
+  if(_libChannel) {
+    _libChannel.untrack().catch(()=>{});
+    _libChannel.unsubscribe();
+    _libChannel = null;
+  }
+  const room = document.getElementById('modal-library-room');
+  if(room) room.style.display = 'none';
+  // 나간 후 옵저버로 재연결
+  joinLibraryObserver();
+}
+
+function _libTimerTick() {
+  const now = new Date();
+  const clockEl = document.getElementById('library-clock-display');
+  if(clockEl) clockEl.textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  if(!_libJoinedAt) return;
+  const sec = Math.floor((Date.now() - _libJoinedAt) / 1000);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const elapsed = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+  const timerEl = document.getElementById('library-timer-display');
+  if(timerEl) timerEl.textContent = elapsed;
+}
+
+function _renderLibraryRoom() {
+  const state = _libChannel?.presenceState();
+  if(!state) return;
+  const members = Object.values(state).flat().filter(m => !m.is_observer);
+  const count = members.length;
+
+  // 헤더 카운트
+  const countEl = document.getElementById('library-member-count');
+  if(countEl) countEl.textContent = count + '명';
+  const entryEl = document.getElementById('library-entry-count');
+  if(entryEl) entryEl.textContent = count > 0 ? `지금 ${count}명이 조용히 읽고 있어요` : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+
+  const emptyMsg = document.getElementById('library-empty-msg');
+  if(emptyMsg) emptyMsg.style.display = count === 0 ? 'block' : 'none';
+
+  const half = Math.ceil(count / 2);
+  const topMembers = members.slice(0, half);
+  const botMembers = members.slice(half);
+
+  const makeSeat = m => {
+    if(m.is_ghost) {
+      return `<div class="lib-seat lib-ghost-seat">
+        <div class="lib-avatar" style="font-size:1.4rem;">👻</div>
+        <div class="lib-name" style="font-size:.6rem;color:var(--tx3);">???</div>
+        <div class="lib-ghost-tip">유령이 당신과 책을 읽고 있어요!</div>
+      </div>`;
+    }
+    const name = m.display_name || '산책자';
+    const avatarHtml = makeAvatarHtml(name, m.avatar_url || '', 44);
+    const book = m.current_book;
+    const bookHtml = book
+      ? `<div class="lib-bubble">${book.title.length > 13 ? book.title.slice(0,12)+'…' : book.title}<div class="lib-book-tip">${book.title}</div></div>`
+      : '';
+    return `<div class="lib-seat">
+      <div class="lib-avatar" style="padding:0;border:none;">${avatarHtml}</div>
+      <div class="lib-name">${name.length > 7 ? name.slice(0,6)+'…' : name}</div>
+      ${bookHtml}
+    </div>`;
+  };
+
+  const topEl = document.getElementById('library-seats-top');
+  const botEl = document.getElementById('library-seats-bot');
+  if(topEl) topEl.innerHTML = topMembers.map(makeSeat).join('');
+  if(botEl) botEl.innerHTML = botMembers.map(makeSeat).join('');
+}
+
+// 옵저버 전용 구독 (입장하지 않고 인원 수만 표시)
+function joinLibraryObserver() {
+  if(_libChannel || _libTracking) return;
+  _libChannel = sb.channel('bl_library', { config: { presence: { key: currentUser.id + '_obs' } } });
+  _libChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = _libChannel.presenceState();
+      const count = Object.values(state).flat().filter(m => !m.is_observer).length;
+      const el = document.getElementById('library-entry-count');
+      if(el) el.textContent = count > 0 ? `지금 ${count}명이 조용히 읽고 있어요` : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+    })
+    .subscribe();
+}
+
+// ══════════════════════════════════════════════════════════════
+// 독서 도서관 — Supabase Realtime Presence 기반
+// ══════════════════════════════════════════════════════════════
+
+// 전역 상태
+let _libChannel       = null;   // Supabase presence 채널
+let _libJoinedAt      = null;   // 입장 타임스탬프
+let _libTimerInterval = null;   // setInterval 핸들
+let _libIsGhost       = false;  // 유령 모드 여부
+let _libMyProfile     = null;   // 캐시된 프로필 데이터
+
+// ── 입장 팝업 열기
+function openLibraryEntry() {
+  // 토글 상태 초기화
+  const toggle = document.getElementById('library-ghost-toggle');
+  const track  = toggle ? toggle.nextElementSibling : null;
+  if(toggle) toggle.checked = false;
+  if(track)  track.classList.remove('on');
+  openModal('modal-library-entry');
+}
+
+// ── "입장" 버튼 클릭
+async function joinLibraryRoom() {
+  if(!currentUser) { showAlert('로그인이 필요해요.'); return; }
+
+  // 1. 유령 모드 여부
+  const ghostToggle = document.getElementById('library-ghost-toggle');
+  _libIsGhost = ghostToggle ? ghostToggle.checked : false;
+
+  // 2. 현재 읽고 있는 책 (status === '읽는중' 첫 번째)
+  const readingBook = (allBooks || []).find(b => b.status === '읽는중') || null;
+
+  // 3. 프로필 조회
+  try {
+    const { data: prof } = await sb
+      .from('profiles')
+      .select('display_name,username,avatar_url')
+      .eq('id', currentUser.id)
+      .single();
+    _libMyProfile = prof || null;
+  } catch(e) {
+    _libMyProfile = null;
+  }
+
+  // 4. 기존 옵저버 채널 해제 후 멤버 채널로 교체
+  if(_libChannel) {
+    try { await _libChannel.unsubscribe(); } catch(e) {}
+    _libChannel = null;
+  }
+
+  // 5. 모달 전환
+  closeModal('modal-library-entry');
+  const roomEl = document.getElementById('modal-library-room');
+  if(roomEl) roomEl.style.display = 'flex';
+
+  // 6. 입장 시각 기록 + 타이머 시작
+  _libJoinedAt = Date.now();
+  _libTimerTick(); // 즉시 1회 렌더
+  _libTimerInterval = setInterval(_libTimerTick, 1000);
+
+  // 7. Presence 채널 구독 및 트래킹
+  const presenceKey = currentUser.id;
+  _libChannel = sb.channel('bl_library', {
+    config: { presence: { key: presenceKey } }
+  });
+
+  _libChannel
+    .on('presence', { event: 'sync' }, () => {
+      _renderLibraryRoom();
+    })
+    .subscribe(async status => {
+      if(status === 'SUBSCRIBED') {
+        const payload = _libIsGhost
+          ? { is_ghost: true, is_observer: false }
+          : {
+              is_ghost: false,
+              is_observer: false,
+              display_name: _libMyProfile?.display_name || _libMyProfile?.username || '독자',
+              avatar_url: _libMyProfile?.avatar_url || null,
+              current_book: readingBook
+                ? { title: readingBook.title, cover: readingBook.cover || null }
+                : null
+            };
+        await _libChannel.track(payload);
+      }
+    });
+}
+
+// ── 도서관 나가기
+async function leaveLibraryRoom() {
+  // 타이머 정리
+  if(_libTimerInterval) {
+    clearInterval(_libTimerInterval);
+    _libTimerInterval = null;
+  }
+  _libJoinedAt  = null;
+  _libIsGhost   = false;
+  _libMyProfile = null;
+
+  // presence untrack + unsubscribe
+  if(_libChannel) {
+    try { await _libChannel.untrack(); } catch(e) {}
+    try { await _libChannel.unsubscribe(); } catch(e) {}
+    _libChannel = null;
+  }
+
+  // 방 닫기
+  const roomEl = document.getElementById('modal-library-room');
+  if(roomEl) roomEl.style.display = 'none';
+
+  // 옵저버 재구독 (입장 카운트 유지)
+  joinLibraryObserver();
+}
+
+// ── 타이머 틱 (매초 호출)
+function _libTimerTick() {
+  // 현재 시각 HH:MM:SS
+  const now  = new Date();
+  const hh   = String(now.getHours()).padStart(2,'0');
+  const mm   = String(now.getMinutes()).padStart(2,'0');
+  const ss   = String(now.getSeconds()).padStart(2,'0');
+  const clockEl = document.getElementById('library-clock-display');
+  if(clockEl) clockEl.textContent = `${hh}:${mm}:${ss}`;
+
+  // 체류 시간
+  const timerEl = document.getElementById('library-timer-display');
+  if(timerEl && _libJoinedAt) {
+    const elapsed = Math.floor((Date.now() - _libJoinedAt) / 1000);
+    const eh = Math.floor(elapsed / 3600);
+    const em = Math.floor((elapsed % 3600) / 60);
+    const es = elapsed % 60;
+    if(eh > 0) {
+      timerEl.textContent = `${eh}h ${em}m ${es}s`;
+    } else if(em > 0) {
+      timerEl.textContent = `${em}m ${es}s`;
+    } else {
+      timerEl.textContent = `${es}s`;
+    }
+  }
+}
+
+// ── 좌석 렌더링
+function _renderLibraryRoom() {
+  if(!_libChannel) return;
+
+  const state   = _libChannel.presenceState();
+  // is_observer 플래그 있는 항목 제외 → 실제 입장 멤버만
+  const members = Object.values(state)
+    .flat()
+    .filter(m => !m.is_observer);
+
+  // 멤버 수 배지 업데이트
+  const countEl = document.getElementById('library-member-count');
+  const entryEl = document.getElementById('library-entry-count');
+  const count   = members.length;
+
+  if(countEl) countEl.textContent = `${count}명`;
+  if(entryEl) {
+    entryEl.textContent = count > 0
+      ? `지금 ${count}명이 조용히 읽고 있어요`
+      : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+  }
+
+  // 빈 메시지
+  const emptyEl = document.getElementById('library-empty-msg');
+  if(emptyEl) emptyEl.style.display = count === 0 ? 'block' : 'none';
+
+  // 상/하단 분할
+  const half   = Math.ceil(members.length / 2);
+  const topRow = members.slice(0, half);
+  const botRow = members.slice(half);
+
+  const topEl = document.getElementById('library-seats-top');
+  const botEl = document.getElementById('library-seats-bot');
+  if(!topEl || !botEl) return;
+
+  topEl.innerHTML = topRow.map(_makeSeatHtml).join('');
+  botEl.innerHTML = botRow.map(_makeSeatHtml).join('');
+}
+
+// ── 좌석 카드 HTML 생성
+function _makeSeatHtml(member) {
+  if(member.is_ghost) {
+    return `
+      <div class="lib-ghost-seat">
+        <div class="lib-ghost-emoji">👻</div>
+        <div class="lib-ghost-tip">유령이 당신과 책을 읽고 있어요!</div>
+      </div>`;
+  }
+
+  const name      = member.display_name || '독자';
+  const avatarUrl = member.avatar_url   || null;
+  const book      = member.current_book || null;
+
+  // makeAvatarHtml 은 <div> 문자열 반환
+  const avatarHtml = makeAvatarHtml(name, avatarUrl, 44);
+
+  // 책 말풍선 (15자 제한, hover 시 전체 제목)
+  let bubbleHtml = '';
+  if(book && book.title) {
+    const shortTitle = book.title.length > 15 ? book.title.slice(0, 15) + '…' : book.title;
+    const safeTitle  = book.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    bubbleHtml = `
+      <div class="lib-bubble">
+        📖 ${shortTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        <div class="lib-book-tip">${safeTitle}</div>
+      </div>`;
+  }
+
+  const safeName = name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `
+    <div class="lib-seat">
+      ${avatarHtml}
+      <div class="lib-name">${safeName}</div>
+      ${bubbleHtml}
+    </div>`;
+}
+
+// ── 앱 시작 시 옵저버 구독 (카운트 표시 전용, 멤버 목록에 미포함)
+function joinLibraryObserver() {
+  if(!currentUser) return;
+  if(_libChannel) return; // 이미 구독 중이면 skip
+
+  // 옵저버는 userId_obs 키 사용 → 다른 클라이언트가 필터링 가능
+  const obsKey = currentUser.id + '_obs';
+  _libChannel = sb.channel('bl_library', {
+    config: { presence: { key: obsKey } }
+  });
+
+  _libChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = _libChannel.presenceState();
+      const count = Object.values(state)
+        .flat()
+        .filter(m => !m.is_observer)
+        .length;
+
+      const el = document.getElementById('library-entry-count');
+      if(el) {
+        el.textContent = count > 0
+          ? `지금 ${count}명이 조용히 읽고 있어요`
+          : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+      }
+    })
+    .subscribe(async status => {
+      if(status === 'SUBSCRIBED') {
+        // 옵저버 자신도 is_observer: true 로 트래킹 → 실제 멤버 카운트에서 제외됨
+        await _libChannel.track({ is_observer: true });
       }
     });
 }

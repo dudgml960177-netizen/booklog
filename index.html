@@ -16,6 +16,7 @@
   <div class="loading-logo">북로그</div>
   <div class="loading-sub">나만의 독서 기록</div>
   <div class="loading-spinner"></div>
+  <button id="loading-retry-btn" onclick="location.reload()" style="display:none;margin-top:1.5rem;padding:.45rem 1.1rem;background:var(--acc);color:#fff;border:none;border-radius:20px;font-size:.78rem;cursor:pointer;font-family:var(--ff);">다시 시도</button>
 </div>
 
 <!-- 로그인 -->
@@ -389,6 +390,19 @@
 
       <!-- 게시판 -->
       <div class="panel" id="p-board">
+
+        <!-- ── 독서 도서관 입장 카드 ── -->
+        <div class="card lib-entry-card" style="margin-bottom:1rem;padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;background:linear-gradient(135deg,#fdf8f0,#f5ead8);border:1px solid var(--border2);">
+          <div style="display:flex;align-items:center;gap:.6rem;min-width:0;">
+            <span style="font-size:1.5rem;line-height:1;flex-shrink:0;">📚</span>
+            <div style="min-width:0;">
+              <div style="font-size:.82rem;font-weight:700;color:var(--tx1);font-family:var(--fs);letter-spacing:-.01em;">독서 도서관</div>
+              <div id="library-entry-count" style="font-size:.67rem;color:var(--tx3);margin-top:2px;">불러오는 중…</div>
+            </div>
+          </div>
+          <button onclick="openLibraryEntry()" style="font-size:.72rem;padding:.32rem .85rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);cursor:pointer;font-family:var(--ff);font-weight:600;flex-shrink:0;white-space:nowrap;">입장하기</button>
+        </div>
+
         <!-- 헤더 -->
         <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;margin-top:2px;">
           <div>
@@ -1117,6 +1131,78 @@
       <button id="confirm-cancel" class="btn-cancel" style="display:none;" onclick="closeModal('modal-confirm')">취소</button>
       <button id="confirm-ok" class="btn-save" onclick="_confirmResolve(true)">확인</button>
     </div>
+  </div>
+</div>
+
+<!-- ── 도서관 입장 팝업 ── -->
+<div id="modal-library-entry" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-header">
+      <div class="modal-title" style="font-family:var(--fs);">📚 도서관에 입장하시겠습니까?</div>
+      <button class="modal-close" onclick="closeModal('modal-library-entry')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:.9rem 1rem 1rem;">
+      <p style="font-size:.8rem;color:var(--tx2);line-height:1.7;margin:0 0 .9rem;">조용한 독서 공간에 입장해요.<br>다른 독자들이 누가 함께 있는지 볼 수 있어요.</p>
+      <!-- 유령 모드 토글 -->
+      <label style="display:flex;align-items:center;gap:.55rem;cursor:pointer;padding:.55rem .7rem;background:#f5f0e8;border-radius:var(--rs);border:1px solid var(--border);">
+        <span style="font-size:1.15rem;">👻</span>
+        <span style="flex:1;font-size:.78rem;color:var(--tx1);font-weight:600;">유령(익명)으로 들어가기</span>
+        <span class="lib-toggle-wrap">
+          <input type="checkbox" id="library-ghost-toggle" style="display:none;">
+          <span class="lib-toggle-track" onclick="this.previousElementSibling.checked=!this.previousElementSibling.checked;this.classList.toggle('on',this.previousElementSibling.checked);"></span>
+        </span>
+      </label>
+      <p style="font-size:.65rem;color:var(--tx3);margin:.55rem 0 0;line-height:1.6;">유령 모드에서는 이름·아바타·읽는 책이 숨겨져요.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-library-entry')">취소</button>
+      <button class="btn-save" onclick="joinLibraryRoom()">입장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 도서관 방 (풀스크린 오버레이) ── -->
+<div id="modal-library-room" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:10001;background:var(--bg);overflow:hidden;flex-direction:column;">
+  <!-- 헤더 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:.65rem 1rem;background:linear-gradient(135deg,#fdf8f0,#f0e6d4);border-bottom:1px solid var(--border2);flex-shrink:0;gap:.5rem;">
+    <div style="display:flex;align-items:center;gap:.55rem;min-width:0;">
+      <span style="font-size:1.25rem;line-height:1;flex-shrink:0;">📚</span>
+      <div style="font-size:.9rem;font-weight:700;color:var(--tx1);font-family:var(--fs);letter-spacing:-.01em;white-space:nowrap;">독서 도서관</div>
+      <span id="library-member-count" style="font-size:.62rem;background:var(--acc);color:#fff;border-radius:20px;padding:.1rem .5rem;font-weight:600;white-space:nowrap;">0명</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;">
+      <!-- 시계 + 타이머 (헤더에 인라인, 데스크탑은 사이드패널) -->
+      <div class="lib-time-inline" style="text-align:right;">
+        <div id="library-clock-display" style="font-size:.72rem;font-weight:600;color:var(--tx2);font-variant-numeric:tabular-nums;letter-spacing:.03em;">00:00:00</div>
+        <div style="display:flex;align-items:center;gap:.25rem;justify-content:flex-end;">
+          <span style="font-size:.58rem;color:var(--tx3);">체류</span>
+          <span id="library-timer-display" style="font-size:.72rem;font-weight:600;color:var(--acc);font-variant-numeric:tabular-nums;">0s</span>
+        </div>
+      </div>
+      <button onclick="leaveLibraryRoom()" style="font-size:.72rem;padding:.3rem .75rem;background:none;color:var(--tx2);border:1px solid var(--border2);border-radius:var(--rs);cursor:pointer;font-family:var(--ff);white-space:nowrap;">나가기</button>
+    </div>
+  </div>
+
+  <!-- 메인 스크롤 영역 -->
+  <div id="library-table-wrap" style="flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1.5rem .75rem 2rem;">
+
+    <!-- 테이블 위쪽 좌석 열 -->
+    <div id="library-seats-top" class="lib-seats-row" style="width:100%;max-width:700px;"></div>
+
+    <!-- 도서관 테이블 (갈색 직사각형) -->
+    <div class="lib-table-desk">
+      <span style="font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.65;">Reading Table</span>
+    </div>
+
+    <!-- 테이블 아래쪽 좌석 열 -->
+    <div id="library-seats-bot" class="lib-seats-row" style="width:100%;max-width:700px;"></div>
+
+    <!-- 아무도 없을 때 -->
+    <div id="library-empty-msg" style="display:none;margin-top:1.5rem;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:.5rem;">🪑</div>
+      <div style="font-size:.78rem;color:var(--tx3);">아직 아무도 없어요.<br>오늘의 첫 번째 독자가 되어보세요.</div>
+    </div>
+
   </div>
 </div>
 
