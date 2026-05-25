@@ -391,16 +391,12 @@
       <!-- 게시판 -->
       <div class="panel" id="p-board">
 
-        <!-- ── 도서관 입장 카드 ── -->
-        <div class="card" style="margin-bottom:1rem;padding:.65rem .85rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:linear-gradient(135deg,#fdf8f0,#f5ead8);border:1px solid var(--border2);">
-          <div style="display:flex;align-items:center;gap:.5rem;min-width:0;">
-            <span style="font-size:1.2rem;line-height:1;flex-shrink:0;">📚</span>
-            <div style="min-width:0;">
-              <div style="font-size:.76rem;font-weight:700;color:var(--tx1);font-family:var(--fs);letter-spacing:-.01em;">도서관 입장</div>
-              <div id="library-entry-count" style="font-size:.62rem;color:var(--tx3);margin-top:1px;">불러오는 중…</div>
-            </div>
-          </div>
-          <button onclick="openLibraryEntry()" style="font-size:.65rem;padding:.24rem .6rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);cursor:pointer;font-family:var(--ff);font-weight:600;flex-shrink:0;white-space:nowrap;">입장</button>
+        <!-- ── 도서관 입장 ── -->
+        <div style="display:flex;align-items:center;gap:.42rem;margin-bottom:.85rem;padding:.38rem .65rem;background:rgba(176,112,48,.07);border:1px solid rgba(176,112,48,.2);border-radius:8px;">
+          <span style="font-size:.9rem;flex-shrink:0;line-height:1;">📚</span>
+          <span style="font-size:.68rem;font-weight:700;color:var(--tx1);flex-shrink:0;">도서관</span>
+          <span id="library-entry-count" style="font-size:.59rem;color:var(--tx3);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">불러오는 중…</span>
+          <button onclick="openLibraryEntry()" style="font-size:.6rem;padding:.2rem .5rem;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:var(--ff);font-weight:600;flex-shrink:0;letter-spacing:-.01em;">입장</button>
         </div>
 
         <!-- 헤더 -->
@@ -1172,6 +1168,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=516"></script>
+<script src="app.js?v=517"></script>
 </body>
 </html>
