@@ -273,6 +273,12 @@ async function startApp(user) {
       if(pf?.font_size) initFontSize(String(pf.font_size));
     } catch(e) {}
 
+    // 데이터 로딩 중 SIGNED_OUT 등으로 취소된 경우 앱 화면 진입하지 않음
+    if(_appState !== 'starting') {
+      clearTimeout(_abortTimer);
+      return;
+    }
+
     clearTimeout(_abortTimer);
     initSystemFont();
     _appState = 'running';
@@ -301,10 +307,13 @@ async function startApp(user) {
   } catch(e) {
     clearTimeout(_abortTimer);
     console.error('startApp error:', e);
-    _appState = 'idle';
-    currentUser = null;
-    showScreen('auth');
-    loadSavedEmail();
+    // SIGNED_OUT이 이미 처리한 경우 중복 처리하지 않음
+    if(_appState === 'starting') {
+      _appState = 'idle';
+      currentUser = null;
+      showScreen('auth');
+      loadSavedEmail();
+    }
   }
 }
 
@@ -336,12 +345,12 @@ sb.auth.onAuthStateChange(async (event, session) => {
     if(event === 'TOKEN_REFRESHED' && session?.user) {
       currentUser = session.user;
     }
-    // SIGNED_OUT: 로그아웃
+    // SIGNED_OUT: 로그아웃 or 토큰 만료
     if(event === 'SIGNED_OUT') {
-      const wasLoading = (_appState === 'starting');
+      const wasActive = (_appState === 'starting' || _appState === 'running');
       _appState = 'idle';
       currentUser = null;
-      if(wasLoading) {
+      if(wasActive) {
         showScreen('auth');
         loadSavedEmail();
       }
