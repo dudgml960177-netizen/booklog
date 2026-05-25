@@ -292,8 +292,10 @@ async function startApp(user) {
     if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
     if(typeof checkBoardNew === 'function') setTimeout(checkBoardNew, 2000);
     restoreTimerOnLoad();
-    joinPresence();
-    joinLibraryObserver();
+    // Realtime WebSocket 연결은 앱 초기화 완료 후 3초 딜레이
+    // (Auth 토큰 갱신과 WebSocket 핸드쉐이크 경쟁 방지)
+    setTimeout(joinPresence, 3000);
+    setTimeout(joinLibraryObserver, 3500);
   } catch(e) {
     clearTimeout(_abortTimer);
     console.error('startApp error:', e);
@@ -7584,7 +7586,7 @@ function joinPresence() {
     })
     .subscribe(async status => {
       if(status === 'SUBSCRIBED') {
-        await _presenceChannel.track({ user_id: currentUser.id });
+        try { await _presenceChannel.track({ user_id: currentUser.id }); } catch(_) {}
       }
     });
 }
@@ -7672,7 +7674,7 @@ async function joinLibraryRoom() {
                 ? { title: readingBook.title, cover: readingBook.cover || null }
                 : null
             };
-        await _libChannel.track(payload);
+        try { await _libChannel.track(payload); } catch(_) {}
       }
     });
 }
@@ -7835,8 +7837,7 @@ function joinLibraryObserver() {
     })
     .subscribe(async status => {
       if(status === 'SUBSCRIBED') {
-        // 옵저버 자신도 is_observer: true 로 트래킹 → 실제 멤버 카운트에서 제외됨
-        await _libChannel.track({ is_observer: true });
+        try { await _libChannel.track({ is_observer: true }); } catch(_) {}
       }
     });
 }
