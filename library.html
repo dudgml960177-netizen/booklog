@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>도서관 · 북로그</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    :root{
+      --bg:#f2ece0;--card:#faf6ef;--border:#ddd0b8;--border2:#cfc3ac;
+      --tx1:#2e1f0e;--tx2:#5c3d1e;--tx3:#a08c72;
+      --acc:#b07030;--acc2:#7a3e18;
+      --ff:'Pretendard','Apple SD Gothic Neo',sans-serif;
+      --fs:'DM Serif Display',serif;
+      --rs:4px;--r:7px;
+    }
+    html{min-height:100%;background:var(--bg);}
+    body{
+      min-height:100vh;display:flex;flex-direction:column;
+      font-family:var(--ff);color:var(--tx1);
+      background:linear-gradient(160deg,#fdf8f0 0%,#ede2cc 100%);
+    }
+
+    /* ── 헤더 ── */
+    .hd{
+      background:rgba(250,246,239,.96);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--border);
+      padding:.48rem .9rem;
+      display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+      position:sticky;top:0;z-index:10;flex-shrink:0;
+    }
+    .hd-left{display:flex;align-items:center;gap:.45rem;}
+    .hd-logo{font-family:var(--fs);font-size:.95rem;color:var(--tx1);white-space:nowrap;}
+    .hd-sep{color:var(--border2);font-size:.8rem;}
+    .hd-title{font-size:.7rem;color:var(--tx2);font-weight:600;white-space:nowrap;}
+    .hd-chip{
+      background:var(--acc);color:#fff;
+      font-size:.58rem;font-weight:600;
+      padding:.1rem .42rem;border-radius:20px;white-space:nowrap;
+      transition:background .2s;
+    }
+    .hd-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
+    .hd-time{text-align:right;}
+    .hd-clock{font-size:.66rem;font-weight:600;color:var(--tx2);font-variant-numeric:tabular-nums;letter-spacing:.04em;}
+    .hd-elapsed-row{display:flex;align-items:center;gap:.2rem;justify-content:flex-end;}
+    .hd-elapsed-lbl{font-size:.55rem;color:var(--tx3);}
+    .hd-elapsed{font-size:.66rem;font-weight:700;color:var(--acc);font-variant-numeric:tabular-nums;}
+    .btn-leave{
+      font-size:.67rem;padding:.26rem .62rem;
+      background:none;color:var(--tx2);
+      border:1px solid var(--border2);border-radius:var(--rs);
+      cursor:pointer;font-family:var(--ff);white-space:nowrap;
+      transition:background .15s,color .15s;
+    }
+    .btn-leave:hover{background:var(--border);color:var(--tx1);}
+
+    /* ── 메인 ── */
+    .main{
+      flex:1;display:flex;flex-direction:column;
+      align-items:center;padding:1rem .7rem 2rem;gap:0;
+    }
+
+    /* ── 좌석 행 ── */
+    .row{
+      display:flex;flex-direction:row;flex-wrap:wrap;
+      justify-content:center;gap:.6rem;
+      padding:.45rem .2rem;
+      width:100%;max-width:580px;min-height:80px;
+      align-items:flex-end;
+    }
+    .row-top{align-items:flex-end;}
+    .row-bot{align-items:flex-start;}
+
+    /* ── 테이블 ── */
+    .table-desk{
+      width:min(460px,88vw);
+      padding:.55rem 1.5rem;
+      background:linear-gradient(160deg,#a86820,#7a4c18);
+      border-radius:13px;
+      display:flex;align-items:center;justify-content:center;
+      color:rgba(255,255,255,.45);
+      font-size:.6rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+      box-shadow:0 5px 22px rgba(90,40,5,.22),0 1px 0 rgba(255,255,255,.1) inset;
+      flex-shrink:0;margin:.1rem 0;
+    }
+
+    /* ── 일반 좌석 ── */
+    .seat{
+      display:flex;flex-direction:column;align-items:center;gap:.22rem;
+      padding:.48rem .38rem .38rem;
+      min-width:66px;max-width:84px;
+      background:var(--card);
+      border:1px solid var(--border);border-radius:10px;
+      position:relative;flex-shrink:0;
+      cursor:default;
+      transition:box-shadow .15s,transform .12s;
+      animation:seatIn .22s ease;
+    }
+    @keyframes seatIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+    .seat:hover{box-shadow:0 3px 14px rgba(100,50,10,.14);transform:translateY(-1px);}
+
+    /* ── 말풍선 (일반) ── */
+    .speech{
+      position:relative;
+      background:#fdf7ee;border:1px solid var(--border);border-radius:8px;
+      padding:.2rem .4rem;
+      font-size:.56rem;color:var(--tx2);
+      max-width:78px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      line-height:1.3;text-align:center;
+    }
+    .speech::before{
+      content:'';position:absolute;
+      top:-5px;left:50%;transform:translateX(-50%);
+      border-left:4px solid transparent;border-right:4px solid transparent;
+      border-bottom:5px solid var(--border);
+    }
+    .speech::after{
+      content:'';position:absolute;
+      top:-3.5px;left:50%;transform:translateX(-50%);
+      border-left:3.5px solid transparent;border-right:3.5px solid transparent;
+      border-bottom:4.5px solid #fdf7ee;
+    }
+    .speech-tip{
+      display:none;position:absolute;
+      bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+      background:var(--tx1);color:#fff;
+      font-size:.6rem;padding:.28rem .55rem;border-radius:6px;
+      white-space:nowrap;z-index:100;
+      max-width:160px;white-space:normal;text-align:center;line-height:1.4;
+      pointer-events:none;
+    }
+    .seat:hover .speech-tip{display:block;}
+
+    /* ── 이름 ── */
+    .name{
+      font-size:.59rem;color:var(--tx2);font-weight:600;
+      max-width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      text-align:center;font-family:var(--ff);
+    }
+
+    /* ── 유령 좌석 ── */
+    .ghost{
+      display:flex;flex-direction:column;align-items:center;gap:.25rem;
+      padding:.48rem .38rem .38rem;
+      min-width:66px;max-width:84px;
+      background:linear-gradient(135deg,#f6f1ea,#ece3d6);
+      border:1.5px dashed var(--border2);border-radius:10px;
+      flex-shrink:0;cursor:default;
+      transition:box-shadow .15s;
+      animation:seatIn .22s ease;
+      position:relative;
+    }
+    .ghost:hover{box-shadow:0 3px 12px rgba(100,50,10,.1);}
+    .ghost-emoji{font-size:1.65rem;line-height:1;filter:opacity(.72);}
+
+    /* ── 생각 말풍선 (유령) ── */
+    .thought{
+      position:relative;
+      background:#fff;
+      border:1.5px solid var(--border);border-radius:14px;
+      padding:.2rem .42rem;
+      font-size:.56rem;color:var(--tx3);font-style:italic;
+      max-width:78px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      line-height:1.3;text-align:center;
+    }
+    .thought::before{
+      content:'';position:absolute;
+      bottom:-6px;left:calc(50% - 3px);
+      width:5px;height:5px;
+      background:#fff;border:1.5px solid var(--border);border-radius:50%;
+    }
+    .thought::after{
+      content:'';position:absolute;
+      bottom:-11px;left:calc(50% - 2px);
+      width:3.5px;height:3.5px;
+      background:#fff;border:1.5px solid var(--border);border-radius:50%;
+    }
+
+    /* ── 유령 툴팁 ── */
+    .ghost-tip{
+      display:none;position:absolute;
+      top:-36px;left:50%;transform:translateX(-50%);
+      background:var(--tx1);color:#fff;
+      font-size:.6rem;padding:.28rem .55rem;border-radius:6px;
+      white-space:nowrap;z-index:100;pointer-events:none;
+      font-style:normal;
+    }
+    .ghost:hover .ghost-tip{display:block;}
+
+    /* ── 빈 상태 ── */
+    .empty{
+      text-align:center;padding:1.5rem 1rem;color:var(--tx3);
+      margin-top:.5rem;
+    }
+    .empty-icon{font-size:1.7rem;margin-bottom:.45rem;}
+    .empty-txt{font-size:.74rem;line-height:1.75;}
+
+    /* ── 로딩 ── */
+    .loading{
+      text-align:center;padding:3rem;color:var(--tx3);font-size:.78rem;
+    }
+    .spinner{
+      width:20px;height:20px;
+      border:2px solid var(--border);border-top-color:var(--acc);
+      border-radius:50%;animation:spin .8s linear infinite;
+      margin:0 auto .75rem;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    @media(max-width:380px){
+      .seat,.ghost{min-width:58px;padding:.4rem .28rem .32rem;}
+      .speech,.thought{max-width:62px;font-size:.52rem;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="hd">
+  <div class="hd-left">
+    <span class="hd-logo">Booklog</span>
+    <span class="hd-sep">·</span>
+    <span class="hd-title">도서관</span>
+    <span class="hd-chip" id="lib-count">0명</span>
+  </div>
+  <div class="hd-right">
+    <div class="hd-time">
+      <div class="hd-clock" id="lib-clock">00:00:00</div>
+      <div class="hd-elapsed-row">
+        <span class="hd-elapsed-lbl">체류</span>
+        <span class="hd-elapsed" id="lib-elapsed">0s</span>
+      </div>
+    </div>
+    <button class="btn-leave" onclick="leaveLibrary()">나가기</button>
+  </div>
+</div>
+
+<!-- 메인 -->
+<div class="main" id="lib-main">
+  <div class="loading"><div class="spinner"></div>입장 중...</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession:true, storageKey:'booklog-auth', storage:window.localStorage, autoRefreshToken:true }
+});
+
+let params = {}, channel = null, joinedAt = null, clockTick = null;
+
+/* ── 시계 ── */
+function startClock() {
+  function tick() {
+    const n = new Date();
+    const pad = v => String(v).padStart(2,'0');
+    const cl = document.getElementById('lib-clock');
+    if(cl) cl.textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+    const el = document.getElementById('lib-elapsed');
+    if(el && joinedAt) {
+      const s = Math.floor((Date.now()-joinedAt)/1000);
+      const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sc=s%60;
+      el.textContent = h>0?`${h}h ${m}m`:m>0?`${m}m ${sc}s`:`${sc}s`;
+    }
+  }
+  tick();
+  clockTick = setInterval(tick, 1000);
+}
+
+/* ── 아바타 HTML ── */
+function makeAv(name, url, size) {
+  const initial = (name||'독').slice(0,1).toUpperCase();
+  const colors = ['#b07030','#6b8f6b','#5a7a8a','#8b6b8b','#c4714a'];
+  const bg = colors[(name||'').charCodeAt(0)%colors.length];
+  if(url) return `<img src="${url.replace(/'/g,'%27')}" style="width:${size}px;height:${size}px;border-radius:50%;border:2px solid #ddd0b8;object-fit:cover;flex-shrink:0;" onerror="this.outerHTML='<div style=width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;flex-shrink:0;>${initial}</div>'">`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;flex-shrink:0;">${initial}</div>`;
+}
+
+/* ── HTML 이스케이프 ── */
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ── 좌석 카드 HTML ── */
+function makeSeat(m) {
+  if(m.is_observer) return '';
+
+  if(m.is_ghost) {
+    const bookHtml = m.book_title
+      ? `<div class="thought" title="${esc(m.book_title)}">📖 ${esc(m.book_title.length>11?m.book_title.slice(0,11)+'…':m.book_title)}</div>`
+      : '';
+    return `<div class="ghost"><div class="ghost-tip">유령이 당신과 책을 읽고 있어요!</div><div class="ghost-emoji">👻</div>${bookHtml}</div>`;
+  }
+
+  const name = m.display_name || '독자';
+  const av = makeAv(name, m.avatar_url, 42);
+  let speech = '';
+  if(m.book_title) {
+    const sh = m.book_title.length>11?m.book_title.slice(0,11)+'…':m.book_title;
+    speech = `<div class="speech" style="position:relative;">📖 ${esc(sh)}<div class="speech-tip">${esc(m.book_title)}</div></div>`;
+  }
+  return `<div class="seat">${av}<div class="name">${esc(name)}</div>${speech}</div>`;
+}
+
+/* ── 방 렌더링 ── */
+function render() {
+  if(!channel) return;
+  const members = Object.values(channel.presenceState()).flat().filter(m=>!m.is_observer);
+  const cnt = document.getElementById('lib-count');
+  if(cnt) cnt.textContent = `${members.length}명`;
+
+  const main = document.getElementById('lib-main');
+  if(!main) return;
+
+  if(members.length===0) {
+    main.innerHTML = `
+      <div class="row row-top"></div>
+      <div class="table-desk"><span>Reading Table</span></div>
+      <div class="row row-bot"></div>
+      <div class="empty"><div class="empty-icon">🕯️</div><div class="empty-txt">아직 아무도 없어요.<br>오늘의 첫 번째 독자가 되어보세요.</div></div>`;
+    return;
+  }
+
+  const half = Math.ceil(members.length/2);
+  const top = members.slice(0,half), bot = members.slice(half);
+  main.innerHTML = `
+    <div class="row row-top">${top.map(makeSeat).join('')}</div>
+    <div class="table-desk"><span>Reading Table</span></div>
+    <div class="row row-bot">${bot.map(makeSeat).join('')}</div>`;
+}
+
+/* ── 나가기 ── */
+async function leaveLibrary() {
+  saveTime();
+  clearInterval(clockTick);
+  if(channel) {
+    try { await channel.untrack(); } catch(e){}
+    try { await channel.unsubscribe(); } catch(e){}
+    channel = null;
+  }
+  try { window.close(); } catch(e){}
+  // 창이 닫히지 않으면 안내 표시
+  setTimeout(()=>{
+    const m = document.getElementById('lib-main');
+    if(m) m.innerHTML='<div class="empty"><div class="empty-icon">👋</div><div class="empty-txt">독서 시간이 저장됐어요.<br>이 창을 닫아주세요.</div></div>';
+  }, 300);
+}
+
+/* ── 시간 저장 (localStorage → 메인 창이 수신) ── */
+function saveTime() {
+  if(!joinedAt || !params.bookId) return;
+  const mins = Math.round((Date.now()-joinedAt)/60000);
+  if(mins < 1) return;
+  localStorage.setItem('bl_lib_session_done', JSON.stringify({
+    bookId: params.bookId,
+    minutes: mins,
+    date: new Date().toISOString().slice(0,10)
+  }));
+}
+
+/* ── 초기화 ── */
+async function init() {
+  startClock();
+  try {
+    const raw = localStorage.getItem('bl_lib_params');
+    if(raw) { params = JSON.parse(raw); localStorage.removeItem('bl_lib_params'); }
+  } catch(e) { params={}; }
+
+  let session = null;
+  try {
+    const { data } = await Promise.race([
+      sb.auth.getSession(),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
+    ]);
+    session = data?.session;
+  } catch(e){}
+
+  if(!session?.user) {
+    document.getElementById('lib-main').innerHTML = `<div class="empty"><div class="empty-icon">🔒</div><div class="empty-txt">로그인이 필요해요.<br>북로그에서 로그인 후 다시 시도해주세요.</div></div>`;
+    return;
+  }
+
+  joinedAt = Date.now();
+  const userId = session.user.id;
+  channel = sb.channel('bl_library', { config:{ presence:{ key:userId } } });
+
+  channel
+    .on('presence', { event:'sync' }, render)
+    .subscribe(async status => {
+      if(status==='SUBSCRIBED') {
+        const payload = params.isGhost
+          ? { is_ghost:true, is_observer:false, book_title:params.bookTitle||null }
+          : { is_ghost:false, is_observer:false,
+              display_name:params.displayName||'독자',
+              avatar_url:params.avatarUrl||null,
+              book_title:params.bookTitle||null };
+        try { await channel.track(payload); } catch(e){}
+        document.querySelector('.loading')?.remove();
+        render();
+      } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT') {
+        document.getElementById('lib-main').innerHTML = `<div class="empty"><div class="empty-icon">📡</div><div class="empty-txt">연결에 실패했어요.<br>잠시 후 다시 시도해주세요.</div></div>`;
+      }
+    });
+}
+
+window.addEventListener('beforeunload', ()=>{ saveTime(); });
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
