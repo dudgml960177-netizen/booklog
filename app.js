@@ -237,9 +237,11 @@ async function startApp(user) {
   _appState = 'starting';
   showScreen('loading');
 
-  // 20초 절대 타임아웃 — 네트워크 불량/세션 오염 시 로딩 화면에서 탈출
+  // 20초 절대 타임아웃 — 네트워크 불량/세션 오염/SIGNED_OUT 등으로 로딩 화면에서 탈출
   const _abortTimer = setTimeout(() => {
-    if(_appState === 'starting') {
+    const loadEl = document.getElementById('screen-loading');
+    const isLoadingVisible = loadEl && loadEl.style.display !== 'none';
+    if(isLoadingVisible && _appState !== 'running') {
       console.warn('[startApp] 타임아웃 — 인증 화면으로 복귀');
       _appState = 'idle';
       currentUser = null;
@@ -336,8 +338,13 @@ sb.auth.onAuthStateChange(async (event, session) => {
     }
     // SIGNED_OUT: 로그아웃
     if(event === 'SIGNED_OUT') {
+      const wasLoading = (_appState === 'starting');
       _appState = 'idle';
       currentUser = null;
+      if(wasLoading) {
+        showScreen('auth');
+        loadSavedEmail();
+      }
     }
     if(event === 'PASSWORD_RECOVERY') {
       showScreen('auth');
@@ -423,8 +430,8 @@ async function _initSession(retry=0) {
     if(retry < 1) {
       setTimeout(() => _initSession(retry+1), 2000);
     } else {
-      // 재시도 모두 실패 → 세션 강제 초기화 후 로그인 화면
-      try { await sb.auth.signOut(); } catch(_) {}
+      // 재시도 모두 실패 → 세션 강제 초기화 후 로그인 화면 (3초 타임아웃)
+      try { await Promise.race([sb.auth.signOut(), new Promise(res => setTimeout(res, 3000))]); } catch(_) {}
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
