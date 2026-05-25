@@ -187,7 +187,9 @@
     .tbl-bubble{
       display:none;
       position:absolute;
-      bottom:calc(100% + 26px);left:50%;transform:translateX(-50%);
+      /* 기본: 셀 아래에 표시 */
+      top:calc(100% + 10px);bottom:auto;
+      left:50%;transform:translateX(-50%);
       background:var(--paper);
       border:1.5px solid var(--border2);
       border-radius:18px;
@@ -199,10 +201,10 @@
     }
     .tbl-cell:hover .tbl-bubble{display:flex;}
 
-    /* 말풍선 꼬리 점 */
+    /* 꼬리 점: 버블 위쪽(셀과 연결) */
     .tbl-bubble::before{
       content:'';
-      position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);
+      position:absolute;top:-13px;bottom:auto;left:50%;transform:translateX(-50%);
       width:10px;height:10px;
       background:var(--paper);border:1.5px solid var(--border2);
       border-radius:50%;
@@ -210,7 +212,7 @@
     }
     .tbl-bubble::after{
       content:'';
-      position:absolute;bottom:-22px;left:calc(50% + 7px);transform:translateX(-50%);
+      position:absolute;top:-22px;bottom:auto;left:calc(50% - 7px);transform:translateX(-50%);
       width:7px;height:7px;
       background:var(--paper);border:1.5px solid var(--border2);
       border-radius:50%;
