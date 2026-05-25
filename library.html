@@ -16,6 +16,7 @@
       --ff:'Pretendard','Apple SD Gothic Neo',sans-serif;
       --fs:'DM Serif Display',serif;
       --rs:4px;--r:7px;
+      --tbl:#b8a07a; /* 테이블 격자선/표면 색 */
     }
     html{min-height:100%;background:var(--bg);}
     body{
@@ -26,8 +27,7 @@
 
     /* ── 헤더 ── */
     .hd{
-      background:rgba(250,246,239,.96);
-      backdrop-filter:blur(10px);
+      background:rgba(250,246,239,.96);backdrop-filter:blur(10px);
       border-bottom:1px solid var(--border);
       padding:.48rem .9rem;
       display:flex;align-items:center;justify-content:space-between;gap:.5rem;
@@ -41,7 +41,6 @@
       background:var(--acc);color:#fff;
       font-size:.58rem;font-weight:600;
       padding:.1rem .42rem;border-radius:20px;white-space:nowrap;
-      transition:background .2s;
     }
     .hd-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
     .hd-time{text-align:right;}
@@ -60,194 +59,128 @@
 
     /* ── 메인 ── */
     .main{
-      flex:1;display:flex;flex-direction:column;
-      align-items:center;padding:1rem .7rem 2rem;gap:0;
+      flex:1;padding:.9rem .7rem 2rem;
+      display:flex;flex-direction:column;align-items:center;
     }
 
-    /* ── 좌석 행 ── */
-    .row{
-      display:flex;flex-direction:row;flex-wrap:wrap;
-      justify-content:center;gap:.55rem;
-      padding:.5rem .2rem;
-      width:100%;max-width:600px;min-height:82px;
-    }
-    .row-top{align-items:flex-end;}
-    .row-bot{align-items:flex-start;}
+    /* ── 테이블 래퍼 ── */
+    .tbl-wrap{width:min(520px,96vw);}
 
-    /* ── 테이블 (나무결 격자) ── */
-    .table-desk{
-      width:min(480px,90vw);
-      padding:.6rem 1.6rem;
-      border-radius:14px;
-      display:flex;align-items:center;justify-content:center;
-      color:rgba(255,255,255,.5);
-      font-size:.6rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
-      flex-shrink:0;margin:.05rem 0;
-      position:relative;overflow:hidden;
-      /* 나무 기본 색 */
-      background-color:#8a4d18;
-      /* 나뭇결 세로줄 */
-      background-image:
-        repeating-linear-gradient(
-          92deg,
-          transparent 0px, transparent 14px,
-          rgba(0,0,0,.08) 14px, rgba(0,0,0,.08) 15px,
-          transparent 15px, transparent 28px,
-          rgba(255,255,255,.06) 28px, rgba(255,255,255,.06) 29px
-        ),
-        repeating-linear-gradient(
-          2deg,
-          transparent 0px, transparent 9px,
-          rgba(0,0,0,.05) 9px, rgba(0,0,0,.05) 10px
-        ),
-        linear-gradient(160deg,#b05c20 0%,#7a3c10 55%,#9a4d18 100%);
-      box-shadow:
-        0 6px 24px rgba(80,30,5,.28),
-        0 1px 0 rgba(255,255,255,.12) inset,
-        0 -1px 0 rgba(0,0,0,.15) inset;
+    /* READING TABLE 레이블 */
+    .tbl-label{
+      font-size:.58rem;font-weight:700;letter-spacing:.22em;
+      color:var(--tx3);text-transform:uppercase;
+      margin-bottom:.45rem;padding-left:.15rem;
     }
 
-    /* ── 일반 좌석 ── */
-    .seat{
-      display:flex;flex-direction:column;align-items:center;gap:.22rem;
-      padding:.5rem .42rem .4rem;
-      min-width:68px;max-width:86px;width:68px;
+    /* 격자 테이블: 갈색 배경 + 1px gap = 격자선 */
+    .tbl-grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:1px;
+      background:var(--tbl);
+      border:1.5px solid var(--tbl);
+      border-radius:13px;
+      overflow:hidden;
+    }
+
+    /* 일반 좌석 셀 */
+    .tbl-cell{
       background:var(--card);
-      border:1px solid var(--border);border-radius:10px;
-      position:relative;flex-shrink:0;
-      cursor:default;
-      transition:box-shadow .15s,transform .12s;
-      animation:seatIn .24s ease;
+      min-height:118px;
+      padding:.55rem .38rem .42rem;
+      display:flex;flex-direction:column;align-items:center;gap:.26rem;
+      position:relative;cursor:default;
+      transition:background .12s;
+      animation:cellIn .2s ease;
     }
-    @keyframes seatIn{from{opacity:0;transform:scale(.84) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
-    .seat:hover{box-shadow:0 4px 16px rgba(100,50,10,.16);transform:translateY(-2px);}
+    @keyframes cellIn{from{opacity:0}to{opacity:1}}
+    .tbl-cell:hover{background:#f4efe5;}
 
-    /* ── 인원 수 따라 좌석 크기 자동 조절 ── */
-    .sz-md .seat,.sz-md .ghost{width:58px;min-width:58px;max-width:72px;padding:.42rem .32rem .34rem;}
-    .sz-sm .seat,.sz-sm .ghost{width:50px;min-width:50px;max-width:62px;padding:.36rem .26rem .3rem;}
-    .sz-xs .seat,.sz-xs .ghost{width:44px;min-width:44px;max-width:54px;padding:.3rem .2rem .26rem;}
-    .sz-md .seat img,.sz-md .seat>div:first-child{width:34px !important;height:34px !important;}
-    .sz-sm .seat img,.sz-sm .seat>div:first-child{width:28px !important;height:28px !important;}
-    .sz-xs .seat img,.sz-xs .seat>div:first-child{width:24px !important;height:24px !important;}
-    .sz-md .name,.sz-sm .name,.sz-xs .name{font-size:.52rem;max-width:62px;}
-    .sz-sm .name,.sz-xs .name{font-size:.48rem;}
-    .sz-md .speech,.sz-md .thought{max-width:62px;font-size:.5rem;}
-    .sz-sm .speech,.sz-sm .thought,.sz-xs .speech,.sz-xs .thought{max-width:54px;font-size:.48rem;}
-    .sz-xs .ghost-emoji{font-size:1.35rem;}
-    .sz-sm .ghost-emoji{font-size:1.5rem;}
-    .sz-md .ghost-emoji{font-size:1.55rem;}
-    .sz-md .row,.sz-sm .row,.sz-xs .row{gap:.42rem;}
-
-    /* ── 말풍선 (일반) ── */
-    .speech{
-      position:relative;
-      background:#fdf7ee;border:1px solid var(--border);border-radius:8px;
-      padding:.2rem .42rem;
-      font-size:.56rem;color:var(--tx2);
-      max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-      line-height:1.3;text-align:center;
-    }
-    .speech::before{
-      content:'';position:absolute;
-      top:-5px;left:50%;transform:translateX(-50%);
-      border-left:4px solid transparent;border-right:4px solid transparent;
-      border-bottom:5px solid var(--border);
-    }
-    .speech::after{
-      content:'';position:absolute;
-      top:-3.5px;left:50%;transform:translateX(-50%);
-      border-left:3.5px solid transparent;border-right:3.5px solid transparent;
-      border-bottom:4.5px solid #fdf7ee;
+    /* 빈 좌석 셀 */
+    .tbl-empty{
+      background:var(--card);
+      min-height:118px;
     }
 
-    /* ── 호버 툴팁 (책 제목 + 잔류 시간) ── */
-    .tip{
+    /* 테이블 표면 셀 (갈색) — 배경 없이 격자 컨테이너 색 노출 */
+    .tbl-surface{
+      background:var(--tbl);
+      min-height:118px;
+    }
+
+    /* 아바타 래퍼 */
+    .tbl-av{position:relative;flex-shrink:0;}
+
+    /* "나" 배지 */
+    .tbl-me{
+      position:absolute;top:-3px;right:-3px;
+      width:18px;height:18px;
+      background:var(--acc);color:#fff;
+      border-radius:50%;border:1.5px solid var(--card);
+      font-size:.5rem;font-weight:700;
+      display:flex;align-items:center;justify-content:center;
+      z-index:1;
+    }
+
+    /* 이름 */
+    .tbl-name{
+      font-size:.62rem;font-weight:600;color:var(--tx1);
+      text-align:center;width:100%;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+
+    /* 책 카드 */
+    .tbl-book{
+      display:flex;align-items:center;gap:.28rem;
+      background:#fff;border:1px solid var(--border);border-radius:5px;
+      padding:.22rem .3rem;width:100%;overflow:hidden;
+    }
+    .tbl-cover{
+      width:20px;height:28px;border-radius:2px;
+      object-fit:cover;flex-shrink:0;
+      background:#e8e0d0;display:block;
+    }
+    .tbl-book-title{
+      font-size:.54rem;color:var(--tx2);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      line-height:1.3;
+    }
+
+    /* 유령 이모지 */
+    .tbl-ghost-ico{font-size:2.2rem;line-height:1;margin-top:.1rem;}
+
+    /* 호버 툴팁 (책+잔류시간) */
+    .tbl-tip{
       display:none;position:absolute;
-      bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);
-      background:rgba(30,16,4,.92);color:#fff;
-      font-size:.62rem;padding:.38rem .62rem;border-radius:8px;
-      white-space:nowrap;z-index:200;
-      max-width:200px;white-space:normal;text-align:center;line-height:1.55;
-      pointer-events:none;
-      box-shadow:0 3px 12px rgba(0,0,0,.25);
+      bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);
+      background:rgba(28,14,4,.9);color:#fff;
+      font-size:.62rem;padding:.36rem .6rem;border-radius:8px;
+      white-space:normal;text-align:center;line-height:1.55;
+      z-index:200;max-width:170px;pointer-events:none;
+      box-shadow:0 3px 12px rgba(0,0,0,.22);
     }
-    .tip::after{
+    .tbl-tip::after{
       content:'';position:absolute;
       top:100%;left:50%;transform:translateX(-50%);
-      border-left:5px solid transparent;border-right:5px solid transparent;
-      border-top:5px solid rgba(30,16,4,.92);
+      border:5px solid transparent;
+      border-top-color:rgba(28,14,4,.9);
     }
-    .seat:hover .tip,.ghost:hover .tip{display:block;}
-
-    /* ── 이름 ── */
-    .name{
-      font-size:.59rem;color:var(--tx2);font-weight:600;
-      max-width:76px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-      text-align:center;font-family:var(--ff);
-    }
-
-    /* ── 유령 좌석 ── */
-    .ghost{
-      display:flex;flex-direction:column;align-items:center;gap:.25rem;
-      padding:.5rem .42rem .4rem;
-      min-width:68px;max-width:86px;width:68px;
-      background:linear-gradient(135deg,#f6f1ea,#ece3d6);
-      border:1.5px dashed var(--border2);border-radius:10px;
-      flex-shrink:0;cursor:default;
-      transition:box-shadow .15s;
-      animation:seatIn .24s ease;
-      position:relative;
-    }
-    .ghost:hover{box-shadow:0 4px 14px rgba(100,50,10,.12);}
-    .ghost-emoji{font-size:1.7rem;line-height:1;filter:opacity(.72);}
-
-    /* ── 생각 말풍선 (유령) ── */
-    .thought{
-      position:relative;
-      background:#fff;
-      border:1.5px solid var(--border);border-radius:14px;
-      padding:.2rem .42rem;
-      font-size:.56rem;color:var(--tx3);font-style:italic;
-      max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-      line-height:1.3;text-align:center;
-    }
-    .thought::before{
-      content:'';position:absolute;
-      bottom:-6px;left:calc(50% - 3px);
-      width:5px;height:5px;
-      background:#fff;border:1.5px solid var(--border);border-radius:50%;
-    }
-    .thought::after{
-      content:'';position:absolute;
-      bottom:-11px;left:calc(50% - 2px);
-      width:3.5px;height:3.5px;
-      background:#fff;border:1.5px solid var(--border);border-radius:50%;
-    }
-
-    /* ── 빈 상태 ── */
-    .empty{
-      text-align:center;padding:1.5rem 1rem;color:var(--tx3);
-      margin-top:.5rem;
-    }
-    .empty-icon{font-size:1.7rem;margin-bottom:.45rem;}
-    .empty-txt{font-size:.74rem;line-height:1.75;}
+    .tbl-cell:hover .tbl-tip{display:block;}
 
     /* ── 로딩 ── */
     .loading{text-align:center;padding:3rem;color:var(--tx3);font-size:.78rem;}
     .spinner{
       width:20px;height:20px;
       border:2px solid var(--border);border-top-color:var(--acc);
-      border-radius:50%;animation:spin .8s linear infinite;
-      margin:0 auto .75rem;
+      border-radius:50%;animation:spin .8s linear infinite;margin:0 auto .75rem;
     }
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    @media(max-width:400px){
-      .seat,.ghost{width:60px;min-width:60px;}
-      .sz-md .seat,.sz-md .ghost{width:52px;min-width:52px;}
-      .sz-sm .seat,.sz-sm .ghost{width:46px;min-width:46px;}
-      .sz-xs .seat,.sz-xs .ghost{width:40px;min-width:40px;}
-    }
+    /* ── 에러/빈 상태 ── */
+    .empty{text-align:center;padding:2rem 1rem;color:var(--tx3);}
+    .empty-icon{font-size:1.6rem;margin-bottom:.4rem;}
+    .empty-txt{font-size:.74rem;line-height:1.75;}
   </style>
 </head>
 <body>
@@ -283,215 +216,220 @@ const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession:true, storageKey:'booklog-auth', storage:window.localStorage, autoRefreshToken:true }
+  auth:{ persistSession:true, storageKey:'booklog-auth', storage:window.localStorage, autoRefreshToken:true }
 });
 
-let params = {}, channel = null, joinedAt = null, clockTick = null, renderTick = null;
+let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myUserId=null;
 
 /* ── 시계 ── */
 function startClock() {
   function tick() {
-    const n = new Date();
-    const pad = v => String(v).padStart(2,'0');
-    const cl = document.getElementById('lib-clock');
-    if(cl) cl.textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
-    const el = document.getElementById('lib-elapsed');
-    if(el && joinedAt) {
-      const s = Math.floor((Date.now()-joinedAt)/1000);
-      const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sc=s%60;
-      el.textContent = h>0?`${h}h ${m}m`:m>0?`${m}m ${sc}s`:`${sc}s`;
+    const n=new Date(), pad=v=>String(v).padStart(2,'0');
+    const cl=document.getElementById('lib-clock');
+    if(cl) cl.textContent=`${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+    const el=document.getElementById('lib-elapsed');
+    if(el&&joinedAt){
+      const s=Math.floor((Date.now()-joinedAt)/1000);
+      const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
+      el.textContent=h>0?`${h}h ${m}m`:m>0?`${m}m ${sc}s`:`${sc}s`;
     }
   }
   tick();
-  clockTick = setInterval(tick, 1000);
+  clockTick=setInterval(tick,1000);
 }
 
 /* ── 잔류 시간 문자열 ── */
 function elapsedStr(ts) {
-  if(!ts) return '방금 입장';
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if(s < 60) return '방금 입장';
-  const m = Math.floor(s / 60), h = Math.floor(m / 60);
-  if(h > 0) return `${h}시간 ${m % 60}분 독서 중`;
-  return `${m}분 독서 중`;
+  if(!ts) return '';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return '방금 입장';
+  const m=Math.floor(s/60), h=Math.floor(m/60);
+  return h>0?`${h}시간 ${m%60}분 독서 중`:`${m}분 독서 중`;
 }
 
 /* ── 아바타 HTML ── */
-function makeAv(name, url, size) {
-  const initial = (name||'독').slice(0,1).toUpperCase();
-  const colors = ['#b07030','#6b8f6b','#5a7a8a','#8b6b8b','#c4714a'];
-  const bg = colors[(name||'').charCodeAt(0)%colors.length];
-  if(url) return `<img src="${url.replace(/'/g,'%27')}" style="width:${size}px;height:${size}px;border-radius:50%;border:2px solid #ddd0b8;object-fit:cover;flex-shrink:0;" onerror="this.outerHTML='<div style=width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;flex-shrink:0;>${initial}</div>'">`;
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;flex-shrink:0;">${initial}</div>`;
+function makeAv(name,url,size){
+  const initial=(name||'독').slice(0,1).toUpperCase();
+  const colors=['#b07030','#6b8f6b','#5a7a8a','#8b6b8b','#c4714a'];
+  const bg=colors[(name||'').charCodeAt(0)%colors.length];
+  if(url) return `<img src="${url.replace(/'/g,'%27')}" style="width:${size}px;height:${size}px;border-radius:50%;border:2px solid #ddd0b8;object-fit:cover;" onerror="this.outerHTML='<div style=width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;>${initial}</div>'">`;
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:2px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;">${initial}</div>`;
 }
 
 /* ── HTML 이스케이프 ── */
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-/* ── 좌석 카드 HTML ── */
-function makeSeat(m, avSize) {
-  if(m.is_observer) return '';
-  const elapsed = elapsedStr(m.joined_at);
+/* ── 책 카드 HTML ── */
+function makeBookCard(m){
+  if(!m.book_title) return '';
+  const short=m.book_title.length>7?m.book_title.slice(0,7)+'…':m.book_title;
+  const cover=m.book_cover
+    ?`<img src="${esc(m.book_cover)}" class="tbl-cover" onerror="this.style.background='#e8e0d0';this.removeAttribute('src')">`
+    :`<div class="tbl-cover"></div>`;
+  return `<div class="tbl-book">${cover}<span class="tbl-book-title">${esc(short)}</span></div>`;
+}
 
-  if(m.is_ghost) {
-    const bookHtml = m.book_title
-      ? `<div class="thought">📖 ${esc(m.book_title.length>10?m.book_title.slice(0,10)+'…':m.book_title)}</div>`
-      : '';
-    const tipLines = [elapsed, m.book_title ? `📖 ${esc(m.book_title)}` : ''].filter(Boolean).join('<br>');
-    return `<div class="ghost">
-      <div class="tip">${tipLines||'유령 독자'}</div>
-      <div class="ghost-emoji">👻</div>
-      ${bookHtml}
+/* ── 좌석 셀 HTML ── */
+function makeSeatCell(m){
+  const isSelf=myUserId&&m.user_id===myUserId;
+  const elapsed=elapsedStr(m.joined_at);
+  const tipLines=[m.book_title?`📖 ${esc(m.book_title)}`:'',elapsed].filter(Boolean).join('<br>');
+  const tip=tipLines?`<div class="tbl-tip">${tipLines}</div>`:'';
+
+  if(m.is_ghost){
+    return `<div class="tbl-cell">
+      ${tip}
+      <div class="tbl-ghost-ico">👻</div>
+      ${makeBookCard(m)}
     </div>`;
   }
 
-  const name = m.display_name || '독자';
-  const av = makeAv(name, m.avatar_url, avSize);
-  let speech = '';
-  if(m.book_title) {
-    const sh = m.book_title.length>10 ? m.book_title.slice(0,10)+'…' : m.book_title;
-    speech = `<div class="speech">📖 ${esc(sh)}</div>`;
-  }
-  const tipLines = [elapsed, m.book_title ? `📖 ${esc(m.book_title)}` : ''].filter(Boolean).join('<br>');
-  return `<div class="seat">
-    <div class="tip">${tipLines}</div>
-    ${av}
-    <div class="name">${esc(name)}</div>
-    ${speech}
+  const name=m.display_name||'독자';
+  const av=makeAv(name,m.avatar_url,48);
+  const badge=isSelf?'<div class="tbl-me">나</div>':'';
+  return `<div class="tbl-cell">
+    ${tip}
+    <div class="tbl-av">${av}${badge}</div>
+    <div class="tbl-name">${esc(name)}</div>
+    ${makeBookCard(m)}
   </div>`;
 }
 
-/* ── 방 렌더링 ── */
-function render() {
+/* ── 격자 테이블 렌더링 ── */
+function render(){
   if(!channel) return;
-  const all = Object.values(channel.presenceState()).flat();
-  const members = all.filter(m => !m.is_observer);
-  const cnt = document.getElementById('lib-count');
-  if(cnt) cnt.textContent = `${members.length}명`;
+  const members=Object.values(channel.presenceState()).flat().filter(m=>!m.is_observer);
 
-  const main = document.getElementById('lib-main');
+  const cnt=document.getElementById('lib-count');
+  if(cnt) cnt.textContent=`${members.length}명`;
+
+  const main=document.getElementById('lib-main');
   if(!main) return;
 
-  // 인원 수에 따라 좌석 크기 클래스 결정
-  const n = members.length;
-  const szClass = n <= 4 ? '' : n <= 8 ? 'sz-md' : n <= 12 ? 'sz-sm' : 'sz-xs';
-  const avSize  = n <= 4 ? 42 : n <= 8 ? 34 : n <= 12 ? 28 : 24;
-  main.className = `main${szClass?' '+szClass:''}`;
+  const cols=4;
+  // 항상 마지막 2칸은 테이블 면(갈색), 나머지는 좌석
+  const rows=Math.max(Math.ceil((members.length+2)/cols),2);
+  const total=rows*cols;
+  const seatSlots=total-2;
 
-  if(n === 0) {
-    main.innerHTML = `
-      <div class="row row-top"></div>
-      <div class="table-desk"><span>Reading Table</span></div>
-      <div class="row row-bot"></div>
-      <div class="empty"><div class="empty-icon">🕯️</div><div class="empty-txt">아직 아무도 없어요.<br>오늘의 첫 번째 독자가 되어보세요.</div></div>`;
-    return;
+  // 처음 렌더 시 격자 래퍼 생성
+  if(!document.getElementById('lib-grid')){
+    main.innerHTML=`
+      <div class="tbl-wrap">
+        <div class="tbl-label">READING TABLE</div>
+        <div class="tbl-grid" id="lib-grid"></div>
+      </div>`;
   }
 
-  const half = Math.ceil(n / 2);
-  const top = members.slice(0, half), bot = members.slice(half);
-  main.innerHTML = `
-    <div class="row row-top">${top.map(m=>makeSeat(m,avSize)).join('')}</div>
-    <div class="table-desk"><span>Reading Table</span></div>
-    <div class="row row-bot">${bot.map(m=>makeSeat(m,avSize)).join('')}</div>`;
+  const grid=document.getElementById('lib-grid');
+  if(!grid) return;
+
+  let html='';
+  for(let i=0;i<total;i++){
+    if(i<members.length)        html+=makeSeatCell(members[i]);
+    else if(i<seatSlots)        html+='<div class="tbl-empty"></div>';
+    else                        html+='<div class="tbl-surface"></div>';
+  }
+  grid.innerHTML=html;
 }
 
 /* ── 나가기 ── */
-async function leaveLibrary() {
+async function leaveLibrary(){
   saveTime();
   clearInterval(clockTick);
   clearInterval(renderTick);
-  if(channel) {
-    try { await channel.untrack(); } catch(e){}
-    try { await channel.unsubscribe(); } catch(e){}
-    channel = null;
+  if(channel){
+    try{await channel.untrack();}catch(e){}
+    try{await channel.unsubscribe();}catch(e){}
+    channel=null;
   }
-  const isInlineMode = localStorage.getItem('bl_lib_from_app') && !(window.opener && window.opener !== window);
+  const isInlineMode=localStorage.getItem('bl_lib_from_app')&&!(window.opener&&window.opener!==window);
   localStorage.removeItem('bl_lib_from_app');
-  if(isInlineMode) {
-    location.href = 'index.html';
+  if(isInlineMode){
+    location.href='index.html';
   } else {
-    try { window.close(); } catch(e){}
+    try{window.close();}catch(e){}
     setTimeout(()=>{
-      const m = document.getElementById('lib-main');
+      const m=document.getElementById('lib-main');
       if(m) m.innerHTML='<div class="empty"><div class="empty-icon">👋</div><div class="empty-txt">독서 시간이 저장됐어요.<br>이 창을 닫아주세요.</div></div>';
-    }, 300);
+    },300);
   }
 }
 
 /* ── 시간 저장 ── */
-function saveTime() {
-  if(!joinedAt || !params.bookId) return;
-  const mins = Math.round((Date.now()-joinedAt)/60000);
-  if(mins < 1) return;
-  localStorage.setItem('bl_lib_session_done', JSON.stringify({
-    bookId: params.bookId,
-    minutes: mins,
-    date: new Date().toISOString().slice(0,10)
+function saveTime(){
+  if(!joinedAt||!params.bookId) return;
+  const mins=Math.round((Date.now()-joinedAt)/60000);
+  if(mins<1) return;
+  localStorage.setItem('bl_lib_session_done',JSON.stringify({
+    bookId:params.bookId,
+    minutes:mins,
+    date:new Date().toISOString().slice(0,10)
   }));
 }
 
 /* ── 초기화 ── */
-async function init() {
+async function init(){
   startClock();
-  const isInline = localStorage.getItem('bl_lib_from_app') && !(window.opener && window.opener !== window);
-  if(isInline) {
-    const btn = document.getElementById('btn-leave');
-    if(btn) btn.textContent = '← 앱으로';
+  const isInline=localStorage.getItem('bl_lib_from_app')&&!(window.opener&&window.opener!==window);
+  if(isInline){
+    const btn=document.getElementById('btn-leave');
+    if(btn) btn.textContent='← 앱으로';
   }
-  try {
-    const raw = localStorage.getItem('bl_lib_params');
-    if(raw) { params = JSON.parse(raw); localStorage.removeItem('bl_lib_params'); }
-  } catch(e) { params={}; }
+  try{
+    const raw=localStorage.getItem('bl_lib_params');
+    if(raw){params=JSON.parse(raw);localStorage.removeItem('bl_lib_params');}
+  }catch(e){params={};}
 
-  let session = null;
-  try {
-    const { data } = await Promise.race([
+  let session=null;
+  try{
+    const{data}=await Promise.race([
       sb.auth.getSession(),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),5000))
     ]);
-    session = data?.session;
-  } catch(e){}
+    session=data?.session;
+  }catch(e){}
 
-  if(!session?.user) {
-    document.getElementById('lib-main').innerHTML = `<div class="empty"><div class="empty-icon">🔒</div><div class="empty-txt">로그인이 필요해요.<br>북로그에서 로그인 후 다시 시도해주세요.</div></div>`;
+  if(!session?.user){
+    document.getElementById('lib-main').innerHTML=`<div class="empty"><div class="empty-icon">🔒</div><div class="empty-txt">로그인이 필요해요.<br>북로그에서 로그인 후 다시 시도해주세요.</div></div>`;
     return;
   }
 
-  joinedAt = Date.now();
-  const userId = session.user.id;
-  channel = sb.channel('bl_library', { config:{ presence:{ key:userId } } });
+  joinedAt=Date.now();
+  myUserId=session.user.id;
+  channel=sb.channel('bl_library',{config:{presence:{key:myUserId}}});
+
+  const payload=params.isGhost
+    ?{is_ghost:true,is_observer:false,
+      book_title:params.bookTitle||null,book_cover:params.bookCover||null,
+      user_id:myUserId,joined_at:joinedAt}
+    :{is_ghost:false,is_observer:false,
+      display_name:params.displayName||'독자',
+      avatar_url:params.avatarUrl||null,
+      book_title:params.bookTitle||null,book_cover:params.bookCover||null,
+      user_id:myUserId,joined_at:joinedAt};
 
   channel
-    .on('presence', { event:'sync' }, render)
-    .on('presence', { event:'join' }, render)
-    .on('presence', { event:'leave' }, render)
-    .subscribe(async status => {
-      if(status === 'SUBSCRIBED') {
-        const payload = params.isGhost
-          ? { is_ghost:true, is_observer:false,
-              book_title:params.bookTitle||null,
-              joined_at:joinedAt }
-          : { is_ghost:false, is_observer:false,
-              display_name:params.displayName||'독자',
-              avatar_url:params.avatarUrl||null,
-              book_title:params.bookTitle||null,
-              joined_at:joinedAt };
-        try { await channel.track(payload); } catch(e){}
+    .on('presence',{event:'sync'},render)
+    .on('presence',{event:'join'},render)
+    .on('presence',{event:'leave'},render)
+    .subscribe(async status=>{
+      if(status==='SUBSCRIBED'){
+        try{await channel.track(payload);}catch(e){}
         document.querySelector('.loading')?.remove();
-        // 즉시 + 지연 렌더 (presence sync 타이밍 보장)
         render();
-        setTimeout(render, 600);
-        setTimeout(render, 2000);
-        // 잔류 시간 표시 갱신용 주기적 렌더
-        renderTick = setInterval(render, 60000);
-      } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT') {
-        document.getElementById('lib-main').innerHTML = `<div class="empty"><div class="empty-icon">📡</div><div class="empty-txt">연결에 실패했어요.<br>잠시 후 다시 시도해주세요.</div></div>`;
+        setTimeout(render,600);
+        setTimeout(render,2200);
+        // 잔류 시간 갱신
+        renderTick=setInterval(render,60000);
+      } else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        document.getElementById('lib-main').innerHTML=`<div class="empty"><div class="empty-icon">📡</div><div class="empty-txt">연결에 실패했어요.<br>잠시 후 다시 시도해주세요.</div></div>`;
       }
     });
 }
 
-window.addEventListener('beforeunload', ()=>{ saveTime(); });
-document.addEventListener('DOMContentLoaded', init);
+window.addEventListener('beforeunload',()=>{saveTime();});
+document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
 </html>

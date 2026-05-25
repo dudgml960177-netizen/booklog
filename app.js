@@ -7668,6 +7668,7 @@ async function joinLibraryRoom() {
     avatarUrl: profile?.avatar_url || null,
     bookId: selectedBook?.id || null,
     bookTitle: selectedBook?.title || null,
+    bookCover: selectedBook?.cover || null,
   }));
 
   const w=640, h=520, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
