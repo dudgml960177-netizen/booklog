@@ -13,8 +13,8 @@
       --bg:#ede4d2;
       --paper:#fdf8f2;
       --paper2:#f7f0e3;
-      --tbl:#5e3516;
-      --tbl2:#7a4a28;
+      --tbl:#b4956c;
+      --tbl2:#c8ae88;
       --border:#ddd0b4;
       --border2:#c8b89a;
       --tx1:#2a1c0c;
@@ -91,15 +91,15 @@
     .tbl-grid{
       display:grid;
       grid-template-columns:repeat(4,1fr);
-      gap:2px;
+      gap:1px;
       background:var(--tbl);
-      border:2.5px solid var(--tbl);
+      border:1px solid var(--tbl);
       border-radius:16px;
       overflow:hidden;
       box-shadow:
-        0 14px 48px rgba(30,15,0,.24),
-        0 4px 16px rgba(30,15,0,.12),
-        inset 0 1px 0 rgba(255,220,140,.22);
+        0 10px 36px rgba(30,15,0,.18),
+        0 3px 10px rgba(30,15,0,.09),
+        inset 0 1px 0 rgba(255,240,200,.18);
     }
 
     /* 일반 좌석 */
@@ -121,13 +121,13 @@
       min-height:126px;
     }
 
-    /* 테이블 표면 (walnut) */
+    /* 테이블 표면 */
     .tbl-surface{
       background:var(--tbl);
       background-image:repeating-linear-gradient(
         -50deg,
         transparent,transparent 10px,
-        rgba(255,210,130,.035) 10px,rgba(255,210,130,.035) 11px
+        rgba(255,240,180,.06) 10px,rgba(255,240,180,.06) 11px
       );
       min-height:126px;
     }
@@ -286,7 +286,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth:{ persistSession:true, storageKey:'booklog-auth', storage:window.localStorage, autoRefreshToken:true }
 });
 
-let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myUserId=null;
+let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myUserId=null, localSelf=null;
 
 /* ── 시계 ── */
 function startClock() {
@@ -378,14 +378,21 @@ function makeSeatCell(m){
 
 /* ── 현재 멤버 목록 ── */
 function getMembers(){
-  try{
-    return Object.values(channel?.presenceState()||{}).flat().filter(m=>!m.is_observer);
-  }catch(e){ console.error('[lib] presenceState error',e); return []; }
+  let list=[];
+  if(channel){
+    try{
+      list=Object.values(channel.presenceState()||{}).flat().filter(m=>!m.is_observer);
+    }catch(e){ console.error('[lib] presenceState error',e); }
+  }
+  /* presenceState에 본인이 없으면 localSelf로 보완 → 프로필 즉시 표시 보장 */
+  if(localSelf && !list.some(m=>m.user_id===myUserId)){
+    list=[localSelf,...list];
+  }
+  return list;
 }
 
 /* ── 격자 렌더 ── */
 function render(){
-  if(!channel) return;
   const members=getMembers();
   console.log('[lib] render members:',members.length, members.map(m=>m.display_name||'ghost'));
 
@@ -512,6 +519,9 @@ async function init(){
       book_title:params.bookTitle||null,book_cover:params.bookCover||null,
       user_id:myUserId,joined_at:joinedAt};
 
+  /* presenceState가 늦게 동기화되더라도 본인 프로필은 즉시 표시 */
+  localSelf=payload;
+
   console.log('[lib] payload:', JSON.stringify(payload));
 
   /* ── track 재시도 ── */
@@ -527,18 +537,22 @@ async function init(){
     return false;
   }
 
+  /* loading 제거 후 그리드 생성, localSelf로 즉시 렌더 */
+  document.querySelector('.loading')?.remove();
+  initGrid();
+  render();
+
   channel=sb.channel('bl_library',{config:{presence:{key:myUserId}}});
 
   channel
-    .on('presence',{event:'sync'},()=>{ console.log('[lib] sync'); render(); })
-    .on('presence',{event:'join'},()=>{ console.log('[lib] join'); render(); })
-    .on('presence',{event:'leave'},()=>{ console.log('[lib] leave'); render(); })
+    .on('presence',{event:'sync'},()=>{ console.log('[lib] sync',Object.keys(channel.presenceState())); render(); })
+    .on('presence',{event:'join'},()=>{ console.log('[lib] join',Object.keys(channel.presenceState())); render(); })
+    .on('presence',{event:'leave'},()=>{ console.log('[lib] leave',Object.keys(channel.presenceState())); render(); })
     .subscribe(async status=>{
       console.log('[lib] channel status:',status);
 
       if(status==='SUBSCRIBED'){
-        initGrid();
-        render(); // 초기 렌더 (0명 or 이미 있는 사람들)
+        render(); // presenceState에 이미 있는 사람들 반영
 
         const ok=await doTrack();
         if(!ok){
