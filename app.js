@@ -4810,6 +4810,9 @@ async function searchBook() {
     const naverItems    = naverResp.status==='fulfilled'    ? (naverResp.value?.items||[])          : [];
     const aladinItems   = aladinResp.status==='fulfilled'   ? _aladinToItems(aladinResp.value, false)  : [];
     const aladinEbItems = aladinEbResp.status==='fulfilled' ? _aladinToItems(aladinEbResp.value, true) : [];
+    const naverItems  = naverResp.status==='fulfilled'  ? (naverResp.value?.items||[])   : [];
+    const aladinItems = aladinResp.status==='fulfilled'  ? _aladinToItems(aladinResp.value)  : [];
+    const aladinEbItems = aladinEbResp.status==='fulfilled' ? _aladinToItems(aladinEbResp.value) : [];
     const allAladinItems = _mergeSearchResults(aladinItems, aladinEbItems);
 
     const merged = _mergeSearchResults(naverItems, allAladinItems);
@@ -4825,6 +4828,9 @@ async function searchBook() {
       const ni2  = n2.status==='fulfilled'  ? (n2.value?.items||[])             : [];
       const ai2  = a2.status==='fulfilled'  ? _aladinToItems(a2.value, false)    : [];
       const ae2i = ae2.status==='fulfilled' ? _aladinToItems(ae2.value, true)    : [];
+      const ni2 = n2.status==='fulfilled'?(n2.value?.items||[]):[];
+      const ai2 = a2.status==='fulfilled'?_aladinToItems(a2.value):[];
+      const ae2i = ae2.status==='fulfilled'?_aladinToItems(ae2.value):[];
       const merged2 = _mergeSearchResults(ni2, _mergeSearchResults(ai2, ae2i));
       if(merged2.length) { _renderSearchItems(res, merged2); return; }
     }
@@ -4841,6 +4847,9 @@ async function searchBook() {
       const ni3  = n3.status==='fulfilled'  ? (n3.value?.items||[])             : [];
       const ai3  = a3.status==='fulfilled'  ? _aladinToItems(a3.value, false)    : [];
       const ae3i = ae3.status==='fulfilled' ? _aladinToItems(ae3.value, true)    : [];
+      const ni3 = n3.status==='fulfilled'?(n3.value?.items||[]):[];
+      const ai3 = a3.status==='fulfilled'?_aladinToItems(a3.value):[];
+      const ae3i = ae3.status==='fulfilled'?_aladinToItems(ae3.value):[];
       const merged3 = _mergeSearchResults(ni3, _mergeSearchResults(ai3, ae3i));
       if(merged3.length) { _renderSearchItems(res, merged3); return; }
     }
