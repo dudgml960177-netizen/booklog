@@ -7841,3 +7841,250 @@ function joinLibraryObserver() {
       }
     });
 }
+// 전역 상태
+let _libChannel       = null;   // Supabase presence 채널
+let _libJoinedAt      = null;   // 입장 타임스탬프
+let _libTimerInterval = null;   // setInterval 핸들
+let _libIsGhost       = false;  // 유령 모드 여부
+let _libMyProfile     = null;   // 캐시된 프로필 데이터
+
+// ── 입장 팝업 열기
+function openLibraryEntry() {
+  // 토글 상태 초기화
+  const toggle = document.getElementById('library-ghost-toggle');
+  const track  = toggle ? toggle.nextElementSibling : null;
+  if(toggle) toggle.checked = false;
+  if(track)  track.classList.remove('on');
+  openModal('modal-library-entry');
+}
+
+// ── "입장" 버튼 클릭
+async function joinLibraryRoom() {
+  if(!currentUser) { showAlert('로그인이 필요해요.'); return; }
+
+  // 1. 유령 모드 여부
+  const ghostToggle = document.getElementById('library-ghost-toggle');
+  _libIsGhost = ghostToggle ? ghostToggle.checked : false;
+
+  // 2. 현재 읽고 있는 책 (status === '읽는중' 첫 번째)
+  const readingBook = (allBooks || []).find(b => b.status === '읽는중') || null;
+
+  // 3. 프로필 조회
+  try {
+    const { data: prof } = await sb
+      .from('profiles')
+      .select('display_name,username,avatar_url')
+      .eq('id', currentUser.id)
+      .single();
+    _libMyProfile = prof || null;
+  } catch(e) {
+    _libMyProfile = null;
+  }
+
+  // 4. 기존 옵저버 채널 해제 후 멤버 채널로 교체
+  if(_libChannel) {
+    try { await _libChannel.unsubscribe(); } catch(e) {}
+    _libChannel = null;
+  }
+
+  // 5. 모달 전환
+  closeModal('modal-library-entry');
+  const roomEl = document.getElementById('modal-library-room');
+  if(roomEl) roomEl.style.display = 'flex';
+
+  // 6. 입장 시각 기록 + 타이머 시작
+  _libJoinedAt = Date.now();
+  _libTimerTick(); // 즉시 1회 렌더
+  _libTimerInterval = setInterval(_libTimerTick, 1000);
+
+  // 7. Presence 채널 구독 및 트래킹
+  const presenceKey = currentUser.id;
+  _libChannel = sb.channel('bl_library', {
+    config: { presence: { key: presenceKey } }
+  });
+
+  _libChannel
+    .on('presence', { event: 'sync' }, () => {
+      _renderLibraryRoom();
+    })
+    .subscribe(async status => {
+      if(status === 'SUBSCRIBED') {
+        const payload = _libIsGhost
+          ? { is_ghost: true, is_observer: false }
+          : {
+              is_ghost: false,
+              is_observer: false,
+              display_name: _libMyProfile?.display_name || _libMyProfile?.username || '독자',
+              avatar_url: _libMyProfile?.avatar_url || null,
+              current_book: readingBook
+                ? { title: readingBook.title, cover: readingBook.cover || null }
+                : null
+            };
+        await _libChannel.track(payload);
+      }
+    });
+}
+
+// ── 도서관 나가기
+async function leaveLibraryRoom() {
+  // 타이머 정리
+  if(_libTimerInterval) {
+    clearInterval(_libTimerInterval);
+    _libTimerInterval = null;
+  }
+  _libJoinedAt  = null;
+  _libIsGhost   = false;
+  _libMyProfile = null;
+
+  // presence untrack + unsubscribe
+  if(_libChannel) {
+    try { await _libChannel.untrack(); } catch(e) {}
+    try { await _libChannel.unsubscribe(); } catch(e) {}
+    _libChannel = null;
+  }
+
+  // 방 닫기
+  const roomEl = document.getElementById('modal-library-room');
+  if(roomEl) roomEl.style.display = 'none';
+
+  // 옵저버 재구독 (입장 카운트 유지)
+  joinLibraryObserver();
+}
+
+// ── 타이머 틱 (매초 호출)
+function _libTimerTick() {
+  // 현재 시각 HH:MM:SS
+  const now  = new Date();
+  const hh   = String(now.getHours()).padStart(2,'0');
+  const mm   = String(now.getMinutes()).padStart(2,'0');
+  const ss   = String(now.getSeconds()).padStart(2,'0');
+  const clockEl = document.getElementById('library-clock-display');
+  if(clockEl) clockEl.textContent = `${hh}:${mm}:${ss}`;
+
+  // 체류 시간
+  const timerEl = document.getElementById('library-timer-display');
+  if(timerEl && _libJoinedAt) {
+    const elapsed = Math.floor((Date.now() - _libJoinedAt) / 1000);
+    const eh = Math.floor(elapsed / 3600);
+    const em = Math.floor((elapsed % 3600) / 60);
+    const es = elapsed % 60;
+    if(eh > 0) {
+      timerEl.textContent = `${eh}h ${em}m ${es}s`;
+    } else if(em > 0) {
+      timerEl.textContent = `${em}m ${es}s`;
+    } else {
+      timerEl.textContent = `${es}s`;
+    }
+  }
+}
+
+// ── 좌석 렌더링
+function _renderLibraryRoom() {
+  if(!_libChannel) return;
+
+  const state   = _libChannel.presenceState();
+  // is_observer 플래그 있는 항목 제외 → 실제 입장 멤버만
+  const members = Object.values(state)
+    .flat()
+    .filter(m => !m.is_observer);
+
+  // 멤버 수 배지 업데이트
+  const countEl = document.getElementById('library-member-count');
+  const entryEl = document.getElementById('library-entry-count');
+  const count   = members.length;
+
+  if(countEl) countEl.textContent = `${count}명`;
+  if(entryEl) {
+    entryEl.textContent = count > 0
+      ? `지금 ${count}명이 조용히 읽고 있어요`
+      : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+  }
+
+  // 빈 메시지
+  const emptyEl = document.getElementById('library-empty-msg');
+  if(emptyEl) emptyEl.style.display = count === 0 ? 'block' : 'none';
+
+  // 상/하단 분할
+  const half   = Math.ceil(members.length / 2);
+  const topRow = members.slice(0, half);
+  const botRow = members.slice(half);
+
+  const topEl = document.getElementById('library-seats-top');
+  const botEl = document.getElementById('library-seats-bot');
+  if(!topEl || !botEl) return;
+
+  topEl.innerHTML = topRow.map(_makeSeatHtml).join('');
+  botEl.innerHTML = botRow.map(_makeSeatHtml).join('');
+}
+
+// ── 좌석 카드 HTML 생성
+function _makeSeatHtml(member) {
+  if(member.is_ghost) {
+    return `
+      <div class="lib-ghost-seat">
+        <div class="lib-ghost-emoji">👻</div>
+        <div class="lib-ghost-tip">유령이 당신과 책을 읽고 있어요!</div>
+      </div>`;
+  }
+
+  const name      = member.display_name || '독자';
+  const avatarUrl = member.avatar_url   || null;
+  const book      = member.current_book || null;
+
+  // makeAvatarHtml 은 <div> 문자열 반환
+  const avatarHtml = makeAvatarHtml(name, avatarUrl, 44);
+
+  // 책 말풍선 (15자 제한, hover 시 전체 제목)
+  let bubbleHtml = '';
+  if(book && book.title) {
+    const shortTitle = book.title.length > 15 ? book.title.slice(0, 15) + '…' : book.title;
+    const safeTitle  = book.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    bubbleHtml = `
+      <div class="lib-bubble">
+        📖 ${shortTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+        <div class="lib-book-tip">${safeTitle}</div>
+      </div>`;
+  }
+
+  const safeName = name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `
+    <div class="lib-seat">
+      ${avatarHtml}
+      <div class="lib-name">${safeName}</div>
+      ${bubbleHtml}
+    </div>`;
+}
+
+// ── 앱 시작 시 옵저버 구독 (카운트 표시 전용, 멤버 목록에 미포함)
+function joinLibraryObserver() {
+  if(!currentUser) return;
+  if(_libChannel) return; // 이미 구독 중이면 skip
+
+  // 옵저버는 userId_obs 키 사용 → 다른 클라이언트가 필터링 가능
+  const obsKey = currentUser.id + '_obs';
+  _libChannel = sb.channel('bl_library', {
+    config: { presence: { key: obsKey } }
+  });
+
+  _libChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = _libChannel.presenceState();
+      const count = Object.values(state)
+        .flat()
+        .filter(m => !m.is_observer)
+        .length;
+
+      const el = document.getElementById('library-entry-count');
+      if(el) {
+        el.textContent = count > 0
+          ? `지금 ${count}명이 조용히 읽고 있어요`
+          : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+      }
+    })
+    .subscribe(async status => {
+      if(status === 'SUBSCRIBED') {
+        // 옵저버 자신도 is_observer: true 로 트래킹 → 실제 멤버 카운트에서 제외됨
+        await _libChannel.track({ is_observer: true });
+      }
+    });
+}
