@@ -291,18 +291,28 @@ function startClock() {
   clockTick=setInterval(tick,1000);
 }
 
-/* ── 아바타 ── */
+/* ── 아바타 (wrapper div + overlay img → onerror에 HTML 불필요) ── */
 function makeAv(name,url,size) {
   const init=(name||'독').slice(0,1).toUpperCase();
   const cols=['#b07030','#6b8f6b','#5a7a8a','#8b6b8b','#c4714a'];
   const bg=cols[(name||'').charCodeAt(0)%cols.length];
-  const fb=`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};border:1.5px solid #ddd0b8;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;flex-shrink:0;">${init}</div>`;
-  if(url) return `<img src="${url.replace(/'/g,'%27')}" style="width:${size}px;height:${size}px;border-radius:50%;border:1.5px solid #ddd0b8;object-fit:cover;flex-shrink:0;" onerror="this.outerHTML='${fb.replace(/'/g,'&#39;')}'">`;
-  return fb;
+  const ws=`width:${size}px;height:${size}px;border-radius:50%;border:1.5px solid #ddd0b8;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;font-weight:600;color:#fff;flex-shrink:0;position:relative;overflow:hidden;`;
+  if(url) return `<div style="${ws}">${init}<img src="${url.replace(/"/g,'%22')}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"></div>`;
+  return `<div style="${ws}">${init}</div>`;
 }
 
 /* ── HTML 이스케이프 ── */
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ── 책 말풍선 내용 (표지 우선, 없으면 텍스트) ── */
+function bookBubbleInner(title, cover) {
+  if(!title && !cover) return '';
+  if(cover) {
+    return `<img src="${cover.replace(/"/g,'%22')}" style="width:20px;height:28px;object-fit:cover;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.15);flex-shrink:0;" onerror="this.style.display='none'"><span style="font-size:.5rem;color:var(--tx3);max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(title&&title.length>8?title.slice(0,8)+'…':title||'')}</span>`;
+  }
+  const sh=title.length>10?title.slice(0,10)+'…':title;
+  return `<span>📖 ${esc(sh)}</span>`;
+}
 
 /* ── 좌석 카드 ── */
 function makeSeat(m) {
@@ -310,16 +320,20 @@ function makeSeat(m) {
 
   if(m.is_ghost) {
     const tip=m._isMe?'<div class="ghost-tip">나 (유령 모드)</div>':'<div class="ghost-tip">유령이 함께 읽고 있어요!</div>';
-    const book=m.book_title?`<div class="thought" title="${esc(m.book_title)}">📖 ${esc(m.book_title.length>10?m.book_title.slice(0,10)+'…':m.book_title)}</div>`:'';
+    let book='';
+    if(m.book_title||m.book_cover) {
+      const inner=bookBubbleInner(m.book_title,m.book_cover);
+      book=`<div class="thought" title="${esc(m.book_title||'')}" style="display:flex;align-items:center;gap:.18rem;justify-content:center;">${inner}</div>`;
+    }
     return `<div class="ghost">${tip}<div class="ghost-emoji">👻</div>${book}</div>`;
   }
 
   const name=m.display_name||'독자';
   const av=makeAv(name,m.avatar_url,38);
   let speech='';
-  if(m.book_title){
-    const sh=m.book_title.length>10?m.book_title.slice(0,10)+'…':m.book_title;
-    speech=`<div class="speech">📖 ${esc(sh)}<div class="speech-tip">${esc(m.book_title)}</div></div>`;
+  if(m.book_title||m.book_cover) {
+    const inner=bookBubbleInner(m.book_title,m.book_cover);
+    speech=`<div class="speech" style="display:flex;align-items:center;gap:.18rem;justify-content:center;">${inner}<div class="speech-tip">${esc(m.book_title||'')}</div></div>`;
   }
   const meBadge=m._isMe?'<span class="me-badge">나</span>':'';
   const meCls=m._isMe?' is-me':'';
@@ -421,11 +435,12 @@ async function init() {
 
   // 내 presence 정보 로컬 저장 (서버 응답 전 폴백 렌더용)
   selfPresence=params.isGhost
-    ?{is_ghost:true, is_observer:false, book_title:params.bookTitle||null}
+    ?{is_ghost:true, is_observer:false, book_title:params.bookTitle||null, book_cover:params.bookCover||null}
     :{is_ghost:false, is_observer:false,
       display_name:params.displayName||'독자',
       avatar_url:params.avatarUrl||null,
-      book_title:params.bookTitle||null};
+      book_title:params.bookTitle||null,
+      book_cover:params.bookCover||null};
 
   channel=sb.channel('bl_library',{config:{presence:{key:myUserId}}});
 
