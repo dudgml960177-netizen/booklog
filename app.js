@@ -7671,7 +7671,10 @@ async function joinLibraryRoom() {
   }));
 
   const w=640, h=520, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
-  window.open('library.html','bl_library',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+  const popup = window.open('library.html','bl_library',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+  if(!popup || popup.closed || typeof popup.closed === 'undefined') {
+    showAlert('팝업이 차단되었어요.\n브라우저 주소창 오른쪽의 팝업 차단 아이콘을 눌러 허용해 주세요.');
+  }
 }
 
 // ── 도서관 체류 시간 통계 저장 (library.html이 localStorage에 기록 → 여기서 DB 저장)
