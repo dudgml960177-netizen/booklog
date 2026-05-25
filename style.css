@@ -84,7 +84,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .gallery{display:grid;grid-template-columns:repeat(5,1fr);gap:.35rem;}
 @media(min-width:700px){.gallery{grid-template-columns:repeat(6,1fr);gap:.65rem;}}
 @media(min-width:900px){.gallery{grid-template-columns:repeat(7,1fr);gap:.75rem;}}
-.gi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.4rem .35rem;cursor:pointer;transition:transform .14s,box-shadow .14s;min-width:0;}
+.gi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.4rem .35rem;cursor:pointer;transition:transform .14s,box-shadow .14s;min-width:0;position:relative;overflow:visible;}
 .gi:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(70,40,10,.12);}
 .gi-cover{width:100%;aspect-ratio:2/3;border-radius:3px;margin-bottom:.3rem;overflow:hidden;background:linear-gradient(150deg,#a07040,#5c3010);}
 .gi-cover img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -93,6 +93,16 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .gi-stars{font-size:.55rem;color:var(--acc);margin-top:.06rem;}
 .gi-status{font-size:.5rem;background:#ede4d0;border:1px solid var(--border2);color:var(--tx2);border-radius:2px;padding:1px 3px;display:inline-block;margin-top:.08rem;}
 @media(min-width:700px){.gi{padding:.55rem;}}
+/* 생각 말풍선 */
+.gi-thought{display:none;position:absolute;bottom:calc(100% + 20px);left:50%;transform:translateX(-50%);background:var(--card);border:1.5px solid var(--border2);border-radius:14px;padding:.45rem .52rem;flex-direction:row;align-items:center;gap:.45rem;z-index:150;pointer-events:none;box-shadow:0 3px 16px rgba(60,30,0,.14);white-space:nowrap;}
+.gi:hover .gi-thought{display:flex;}
+.gi-thought::before{content:'';position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);width:9px;height:9px;background:var(--card);border:1.5px solid var(--border2);border-radius:50%;}
+.gi-thought::after{content:'';position:absolute;bottom:-19px;left:calc(50% + 4px);transform:translateX(-50%);width:6px;height:6px;background:var(--card);border:1.5px solid var(--border2);border-radius:50%;}
+.gi-thought-cover{width:36px;height:50px;object-fit:cover;border-radius:3px;flex-shrink:0;background:linear-gradient(150deg,#a07040,#5c3010);}
+.gi-thought-info{display:flex;flex-direction:column;gap:.18rem;}
+.gi-thought-ttl{font-size:.6rem;font-weight:600;color:var(--tx1);max-width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gi-thought-time{font-size:.57rem;color:var(--acc);font-weight:600;}
+.gi-thought-status{font-size:.54rem;color:var(--tx3);}
 /* 리스트 뷰 */
 .book-list{display:flex;flex-direction:column;gap:.45rem;}
 .book-list-item{display:flex;gap:.8rem;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:.65rem .8rem;cursor:pointer;transition:background .13s;}

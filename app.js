@@ -126,7 +126,7 @@ function showConfirm(msg) {
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
-let curFilter = '전체', curCatFilter = null, curView = 'gallery', curSort = 'recent';
+let curFilter = '전체', curCatFilter = new Set(), curView = 'gallery', curSort = 'recent';
 let curTagQ = '전체', curBookId = null, editingBookId = null, selectedBook = null;
 let curRating = 0, curStatus = '완독';
 let calY = new Date().getFullYear(), calM = new Date().getMonth();
@@ -625,7 +625,7 @@ function filterBooksSearch(q) {
   buildBooks();
 }
 function filterStatus(status, btn) {
-  curFilter = status; curCatFilter = null;
+  curFilter = status; curCatFilter = new Set();
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
   buildBooks();
 }
@@ -641,7 +641,7 @@ function getFilteredBooks() {
   let list = [...allBooks];
   if (curFilter === '다시읽기') list = list.filter(b=>b.reread);
   else if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
-  if (curCatFilter) list = list.filter(b=>(b.category||'')=== curCatFilter);
+  if (curCatFilter.size) list = list.filter(b=>curCatFilter.has(b.category||''));
   // 검색 필터
   if (booksSearchQ) {
     list = list.filter(b =>
@@ -766,7 +766,15 @@ function buildGallery(list) {
          </div>`;
     const ratingVal = parseFloat(b.rating)||0;
     const ratingDisp = ratingVal>0 ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-top:.15rem;"><span style="width:6px;height:6px;border-radius:50%;background:${stColor};display:inline-block;"></span><span style="font-family:var(--ff-disp);font-size:.68rem;font-style:italic;color:var(--rust);">★ ${ratingVal}</span></span>` : '';
-    el.innerHTML = `<div class="gi-cover">${coverHtml}</div>
+    const totalMins = b.reading_time || 0;
+    let timeStr;
+    if(totalMins===0) timeStr='독서 기록 없음';
+    else if(totalMins<60) timeStr=`${totalMins}분 독서`;
+    else { const h=Math.floor(totalMins/60),m=totalMins%60; timeStr=m>0?`${h}시간 ${m}분 독서`:`${h}시간 독서`; }
+    const thoughtCover = b.cover ? `<img src="${b.cover}" class="gi-thought-cover" alt="">` : `<div class="gi-thought-cover"></div>`;
+    const statusLabel = {'완독':'✅ 완독','읽는중':'📖 읽는 중','읽고싶음':'🔖 읽고싶음','중단':'⏸ 중단'}[b.status]||b.status||'';
+    el.innerHTML = `<div class="gi-thought">${thoughtCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${ttl}</div><div class="gi-thought-time">⏱ ${timeStr}</div><div class="gi-thought-status">${statusLabel}</div></div></div>
+      <div class="gi-cover">${coverHtml}</div>
       <div class="gi-title" title="${ttl}">${ttl}</div>
       <div class="gi-author">${auth}</div>
       ${ratingDisp}`;
@@ -4705,12 +4713,17 @@ function buildCatList() {
 }
 function buildCatFilterList() {
   const wrap=document.getElementById('cat-filter-list');wrap.innerHTML='';
-  const allBtn=document.createElement('button');allBtn.className='cat-filter-btn'+(curCatFilter===null?' on':'');
-  allBtn.textContent='전체 보기';allBtn.onclick=()=>{curCatFilter=null;document.querySelectorAll('.cat-filter-btn').forEach(b=>b.classList.remove('on'));allBtn.classList.add('on');buildBooks();};
+  const allBtn=document.createElement('button');allBtn.className='cat-filter-btn'+(curCatFilter.size===0?' on':'');
+  allBtn.textContent='전체 보기';allBtn.onclick=()=>{curCatFilter=new Set();document.querySelectorAll('.cat-filter-btn').forEach(b=>b.classList.remove('on'));allBtn.classList.add('on');buildBooks();};
   wrap.appendChild(allBtn);
   allCategories.forEach(cat=>{
-    const btn=document.createElement('button');btn.className='cat-filter-btn'+(curCatFilter===cat?' on':'');
-    btn.textContent=`📁 ${cat}`;btn.onclick=()=>{curCatFilter=cat;document.querySelectorAll('.cat-filter-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');buildBooks();};
+    const btn=document.createElement('button');btn.className='cat-filter-btn'+(curCatFilter.has(cat)?' on':'');
+    btn.textContent=`📁 ${cat}`;btn.onclick=()=>{
+      if(curCatFilter.has(cat)) curCatFilter.delete(cat); else curCatFilter.add(cat);
+      allBtn.classList.toggle('on', curCatFilter.size===0);
+      btn.classList.toggle('on', curCatFilter.has(cat));
+      buildBooks();
+    };
     wrap.appendChild(btn);
   });
 }
@@ -6883,7 +6896,7 @@ async function surfLibrary() {
 }
 
 // 서재 구경 상태
-let _libBooks = [], _libFilter = '전체', _libCatFilter = null, _libUserId = null, _libUserName = '';
+let _libBooks = [], _libFilter = '전체', _libCatFilter = new Set(), _libUserId = null, _libUserName = '';
 let _libCalY = new Date().getFullYear(), _libCalM = new Date().getMonth();
 
 async function openLibrary(userId, userName) {
@@ -6921,7 +6934,7 @@ async function openLibrary(userId, userName) {
     (targetProfile.category_visibility === 'friends' && isFriend);
   _libBooks = books || [];
   _libFilter = '전체';
-  _libCatFilter = null;
+  _libCatFilter = new Set();
   _libUserId = userId;
   _libUserName = userName;
   _libCalY = new Date().getFullYear();
@@ -6959,8 +6972,8 @@ async function openLibrary(userId, userName) {
       <button class="filter-btn" id="lib-f-읽는중" onclick="libFilter('읽는중',this)">읽는중</button>
       <button class="filter-btn" id="lib-f-읽고싶음" onclick="libFilter('읽고싶음',this)">읽고싶음</button>
       ${cats.length ? `<span style="font-size:.6rem;color:var(--border2);margin:0 .1rem;">│</span>
-        <button class="filter-btn on" id="lib-cat-all" onclick="libCatFilter(null,this)">전체</button>
-        ${cats.map(c=>`<button class="filter-btn" id="lib-cat-${c.replace(/\s/g,'_')}" onclick="libCatFilter('${c}',this)">${c}</button>`).join('')}` : ''}
+        <button class="filter-btn${_libCatFilter.size===0?' on':''}" id="lib-cat-all" onclick="libCatFilter(null,this)">전체</button>
+        ${cats.map(c=>`<button class="filter-btn${_libCatFilter.has(c)?' on':''}" id="lib-cat-${c.replace(/\s/g,'_')}" onclick="libCatFilter('${c}',this)">${c}</button>`).join('')}` : ''}
     </div>`;
 
   body.innerHTML = `
@@ -6976,7 +6989,7 @@ async function openLibrary(userId, userName) {
 
 function libFilter(f, btn) {
   _libFilter = f;
-  _libCatFilter = null; // 상태 필터 바꾸면 카테고리 필터도 초기화
+  _libCatFilter = new Set(); // 상태 필터 바꾸면 카테고리 필터도 초기화
   document.querySelectorAll('[id^="lib-f-"]').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
@@ -6986,15 +6999,14 @@ function libFilter(f, btn) {
 }
 
 function libCatFilter(cat, btn) {
-  // 토글: 이미 선택된 카테고리면 해제
-  if(_libCatFilter === cat) {
-    _libCatFilter = null;
+  if(cat === null) {
+    _libCatFilter = new Set();
     document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
     document.getElementById('lib-cat-all')?.classList.add('on');
   } else {
-    _libCatFilter = cat;
-    document.querySelectorAll('[id^="lib-cat-"]').forEach(b=>b.classList.remove('on'));
-    btn.classList.add('on');
+    if(_libCatFilter.has(cat)) _libCatFilter.delete(cat); else _libCatFilter.add(cat);
+    document.getElementById('lib-cat-all')?.classList.toggle('on', _libCatFilter.size===0);
+    btn.classList.toggle('on', _libCatFilter.has(cat));
   }
   renderLibGallery();
 }
@@ -7004,7 +7016,7 @@ function renderLibGallery() {
   if(!g) return;
   let list = _libBooks;
   if(_libFilter !== '전체') list = list.filter(b=>b.status===_libFilter);
-  if(_libCatFilter) list = list.filter(b=>b.category===_libCatFilter);
+  if(_libCatFilter.size) list = list.filter(b=>_libCatFilter.has(b.category||''));
   g.innerHTML = '';
   if(!list.length) { g.innerHTML='<div class="empty-state">책이 없어요.</div>'; return; }
   list.forEach(b => {
@@ -7014,7 +7026,14 @@ function renderLibGallery() {
     const img = b.cover
       ? `<img src="${b.cover}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;display:block;">`
       : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:.42rem;color:rgba(255,255,255,.8);text-align:center;padding:.2rem;font-style:italic;line-height:1.3;">${b.title}</div>`;
-    el.innerHTML = `<div class="gi-cover">${img}</div>
+    const lMins = b.reading_time || 0;
+    let lTimeStr;
+    if(lMins===0) lTimeStr='독서 기록 없음';
+    else if(lMins<60) lTimeStr=`${lMins}분 독서`;
+    else { const h=Math.floor(lMins/60),m=lMins%60; lTimeStr=m>0?`${h}시간 ${m}분 독서`:`${h}시간 독서`; }
+    const lCover = b.cover ? `<img src="${b.cover}" class="gi-thought-cover" alt="">` : `<div class="gi-thought-cover"></div>`;
+    el.innerHTML = `<div class="gi-thought">${lCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${b.title}</div><div class="gi-thought-time">⏱ ${lTimeStr}</div></div></div>
+      <div class="gi-cover">${img}</div>
       <div class="gi-title">${b.title}</div>
       <div class="gi-author">${b.author||''}</div>
       <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'⯨':'☆').join('')}</div>
