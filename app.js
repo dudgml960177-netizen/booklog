@@ -7588,6 +7588,11 @@ function joinPresence() {
       }
     });
 }
+
+// ══════════════════════════════════════════════════════════════
+// 독서 도서관 — Supabase Realtime Presence 기반
+// ══════════════════════════════════════════════════════════════
+
 // 전역 상태
 let _libChannel       = null;   // Supabase presence 채널
 let _libJoinedAt      = null;   // 입장 타임스탬프
