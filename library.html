@@ -342,9 +342,9 @@ async function leaveLibrary() {
     try { await channel.unsubscribe(); } catch(e){}
     channel = null;
   }
-  const fromApp = localStorage.getItem('bl_lib_from_app');
+  const isInlineMode = localStorage.getItem('bl_lib_from_app') && !(window.opener && window.opener !== window);
   localStorage.removeItem('bl_lib_from_app');
-  if(fromApp) {
+  if(isInlineMode) {
     location.href = 'index.html';
   } else {
     try { window.close(); } catch(e){}
@@ -371,8 +371,9 @@ function saveTime() {
 /* ── 초기화 ── */
 async function init() {
   startClock();
-  // 같은 탭으로 열린 경우 나가기 버튼 텍스트 변경
-  if(localStorage.getItem('bl_lib_from_app')) {
+  // 같은 탭으로 열린 경우(팝업 차단/모바일) 나가기 버튼 텍스트 변경
+  const isInline = localStorage.getItem('bl_lib_from_app') && !(window.opener && window.opener !== window);
+  if(isInline) {
     const btn = document.getElementById('btn-leave');
     if(btn) btn.textContent = '← 앱으로';
   }
