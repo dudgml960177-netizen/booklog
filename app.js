@@ -7672,8 +7672,10 @@ async function joinLibraryRoom() {
 
   const w=640, h=520, left=Math.round((screen.width-w)/2), top=Math.round((screen.height-h)/2);
   const popup = window.open('library.html','bl_library',`width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+  // 팝업 차단이거나 모바일에서 같은 탭으로 열리면 직접 이동
   if(!popup || popup.closed || typeof popup.closed === 'undefined') {
-    showAlert('팝업이 차단되었어요.\n브라우저 주소창 오른쪽의 팝업 차단 아이콘을 눌러 허용해 주세요.');
+    localStorage.setItem('bl_lib_from_app', '1');
+    location.href = 'library.html';
   }
 }
 

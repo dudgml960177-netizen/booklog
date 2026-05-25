@@ -235,7 +235,7 @@
         <span class="hd-elapsed" id="lib-elapsed">0s</span>
       </div>
     </div>
-    <button class="btn-leave" onclick="leaveLibrary()">나가기</button>
+    <button class="btn-leave" id="btn-leave" onclick="leaveLibrary()">나가기</button>
   </div>
 </div>
 
@@ -342,12 +342,18 @@ async function leaveLibrary() {
     try { await channel.unsubscribe(); } catch(e){}
     channel = null;
   }
-  try { window.close(); } catch(e){}
-  // 창이 닫히지 않으면 안내 표시
-  setTimeout(()=>{
-    const m = document.getElementById('lib-main');
-    if(m) m.innerHTML='<div class="empty"><div class="empty-icon">👋</div><div class="empty-txt">독서 시간이 저장됐어요.<br>이 창을 닫아주세요.</div></div>';
-  }, 300);
+  const fromApp = localStorage.getItem('bl_lib_from_app');
+  localStorage.removeItem('bl_lib_from_app');
+  if(fromApp) {
+    location.href = 'index.html';
+  } else {
+    try { window.close(); } catch(e){}
+    // 창이 닫히지 않으면 안내 표시
+    setTimeout(()=>{
+      const m = document.getElementById('lib-main');
+      if(m) m.innerHTML='<div class="empty"><div class="empty-icon">👋</div><div class="empty-txt">독서 시간이 저장됐어요.<br>이 창을 닫아주세요.</div></div>';
+    }, 300);
+  }
 }
 
 /* ── 시간 저장 (localStorage → 메인 창이 수신) ── */
@@ -365,6 +371,11 @@ function saveTime() {
 /* ── 초기화 ── */
 async function init() {
   startClock();
+  // 같은 탭으로 열린 경우 나가기 버튼 텍스트 변경
+  if(localStorage.getItem('bl_lib_from_app')) {
+    const btn = document.getElementById('btn-leave');
+    if(btn) btn.textContent = '← 앱으로';
+  }
   try {
     const raw = localStorage.getItem('bl_lib_params');
     if(raw) { params = JSON.parse(raw); localStorage.removeItem('bl_lib_params'); }
