@@ -464,7 +464,7 @@ async function loadData() {
   // '소장 중' 폴더가 없으면 기본으로 추가 (기존 사용자 포함)
   if(!allCategories.includes('소장 중')) {
     allCategories = ['소장 중', ...allCategories];
-    sb.from('profiles').update({categories: allCategories}).eq('id', currentUser.id).catch(()=>{});
+    sb.from('profiles').update({categories: allCategories}).eq('id', currentUser.id).then(null, ()=>{});
     try { localStorage.setItem('bl_cats_'+currentUser.id, JSON.stringify(allCategories)); } catch(_) {}
   }
 }
