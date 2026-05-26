@@ -465,6 +465,8 @@ function getMembers(){
       list=Object.values(channel.presenceState()||{}).flat().filter(m=>!m.is_observer);
     }catch(e){ console.error('[lib] presenceState error',e); }
   }
+  /* presence 멤버에 broadcast 최신 상태 덮어쓰기 (is_resting 등 sync 지연 보완) */
+  list=list.map(m=>{ const bc=bcMembers[m.user_id]; return bc?{...m,...bc}:m; });
   /* Broadcast로 받은 멤버 중 presence에 없는 사람 추가 */
   const presIds=new Set(list.map(m=>m.user_id));
   Object.values(bcMembers).forEach(m=>{ if(!presIds.has(m.user_id)) list.push(m); });
