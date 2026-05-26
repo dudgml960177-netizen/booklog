@@ -57,7 +57,7 @@
     .hd-times{text-align:right;line-height:1.5;}
     .hd-clock{font-size:.68rem;font-weight:600;color:var(--tx2);font-variant-numeric:tabular-nums;letter-spacing:.04em;}
     .hd-elapsed{font-size:.56rem;color:var(--acc);font-weight:600;font-variant-numeric:tabular-nums;}
-    .btn-leave{
+    .btn-leave,.btn-rest{
       font-size:.66rem;padding:.26rem .64rem;
       background:none;color:var(--tx2);
       border:1px solid var(--border2);border-radius:4px;
@@ -65,6 +65,8 @@
       transition:background .15s,color .15s,border-color .15s;
     }
     .btn-leave:hover{background:var(--border);color:var(--tx1);border-color:var(--border2);}
+    .btn-rest:hover{background:var(--border);}
+    .btn-rest.on{background:#ede4d0;color:var(--acc2);border-color:var(--acc);}
 
     /* ── 메인 ── */
     .main{flex:1;padding:1.1rem .8rem 2.5rem;display:flex;flex-direction:column;align-items:center;}
@@ -148,6 +150,16 @@
       display:flex;align-items:center;justify-content:center;
       z-index:2;
       box-shadow:0 1px 5px rgba(196,112,40,.45);
+    }
+
+    /* 휴식 중 간판 */
+    .tbl-rest{
+      position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
+      background:#f5f0e8;border:1px solid var(--border2);border-radius:8px;
+      padding:.06rem .3rem;font-size:.54rem;color:var(--tx3);
+      white-space:nowrap;z-index:3;
+      box-shadow:0 1px 4px rgba(30,15,0,.1);
+      letter-spacing:.01em;
     }
 
     /* 이름 */
@@ -278,6 +290,7 @@
       <div class="hd-clock" id="lib-clock">--:--</div>
       <div class="hd-elapsed" id="lib-elapsed"></div>
     </div>
+    <button class="btn-rest" id="btn-rest" onclick="toggleRest()">💤 휴식</button>
     <button class="btn-leave" id="btn-leave" onclick="leaveLibrary()">나가기</button>
   </div>
 </div>
@@ -301,6 +314,7 @@ let bcMembers={};         // Broadcast 기반 멤버 맵 {user_id → payload}
 let myPayload=null;       // 브로드캐스트에 재사용할 payload 참조
 let localBc=null;         // BroadcastChannel (같은 기기 탭간 동기화)
 let _connectedOnce=false; // 첫 연결 완료 여부 (재연결 vs 초기 실패 구분용)
+let isResting=false;      // 휴식 모드 여부
 
 /* ── track 재시도 ── */
 async function doTrack(){
@@ -393,7 +407,11 @@ function makeBubble(m){
   } else {
     info+=`<div class="bubble-nobook">읽는 책 미설정</div>`;
   }
-  if(elapsed) info+=`<div class="bubble-time">⏱ ${elapsed}</div>`;
+  if(m.is_resting){
+    info+=`<div class="bubble-time">💤 휴식 중</div>`;
+  } else if(elapsed){
+    info+=`<div class="bubble-time">⏱ ${elapsed}</div>`;
+  }
   return `<div class="tbl-bubble">${coverEl}<div class="bubble-info">${info}</div></div>`;
 }
 
@@ -417,9 +435,11 @@ function makeSeatCell(m){
   const name=m.display_name||'독자';
   const av=makeAv(name,m.avatar_url,50);
   const badge=isSelf?'<div class="tbl-me">나</div>':'';
+  const restBadge=m.is_resting?'<div class="tbl-rest">💤 휴식 중</div>':'';
+  const avStyle=m.is_resting?' style="filter:grayscale(1);opacity:.6;transition:filter .25s,opacity .25s;"':'';
   return `<div class="tbl-cell">
     ${bubble}
-    <div class="tbl-av">${av}${badge}</div>
+    <div class="tbl-av"${avStyle}>${av}${badge}${restBadge}</div>
     <div class="tbl-name">${esc(name)}</div>
     ${makeBookCard(m)}
   </div>`;
@@ -465,7 +485,7 @@ function _doRender(){
 
   // 멤버 구성이 바뀌지 않으면 DOM 갱신 생략
   const hash=members.map(m=>
-    `${m.user_id}|${m.is_ghost?1:0}|${m.display_name||''}|${m.book_title||''}|${m.book_cover||''}`
+    `${m.user_id}|${m.is_ghost?1:0}|${m.is_resting?1:0}|${m.display_name||''}|${m.book_title||''}|${m.book_cover||''}`
   ).join(';');
   if(hash===_renderHash) return;
   _renderHash=hash;
@@ -522,6 +542,26 @@ function sendBc(event,payload){
       .then(r=>{ if(r!=='ok'&&r!==undefined) console.warn('[lib] bc send',event,'→',r); })
       .catch(e=>console.error('[lib] bc error',event,e));
   }
+}
+
+/* ── 휴식 토글 ── */
+async function toggleRest(){
+  isResting=!isResting;
+  myPayload={...myPayload,is_resting:isResting};
+  localSelf=myPayload;
+
+  const btn=document.getElementById('btn-rest');
+  if(btn){
+    btn.textContent=isResting?'📖 독서 재개':'💤 휴식';
+    btn.classList.toggle('on',isResting);
+  }
+
+  if(channel&&_connectedOnce){
+    await doTrack();
+    sendBc('bl_heartbeat',myPayload);
+  }
+  _renderHash='';
+  render();
 }
 
 /* ── 나가기 ── */
