@@ -430,17 +430,20 @@ async function _initSession(retry=0) {
       if(retry < 1) {
         setTimeout(() => _initSession(retry+1), 2000);
       } else {
+        // 세션 없음 — 로컬 토큰만 확실히 정리 후 로그인 화면
+        try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
         _appState = 'auth';
         showScreen('auth');
         loadSavedEmail();
       }
     }
   } catch(e) {
+    console.warn('[initSession] error retry='+retry+':', e?.message||e);
     if(retry < 1) {
       setTimeout(() => _initSession(retry+1), 2000);
     } else {
-      // 재시도 모두 실패 → 세션 강제 초기화 후 로그인 화면 (3초 타임아웃)
-      try { await Promise.race([sb.auth.signOut(), new Promise(res => setTimeout(res, 3000))]); } catch(_) {}
+      // 재시도 모두 실패 — 로컬 세션 강제 초기화 (네트워크 불필요)
+      try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
@@ -493,6 +496,8 @@ function authSwitch(tab, btn) {
   const authErr = document.getElementById('auth-error'); if(authErr) authErr.style.display = 'none';
 }
 async function doLogin() {
+  // 이전 시작 시도가 멈춰있으면 상태 리셋
+  if(_appState === 'starting') _appState = 'idle';
   const emailEl = document.getElementById('login-email');
   const pwEl = document.getElementById('login-pw');
   const email = emailEl?.value.trim() || '';
@@ -570,9 +575,15 @@ async function doLogout() {
     await sb.auth.signOut();
   } catch(e) {
     console.warn('signOut error:', e);
-    // 세션 키 삭제 금지 - Supabase가 내부적으로 관리
   }
   resetToAuth();
+}
+
+async function resetSession() {
+  try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
+  _appState = 'idle';
+  showAuthError('세션이 초기화됐어요. 다시 로그인해주세요.', true);
+  setTimeout(() => { showScreen('auth'); loadSavedEmail(); }, 1500);
 }
 function showAuthError(msg, success=false) {
   const el = document.getElementById('auth-error');
