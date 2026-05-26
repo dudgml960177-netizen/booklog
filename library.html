@@ -315,6 +315,14 @@ let myPayload=null;       // 브로드캐스트에 재사용할 payload 참조
 let localBc=null;         // BroadcastChannel (같은 기기 탭간 동기화)
 let _connectedOnce=false; // 첫 연결 완료 여부 (재연결 vs 초기 실패 구분용)
 let isResting=false;      // 휴식 모드 여부
+let restStartedAt=null;   // 현재 휴식 시작 시각
+let totalRestMs=0;        // 누적 휴식 밀리초
+
+/* ── 실제 독서 경과 밀리초 ── */
+function readingMs(){
+  const curRestMs=(isResting&&restStartedAt)?(Date.now()-restStartedAt):0;
+  return Math.max(0, Date.now()-joinedAt-totalRestMs-curRestMs);
+}
 
 /* ── track 재시도 ── */
 async function doTrack(){
@@ -336,9 +344,13 @@ function startClock() {
     if(cl) cl.textContent=`${pad(n.getHours())}:${pad(n.getMinutes())}`;
     const el=document.getElementById('lib-elapsed');
     if(el&&joinedAt){
-      const s=Math.floor((Date.now()-joinedAt)/1000);
-      const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
-      el.textContent=h>0?`${h}h ${m}m 체류`:m>0?`${m}m ${sc}s 체류`:`${sc}s 체류`;
+      if(isResting){
+        el.textContent='💤 휴식 중';
+      } else {
+        const s=Math.floor(readingMs()/1000);
+        const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;
+        el.textContent=h>0?`${h}h ${m}m 독서`:m>0?`${m}m ${sc}s 독서`:`${sc}s 독서`;
+      }
     }
   }
   tick();
@@ -547,6 +559,12 @@ function sendBc(event,payload){
 /* ── 휴식 토글 ── */
 async function toggleRest(){
   isResting=!isResting;
+  if(isResting){
+    restStartedAt=Date.now();
+  } else {
+    if(restStartedAt) totalRestMs+=Date.now()-restStartedAt;
+    restStartedAt=null;
+  }
   myPayload={...myPayload,is_resting:isResting};
   localSelf=myPayload;
 
@@ -589,10 +607,10 @@ async function leaveLibrary(){
   }
 }
 
-/* ── 시간 저장 ── */
+/* ── 시간 저장 (실제 독서 시간만) ── */
 function saveTime(){
   if(!joinedAt||!params.bookId) return;
-  const mins=Math.round((Date.now()-joinedAt)/60000);
+  const mins=Math.round(readingMs()/60000);
   if(mins<1) return;
   localStorage.setItem('bl_lib_session_done',JSON.stringify({
     bookId:params.bookId,minutes:mins,date:new Date().toISOString().slice(0,10)
