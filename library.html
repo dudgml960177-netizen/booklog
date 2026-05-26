@@ -115,9 +115,7 @@
       display:flex;flex-direction:column;align-items:center;gap:.3rem;
       position:relative;cursor:default;
       transition:background .13s;
-      animation:cellIn .22s ease;
     }
-    @keyframes cellIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
     .tbl-cell:hover{background:#f4eee3;}
 
     /* 빈 좌석 */
@@ -433,15 +431,31 @@ function getMembers(){
 }
 
 /* ── 격자 렌더 ── */
+let _renderRaf=null, _renderHash='';
+
 function render(){
+  if(_renderRaf) return;          // 이미 큐에 있으면 무시
+  _renderRaf=requestAnimationFrame(()=>{
+    _renderRaf=null;
+    _doRender();
+  });
+}
+
+function _doRender(){
   const members=getMembers();
-  console.log('[lib] render members:',members.length, members.map(m=>m.display_name||'ghost'));
 
   const cnt=document.getElementById('lib-count');
   if(cnt) cnt.textContent=`${members.length}명`;
 
   const grid=document.getElementById('lib-grid');
   if(!grid) return;
+
+  // 멤버 구성이 바뀌지 않으면 DOM 갱신 생략
+  const hash=members.map(m=>
+    `${m.user_id}|${m.is_ghost?1:0}|${m.display_name||''}|${m.book_title||''}|${m.book_cover||''}`
+  ).join(';');
+  if(hash===_renderHash) return;
+  _renderHash=hash;
 
   const cols=4;
   const rows=Math.max(Math.ceil((members.length+2)/cols),2);
@@ -634,7 +648,7 @@ async function init(){
   });
 
   channel
-    .on('presence',{event:'sync'}, ()=>{ console.log('[lib] presence sync',Object.keys(channel.presenceState())); render(); })
+    .on('presence',{event:'sync'}, ()=>{ render(); })
     .on('presence',{event:'join'}, ()=>{ render(); })
     .on('presence',{event:'leave'},()=>{ render(); })
     .on('broadcast',{event:'bl_join'},      ({payload:p})=>handleBcMsg('bl_join',p))
@@ -669,6 +683,7 @@ async function init(){
           sendBc('bl_heartbeat', myPayload);
           const cutoff=Date.now()-3*60*1000;
           Object.keys(bcMembers).forEach(uid=>{ if((bcMembers[uid]._seen||0)<cutoff) delete bcMembers[uid]; });
+          _renderHash=''; // 경과시간 갱신을 위해 강제 재렌더
           render();
         },15000);
 
