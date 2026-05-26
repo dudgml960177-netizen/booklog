@@ -3262,8 +3262,8 @@ async function checkAndGrantQuests() {
     extra.commentCount = commentsR.count || 0;
     extra.friendCount = friendsR.count || 0;
     try {
-      const { data: myPosts } = await sb.from('posts').select('id,like_count').eq('user_id',currentUser.id).order('like_count',{ascending:false}).limit(1);
-      extra.maxPostLikes = myPosts?.[0]?.like_count || 0;
+      const { data: myPosts } = await sb.from('posts').select('id,likes').eq('user_id',currentUser.id).order('likes',{ascending:false}).limit(1);
+      extra.maxPostLikes = myPosts?.[0]?.likes || 0;
     } catch(e) {}
   } catch(e) { console.warn('extra data load failed:', e); }
 
@@ -7444,8 +7444,8 @@ async function openPostDetail(postId) {
         : (post.content||'').replace(/\n/g,'<br>')}
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
-      <button onclick="likePost('${postId}')" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);">
-        ❤️ ${post.likes||0}${alreadyLiked?' ✓':''}
+      <button onclick="likePost('${postId}')" title="${alreadyLiked?'공감 취소':'공감하기'}" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);">
+        ${alreadyLiked?'🩷':'❤️'} ${post.likes||0}${alreadyLiked?' ✓':''}
       </button>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:.75rem;">
@@ -7519,21 +7519,42 @@ async function openBanModal(userId) {
 async function likePost(postId) {
   const { data: myProfile } = await sb.from('profiles').select('is_banned').eq('id',currentUser.id).single();
   if(myProfile?.is_banned) { alert('계정이 제한되어 공감할 수 없어요.'); return; }
-  // DB 기반 중복 방지 (post_likes 테이블)
+
   const { data: existing } = await sb.from('post_likes')
     .select('post_id').eq('post_id', postId).eq('user_id', currentUser.id).single();
-  if(existing) { alert('이미 공감한 글이에요.'); return; }
-  // 좋아요 기록 + 카운트 증가 동시 처리
-  const [_, { data:p }] = await Promise.all([
-    sb.from('post_likes').insert({ post_id: postId, user_id: currentUser.id }),
-    sb.from('posts').select('likes,user_id').eq('id',postId).single()
+
+  if(existing) {
+    // 공감 취소
+    await sb.from('post_likes').delete().eq('post_id', postId).eq('user_id', currentUser.id);
+    const { count } = await sb.from('post_likes').select('*', {count:'exact', head:true}).eq('post_id', postId);
+    await sb.from('posts').update({likes: count ?? 0}).eq('id', postId);
+    // 아직 안 읽은 공감 알림 회수
+    const { data: postOwner } = await sb.from('posts').select('user_id').eq('id', postId).single();
+    if(postOwner?.user_id && postOwner.user_id !== currentUser.id) {
+      await sb.from('notifications').delete()
+        .eq('user_id', postOwner.user_id).eq('sender_id', currentUser.id)
+        .eq('type', 'like').eq('post_id', postId).eq('is_read', false);
+    }
+    openPostDetail(postId);
+    return;
+  }
+
+  // 공감 등록
+  const { error: insertErr } = await sb.from('post_likes').insert({ post_id: postId, user_id: currentUser.id });
+  if(insertErr) { console.error('[likePost] insert error:', insertErr); return; }
+
+  // 실제 공감 수로 카운터 업데이트 (동시 클릭 시 race condition 방지)
+  const [{ data: p }, { count }] = await Promise.all([
+    sb.from('posts').select('user_id').eq('id', postId).single(),
+    sb.from('post_likes').select('*', {count:'exact', head:true}).eq('post_id', postId)
   ]);
-  await sb.from('posts').update({likes:(p?.likes||0)+1}).eq('id',postId);
+  await sb.from('posts').update({likes: count ?? 0}).eq('id', postId);
+
   if(p?.user_id && p.user_id !== currentUser.id) {
     await sb.from('notifications').insert({
-      user_id:p.user_id, type:'like',
-      message:'내 글에 공감이 달렸어요.', post_id:postId,
-      is_read:false, created_at:new Date().toISOString()
+      user_id: p.user_id, sender_id: currentUser.id, type: 'like',
+      message: '내 글에 공감이 달렸어요.', post_id: postId,
+      is_read: false, created_at: new Date().toISOString()
     });
   }
   openPostDetail(postId);
