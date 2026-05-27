@@ -5848,6 +5848,11 @@ function safeBoardRefresh() {
 
 async function loadNotifications() {
   if(!currentUser) return;
+  // 30일 이상 된 내 알림 자동 삭제 (읽은 것만)
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  sb.from('notifications').delete()
+    .eq('user_id', currentUser.id).eq('is_read', true).lt('created_at', cutoff)
+    .then(null, () => {});
   // 내 가입일 (created_at) 기준 - 가입 전 broadcast는 안 보이게
   const userCreatedAt = currentUser.created_at || new Date(0).toISOString();
   const [{ data: myNotifs }, { data: broadcasts }] = await Promise.all([
