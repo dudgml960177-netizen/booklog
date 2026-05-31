@@ -5155,7 +5155,7 @@ function addQuoteField(text='',page='',comment='') {
     </div>
     <!-- contenteditable 에디터 -->
     <div id="${qid}" class="qeditor-body" contenteditable="true" data-qtext
-      data-placeholder="인상 깊은 문장이나 문단을 입력해주세요...">${text ? text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') : ''}</div>
+      data-placeholder="인상 깊은 문장이나 문단을 입력해주세요...">${text ? (/<[a-z]/i.test(text) ? text.replace(/<div><br\s*\/?><\/div>/gi,'<br>').replace(/<\/div>\s*<div>/gi,'<br>').replace(/<div>/gi,'').replace(/<\/div>/gi,'<br>').replace(/<p>/gi,'').replace(/<\/p>/gi,'<br>').replace(/\n/g,'<br>') : text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')) : ''}</div>
     <div style="display:flex;gap:.35rem;margin-top:.4rem;">
       <input type="text" class="form-input" placeholder="💬 코멘트" data-qtag value="${comment}" style="flex:1;font-size:.72rem;background:#fff;border-radius:5px;">
       <input type="text" class="form-input" placeholder="p.42" data-qpage value="${page}" style="width:58px;font-size:.72rem;background:#fff;border-radius:5px;text-align:center;">
