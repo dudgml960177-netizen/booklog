@@ -3830,6 +3830,33 @@ function buildStats() {
   }, 0);
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
+  // 최장 연속 독서일 계산
+  const longestStreak = (() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const readDays = new Set();
+    allBooks.forEach(b => {
+      if (!b.date_start) return;
+      const endStr = (b.status === '완독' && b.date_finish) ? b.date_finish
+                   : (b.status === '읽는중') ? todayStr
+                   : (b.date_finish) ? b.date_finish
+                   : b.date_start;
+      let d = new Date(b.date_start + 'T00:00:00');
+      const endD = new Date(endStr + 'T00:00:00');
+      while (d <= endD) {
+        readDays.add(d.toISOString().slice(0, 10));
+        d.setDate(d.getDate() + 1);
+      }
+    });
+    if (!readDays.size) return 0;
+    const days = [...readDays].sort();
+    let max = 1, cur = 1;
+    for (let i = 1; i < days.length; i++) {
+      const diff = (new Date(days[i]) - new Date(days[i-1])) / 86400000;
+      cur = diff === 1 ? cur + 1 : 1;
+      if (cur > max) max = cur;
+    }
+    return max;
+  })();
   // 6개 핵심 지표 — 3×2 hairline 그리드 (컨셉 이미지 스타일)
   const timeStr = thisYearMins >= 60
     ? Math.floor(thisYearMins/60)+' h'
@@ -3839,7 +3866,7 @@ function buildStats() {
     {n: thisYearPages>0 ? thisYearPages.toLocaleString()+' p' : '—', l:'페이지'},
     {n: thisYearQuotes.length || '—',                        l:'문장'},
     {n: avg,                                                  l:'평점 평균'},
-    {n: '—',                                                  l:'최장 연속'},
+    {n: longestStreak ? longestStreak+'일',                   l:'최장 연속'},
     {n: Object.keys(aMap).length || '—',                     l:'올해 작가'},
   ];
   const gridEl = document.createElement('div');
