@@ -1113,7 +1113,7 @@ async function shareQuoteCard(qtId, btn) {
         useCORS: true,
         allowTaint: true,
         backgroundColor: bg,
-        width: 320,
+        width: 380,
         windowWidth: 460,
         logging: false,
         imageTimeout: 8000,
