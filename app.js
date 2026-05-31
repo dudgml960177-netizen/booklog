@@ -1528,6 +1528,7 @@ async function saveNewQuoteFromDetail(bookId, btn) {
     overlay.remove();
     // 책 상세 모달 새로고침
     openDetail(bookId);
+    if(document.getElementById('q-feed')) renderQuotes();
   } catch(e) { await showAlert('저장 오류: '+e.message); }
 }
 
@@ -1550,6 +1551,7 @@ async function saveEditQuote(id, btn) {
     const detailOpen = document.getElementById('modal-detail')?.style.display !== 'none';
     if(detailOpen && curBookId) openDetail(curBookId);
     else buildQuotes();
+    if(document.getElementById('q-feed')) renderQuotes();
   } catch(e) { await showAlert('저장 오류: '+e.message); }
 }
 
@@ -1562,6 +1564,7 @@ async function deleteSingleQuote(id, btn) {
     const detailOpen = document.getElementById('modal-detail')?.style.display !== 'none';
     if(detailOpen && curBookId) openDetail(curBookId);
     else buildQuotes();
+    if(document.getElementById('q-feed')) renderQuotes();
   } catch(e) { await showAlert('삭제 오류: '+e.message); }
 }
 
@@ -5320,7 +5323,7 @@ async function saveBook() {
     if(editingBookId){const{error}=await sb.from('books').update(bookData).eq('id',editingBookId);if(error)throw error;await sb.from('quotes').delete().eq('book_id',editingBookId);}
     else{const{data,error}=await sb.from('books').insert(bookData).select().single();if(error)throw error;bookId=data?.id;}
     if(bookId&&newQuotes.length)await sb.from('quotes').insert(newQuotes.map(q=>({...q,user_id:currentUser.id,book_id:bookId})));
-    closeModal('modal-book');await loadData();buildBooks();
+    closeModal('modal-book');await loadData();buildBooks();if(document.getElementById('q-feed'))renderQuotes();
   } catch(e){alert('저장 중 오류: '+(e.message||JSON.stringify(e)));}
 }
 
