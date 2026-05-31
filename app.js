@@ -678,14 +678,27 @@ function getFilteredBooks() {
   return list;
 }
 
+function toggleSortMenu(e) {
+  if(e) e.stopPropagation();
+  const menu = document.getElementById('sort-menu');
+  if(!menu) return;
+  const open = menu.style.display !== 'none';
+  menu.style.display = open ? 'none' : 'block';
+  if(!open) document.addEventListener('click', closeSortMenu, {once:true, capture:true});
+}
+function closeSortMenu() {
+  const menu = document.getElementById('sort-menu');
+  if(menu) menu.style.display = 'none';
+}
 function setSort(s) {
   curSort = s;
-  const sel = document.getElementById('sort-select');
-  if(sel) sel.value = s;
+  document.querySelectorAll('.sort-mi').forEach(el => el.classList.toggle('on', el.dataset.val === s));
+  closeSortMenu();
   buildBooks();
 }
 
 function buildBooks() {
+  document.querySelectorAll('.sort-mi').forEach(el => el.classList.toggle('on', el.dataset.val === curSort));
   document.getElementById('view-gallery').style.display = curView==='gallery'?'':'none';
   document.getElementById('view-list').style.display = curView==='list'?'':'none';
   const list = getFilteredBooks();

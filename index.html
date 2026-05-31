@@ -254,14 +254,17 @@
             </div>
             <div class="toolbar-right">
               <!-- 정렬 -->
-              <select id="sort-select" class="view-btn" style="font-size:.68rem;padding:.18rem .4rem;cursor:pointer;border-radius:4px;" onchange="setSort(this.value)" title="정렬">
-                <option value="recent">최신순</option>
-                <option value="oldest">오래된순</option>
-                <option value="rating_high">별점높은순</option>
-                <option value="rating_low">별점낮은순</option>
-                <option value="title">제목순</option>
-                <option value="finish">완독일순</option>
-              </select>
+              <div style="position:relative;" id="sort-wrap">
+                <button class="view-btn" id="sort-btn" onclick="toggleSortMenu(event)" title="정렬" style="font-size:.8rem;">⇅</button>
+                <div id="sort-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--border2);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.13);z-index:200;overflow:hidden;">
+                  <button class="sort-mi" data-val="recent" onclick="setSort('recent')">최신순</button>
+                  <button class="sort-mi" data-val="oldest" onclick="setSort('oldest')">오래된순</button>
+                  <button class="sort-mi" data-val="rating_high" onclick="setSort('rating_high')">별점↓</button>
+                  <button class="sort-mi" data-val="rating_low" onclick="setSort('rating_low')">별점↑</button>
+                  <button class="sort-mi" data-val="title" onclick="setSort('title')">제목순</button>
+                  <button class="sort-mi" data-val="finish" onclick="setSort('finish')">완독일순</button>
+                </div>
+              </div>
               <button class="view-btn on" id="view-gallery-btn" onclick="setView('gallery')" title="갤러리">⊞</button>
               <button class="view-btn" id="view-list-btn" onclick="setView('list')" title="목록">≡</button>
               <button class="cat-btn" onclick="openCategories()" title="카테고리">🗂</button>

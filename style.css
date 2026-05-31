@@ -80,6 +80,9 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .view-btn.on{background:var(--acc);color:#fff;border-color:var(--acc);}
 .cat-btn{height:30px;padding:0 .65rem;border:1px solid var(--border2);border-radius:var(--rs);background:none;font-size:.72rem;cursor:pointer;color:var(--tx2);font-family:var(--ff);white-space:nowrap;}
 .cat-btn:hover{background:#ede4d0;}
+.sort-mi{display:block;width:100%;border:none;background:none;padding:.35rem .75rem;font-size:.72rem;font-family:var(--ff);color:var(--tx2);cursor:pointer;text-align:left;white-space:nowrap;}
+.sort-mi:hover{background:#ede4d0;}
+.sort-mi.on{color:var(--acc);font-weight:600;}
 /* 갤러리 */
 .gallery{display:grid;grid-template-columns:repeat(5,1fr);gap:.35rem;}
 @media(min-width:700px){.gallery{grid-template-columns:repeat(6,1fr);gap:.65rem;}}
