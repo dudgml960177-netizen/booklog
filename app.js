@@ -458,7 +458,10 @@ async function loadData() {
     sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}),
     sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(5000),
   ]);
-  allBooks = bR.data || []; allQuotes = qR.data || [];
+  if(!bR.error && bR.data) allBooks = bR.data;
+  else if(!bR.error) allBooks = [];
+  if(!qR.error && qR.data) allQuotes = qR.data;
+  else if(!qR.error) allQuotes = [];
   // 카테고리 로컬 스토리지에서 로드
   try {
     const { data: pf } = await sb.from('profiles').select('categories').eq('id',currentUser.id).single();
@@ -751,7 +754,7 @@ async function bulkDelete() {
     const delBtn=document.getElementById('bulk-delete-btn');
     if(btn)btn.textContent='☑ 선택';
     if(delBtn)delBtn.style.display='none';
-    await loadData(); buildBooks();
+    await loadData(); buildBooks(); if(document.getElementById('q-feed'))renderQuotes();
     alert('삭제됐어요!');
   }catch(e){alert('삭제 오류: '+(e.message||'알 수 없는 오류'));}
 }
@@ -1523,7 +1526,8 @@ async function saveNewQuoteFromDetail(bookId, btn) {
   const tag = overlay.querySelector('#aq-tag').value.trim();
   const page = overlay.querySelector('#aq-page').value.trim();
   try {
-    await sb.from('quotes').insert({book_id:bookId, user_id:currentUser.id, text, tag:tag||null, page:page||null, created_at:new Date().toISOString()});
+    const {error:insertErr} = await sb.from('quotes').insert({book_id:bookId, user_id:currentUser.id, text, tag:tag||null, page:page||null, created_at:new Date().toISOString()});
+    if(insertErr) throw insertErr;
     await loadData();
     overlay.remove();
     // 책 상세 모달 새로고침
@@ -5349,7 +5353,7 @@ async function saveBook() {
     let bookId=editingBookId;
     if(editingBookId){const{error}=await sb.from('books').update(bookData).eq('id',editingBookId);if(error)throw error;await sb.from('quotes').delete().eq('book_id',editingBookId);}
     else{const{data,error}=await sb.from('books').insert(bookData).select().single();if(error)throw error;bookId=data?.id;}
-    if(bookId&&newQuotes.length)await sb.from('quotes').insert(newQuotes.map(q=>({...q,user_id:currentUser.id,book_id:bookId})));
+    if(bookId&&newQuotes.length){const{error:qErr}=await sb.from('quotes').insert(newQuotes.map(q=>({...q,user_id:currentUser.id,book_id:bookId})));if(qErr)throw qErr;}
     closeModal('modal-book');await loadData();buildBooks();if(document.getElementById('q-feed'))renderQuotes();
   } catch(e){alert('저장 중 오류: '+(e.message||JSON.stringify(e)));}
 }
@@ -5500,7 +5504,7 @@ async function deleteBook() {
     if(error)throw error;
     curBookId=null;
     closeModal('modal-detail');
-    await loadData();buildBooks();
+    await loadData();buildBooks();if(document.getElementById('q-feed'))renderQuotes();
   }catch(e){alert('삭제 오류: '+(e.message||'알 수 없는 오류'));}
 }
 function editBook() {
@@ -6401,7 +6405,7 @@ async function importFromBookit(file) {
       if(prog) prog.style.display = 'none';
     }
 
-    await loadData(); buildBooks();
+    await loadData(); buildBooks(); if(document.getElementById('q-feed'))renderQuotes();
     closeModal('modal-backup');
     await showAlert(`✅ 완료!\n신규: ${toInsert.length}권${toUpdate.length>0?' / 업데이트: '+toUpdate.length+'권':''}`);
   } catch(e) {
@@ -6667,7 +6671,7 @@ async function importFromBookmori(file) {
       }
     }
 
-    await loadData(); buildBooks();
+    await loadData(); buildBooks(); if(document.getElementById('q-feed'))renderQuotes();
     closeModal('modal-backup');
     await showAlert(`✅ 완료!\n신규: ${toInsert.length}권${toUpdate.length>0?` / 업데이트: ${toUpdate.length}권`:''}\n표지 자동 검색 완료\n${quoteCount>0?`문장 ${quoteCount}개 가져옴`:''}`);
   } catch(e) {
@@ -6804,7 +6808,7 @@ async function restoreBackup(file) {
         books: data.goals.books||0, minutes: data.goals.minutes||0, pages: data.goals.pages||0
       });
     }
-    await loadData(); await loadGoals(); buildBooks();
+    await loadData(); await loadGoals(); buildBooks(); if(document.getElementById('q-feed'))renderQuotes();
     alert(`복원 완료! 책 ${newBooks.length}권을 추가했어요.`);
     closeModal('modal-backup');
   } catch(e) { alert('복원 오류: '+e.message); }
