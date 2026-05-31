@@ -1281,6 +1281,19 @@ function renderQuotes() {
   }
   if (!list.length) { feed.innerHTML=`<div class="empty-state">"${quoteSearchQ}" 검색 결과가 없어요.</div>`; return; }
 
+  // 책별 그룹 → 각 책 안에서 페이지 오름차순 → 페이지 없으면 뒤로
+  list = [...list].sort((a, b) => {
+    const ai = allBooks.findIndex(bk => bk.id === a.book_id);
+    const bi = allBooks.findIndex(bk => bk.id === b.book_id);
+    if(ai !== bi) return ai - bi;
+    const ap = (a.page != null && String(a.page) !== 'null' && a.page !== '') ? parseInt(a.page) : null;
+    const bp = (b.page != null && String(b.page) !== 'null' && b.page !== '') ? parseInt(b.page) : null;
+    if(ap !== null && bp !== null) return ap - bp;
+    if(ap !== null) return -1;
+    if(bp !== null) return 1;
+    return new Date(a.created_at) - new Date(b.created_at);
+  });
+
   list.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
     const color = randomQuoteColor(qt.book_id);
@@ -4675,7 +4688,10 @@ function buildGoalDisplay() {
   if(goals.pages>0){const pct=Math.min(Math.round(thisYearPages/goals.pages*100),100);items.push({label:'페이지',cur:thisYearPages.toLocaleString(),goal:goals.pages.toLocaleString(),pct,unit:'p',color:'var(--mauve)'});}
   if(!items.length){
     wrap.style.cssText='padding:.5rem 1rem;';
-    wrap.innerHTML='<div style="font-size:.7rem;color:var(--tx3);">목표를 설정하면 진행률을 볼 수 있어요.</div>';
+    wrap.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
+      <div style="font-size:.7rem;color:var(--tx3);">목표를 설정하면 진행률을 볼 수 있어요.</div>
+      <button onclick="openGoalModal()" style="font-size:.62rem;padding:.18rem .6rem;border:1px solid var(--border2);border-radius:10px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);white-space:nowrap;flex-shrink:0;">목표 설정</button>
+    </div>`;
     return;
   }
   // 대표 목표 1개 (완독 우선)
