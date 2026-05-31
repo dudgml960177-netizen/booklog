@@ -3870,7 +3870,7 @@ function buildStats() {
     {n: thisYearPages>0 ? thisYearPages.toLocaleString()+' p' : '—', l:'페이지'},
     {n: thisYearQuotes.length || '—',                        l:'문장'},
     {n: avg,                                                  l:'평점 평균'},
-    {n: longestStreak ? longestStreak+'일',                   l:'최장 연속'},
+    {n: longestStreak ? longestStreak+'일' : '—',             l:'최장 연속'},
     {n: Object.keys(aMap).length || '—',                     l:'올해 작가'},
   ];
   const gridEl = document.createElement('div');
