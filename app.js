@@ -1609,7 +1609,7 @@ async function shareCalendar() {
     const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
     const ymPrefix=calY+'-'+String(calM+1).padStart(2,'0');
     const finished=allBooks.filter(b=>b.status==='완독'&&b.date_finish?.startsWith(ymPrefix))
-      .sort((a,b)=>new Date(a.date_finish)-new Date(b.date_finish));
+      .sort((a,b)=>(b.rating||0)-(a.rating||0)||(new Date(a.date_finish)-new Date(b.date_finish)));
 
     // ── 표지 fetch → base64 변환 (data URI는 html2canvas에서 CORS 문제 없음)
     const coverMap={};
@@ -1709,7 +1709,7 @@ async function shareCalendar() {
       const lt=document.createElement('div');
       lt.style.cssText='font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#9a8460;margin-bottom:8px;';
       lt.textContent='Reading List'; card.appendChild(lt);
-      finished.slice(0,7).forEach(b=>{
+      finished.slice(0,5).forEach(b=>{
         const src=coverMap[b.id];
         const row=document.createElement('div');
         row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #ede4d0;';
@@ -1728,7 +1728,7 @@ async function shareCalendar() {
         if(b.rating){const st=document.createElement('div');st.style.cssText='font-size:10px;color:#c4714a;flex-shrink:0;font-family:Cormorant Garamond,serif;font-style:italic;';st.textContent='★ '+b.rating;row.appendChild(st);}
         card.appendChild(row);
       });
-      if(finished.length>7){const more=document.createElement('div');more.style.cssText='font-size:9px;color:#9a8460;text-align:right;font-style:italic;';more.textContent='and '+(finished.length-7)+' more books';card.appendChild(more);}
+      if(finished.length>5){const more=document.createElement('div');more.style.cssText='font-size:9px;color:#9a8460;text-align:right;font-style:italic;';more.textContent='and '+(finished.length-5)+' more books';card.appendChild(more);}
     }
 
     // 푸터
