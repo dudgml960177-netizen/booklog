@@ -6826,15 +6826,15 @@ async function loadFriends() {
     if(f.status === 'accepted') {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:.82rem;font-weight:600;color:var(--tx1);">${name}</div>
-          <div style="font-size:.65rem;color:var(--tx3);">${other?.user_title||'산책자'}</div>
+          <div style="font-size:.82rem;font-weight:600;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+          <div style="font-size:.65rem;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${other?.user_title||'산책자'}</div>
         </div>
         <button onclick="openLibrary('${other.id}','${name}')" style="font-size:.7rem;padding:.25rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--acc);font-family:var(--ff);">서재 보기</button>
         <button onclick="removeFriend('${f.id}')" style="width:28px;height:28px;border:none;background:#f5f0e8;border-radius:50%;cursor:pointer;color:var(--tx3);font-size:.75rem;display:flex;align-items:center;justify-content:center;" title="친구 삭제">✕</button>`;
     } else if(f.status === 'pending' && !isMine) {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:.82rem;font-weight:600;color:var(--tx1);">${name}</div>
+          <div style="font-size:.82rem;font-weight:600;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
           <div style="font-size:.65rem;color:var(--acc);">친구 요청이 왔어요</div>
         </div>
         <button onclick="acceptFriend('${f.id}')" style="font-size:.7rem;padding:.25rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);">수락</button>
@@ -6842,7 +6842,7 @@ async function loadFriends() {
     } else {
       el.innerHTML = `${avatar}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:.82rem;font-weight:600;color:var(--tx3);">${name}</div>
+          <div style="font-size:.82rem;font-weight:600;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
           <div style="font-size:.65rem;color:var(--tx3);">요청 대기 중...</div>
         </div>
         <button onclick="removeFriend('${f.id}')" style="font-size:.7rem;padding:.25rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx3);font-family:var(--ff);">취소</button>`;
