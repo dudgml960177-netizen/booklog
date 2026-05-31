@@ -444,8 +444,9 @@ function makeSeatCell(m){
     </div>`;
   }
 
-  const name=m.display_name||'독자';
-  const av=makeAv(name,m.avatar_url,50);
+  const rawName=m.display_name||'독자';
+  const name=rawName.length>8?rawName.slice(0,7)+'…':rawName;
+  const av=makeAv(rawName,m.avatar_url,50);
   const badge=isSelf?'<div class="tbl-me">나</div>':'';
   const restBadge=m.is_resting?'<div class="tbl-rest">💤 휴식 중</div>':'';
   const avStyle=m.is_resting?' style="filter:grayscale(1);opacity:.6;transition:filter .25s,opacity .25s;"':'';

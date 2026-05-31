@@ -998,7 +998,7 @@ async function shareQuoteCard(qtId, btn) {
   const dataUrls = [];
   for(let i = 0; i < total; i++) {
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:-9999px;top:0;width:320px;min-width:320px;max-width:320px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
+    card.style.cssText = `position:fixed;left:-9999px;top:0;width:380px;min-width:380px;max-width:380px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
     const isFirst = i === 0;
     const isLast = i === total - 1;
     const pageLabel = total > 1 ? `<div style="font-size:9px;color:${acc};opacity:.5;text-align:right;margin-bottom:8px;font-family:sans-serif;">${i+1} / ${total}</div>` : '';
@@ -1100,21 +1100,21 @@ async function shareQuoteCard(qtId, btn) {
       <div style="font-size:${fontSize}px;line-height:${lineH};color:#2e1f0e;margin-bottom:18px;">${chunks[i]}</div>
       ${isLast ? `<div style="border-top:1px solid ${acc}33;padding-top:10px;display:flex;align-items:center;gap:8px;">
         ${coverB64 ? `<img src="${coverB64}" style="width:24px;height:34px;object-fit:cover;border-radius:2px;flex-shrink:0;">` : ''}
-        <div>
-          <div style="font-size:10px;font-weight:700;color:#2e1f0e;font-family:sans-serif;">${book?.title||''}</div>
-          ${book?.author ? `<div style="font-size:9px;color:#7a6a5a;font-family:sans-serif;margin-top:1px;">${book.author}</div>` : ''}
+        <div style="min-width:0;flex:1;overflow:hidden;">
+          <div style="font-size:10px;font-weight:700;color:#2e1f0e;font-family:sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${book?.title||''}</div>
+          ${book?.author ? `<div style="font-size:9px;color:#7a6a5a;font-family:sans-serif;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${book.author.split(/[,·]/)[0].trim()}</div>` : ''}
         </div>
       </div>` : `<div style="text-align:right;font-size:9px;color:${acc};opacity:.4;font-family:sans-serif;">계속 →</div>`}
     `;
     document.body.appendChild(card);
     try {
       const canvas = await html2canvas(card, {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: bg,
         width: 320,
-        windowWidth: 390,
+        windowWidth: 460,
         logging: false,
         imageTimeout: 8000,
       });
@@ -1728,7 +1728,7 @@ async function shareCalendar() {
     await new Promise(res=>setTimeout(res,200));
 
     const canvas=await html2canvas(card,{
-      scale:2.5,
+      scale:3.5,
       backgroundColor:'#f2ece0',
       useCORS:true,
       allowTaint:true,
