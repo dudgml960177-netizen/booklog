@@ -410,6 +410,14 @@ function init() {
     } catch(e) {}
   }
 
+  // 타이머 미저장 시 페이지 이탈 방지
+  window.addEventListener('beforeunload', e => {
+    if(timerSeconds >= 60) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
   // 로딩 화면 표시 후 세션 직접 확인
   showScreen('loading');
   _initSession();
@@ -616,7 +624,34 @@ function initSystemFont() {
   }
 }
 
+function showUnsavedTimerBanner() {
+  if(document.getElementById('unsaved-timer-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'unsaved-timer-banner';
+  banner.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#2a2016;color:#f5ede0;border-radius:12px;padding:.65rem 1rem;display:flex;align-items:center;gap:.6rem;box-shadow:0 4px 18px rgba(0,0,0,.35);z-index:9999;font-size:.8rem;white-space:nowrap;max-width:90vw;';
+  const icon = document.createElement('span');
+  icon.textContent = '⏱'; icon.style.fontSize = '1rem';
+  const msg = document.createElement('span');
+  msg.textContent = '저장되지 않은 기록이 있어요'; msg.style.flex = '1';
+  const goBtn = document.createElement('button');
+  goBtn.textContent = '기록하러 가기';
+  goBtn.style.cssText = 'background:#c4714a;color:#fff;border:none;border-radius:7px;padding:.3rem .65rem;font-size:.75rem;cursor:pointer;font-family:var(--ff);white-space:nowrap;';
+  goBtn.onclick = () => { document.querySelector('.tab[onclick*="record"]')?.click(); banner.remove(); };
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = 'background:none;border:none;color:#a09080;font-size:1.1rem;cursor:pointer;padding:0 .15rem;line-height:1;';
+  closeBtn.onclick = () => banner.remove();
+  banner.append(icon, msg, goBtn, closeBtn);
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 8000);
+}
+
 function sw(name, btn) {
+  // 기록 탭 벗어날 때 미저장 타이머 알림
+  const currentPanel = [...document.querySelectorAll('.panel.on')].map(p=>p.id.replace('p-',''))[0];
+  if(currentPanel === 'record' && name !== 'record' && timerSeconds >= 60) {
+    showUnsavedTimerBanner();
+  }
   // FAB 버튼: 어느 탭에서든 책 추가 가능
   const fab=document.getElementById('fab-add-book');
   if(fab) fab.style.display='flex';
