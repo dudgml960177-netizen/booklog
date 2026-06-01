@@ -1413,18 +1413,20 @@ function renderQuotes() {
           </div>
         </div>
         <!-- 출처 + 칩 한 줄 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding-top:.35rem;border-top:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:.35rem;min-width:0;flex:1;">
-            ${book?.cover ? `<img src="${book.cover}" style="width:14px;height:20px;object-fit:cover;border-radius:2px;flex-shrink:0;box-shadow:1px 1px 3px rgba(0,0,0,.12);">` : ''}
-            <div style="min-width:0;">
-              <span class="qcard-book">${book?.title||''}</span>
-              ${book?.author ? `<span class="qcard-author" style="margin-left:.3rem;">— ${book.author}</span>` : ''}
+        <div style="padding-top:.35rem;border-top:1px solid var(--border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
+            <div style="display:flex;align-items:center;gap:.35rem;min-width:0;flex:1;overflow:hidden;">
+              ${book?.cover ? `<img src="${book.cover}" style="width:14px;height:20px;object-fit:cover;border-radius:2px;flex-shrink:0;box-shadow:1px 1px 3px rgba(0,0,0,.12);">` : ''}
+              <div style="min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">
+                <span class="qcard-book">${book?.title||''}</span>
+                ${book?.author ? `<span class="qcard-author" style="margin-left:.3rem;">— ${book.author}</span>` : ''}
+              </div>
+            </div>
+            <div style="display:flex;gap:.2rem;flex-shrink:0;">
+              ${qt.page&&String(qt.page)!=='null' ? `<span class="qcard-chip">p.${qt.page}</span>` : ''}
             </div>
           </div>
-          <div style="display:flex;gap:.2rem;flex-shrink:0;">
-            ${qt.page&&String(qt.page)!=='null' ? `<span class="qcard-chip">p.${qt.page}</span>` : ''}
-            ${qt.tag&&String(qt.tag)!=='null' ? `<span class="qcard-chip qcard-tag">${qt.tag}</span>` : ''}
-          </div>
+          ${qt.tag&&String(qt.tag)!=='null' ? `<div style="margin-top:.28rem;"><span class="qcard-chip qcard-tag" style="white-space:normal;word-break:break-word;display:inline-block;">💬 ${qt.tag}</span></div>` : ''}
         </div>
       </div>`;
 
