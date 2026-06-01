@@ -625,25 +625,33 @@ function initSystemFont() {
 }
 
 function showUnsavedTimerBanner() {
-  if(document.getElementById('unsaved-timer-banner')) return;
+  document.getElementById('unsaved-timer-banner')?.remove();
+  const mins = Math.round(timerSeconds / 60);
   const banner = document.createElement('div');
   banner.id = 'unsaved-timer-banner';
-  banner.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#2a2016;color:#f5ede0;border-radius:12px;padding:.65rem 1rem;display:flex;align-items:center;gap:.6rem;box-shadow:0 4px 18px rgba(0,0,0,.35);z-index:9999;font-size:.8rem;white-space:nowrap;max-width:90vw;';
+  banner.style.cssText = 'position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#2a2016;color:#f5ede0;border-radius:12px;padding:.6rem .9rem;display:flex;align-items:center;gap:.55rem;box-shadow:0 4px 20px rgba(0,0,0,.38);z-index:9999;font-size:.78rem;max-width:92vw;';
   const icon = document.createElement('span');
-  icon.textContent = '⏱'; icon.style.fontSize = '1rem';
-  const msg = document.createElement('span');
-  msg.textContent = '저장되지 않은 기록이 있어요'; msg.style.flex = '1';
+  icon.textContent = '⏱'; icon.style.cssText = 'font-size:1rem;flex-shrink:0;';
+  const textWrap = document.createElement('div');
+  textWrap.style.cssText = 'flex:1;min-width:0;';
+  const line1 = document.createElement('div');
+  line1.style.cssText = 'font-weight:600;white-space:nowrap;';
+  line1.textContent = `${mins}분 독서 기록이 저장되지 않았어요`;
+  const line2 = document.createElement('div');
+  line2.style.cssText = 'font-size:.68rem;color:#c8b8a0;margin-top:.08rem;white-space:nowrap;';
+  line2.textContent = '저장하지 않으면 기록이 사라져요';
+  textWrap.append(line1, line2);
   const goBtn = document.createElement('button');
-  goBtn.textContent = '기록하러 가기';
-  goBtn.style.cssText = 'background:#c4714a;color:#fff;border:none;border-radius:7px;padding:.3rem .65rem;font-size:.75rem;cursor:pointer;font-family:var(--ff);white-space:nowrap;';
+  goBtn.textContent = '저장하러 가기';
+  goBtn.style.cssText = 'background:#c4714a;color:#fff;border:none;border-radius:7px;padding:.3rem .6rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);white-space:nowrap;flex-shrink:0;';
   goBtn.onclick = () => { document.querySelector('.tab[onclick*="record"]')?.click(); banner.remove(); };
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
-  closeBtn.style.cssText = 'background:none;border:none;color:#a09080;font-size:1.1rem;cursor:pointer;padding:0 .15rem;line-height:1;';
+  closeBtn.style.cssText = 'background:none;border:none;color:#a09080;font-size:1.1rem;cursor:pointer;padding:0 .1rem;line-height:1;flex-shrink:0;';
   closeBtn.onclick = () => banner.remove();
-  banner.append(icon, msg, goBtn, closeBtn);
+  banner.append(icon, textWrap, goBtn, closeBtn);
   document.body.appendChild(banner);
-  setTimeout(() => banner.remove(), 8000);
+  setTimeout(() => banner.remove(), 10000);
 }
 
 function sw(name, btn) {
@@ -2017,6 +2025,15 @@ function updateTimerDisplay() {
   if(el) el.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   const btn=document.getElementById('timer-btn');
   if(btn) btn.textContent=timerRunning?'⏸ 일시정지':(timerSeconds>0?'▶ 계속':'▶ 시작');
+  // 미저장 힌트: 60초 이상 + 정지 상태일 때 표시
+  const hasUnsaved = timerSeconds >= 60 && !timerRunning;
+  const hint = document.getElementById('timer-save-hint');
+  if(hint) hint.style.display = hasUnsaved ? '' : 'none';
+  const saveBtn = document.getElementById('timer-save-btn');
+  if(saveBtn) {
+    saveBtn.style.outline = hasUnsaved ? '2px solid #c4714a' : '';
+    saveBtn.style.boxShadow = hasUnsaved ? '0 0 0 3px rgba(196,113,74,.18)' : '';
+  }
   updateTimerIndicator();
 }
 

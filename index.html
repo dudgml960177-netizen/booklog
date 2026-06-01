@@ -341,10 +341,13 @@
                 <div id="timer-display" class="timer-display" style="font-size:1.8rem;">00:00:00</div>
                 <div style="font-size:.58rem;color:var(--tx3);margin-top:.1rem;">오늘 독서 시간</div>
               </div>
-              <div class="timer-btns" style="justify-content:center;gap:.3rem;margin-bottom:.45rem;">
+              <div class="timer-btns" style="justify-content:center;gap:.3rem;margin-bottom:.3rem;">
                 <button class="tbtn" id="timer-btn" onclick="toggleTimer()">▶ 시작</button>
                 <button class="tbtn tbtn-sec" onclick="resetTimer()">↺</button>
-                <button class="tbtn tbtn-save" onclick="saveTimer()">저장</button>
+                <button class="tbtn tbtn-save" id="timer-save-btn" onclick="saveTimer()">저장</button>
+              </div>
+              <div id="timer-save-hint" style="display:none;margin:.0rem 0 .4rem;padding:.3rem .6rem;background:#fff8e8;border:1px solid #e8c060;border-radius:7px;font-size:.63rem;color:#8a6010;text-align:center;">
+                ⚠ 저장하지 않으면 기록이 사라져요 — <strong>저장</strong> 버튼을 눌러주세요
               </div>
               <div style="display:flex;align-items:center;gap:.35rem;justify-content:center;padding-top:.4rem;border-top:1px solid var(--border);">
                 <span style="font-size:.62rem;color:var(--tx3);">현재 쪽</span>
