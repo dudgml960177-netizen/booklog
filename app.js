@@ -6292,13 +6292,22 @@ async function deleteMember(userId, userName) {
 ⚠️ 해당 계정의 모든 데이터(책, 문장, 댓글 등)가 삭제됩니다.
 이 작업은 되돌릴 수 없어요.`)) return;
   try {
-    // profiles 삭제 (cascade로 관련 데이터 삭제)
-    const { error } = await sb.from('profiles').delete().eq('id', userId);
-    if(error) throw error;
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token;
+    if(!token) throw new Error('로그인 세션이 없어요. 다시 로그인해주세요.');
+
+    const resp = await fetch('/api/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ targetUserId: userId })
+    });
+    const result = await resp.json();
+    if(!resp.ok) throw new Error(result.error || '삭제 실패');
+
     await loadAllMembers();
     alert(`"${userName}" 계정을 삭제했어요.`);
   } catch(e) {
-    alert('삭제 오류: '+(e.message||'관리자 권한을 확인해주세요'));
+    alert('삭제 오류: '+(e.message||'서버 오류'));
     console.error('deleteMember error:', e);
   }
 }
