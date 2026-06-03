@@ -2274,6 +2274,7 @@ async function saveTimer() {
     }
     const {error} = await sb.from('books').update(updateData).eq('id',bookId).eq('user_id',currentUser.id);
     if(error) throw error;
+    if(mins <= 2) localStorage.setItem('bl_quick_timer_count', String((parseInt(localStorage.getItem('bl_quick_timer_count')||'0')+1)));
     clearInterval(timerInterval);timerRunning=false;timerSeconds=0;timerInterval=null;
     localStorage.removeItem('bl_timer_start');
     localStorage.removeItem('bl_timer_book_id');
@@ -3284,6 +3285,369 @@ const QUESTS = [
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_pen" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2F4F4F"/><stop offset="100%" stop-color="#000"/></linearGradient><filter id="s_pen"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.5"/></filter></defs><g filter="url(#s_pen)"><rect x="6" y="6" width="20" height="20" fill="#F5DEB3" stroke="#8B4513" stroke-width="1"/><path d="M22 10L14 22l-4-2 2-8z" fill="url(#g_pen)"/><circle cx="10" cy="20" r="1" fill="#D4AF37"/></g></svg>`,
       itemName: '서명 없는 만년필', itemDesc: '한 작가의 책을 10권 이상 읽은 열정적인 팬에게',
       color: '#5050a0', bg: '#f5f5ff', border: '#c0c0e8',
+    }
+  },
+
+  // ── 42. 얼굴 있는 독서가 (프로필 이미지 등록)
+  {
+    id: 'profile_face',
+    name: '얼굴 있는 독서가',
+    hint: '프로필 사진을 등록해보세요.',
+    desc: '당당히 얼굴을 내민 독서가예요.',
+    condition: (books, profile) => !!(profile?.avatar_url),
+    reward: {
+      title: '📸 얼굴 있는 독서가', item: '🖼️',
+      itemName: '프로필 액자', itemDesc: '프로필 사진을 등록한 독서가에게',
+      color: '#c4714a', bg: '#fff5ee', border: '#f0c8a0',
+    }
+  },
+
+  // ── 43. 과속 독서가 (하루 3권 이상 완독)
+  {
+    id: 'speed_reader3',
+    name: '과속 독서가',
+    hint: '하루에 여러 권을 읽어보세요.',
+    desc: '하루에 3권을 완독한 과속 독서가!',
+    condition: (books) => {
+      const dc={};
+      books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{dc[b.date_finish]=(dc[b.date_finish]||0)+1;});
+      return Object.values(dc).some(c=>c>=3);
+    },
+    reward: {
+      title: '🏎️ 과속 독서가', item: '🏁',
+      itemName: '닳은 손목 보호대', itemDesc: '하루에 3권을 완독한 속독의 달인에게',
+      color: '#e05020', bg: '#fff5f0', border: '#f8c0a0',
+    }
+  },
+
+  // ── 44. 시간 여행자 (타이머 총 100시간)
+  {
+    id: 'timer_100h',
+    name: '시간 여행자',
+    hint: '타이머로 총 100시간을 기록해보세요.',
+    desc: '총 100시간의 독서 시간을 기록했어요!',
+    condition: (books) => books.reduce((a,b)=>a+(b.reading_time||0),0) >= 6000,
+    reward: {
+      title: '⌛ 시간 여행자', item: '⏱️',
+      itemName: '오래된 스톱워치', itemDesc: '타이머로 100시간을 채운 시간 여행자에게',
+      color: '#5050a0', bg: '#f5f5ff', border: '#c0c0e8',
+      hasInvite: true,
+    }
+  },
+
+  // ── 45. 월간 정복자 (한 달에 15권 이상)
+  {
+    id: 'monthly_15',
+    name: '월간 정복자',
+    hint: '한 달에 15권을 읽어보세요.',
+    desc: '한 달에 15권을 완독한 월간 정복자!',
+    condition: (books) => {
+      const mc={};
+      books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{const m=b.date_finish.slice(0,7);mc[m]=(mc[m]||0)+1;});
+      return Object.values(mc).some(c=>c>=15);
+    },
+    reward: {
+      title: '📅 월간 정복자', item: '📆',
+      itemName: '찢어진 달력', itemDesc: '한 달에 15권을 완독한 정복자에게',
+      color: '#207050', bg: '#f0fff8', border: '#a0e0c0',
+    }
+  },
+
+  // ── 46. 읽지 않는 자 (같은 책 3일 방치)
+  {
+    id: 'never_reader',
+    name: '읽지 않는 자',
+    hint: '책을 오래 방치해보세요.',
+    desc: '책을 열어만 두고 읽지 않은 당신...',
+    condition: () => !!(localStorage.getItem('bl_same_book_3days')),
+    reward: {
+      title: '🌫️ 읽지 않는 자', item: '🌫️',
+      itemName: '먼지', itemDesc: '책을 3일 동안 방치한 독서가에게',
+      color: '#808090', bg: '#f5f5f8', border: '#d0d0e0',
+    }
+  },
+
+  // ── 47. 13일의 금요일 독서가 (13일 금요일 완독)
+  {
+    id: 'friday13',
+    name: '13일의 금요일 독서가',
+    hint: '13일 금요일에 책을 완독해보세요.',
+    desc: '13일의 금요일에 책을 완독했어요!',
+    condition: (books) => books.some(b => {
+      if(b.status!=='완독'||!b.date_finish) return false;
+      const d=new Date(b.date_finish);
+      return d.getDate()===13 && d.getDay()===5;
+    }),
+    reward: {
+      title: '🖤 13일의 금요일 독서가', item: '🪶',
+      itemName: '검은 깃털', itemDesc: '13일 금요일에 책을 완독한 독서가에게',
+      color: '#202028', bg: '#f0f0f5', border: '#a0a0b8',
+    }
+  },
+
+  // ── 48. 계획형 독자 (읽는중 0 + 비완독 100권 이상)
+  {
+    id: 'plan_reader',
+    name: '계획형 독자',
+    hint: '읽고 싶은 책을 100권 이상 쌓아두세요.',
+    desc: '계획은 완벽하고 실행은 없는 계획형 독자!',
+    condition: (books) => {
+      const reading = books.filter(b=>b.status==='읽는중').length;
+      const planned = books.filter(b=>b.status!=='완독').length;
+      return reading === 0 && planned >= 100;
+    },
+    reward: {
+      title: '📋 계획형 독자', item: '🛒',
+      itemName: '무한 장바구니', itemDesc: '실행 없는 완벽한 계획을 세운 독서가에게',
+      color: '#3060a0', bg: '#f0f5ff', border: '#a0b8e8',
+    }
+  },
+
+  // ── 49. 새로고침의 신 (하루 30번 이상 방문)
+  {
+    id: 'refresh_god',
+    name: '새로고침의 신',
+    hint: '앱을 하루에 30번 이상 방문해보세요.',
+    desc: '하루에 30번이나 앱을 방문한 새로고침의 신!',
+    condition: () => parseInt(localStorage.getItem('bl_daily_visit_max')||'0') >= 30,
+    reward: {
+      title: '⌨️ 새로고침의 신', item: '⌨️',
+      itemName: 'F5 키', itemDesc: '하루에 앱을 30번 이상 방문한 독서가에게',
+      color: '#408060', bg: '#f0fff5', border: '#a0d8b8',
+    }
+  },
+
+  // ── 50. 프로필 완벽주의자 (프로필 20번 이상 저장)
+  {
+    id: 'profile_perfectionist',
+    name: '프로필 완벽주의자',
+    hint: '프로필을 여러 번 수정해보세요.',
+    desc: '프로필을 20번이나 수정한 완벽주의자!',
+    condition: () => parseInt(localStorage.getItem('bl_profile_save_count')||'0') >= 20,
+    reward: {
+      title: '🔄 프로필 완벽주의자', item: '🖊️',
+      itemName: '수정 테이프', itemDesc: '프로필을 20번 이상 저장한 완벽주의자에게',
+      color: '#a04090', bg: '#fff0ff', border: '#e0a8e0',
+    }
+  },
+
+  // ── 51. 1월 1일의 독서가 (1월 1일에 읽음)
+  {
+    id: 'jan1_reader',
+    name: '1월 1일의 독서가',
+    hint: '새해 첫날에 책을 읽어보세요.',
+    desc: '새해 첫날에 책을 읽은 열정 독서가!',
+    condition: (books) => books.some(b => (b.date_finish||'').slice(5)==='01-01' || (b.date_start||'').slice(5)==='01-01'),
+    reward: {
+      title: '🎊 1월 1일의 독서가', item: '📅',
+      itemName: '새 달력', itemDesc: '새해 첫날에 책을 읽은 독서가에게',
+      color: '#d03060', bg: '#fff0f5', border: '#f0a0c0',
+      hasInvite: true,
+    }
+  },
+
+  // ── 52. 연말의 독서가 (12월 31일 완독)
+  {
+    id: 'dec31_reader',
+    name: '연말의 독서가',
+    hint: '연말 마지막 날에 책을 완독해보세요.',
+    desc: '연말 마지막 날에 책을 완독했어요!',
+    condition: (books) => books.some(b => b.status==='완독' && (b.date_finish||'').slice(5)==='12-31'),
+    reward: {
+      title: '🎁 연말의 독서가', item: '🎀',
+      itemName: '연말 리본', itemDesc: '한 해의 마지막 날에 책을 완독한 독서가에게',
+      color: '#a03020', bg: '#fff5f0', border: '#f0b8a0',
+      hasInvite: true,
+    }
+  },
+
+  // ── 53. 찍먹의 달인 (1~2분 타이머 20번 이상)
+  {
+    id: 'timer_1min',
+    name: '찍먹의 달인',
+    hint: '짧게 짧게 독서 타이머를 기록해보세요.',
+    desc: '짧게 짧게, 찍먹의 달인!',
+    condition: () => parseInt(localStorage.getItem('bl_quick_timer_count')||'0') >= 20,
+    reward: {
+      title: '⏳ 찍먹의 달인', item: '⏳',
+      itemName: '1분 모래시계', itemDesc: '1~2분짜리 타이머를 20번 이상 저장한 독서가에게',
+      color: '#c07830', bg: '#fff8e8', border: '#f0d0a0',
+    }
+  },
+
+  // ── 54. 백년의 고독자 (친구 0명 + 완독 50권)
+  {
+    id: 'solo_50',
+    name: '백년의 고독자',
+    hint: '친구 없이 혼자 50권을 완독해보세요.',
+    desc: '혼자서 50권을 완독한 고독한 독서가!',
+    condition: (books, profile, extra) => {
+      const done = books.filter(b=>b.status==='완독').length;
+      return done >= 50 && extra.friendCount === 0;
+    },
+    reward: {
+      title: '🦋 백년의 고독자', item: '🦋',
+      itemName: '노란 나비', itemDesc: '혼자서 50권을 완독한 고독한 독서가에게',
+      color: '#9060a0', bg: '#f8f0ff', border: '#d0b0e8',
+      hasInvite: true,
+    }
+  },
+
+  // ── 55. 오만, 편견 그리고 다아시의 친구 (별점 상향 수정)
+  {
+    id: 'prejudice',
+    name: '오만, 편견 그리고 다아시의 친구',
+    hint: '한 번 낮게 평가했던 책의 별점을 올려보세요.',
+    desc: '편견을 버리고 별점을 올린 독서가!',
+    condition: () => !!(localStorage.getItem('bl_rating_revised_up')),
+    reward: {
+      title: '💌 오만, 편견 그리고 다아시의 친구', item: '💌',
+      itemName: '젖은 편지', itemDesc: '편견을 버리고 별점을 올린 독서가에게',
+      color: '#a05070', bg: '#fff0f5', border: '#e0b0c8',
+    }
+  },
+
+  // ── 56. 빅브라더 (365일 연속 방문)
+  {
+    id: 'big_brother',
+    name: '빅브라더',
+    hint: '365일 동안 매일 앱을 방문해보세요.',
+    desc: '365일 연속 방문한 진정한 빅브라더!',
+    condition: () => parseInt(localStorage.getItem('bl_login_streak')||'0') >= 365,
+    reward: {
+      title: '📷 빅브라더', item: '📹',
+      itemName: '감시 카메라', itemDesc: '365일 연속 방문한 독서가에게',
+      color: '#303060', bg: '#f0f0f8', border: '#b0b0d8',
+      hasInvite: true,
+    }
+  },
+
+  // ── 57. 농장 관리자 (친구 30명 이상)
+  {
+    id: 'farm_manager',
+    name: '농장 관리자',
+    hint: '친구를 30명 이상 만들어보세요.',
+    desc: '30명의 친구를 거느린 농장 관리자!',
+    condition: (books, profile, extra) => extra.friendCount >= 30,
+    reward: {
+      title: '🐷 농장 관리자', item: '🐷',
+      itemName: '돼지 가면', itemDesc: '30명 이상의 친구를 사귄 독서가에게',
+      color: '#c06080', bg: '#fff0f5', border: '#f0b0c0',
+    }
+  },
+
+  // ── 58. 아브락사스의 아이 (책 777권 이상 등록)
+  {
+    id: 'abraxas',
+    name: '아브락사스의 아이',
+    hint: '책을 777권 이상 등록해보세요.',
+    desc: '알을 깨고 나온 777권의 독서가!',
+    condition: (books) => books.length >= 777,
+    reward: {
+      title: '🥚 아브락사스의 아이', item: '🥚',
+      itemName: '깨진 달걀', itemDesc: '777권의 책을 등록한 독서가에게',
+      color: '#607020', bg: '#f8ffe0', border: '#d0e080',
+    }
+  },
+
+  // ── 59. 메피스토의 고객 (구매/전자책 666권 이상)
+  {
+    id: 'mephisto',
+    name: '메피스토의 고객',
+    hint: '구매하거나 전자책으로 666권을 등록해보세요.',
+    desc: '악마에게 영혼을 판 666권의 독서가!',
+    condition: (books) => books.filter(b => b.source==='구매' || b.source==='전자책').length >= 666,
+    reward: {
+      title: '📜 메피스토의 고객', item: '📜',
+      itemName: '피의 계약서', itemDesc: '구매/전자책으로 666권을 등록한 독서가에게',
+      color: '#800020', bg: '#fff0f2', border: '#e0a0a8',
+      hasInvite: true,
+    }
+  },
+
+  // ── 60. 드라큘라 (새벽 타이머 50회 이상)
+  {
+    id: 'dracula',
+    name: '드라큘라',
+    hint: '새벽에 독서 타이머를 50번 이상 기록해보세요.',
+    desc: '새벽을 지배하는 드라큘라 독서가!',
+    condition: () => parseInt(localStorage.getItem('bl_dawn_sessions')||'0') >= 50,
+    reward: {
+      title: '🧛 드라큘라', item: '🦷',
+      itemName: '송곳니', itemDesc: '새벽 독서를 50번 이상 기록한 독서가에게',
+      color: '#600040', bg: '#f8f0f5', border: '#d0a0c0',
+    }
+  },
+
+  // ── 61. 독서가의 벗 (친구 3명과 같은 책)
+  {
+    id: 'three_friends',
+    name: '독서가의 벗',
+    hint: '친구들과 같은 책을 읽어보세요.',
+    desc: '도원결의! 친구들과 같은 책을 읽었어요!',
+    condition: () => !!(localStorage.getItem('bl_friend_same_book_3')),
+    reward: {
+      title: '🍶 독서가의 벗', item: '🍶',
+      itemName: '도원결의 술잔', itemDesc: '3명의 친구와 같은 책을 읽은 독서가에게',
+      color: '#a06020', bg: '#fffae8', border: '#e8d080',
+    }
+  },
+
+  // ── 62. 재판 대기자 (별점 없이 완독 50권)
+  {
+    id: 'no_verdict',
+    name: '재판 대기자',
+    hint: '별점 없이 50권을 완독해보세요.',
+    desc: '판결을 미루고 미루다 50권!',
+    condition: (books) => books.filter(b=>b.status==='완독'&&!b.rating).length >= 50,
+    reward: {
+      title: '📎 재판 대기자', item: '📋',
+      itemName: '빈 판결문', itemDesc: '별점 없이 50권을 완독한 독서가에게',
+      color: '#506070', bg: '#f0f5f8', border: '#b0c8d8',
+    }
+  },
+
+  // ── 63. 개연성 파괴자 (0권 달 다음 달 10권+)
+  {
+    id: 'deus_ex',
+    name: '개연성 파괴자',
+    hint: '한 달 쉬었다가 다음 달에 10권을 완독해보세요.',
+    desc: '갑자기 폭발적으로 읽어버린 개연성 파괴자!',
+    condition: (books) => {
+      const mc={};
+      books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{const m=b.date_finish.slice(0,7);mc[m]=(mc[m]||0)+1;});
+      return Object.keys(mc).some(m=>{
+        if(mc[m]<10) return false;
+        const d=new Date(m+'-01'); d.setMonth(d.getMonth()-1);
+        const prev=d.toISOString().slice(0,7);
+        return !mc[prev];
+      });
+    },
+    reward: {
+      title: '🎭 개연성 파괴자', item: '🎭',
+      itemName: '무대 장치', itemDesc: '갑자기 10권을 완독한 개연성 파괴자에게',
+      color: '#7040a0', bg: '#f8f0ff', border: '#d0b0f0',
+    }
+  },
+
+  // ── 64. 독서가 케빈 (12월 25일 완독 + 타이머 사용)
+  {
+    id: 'xmas_kevin',
+    name: '독서가 케빈',
+    hint: '크리스마스에 책을 읽어보세요.',
+    desc: '크리스마스에 홀로 독서한 독서가 케빈!',
+    condition: (books) => {
+      const hasXmasBook = books.some(b => b.status==='완독' && (b.date_finish||'').slice(5)==='12-25');
+      let hasXmasTimer = false;
+      books.forEach(b=>{
+        if(b.reading_time_log) Object.keys(b.reading_time_log).forEach(d=>{if(d.slice(5)==='12-25') hasXmasTimer=true;});
+      });
+      return hasXmasBook && hasXmasTimer;
+    },
+    reward: {
+      title: '🎄 독서가 케빈', item: '🎄',
+      itemName: '크리스마스 트리', itemDesc: '크리스마스에 홀로 책을 읽은 독서가에게',
+      color: '#207040', bg: '#f0fff5', border: '#a0d8b0',
     }
   },
 ];
@@ -5451,6 +5815,7 @@ async function saveBook() {
     return {text: cleaned, tag:f.querySelector('[data-qtag]').value.trim(), page:f.querySelector('[data-qpage]').value.trim()};
   }).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
+  if(existing?.rating && curRating && curRating > existing.rating) localStorage.setItem('bl_rating_revised_up', '1');
   const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null};
   try {
     let bookId=editingBookId;
@@ -5914,6 +6279,7 @@ async function saveProfile() {
     if(titleEl) updateData.user_title = titleEl.value || null;
     const {error} = await sb.from('profiles').update(updateData).eq('id',currentUser.id);
     if(error) throw error;
+    localStorage.setItem('bl_profile_save_count', String((parseInt(localStorage.getItem('bl_profile_save_count')||'0')+1)));
     if(saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '저장'; }
     closeModal('modal-profile');
     await showAlert(avatarSaved ? '저장되었어요! 프로필 사진도 적용됐어요.' : '저장되었어요!');
