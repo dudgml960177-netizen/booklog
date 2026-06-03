@@ -78,6 +78,12 @@ export default async function handler(req, res) {
     await del('books', `user_id=eq.${targetUserId}`);
     await del('user_goals', `user_id=eq.${targetUserId}`);
     await del('invite_codes', `owner_id=eq.${targetUserId}`);
+    // used_by FK 제약 해제: 이 유저가 사용한 초대코드의 used_by를 null로 초기화
+    await fetch(`${SUPABASE_URL}/rest/v1/invite_codes?used_by=eq.${targetUserId}`, {
+      method: 'PATCH',
+      headers: svcHeaders,
+      body: JSON.stringify({ used_by: null })
+    });
     await del('profiles', `id=eq.${targetUserId}`);
 
     // 4. auth.users 삭제 (서비스 롤 키 필요)
