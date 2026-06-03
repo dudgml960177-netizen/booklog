@@ -3292,8 +3292,8 @@ const QUESTS = [
   {
     id: 'profile_face',
     name: '얼굴 있는 독서가',
-    hint: '프로필 사진을 등록해보세요.',
-    desc: '당당히 얼굴을 내민 독서가예요.',
+    hint: '얼굴 없이 가능할까요',
+    desc: '드디어 독서가다운 정체성이 생겼네요. 책 표지가 영원히 내 얼굴일 순 없죠.',
     condition: (books, profile) => !!(profile?.avatar_url),
     reward: {
       title: '📸 얼굴 있는 독서가', item: '🖼️',
@@ -3306,8 +3306,8 @@ const QUESTS = [
   {
     id: 'speed_reader3',
     name: '과속 독서가',
-    hint: '하루에 여러 권을 읽어보세요.',
-    desc: '하루에 3권을 완독한 과속 독서가!',
+    hint: '오늘 독서량 꽤 공격적인데요?',
+    desc: '눈, 손목, 다 괜찮은 거죠?',
     condition: (books) => {
       const dc={};
       books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{dc[b.date_finish]=(dc[b.date_finish]||0)+1;});
@@ -3324,8 +3324,8 @@ const QUESTS = [
   {
     id: 'timer_100h',
     name: '시간 여행자',
-    hint: '타이머로 총 100시간을 기록해보세요.',
-    desc: '총 100시간의 독서 시간을 기록했어요!',
+    hint: '슬슬 전문가 영역인데요?',
+    desc: '활자와 함께한 시간이 세 자릿수에 도달했습니다.',
     condition: (books) => books.reduce((a,b)=>a+(b.reading_time||0),0) >= 6000,
     reward: {
       title: '⌛ 시간 여행자', item: '⏱️',
@@ -3339,8 +3339,8 @@ const QUESTS = [
   {
     id: 'monthly_15',
     name: '월간 정복자',
-    hint: '한 달에 15권을 읽어보세요.',
-    desc: '한 달에 15권을 완독한 월간 정복자!',
+    hint: '이번 달 삶이 책 중심이었군요.',
+    desc: '현실보다 활자 세계에 오래 머무르셨습니다.',
     condition: (books) => {
       const mc={};
       books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{const m=b.date_finish.slice(0,7);mc[m]=(mc[m]||0)+1;});
@@ -3357,8 +3357,8 @@ const QUESTS = [
   {
     id: 'never_reader',
     name: '읽지 않는 자',
-    hint: '책을 오래 방치해보세요.',
-    desc: '책을 열어만 두고 읽지 않은 당신...',
+    hint: '읽을 거죠...?',
+    desc: '읽지 않는 것도 재능인 법',
     condition: (books) => {
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
       const cutoffStr = cutoff.toISOString().slice(0,10);
@@ -3375,8 +3375,8 @@ const QUESTS = [
   {
     id: 'friday13',
     name: '13일의 금요일 독서가',
-    hint: '13일 금요일에 책을 완독해보세요.',
-    desc: '13일의 금요일에 책을 완독했어요!',
+    hint: '우연치곤 기분이 묘하네요.',
+    desc: '책도 무사히 끝났고 당신도 무사합니다.',
     condition: (books) => books.some(b => {
       if(b.status!=='완독'||!b.date_finish) return false;
       const d=new Date(b.date_finish+'T12:00:00');
@@ -3393,8 +3393,8 @@ const QUESTS = [
   {
     id: 'plan_reader',
     name: '계획형 독자',
-    hint: '읽고 싶은 책을 100권 이상 쌓아두세요.',
-    desc: '계획은 완벽하고 실행은 없는 계획형 독자!',
+    hint: '계획은 완벽합니다.',
+    desc: '문제는 시작뿐입니다.',
     condition: (books) => {
       const reading = books.filter(b=>b.status==='읽는중').length;
       const planned = books.filter(b=>b.status!=='완독').length;
@@ -3411,8 +3411,8 @@ const QUESTS = [
   {
     id: 'refresh_god',
     name: '새로고침의 신',
-    hint: '앱을 하루에 30번 이상 방문해보세요.',
-    desc: '하루에 30번이나 앱을 방문한 새로고침의 신!',
+    hint: '새로고침 중독!',
+    desc: '서버는 당신을 기억할 겁니다.',
     condition: () => parseInt(localStorage.getItem('bl_daily_visit_max')||'0') >= 30,
     reward: {
       title: '⌨️ 새로고침의 신', item: '⌨️',
@@ -3425,8 +3425,8 @@ const QUESTS = [
   {
     id: 'profile_perfectionist',
     name: '프로필 완벽주의자',
-    hint: '프로필을 여러 번 수정해보세요.',
-    desc: '프로필을 20번이나 수정한 완벽주의자!',
+    hint: '아직도 마음에 안 드세요?',
+    desc: '자기소개도 퇴고하는 독서인.',
     condition: () => parseInt(localStorage.getItem('bl_profile_save_count')||'0') >= 20,
     reward: {
       title: '🔄 프로필 완벽주의자', item: '🖊️',
@@ -3439,8 +3439,8 @@ const QUESTS = [
   {
     id: 'jan1_reader',
     name: '1월 1일의 독서가',
-    hint: '새해 첫날에 책을 읽어보세요.',
-    desc: '새해 첫날에 책을 읽은 열정 독서가!',
+    hint: '새해 목표는 언제나! 이번 해는 얼마나 읽으실 거예요?',
+    desc: 'Happy book year!',
     condition: (books) => books.some(b => (b.date_finish||'').slice(5)==='01-01' || (b.date_start||'').slice(5)==='01-01'),
     reward: {
       title: '🎊 1월 1일의 독서가', item: '📅',
@@ -3454,8 +3454,8 @@ const QUESTS = [
   {
     id: 'dec31_reader',
     name: '연말의 독서가',
-    hint: '연말 마지막 날에 책을 완독해보세요.',
-    desc: '연말 마지막 날에 책을 완독했어요!',
+    hint: '한 해의 마무리는 언제나! 마지막 페이지와 함께 한 해가 끝났습니다',
+    desc: 'Happy Last Book Year!',
     condition: (books) => books.some(b => b.status==='완독' && (b.date_finish||'').slice(5)==='12-31'),
     reward: {
       title: '🎁 연말의 독서가', item: '🎀',
@@ -3469,8 +3469,8 @@ const QUESTS = [
   {
     id: 'timer_1min',
     name: '찍먹의 달인',
-    hint: '짧게 짧게 독서 타이머를 기록해보세요.',
-    desc: '짧게 짧게, 찍먹의 달인!',
+    hint: '시작은 했죠. 시작은.',
+    desc: '최소한의 양심은 지켰으니까…',
     condition: () => parseInt(localStorage.getItem('bl_quick_timer_count')||'0') >= 20,
     reward: {
       title: '⏳ 찍먹의 달인', item: '⏳',
@@ -3483,8 +3483,8 @@ const QUESTS = [
   {
     id: 'solo_50',
     name: '백년의 고독자',
-    hint: '친구 없이 혼자 50권을 완독해보세요.',
-    desc: '혼자서 50권을 완독한 고독한 독서가!',
+    hint: '혼자 읽는 것도 나쁘지 않습니다.',
+    desc: '고독을 유지하셨군요.',
     condition: (books, profile, extra) => {
       const done = books.filter(b=>b.status==='완독').length;
       return done >= 50 && extra.friendCount === 0;
@@ -3501,7 +3501,7 @@ const QUESTS = [
   {
     id: 'prejudice',
     name: '오만, 편견 그리고 다아시의 친구',
-    hint: '\'오만과 편견\'을 완독하거나, 2점 이하 책의 별점을 4점 이상으로 올려보세요.',
+    hint: '첫인상은 언제나 틀릴 수 있습니다.',
     desc: '편견을 극복했습니다.',
     condition: (books) => {
       const ratingRevised = !!(localStorage.getItem('bl_rating_revised_up'));
@@ -3519,8 +3519,8 @@ const QUESTS = [
   {
     id: 'big_brother',
     name: '빅브라더',
-    hint: '365일 동안 매일 앱을 방문해보세요.',
-    desc: '365일 연속 방문한 진정한 빅브라더!',
+    hint: '누군가 지켜보고 있는 것 같습니다',
+    desc: '보이지 않는 감시자는 당신이군요!',
     condition: () => parseInt(localStorage.getItem('bl_login_streak')||'0') >= 365,
     reward: {
       title: '📷 빅브라더', item: '📹',
@@ -3534,8 +3534,8 @@ const QUESTS = [
   {
     id: 'farm_manager',
     name: '농장 관리자',
-    hint: '친구를 30명 이상 만들어보세요.',
-    desc: '30명의 친구를 거느린 농장 관리자!',
+    hint: '모두가 친구입니다.',
+    desc: '어떤 친구는 조금 더 친구입니다.',
     condition: (books, profile, extra) => extra.friendCount >= 30,
     reward: {
       title: '🐷 농장 관리자', item: '🐷',
@@ -3548,8 +3548,8 @@ const QUESTS = [
   {
     id: 'abraxas',
     name: '아브락사스의 아이',
-    hint: '책을 777권 이상 등록해보세요.',
-    desc: '알을 깨고 나온 777권의 독서가!',
+    hint: '새는 알에서 나오려고 투쟁합니다.',
+    desc: '알을 깨고 세상으로!',
     condition: (books) => books.length >= 777,
     reward: {
       title: '🥚 아브락사스의 아이', item: '🥚',
@@ -3562,8 +3562,8 @@ const QUESTS = [
   {
     id: 'mephisto',
     name: '메피스토의 고객',
-    hint: '구매하거나 전자책으로 666권을 등록해보세요.',
-    desc: '악마에게 영혼을 판 666권의 독서가!',
+    hint: '위험한 숫자!',
+    desc: '영혼 대신 지갑을 계약했죠.',
     condition: (books) => books.filter(b => b.source==='구매' || b.source==='전자책').length >= 666,
     reward: {
       title: '📜 메피스토의 고객', item: '📜',
@@ -3577,8 +3577,8 @@ const QUESTS = [
   {
     id: 'dracula',
     name: '드라큘라',
-    hint: '새벽에 독서 타이머를 50번 이상 기록해보세요.',
-    desc: '새벽을 지배하는 드라큘라 독서가!',
+    hint: '이 시간에 건강은 괜찮은 건가요?',
+    desc: '햇빛이 낯설군요.',
     condition: () => parseInt(localStorage.getItem('bl_dawn_sessions')||'0') >= 50,
     reward: {
       title: '🧛 드라큘라', item: '🦷',
@@ -3591,8 +3591,8 @@ const QUESTS = [
   {
     id: 'three_friends',
     name: '독서가의 벗',
-    hint: '친구들과 같은 책을 읽어보세요.',
-    desc: '도원결의! 친구들과 같은 책을 읽었어요!',
+    hint: '천하를 셋으로 나누라!',
+    desc: '내가 유비할게, 관우와 장비는 누가 할래?',
     condition: () => !!(localStorage.getItem('bl_friend_same_book_3')),
     reward: {
       title: '🍶 독서가의 벗', item: '🍶',
@@ -3605,8 +3605,8 @@ const QUESTS = [
   {
     id: 'no_verdict',
     name: '재판 대기자',
-    hint: '별점 없이 50권을 완독해보세요.',
-    desc: '판결을 미루고 미루다 50권!',
+    hint: '판단을 미루고 계시는군요.',
+    desc: '무슨 죄인지는 모르겠지만 평가는 하지 않았습니다.',
     condition: (books) => books.filter(b=>b.status==='완독'&&!b.rating).length >= 50,
     reward: {
       title: '📎 재판 대기자', item: '📋',
@@ -3619,8 +3619,8 @@ const QUESTS = [
   {
     id: 'deus_ex',
     name: '개연성 파괴자',
-    hint: '한 달 쉬었다가 다음 달에 10권을 완독해보세요.',
-    desc: '갑자기 폭발적으로 읽어버린 개연성 파괴자!',
+    hint: '요즘 좀 조용하네요.',
+    desc: '데우스 엑스 마키나! 갑자기 어디서 독서력이 튀어나왔죠?',
     condition: (books) => {
       const mc={};
       books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{const m=b.date_finish.slice(0,7);mc[m]=(mc[m]||0)+1;});
@@ -3642,8 +3642,8 @@ const QUESTS = [
   {
     id: 'xmas_kevin',
     name: '독서가 케빈',
-    hint: '크리스마스에 책을 읽어보세요.',
-    desc: '크리스마스에 홀로 독서한 독서가 케빈!',
+    hint: '흰 눈 사이로, 썰매를 타고',
+    desc: '혼자였어요? 울지마요, 독서 했으니 됐잖아!',
     condition: (books) => {
       const hasXmasBook = books.some(b => b.status==='완독' && (b.date_finish||'').slice(5)==='12-25');
       let hasXmasTimer = false;
