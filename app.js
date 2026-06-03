@@ -3353,13 +3353,17 @@ const QUESTS = [
     }
   },
 
-  // ── 46. 읽지 않는 자 (같은 책 3일 방치)
+  // ── 46. 읽지 않는 자 (타이머 0분인 채로 30일 이상 방치된 읽는중 책 3권+)
   {
     id: 'never_reader',
     name: '읽지 않는 자',
     hint: '책을 오래 방치해보세요.',
     desc: '책을 열어만 두고 읽지 않은 당신...',
-    condition: () => !!(localStorage.getItem('bl_same_book_3days')),
+    condition: (books) => {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
+      const cutoffStr = cutoff.toISOString().slice(0,10);
+      return books.filter(b => b.status==='읽는중' && !b.reading_time && b.date_start && b.date_start <= cutoffStr).length >= 3;
+    },
     reward: {
       title: '🌫️ 읽지 않는 자', item: '🌫️',
       itemName: '먼지', itemDesc: '책을 3일 동안 방치한 독서가에게',
@@ -3375,7 +3379,7 @@ const QUESTS = [
     desc: '13일의 금요일에 책을 완독했어요!',
     condition: (books) => books.some(b => {
       if(b.status!=='완독'||!b.date_finish) return false;
-      const d=new Date(b.date_finish);
+      const d=new Date(b.date_finish+'T12:00:00');
       return d.getDate()===13 && d.getDay()===5;
     }),
     reward: {
@@ -3493,16 +3497,20 @@ const QUESTS = [
     }
   },
 
-  // ── 55. 오만, 편견 그리고 다아시의 친구 (별점 상향 수정)
+  // ── 55. 오만, 편견 그리고 다아시의 친구 (오만과 편견 완독 OR 2점→4점+ 별점 수정)
   {
     id: 'prejudice',
     name: '오만, 편견 그리고 다아시의 친구',
-    hint: '한 번 낮게 평가했던 책의 별점을 올려보세요.',
-    desc: '편견을 버리고 별점을 올린 독서가!',
-    condition: () => !!(localStorage.getItem('bl_rating_revised_up')),
+    hint: '\'오만과 편견\'을 완독하거나, 2점 이하 책의 별점을 4점 이상으로 올려보세요.',
+    desc: '편견을 극복했습니다.',
+    condition: (books) => {
+      const ratingRevised = !!(localStorage.getItem('bl_rating_revised_up'));
+      const hasPnP = books.some(b => b.status==='완독' && (b.title||'').includes('오만과 편견'));
+      return ratingRevised || hasPnP;
+    },
     reward: {
       title: '💌 오만, 편견 그리고 다아시의 친구', item: '💌',
-      itemName: '젖은 편지', itemDesc: '편견을 버리고 별점을 올린 독서가에게',
+      itemName: '젖은 편지', itemDesc: '편견을 극복한 독서가에게',
       color: '#a05070', bg: '#fff0f5', border: '#e0b0c8',
     }
   },
@@ -5815,7 +5823,7 @@ async function saveBook() {
     return {text: cleaned, tag:f.querySelector('[data-qtag]').value.trim(), page:f.querySelector('[data-qpage]').value.trim()};
   }).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
-  if(existing?.rating && curRating && curRating > existing.rating) localStorage.setItem('bl_rating_revised_up', '1');
+  if(existing?.rating && existing.rating <= 2 && curRating && curRating >= 4) localStorage.setItem('bl_rating_revised_up', '1');
   const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null};
   try {
     let bookId=editingBookId;
