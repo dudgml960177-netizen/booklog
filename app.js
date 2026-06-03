@@ -580,6 +580,55 @@ async function doSignup() {
   }
   showAuthError('가입 완료! 이메일 인증 후 로그인해주세요.', true);
 }
+async function deleteMyAccount() {
+  const email = currentUser?.email || '';
+  const confirmed = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+      <div style="background:var(--card);border-radius:14px;padding:1.4rem 1.3rem;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.25);">
+        <div style="font-size:1.1rem;font-weight:700;color:#c0392b;margin-bottom:.6rem;">⚠️ 회원 탈퇴</div>
+        <div style="font-size:.78rem;color:var(--tx2);line-height:1.7;margin-bottom:.9rem;">
+          탈퇴하면 아래 모든 데이터가 <strong>영구 삭제</strong>되며 복구할 수 없어요.<br><br>
+          📚 서재의 모든 책 기록<br>
+          ✍️ 문장 수첩<br>
+          ⏱ 독서 타이머 기록<br>
+          🚶 산책 게시판 글·댓글<br>
+          🏆 획득한 뱃지·칭호
+        </div>
+        ${email ? `<div style="font-size:.68rem;color:var(--tx3);background:#faf6ef;border-radius:6px;padding:.4rem .6rem;margin-bottom:.9rem;word-break:break-all;">${email}</div>` : ''}
+        <div style="display:flex;gap:.5rem;">
+          <button id="_da_cancel" style="flex:1;padding:.55rem;border:1px solid var(--border2);border-radius:8px;background:none;font-size:.78rem;color:var(--tx2);cursor:pointer;font-family:var(--ff);">취소</button>
+          <button id="_da_confirm" style="flex:1;padding:.55rem;border:none;border-radius:8px;background:#c0392b;color:#fff;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--ff);">탈퇴하기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#_da_cancel').onclick = () => { overlay.remove(); resolve(false); };
+    overlay.querySelector('#_da_confirm').onclick = () => { overlay.remove(); resolve(true); };
+  });
+  if (!confirmed) return;
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token;
+    if (!token) throw new Error('로그인 세션이 없어요. 다시 로그인해주세요.');
+
+    const resp = await fetch('/api/delete-my-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+    });
+    const result = await resp.json();
+    if (!resp.ok) throw new Error(result.error || '탈퇴 처리 실패');
+
+    try { await sb.auth.signOut(); } catch(_) {}
+    alert('탈퇴가 완료됐어요. 이용해주셔서 감사합니다 🙏');
+    location.reload();
+  } catch(e) {
+    alert('탈퇴 오류: ' + (e.message || '서버 오류가 발생했어요'));
+    console.error('deleteMyAccount error:', e);
+  }
+}
+
 async function doLogout() {
   closeModal('modal-profile');
   try {
