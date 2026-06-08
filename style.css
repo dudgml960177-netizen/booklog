@@ -324,7 +324,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .search-input{flex:1;padding:.58rem .82rem;border:1px solid var(--border);border-radius:var(--rs);font-size:.8rem;font-family:var(--ff);background:var(--bg);color:var(--tx1);outline:none;transition:border .15s;}
 .search-input:focus{border-color:var(--acc);}
 .search-btn{padding:.58rem .9rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);font-size:.78rem;font-weight:600;font-family:var(--ff);cursor:pointer;white-space:nowrap;}
-.search-results{margin-top:.65rem;display:flex;flex-direction:column;gap:.45rem;max-height:250px;overflow-y:auto;}
+.search-results{margin-top:.65rem;display:flex;flex-direction:column;gap:.45rem;max-height:250px;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;}
 .search-item{display:flex;gap:.75rem;align-items:flex-start;padding:.65rem;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;background:var(--bg);transition:all .13s;}
 .search-item:hover{border-color:var(--acc);background:#ede4d0;}
 .search-item-cover{width:40px;height:57px;object-fit:cover;border-radius:2px;flex-shrink:0;background:#ddd;}

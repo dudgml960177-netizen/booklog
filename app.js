@@ -296,6 +296,16 @@ async function startApp(user) {
     if(_vc > parseInt(localStorage.getItem('bl_daily_visit_max')||'0'))
       localStorage.setItem('bl_daily_visit_max', String(_vc));
 
+    // 인라인 도서관에서 복귀 시 storage 이벤트 미발생 → 직접 처리
+    const _libDone = localStorage.getItem('bl_lib_session_done');
+    if(_libDone) {
+      try {
+        const { bookId, minutes, date } = JSON.parse(_libDone);
+        localStorage.removeItem('bl_lib_session_done');
+        if(bookId && minutes >= 1) setTimeout(() => _addLibraryTime(bookId, minutes, date), 2000);
+      } catch(_) {}
+    }
+
     if(typeof loadNotifications === 'function') setTimeout(loadNotifications, 500);
     if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
     if(typeof checkBoardNew === 'function') setTimeout(checkBoardNew, 2000);
