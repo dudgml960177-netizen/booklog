@@ -5980,30 +5980,54 @@ async function loadSharedReviews(isbn, currentBookId, hasMyReview) {
   if(!inner) return;
   const sep = hasMyReview ? 'margin-top:.45rem;padding-top:.45rem;border-top:1px solid var(--border);' : '';
   try {
-    const { data, error } = await sb.from('books')
-      .select('review, user_id')
+    const { data: booksData, error } = await sb.from('books')
+      .select('id, review, user_id')
       .eq('isbn', isbn)
       .eq('review_shared', true)
       .neq('user_id', currentUser.id)
       .not('review', 'is', null)
-      .limit(10);
+      .limit(20);
     if(error) throw error;
-    const reviews = (data||[]).filter(r=>r.review?.trim());
+    const reviews = (booksData||[]).filter(r=>r.review?.trim());
     if(!reviews.length) {
       inner.innerHTML=`<div style="${sep}"><div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.4rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div></div>`;
       return;
     }
     const userIds = [...new Set(reviews.map(r=>r.user_id))];
-    const { data: profiles } = await sb.from('profiles').select('id,display_name,username').in('id', userIds);
+    const bookIds = reviews.map(r=>r.id);
+    // profiles + 공감 수 + 내 공감 병렬 조회
+    const [pfRes, likesRes, myLikesRes] = await Promise.all([
+      sb.from('profiles').select('id,display_name,username').in('id', userIds),
+      sb.from('review_likes').select('book_id').in('book_id', bookIds).then(r=>r, ()=>({data:[]})),
+      sb.from('review_likes').select('book_id').in('book_id', bookIds).eq('liked_by', currentUser.id).then(r=>r, ()=>({data:[]}))
+    ]);
     const pfMap = {};
-    (profiles||[]).forEach(p=>{ pfMap[p.id]=p; });
+    (pfRes.data||[]).forEach(p=>{ pfMap[p.id]=p; });
+    const likeMap = {};
+    (likesRes.data||[]).forEach(l=>{ likeMap[l.book_id]=(likeMap[l.book_id]||0)+1; });
+    const myLikes = new Set((myLikesRes.data||[]).map(l=>l.book_id));
+    // 공감 많은 순 정렬
+    reviews.sort((a,b)=>(likeMap[b.id]||0)-(likeMap[a.id]||0));
+    const MAX_LEN = 100;
+    const esc = s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
     const cards = reviews.map(r=>{
       const pf = pfMap[r.user_id];
       const name = pf?.display_name || pf?.username || '산책자';
-      const rv = r.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      const iLiked = myLikes.has(r.id);
+      const cnt = likeMap[r.id]||0;
+      const long = r.review.length > MAX_LEN;
+      const reviewHtml = long
+        ? `<span class="rv-s">${esc(r.review.slice(0,MAX_LEN))}…</span><span class="rv-f" style="display:none;">${esc(r.review)}</span><button onclick="var w=this.closest('.rv-wrap');w.querySelector('.rv-s').style.display='none';w.querySelector('.rv-f').style.display='inline';this.style.display='none';" style="background:none;border:none;color:var(--acc);font-size:.62rem;cursor:pointer;font-family:var(--ff);padding:0 0 0 .18rem;">더 보기</button>`
+        : esc(r.review);
+      const likeLabel = cnt ? cnt+' 공감' : '공감하기';
       return `<div style="background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .72rem;">
-        <div style="font-size:.55rem;font-weight:600;color:var(--tx3);letter-spacing:.03em;margin-bottom:.25rem;">${name}</div>
-        <div style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;">${rv}</div>
+        <div style="font-size:.55rem;font-weight:600;color:var(--tx3);letter-spacing:.03em;margin-bottom:.22rem;">${name}</div>
+        <div class="rv-wrap" style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;margin-bottom:.38rem;">${reviewHtml}</div>
+        <button data-bid="${r.id}" data-liked="${iLiked?1:0}" onclick="toggleReviewLike(this)"
+          style="display:inline-flex;align-items:center;gap:.28rem;border:1px solid ${iLiked?'var(--acc)':'var(--border2)'};border-radius:20px;padding:.18rem .58rem;background:${iLiked?'#fff8f0':'none'};cursor:pointer;font-family:var(--ff);transition:all .15s;">
+          <span style="font-size:.82rem;line-height:1;color:${iLiked?'var(--acc)':'var(--tx3)'};">${iLiked?'♥':'♡'}</span>
+          <span style="font-size:.62rem;font-weight:600;color:${iLiked?'var(--acc)':'var(--tx3)'};">${likeLabel}</span>
+        </button>
       </div>`;
     }).join('');
     inner.innerHTML=`<div style="${sep}display:flex;flex-direction:column;gap:.4rem;">${cards}</div>`;
@@ -6011,6 +6035,35 @@ async function loadSharedReviews(isbn, currentBookId, hasMyReview) {
     console.error('[loadSharedReviews]', e);
     inner.innerHTML=`<div style="${sep}"><div style="font-size:.65rem;color:var(--tx3);text-align:center;padding:.4rem 0;">감상을 불러올 수 없어요.</div></div>`;
   }
+}
+
+async function toggleReviewLike(btn) {
+  const bookId = btn.dataset.bid;
+  const iLiked = btn.dataset.liked === '1';
+  btn.disabled = true;
+  try {
+    const heart = btn.querySelector('span:first-child');
+    const label = btn.querySelector('span:last-child');
+    const cnt = parseInt(label.textContent)||0;
+    if(iLiked) {
+      const {error} = await sb.from('review_likes').delete().eq('book_id',bookId).eq('liked_by',currentUser.id);
+      if(error) throw error;
+      btn.dataset.liked='0';
+      heart.textContent='♡'; heart.style.color='var(--tx3)';
+      label.style.color='var(--tx3)';
+      label.textContent = cnt>1 ? (cnt-1)+' 공감' : '공감하기';
+      btn.style.borderColor='var(--border2)'; btn.style.background='none';
+    } else {
+      const {error} = await sb.from('review_likes').insert({book_id:bookId,liked_by:currentUser.id});
+      if(error) throw error;
+      btn.dataset.liked='1';
+      heart.textContent='♥'; heart.style.color='var(--acc)';
+      label.style.color='var(--acc)';
+      label.textContent = (cnt+1)+' 공감';
+      btn.style.borderColor='var(--acc)'; btn.style.background='#fff8f0';
+    }
+  } catch(e) { console.error('[toggleReviewLike]',e); }
+  finally { btn.disabled=false; }
 }
 
 async function saveReadingProgress(bookId, showOnly=false) {
