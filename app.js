@@ -12,7 +12,7 @@ window.onerror = (msg, src, line) => {
 // 북로그 v3
 // ═══════════════════════════════════════════
 // ── 결제 설정
-const PAYMENT_OPEN   = '2026-06-15';
+const PAYMENT_OPEN   = '2026-06-09'; // TEST: 테스트 후 2026-06-15로 복원
 const PAYMENT_CLOSE  = '2026-08-15';
 const PAYMENT_PLANS  = {
   plan_a: { name: '가입권 + 초대장 1장', amount: 15000, invites: 1 },
