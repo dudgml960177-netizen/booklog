@@ -11,6 +11,17 @@ window.onerror = (msg, src, line) => {
 // ═══════════════════════════════════════════
 // 북로그 v3
 // ═══════════════════════════════════════════
+// ── 결제 설정 (포트원 가맹점 식별코드 교체 필요)
+const PORTONE_IMP    = 'imp00000000'; // TODO: 포트원 가맹점 식별코드 입력
+const PORTONE_PG     = 'html5_inicis'; // KG이니시스 기본; 계약 PG로 변경
+const PAYMENT_OPEN   = '2026-06-15';
+const PAYMENT_CLOSE  = '2026-08-15';
+const PAYMENT_PLANS  = {
+  plan_a: { name: '가입권 + 초대장 1장', amount: 15000, invites: 1 },
+  plan_b: { name: '가입권 + 초대장 2장', amount: 28000, invites: 2 },
+  plan_c: { name: '가입권 + 초대장 3장', amount: 38000, invites: 3 }
+};
+
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
 const NAVER_PROXY = `${SUPABASE_URL}/functions/v1/naver-book`;
@@ -8351,3 +8362,171 @@ function joinLibraryObserver() {
       if(status === 'SUBSCRIBED') try { await _libChannel.track({ is_observer: true }); } catch(_) {}
     });
 }
+
+// ═══════════════════════════════════════════
+// 결제 시스템
+// ═══════════════════════════════════════════
+
+let _selectedPlan = null;
+
+function _getTodayKST() {
+  const kst = new Date(Date.now() + 9 * 3600000);
+  return kst.toISOString().slice(0, 10);
+}
+
+function initPaymentSection() {
+  const section = document.getElementById('payment-section');
+  if (!section) return;
+  const today = _getTodayKST();
+  section.style.display = 'block';
+  if (today < PAYMENT_OPEN) {
+    document.getElementById('payment-upcoming').style.display = 'block';
+  } else if (today > PAYMENT_CLOSE) {
+    document.getElementById('payment-closed').style.display = 'block';
+  } else {
+    document.getElementById('payment-available').style.display = 'block';
+    // PortOne SDK 초기화 (SDK가 로드됐을 때만)
+    if (typeof IMP !== 'undefined') IMP.init(PORTONE_IMP);
+    else window.addEventListener('load', () => { if(typeof IMP !== 'undefined') IMP.init(PORTONE_IMP); });
+  }
+}
+
+function selectPayPlan(el) {
+  document.querySelectorAll('.pay-plan').forEach(p => p.classList.remove('on'));
+  el.classList.add('on');
+  _selectedPlan = {
+    id: el.dataset.plan,
+    amount: parseInt(el.dataset.amount),
+    invites: parseInt(el.dataset.invites)
+  };
+}
+
+async function startPayment() {
+  if (!_selectedPlan) {
+    _payMsg('플랜을 선택해주세요.', 'warn'); return;
+  }
+  const email = (document.getElementById('payment-email')?.value || '').trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    _payMsg('유효한 이메일 주소를 입력해주세요.', 'warn'); return;
+  }
+  if (typeof IMP === 'undefined') {
+    _payMsg('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.', 'warn'); return;
+  }
+  const plan = PAYMENT_PLANS[_selectedPlan.id];
+  const orderId = 'BKLOG-' + Date.now() + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
+  const btn = document.getElementById('btn-pay');
+  if (btn) { btn.disabled = true; btn.textContent = '결제창 여는 중…'; }
+
+  IMP.request_pay({
+    pg: PORTONE_PG,
+    pay_method: 'card',
+    merchant_uid: orderId,
+    name: plan.name,
+    amount: _selectedPlan.amount,
+    buyer_email: email,
+    buyer_name: email.split('@')[0]
+  }, async (rsp) => {
+    if (btn) { btn.disabled = false; btn.textContent = '결제하기'; }
+    if (rsp.success) {
+      await _handlePaymentSuccess(rsp.imp_uid, email, _selectedPlan.id);
+    } else if (rsp.error_msg && !rsp.error_msg.includes('취소')) {
+      _payMsg('결제 실패: ' + rsp.error_msg, 'error');
+    }
+  });
+}
+
+async function _handlePaymentSuccess(imp_uid, email, planId) {
+  const btn = document.getElementById('btn-pay');
+  if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ imp_uid, email, plan: planId })
+    });
+    const data = await res.json();
+    if (res.ok && data.codes?.length) {
+      _showPaySuccess(email, data.codes);
+    } else {
+      _payMsg('결제는 완료됐으나 처리 중 오류가 발생했습니다. 이메일을 확인하거나 관리자에게 문의해주세요. (' + (data.error || 'ERR') + ')', 'error');
+    }
+  } catch(e) {
+    _payMsg('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '결제하기'; }
+  }
+}
+
+function _showPaySuccess(email, codes) {
+  const avail = document.getElementById('payment-available');
+  if (!avail) return;
+  const codeHtml = codes.map((c, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .6rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-top:.3rem;">
+      <span style="font-size:.65rem;color:var(--tx3);">${i===0?'내 가입 코드':'초대 코드 '+(i)}</span>
+      <span style="font-size:.85rem;font-weight:700;color:var(--acc);letter-spacing:.07em;">${c}</span>
+    </div>`).join('');
+  avail.innerHTML = `
+    <div style="text-align:center;padding:1rem .5rem .6rem;">
+      <div style="font-size:1.5rem;margin-bottom:.5rem;">📬</div>
+      <div style="font-size:.9rem;font-weight:700;color:var(--tx1);margin-bottom:.3rem;">결제 완료!</div>
+      <div style="font-size:.73rem;color:var(--tx3);line-height:1.65;margin-bottom:.85rem;">
+        <b style="color:var(--tx2);">${email}</b>으로<br>초대코드가 발송되었습니다.
+      </div>
+      ${codeHtml}
+      <div style="font-size:.63rem;color:var(--tx3);margin-top:.7rem;">이메일에서도 코드를 확인할 수 있어요</div>
+    </div>`;
+}
+
+function _payMsg(msg, type='warn') {
+  const avail = document.getElementById('payment-available');
+  if (!avail) return;
+  let el = avail.querySelector('.pay-msg');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'pay-msg';
+    avail.insertBefore(el, avail.querySelector('#btn-pay'));
+  }
+  const colors = { warn: '#9e3a1e', error: '#b8001f' };
+  el.style.cssText = `font-size:.72rem;color:${colors[type]||'#9e3a1e'};background:#fdf0ee;border:1px solid #e8b8a8;border-radius:6px;padding:.45rem .7rem;margin-bottom:.5rem;`;
+  el.textContent = msg;
+  setTimeout(() => el?.remove(), 5000);
+}
+
+// ── 추가 후원
+function openDonation() {
+  const area = document.getElementById('donation-area');
+  if (!area) return;
+  area.innerHTML = `
+    <div style="display:flex;gap:.4rem;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:.2rem;">
+      <input type="number" id="donation-amount" value="5000" min="1000" step="1000"
+        style="width:85px;padding:.32rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.78rem;font-family:var(--ff);text-align:center;background:var(--bg);color:var(--tx1);">
+      <span style="font-size:.75rem;color:var(--tx3);">원</span>
+      <button onclick="processDonation()" style="background:var(--acc);color:#fff;border:none;border-radius:6px;padding:.32rem .75rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);">후원</button>
+      <button onclick="document.getElementById('donation-area').innerHTML='<div style=\\'text-align:center\\'><button onclick=\\'openDonation()\\' style=\\'background:none;border:none;font-size:.72rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;text-underline-offset:2px;\\'>+ 추가 후원하기</button></div>'"
+        style="background:none;border:1px solid var(--border2);border-radius:6px;padding:.32rem .6rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);color:var(--tx3);">취소</button>
+    </div>`;
+}
+
+function processDonation() {
+  const amt = parseInt(document.getElementById('donation-amount')?.value || '0');
+  if (!amt || amt < 1000) { _payMsg('최소 1,000원 이상 입력해주세요.', 'warn'); return; }
+  if (typeof IMP === 'undefined') { _payMsg('결제 모듈 로딩 중입니다.', 'warn'); return; }
+  const orderId = 'BKLOG-DON-' + Date.now();
+  IMP.request_pay({
+    pg: PORTONE_PG,
+    pay_method: 'card',
+    merchant_uid: orderId,
+    name: '북로그 추가 후원',
+    amount: amt
+  }, (rsp) => {
+    if (rsp.success) {
+      const area = document.getElementById('donation-area');
+      if (area) area.innerHTML = '<div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.3rem 0;">소중한 후원 감사합니다 ❤️</div>';
+    } else if (rsp.error_msg && !rsp.error_msg.includes('취소')) {
+      _payMsg('결제 실패: ' + rsp.error_msg, 'error');
+    }
+  });
+}
+
+// 결제 섹션 초기화 (DOMContentLoaded)
+document.addEventListener('DOMContentLoaded', initPaymentSection);

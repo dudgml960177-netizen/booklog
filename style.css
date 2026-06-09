@@ -48,6 +48,10 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .auth-btn{width:100%;padding:.75rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);font-size:.85rem;font-weight:600;font-family:var(--ff);cursor:pointer;margin-top:.3rem;transition:background .15s;}
 .auth-btn:hover{background:var(--acc2);}
 .auth-error{background:#fdf0ee;border:1px solid #e8b8a8;border-radius:var(--rs);padding:.6rem .9rem;font-size:.75rem;color:#9e3a1e;margin-bottom:.8rem;}
+/* 결제 플랜 선택 */
+.pay-plan{padding:.72rem .9rem;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;background:var(--card);transition:border-color .13s,background .13s,box-shadow .13s;user-select:none;}
+.pay-plan:hover{border-color:var(--acc);}
+.pay-plan.on{border-color:var(--acc);background:#fffaf4;box-shadow:0 0 0 1.5px var(--acc);}
 /* 앱 레이아웃 */
 .app-header{background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;}
 .header-inner{max-width:920px;margin:0 auto;padding:.65rem 1.2rem;display:flex;align-items:center;justify-content:space-between;}
