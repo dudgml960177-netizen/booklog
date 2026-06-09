@@ -20,7 +20,7 @@ const PAYMENT_PLANS  = {
   plan_c: { name: '가입권 + 초대장 3장', amount: 38000, invites: 3 }
 };
 // TODO: 실제 계좌 정보로 교체
-const BANK_INFO = { bank: '카카오뱅크', account: '3333-XX-XXXXXXX', holder: '홍길동' };
+const BANK_INFO = { bank: '카카오뱅크', account: '3333-37-6571647', holder: '김영희' };
 
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
