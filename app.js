@@ -5985,7 +5985,13 @@ async function loadSharedReviews(isbn, currentBookId) {
       .not('review', 'is', null)
       .limit(10);
     const reviews = (data||[]).filter(r=>r.review?.trim());
-    if(!reviews.length) return;
+    if(!reviews.length) {
+      section.innerHTML=`<div style="padding-top:.7rem;border-top:1px solid var(--border);">
+        <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.45rem;">다른 산책자의 감상</div>
+        <div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.5rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div>
+      </div>`;
+      return;
+    }
     const cards = reviews.map(r=>{
       const name = r.profiles?.display_name || r.profiles?.username || '산책자';
       const rv = r.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
