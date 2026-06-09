@@ -223,7 +223,9 @@ function renderTable() {
         : '<span class="badge badge-cancelled">취소</span>';
     const confirmBtn = p.status === 'pending'
       ? `<button class="btn-confirm" id="cbtn-${p.id}" onclick="confirmPayment('${p.id}')">✓ 확인</button>`
-      : '—';
+      : p.status === 'confirmed'
+        ? `<button class="btn-confirm" id="rbtn-${p.id}" onclick="resendEmail('${p.id}')" style="background:#6b8c6b;">📧 재발송</button>`
+        : '—';
     return `<tr>
       <td>${date}</td>
       <td>${p.email}</td>
@@ -250,6 +252,28 @@ function renderTable() {
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+async function resendEmail(id) {
+  const btn = document.getElementById(`rbtn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = '발송 중…'; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}`, 'x-admin-secret': _secret },
+      body: JSON.stringify({ action: 'resend_email', payment_id: id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert('발송 오류: ' + (data.error || res.status) + (data.detail ? '\n' + JSON.stringify(data.detail) : ''));
+    } else {
+      alert('이메일이 재발송되었습니다.');
+    }
+  } catch(e) {
+    alert('네트워크 오류: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📧 재발송'; }
+  }
 }
 
 async function confirmPayment(id) {
