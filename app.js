@@ -5912,16 +5912,21 @@ function openDetail(bookId) {
     </div>`;
   }
 
-  // 감상
-  if(b.review){
-    const rv=b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-    const MAX_REVIEW=120;
-    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">감상</div>
-      <div style="font-size:.7rem;color:var(--tx2);line-height:1.72;">
-        ${b.review.length>MAX_REVIEW?`<span class="review-short">${b.review.slice(0,MAX_REVIEW).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}...</span><span class="review-full" style="display:none;">${rv}</span><span class="desc-toggle" onclick="this.previousElementSibling.style.display='inline';this.previousElementSibling.previousElementSibling.style.display='none';this.style.display='none';" style="cursor:pointer;color:var(--acc);font-size:.62rem;margin-left:.22rem;">더 보기</span>`:rv}
-      </div>
-    </div>`;
+  // 감상 (내 감상 + 다른 산책자 통합)
+  if(b.review || b.isbn){
+    html+=`<div id="reviews-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.5rem;">감상</div>`;
+    if(b.review){
+      const rv=b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      const MAX_REVIEW=120;
+      html+=`<div style="margin-bottom:.45rem;">
+        <span style="display:inline-block;font-size:.52rem;font-weight:600;padding:.08rem .38rem;border-radius:4px;background:var(--acc);color:#fff;letter-spacing:.02em;margin-bottom:.28rem;">내 감상</span>
+        <div style="font-size:.7rem;color:var(--tx2);line-height:1.72;">
+          ${b.review.length>MAX_REVIEW?`<span class="review-short">${b.review.slice(0,MAX_REVIEW).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}...</span><span class="review-full" style="display:none;">${rv}</span><span class="desc-toggle" onclick="this.previousElementSibling.style.display='inline';this.previousElementSibling.previousElementSibling.style.display='none';this.style.display='none';" style="cursor:pointer;color:var(--acc);font-size:.62rem;margin-left:.22rem;">더 보기</span>`:rv}
+        </div>
+      </div>`;
+    }
+    html+=`<div id="shared-reviews-inner"></div></div>`;
   }
 
   // 독서 진행 (읽는중)
@@ -5963,19 +5968,16 @@ function openDetail(bookId) {
   if(!quotes.length) html+=`<div style="font-size:.68rem;color:var(--tx3);text-align:center;padding:.65rem 0;font-style:italic;">아직 수집된 문장이 없어요.</div>`;
   html+='</div>';
 
-  // 다른 산책자의 감상 플레이스홀더 (ISBN 있을 때만)
-  if(b.isbn) html+=`<div id="shared-reviews-section" style="margin-top:.7rem;"></div>`;
-
   document.getElementById('detail-body').innerHTML=html;
   openModal('modal-detail');
 
   // 비동기로 공유 감상 로드
-  if(b.isbn) loadSharedReviews(b.isbn, b.id);
+  if(b.isbn) loadSharedReviews(b.isbn, b.id, !!b.review);
 }
 
-async function loadSharedReviews(isbn, currentBookId) {
-  const section = document.getElementById('shared-reviews-section');
-  if(!section) return;
+async function loadSharedReviews(isbn, currentBookId, hasMyReview) {
+  const inner = document.getElementById('shared-reviews-inner');
+  if(!inner) return;
   try {
     const { data } = await sb.from('books')
       .select('review, user_id, profiles(display_name, username)')
@@ -5986,24 +5988,20 @@ async function loadSharedReviews(isbn, currentBookId) {
       .limit(10);
     const reviews = (data||[]).filter(r=>r.review?.trim());
     if(!reviews.length) {
-      section.innerHTML=`<div style="padding-top:.7rem;border-top:1px solid var(--border);">
-        <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.45rem;">다른 산책자의 감상</div>
-        <div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.5rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div>
+      inner.innerHTML=`<div style="margin-top:${hasMyReview?'.45rem':'0'};padding-top:${hasMyReview?'.45rem;border-top:1px solid var(--border)':'0'}">
+        <div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.4rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div>
       </div>`;
       return;
     }
     const cards = reviews.map(r=>{
       const name = r.profiles?.display_name || r.profiles?.username || '산책자';
       const rv = r.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-      return `<div style="background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.65rem .75rem;position:relative;">
-        <div style="font-size:.6rem;letter-spacing:.04em;color:var(--acc);opacity:.7;margin-bottom:.32rem;">${name}</div>
+      return `<div style="background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .72rem;">
+        <div style="font-size:.55rem;font-weight:600;color:var(--tx3);letter-spacing:.03em;margin-bottom:.25rem;">${name}</div>
         <div style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;">${rv}</div>
       </div>`;
     }).join('');
-    section.innerHTML=`<div style="padding-top:.7rem;border-top:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.55rem;">다른 산책자의 감상</div>
-      <div style="display:flex;flex-direction:column;gap:.45rem;">${cards}</div>
-    </div>`;
+    inner.innerHTML=`<div style="margin-top:${hasMyReview?'.45rem':'0'};${hasMyReview?'padding-top:.45rem;border-top:1px solid var(--border);':''}display:flex;flex-direction:column;gap:.4rem;">${cards}</div>`;
   } catch(_) {}
 }
 
