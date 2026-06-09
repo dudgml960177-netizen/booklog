@@ -5978,31 +5978,39 @@ function openDetail(bookId) {
 async function loadSharedReviews(isbn, currentBookId, hasMyReview) {
   const inner = document.getElementById('shared-reviews-inner');
   if(!inner) return;
+  const sep = hasMyReview ? 'margin-top:.45rem;padding-top:.45rem;border-top:1px solid var(--border);' : '';
   try {
-    const { data } = await sb.from('books')
-      .select('review, user_id, profiles(display_name, username)')
+    const { data, error } = await sb.from('books')
+      .select('review, user_id')
       .eq('isbn', isbn)
       .eq('review_shared', true)
       .neq('user_id', currentUser.id)
       .not('review', 'is', null)
       .limit(10);
+    if(error) throw error;
     const reviews = (data||[]).filter(r=>r.review?.trim());
     if(!reviews.length) {
-      inner.innerHTML=`<div style="margin-top:${hasMyReview?'.45rem':'0'};padding-top:${hasMyReview?'.45rem;border-top:1px solid var(--border)':'0'}">
-        <div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.4rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div>
-      </div>`;
+      inner.innerHTML=`<div style="${sep}"><div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.4rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div></div>`;
       return;
     }
+    const userIds = [...new Set(reviews.map(r=>r.user_id))];
+    const { data: profiles } = await sb.from('profiles').select('id,display_name,username').in('id', userIds);
+    const pfMap = {};
+    (profiles||[]).forEach(p=>{ pfMap[p.id]=p; });
     const cards = reviews.map(r=>{
-      const name = r.profiles?.display_name || r.profiles?.username || '산책자';
+      const pf = pfMap[r.user_id];
+      const name = pf?.display_name || pf?.username || '산책자';
       const rv = r.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
       return `<div style="background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .72rem;">
         <div style="font-size:.55rem;font-weight:600;color:var(--tx3);letter-spacing:.03em;margin-bottom:.25rem;">${name}</div>
         <div style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;">${rv}</div>
       </div>`;
     }).join('');
-    inner.innerHTML=`<div style="margin-top:${hasMyReview?'.45rem':'0'};${hasMyReview?'padding-top:.45rem;border-top:1px solid var(--border);':''}display:flex;flex-direction:column;gap:.4rem;">${cards}</div>`;
-  } catch(_) {}
+    inner.innerHTML=`<div style="${sep}display:flex;flex-direction:column;gap:.4rem;">${cards}</div>`;
+  } catch(e) {
+    console.error('[loadSharedReviews]', e);
+    inner.innerHTML=`<div style="${sep}"><div style="font-size:.65rem;color:var(--tx3);text-align:center;padding:.4rem 0;">감상을 불러올 수 없어요.</div></div>`;
+  }
 }
 
 async function saveReadingProgress(bookId, showOnly=false) {
