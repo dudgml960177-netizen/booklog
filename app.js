@@ -8419,11 +8419,11 @@ async function submitPaymentRequest() {
       _showTransferInfo({ ...data, email, plan: _selectedPlan.id });
     } else {
       _payMsg('오류가 발생했습니다. 잠시 후 다시 시도해주세요. (' + (data.error || 'ERR') + ')', 'error');
-      if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
     }
   } catch(e) {
     _payMsg('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
-    if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
+  } finally {
+    if (btn && btn.textContent === '신청 중…') { btn.disabled = false; btn.textContent = '신청하기'; }
   }
 }
 
@@ -8476,13 +8476,18 @@ function _resetPaymentForm() {
 }
 
 function _payMsg(msg, type='warn') {
-  const avail = document.getElementById('payment-available');
-  if (!avail) return;
-  let el = avail.querySelector('.pay-msg');
+  const step1 = document.getElementById('pay-step1');
+  if (!step1) return;
+  let el = step1.querySelector('.pay-msg');
   if (!el) {
     el = document.createElement('div');
     el.className = 'pay-msg';
-    avail.insertBefore(el, avail.querySelector('#btn-pay'));
+    const btn = document.getElementById('btn-pay');
+    if (btn && btn.parentNode === step1) {
+      step1.insertBefore(el, btn);
+    } else {
+      step1.appendChild(el);
+    }
   }
   const colors = { warn: '#9e3a1e', error: '#b8001f' };
   el.style.cssText = `font-size:.72rem;color:${colors[type]||'#9e3a1e'};background:#fdf0ee;border:1px solid #e8b8a8;border-radius:6px;padding:.45rem .7rem;margin-bottom:.5rem;`;
