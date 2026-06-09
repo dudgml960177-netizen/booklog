@@ -593,11 +593,18 @@ async function doSignup() {
   if (data.user) {
     await sb.from('profiles').upsert({id:data.user.id, username:name, display_name:name, role:'user'});
     await sb.from('invite_codes').update({used_by:data.user.id, used_at:new Date().toISOString()}).eq('code', code);
-  }
-  // 신규 가입자에게 초대코드 1개 자동 발급
-  if(data.user) {
-    const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
-    await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
+    // 구매 코드로 가입한 경우: 같은 구매의 나머지 코드를 owner로 할당
+    const { data: purchase } = await sb.from('pending_payments').select('id,codes').eq('status','confirmed').filter('codes', 'cs', JSON.stringify([code])).maybeSingle();
+    if (purchase?.codes?.length) {
+      const siblingCodes = purchase.codes.filter((c: string) => c !== code);
+      if (siblingCodes.length) {
+        await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
+      }
+    } else {
+      // 구매 코드가 아닌 경우 기존처럼 초대코드 1개 자동 발급
+      const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
+      await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
+    }
   }
   showAuthError('가입 완료! 이메일 인증 후 로그인해주세요.', true);
 }
