@@ -6070,9 +6070,12 @@ async function toggleReviewLike(btn) {
     // 롤백
     heart.textContent=prevHeart; heart.style.color=''; label.style.color='';
     label.textContent=prevLabel; btn.style.borderColor=prevBorder; btn.style.background=prevBg;
-    console.error('[toggleReviewLike]',e);
-    if(e?.message?.includes('does not exist') || e?.code==='42P01') {
-      alert('공감 기능을 사용하려면 관리자가 review_likes 테이블을 먼저 생성해야 합니다.');
+    console.error('[toggleReviewLike]', e);
+    const msg = e?.message || e?.error_description || JSON.stringify(e);
+    if(msg?.includes('does not exist') || e?.code==='42P01') {
+      alert('공감 기능을 사용하려면 Supabase에서 review_likes 테이블을 먼저 생성해야 합니다.');
+    } else {
+      alert('공감 저장 실패: ' + (msg || '알 수 없는 오류'));
     }
   }
   finally { btn.disabled=false; }
