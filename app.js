@@ -6041,28 +6041,40 @@ async function toggleReviewLike(btn) {
   const bookId = btn.dataset.bid;
   const iLiked = btn.dataset.liked === '1';
   btn.disabled = true;
+  const heart = btn.querySelector('span:first-child');
+  const label = btn.querySelector('span:last-child');
+  const prevHeart = heart.textContent, prevLabel = label.textContent;
+  const prevBorder = btn.style.borderColor, prevBg = btn.style.background;
+  // 낙관적 UI 업데이트
+  const cnt = parseInt(label.textContent)||0;
+  if(iLiked) {
+    heart.textContent='♡'; heart.style.color='var(--tx3)'; label.style.color='var(--tx3)';
+    label.textContent = cnt>1 ? (cnt-1)+' 공감' : '공감하기';
+    btn.style.borderColor='var(--border2)'; btn.style.background='none';
+  } else {
+    heart.textContent='♥'; heart.style.color='var(--acc)'; label.style.color='var(--acc)';
+    label.textContent=(cnt+1)+' 공감';
+    btn.style.borderColor='var(--acc)'; btn.style.background='#fff8f0';
+  }
   try {
-    const heart = btn.querySelector('span:first-child');
-    const label = btn.querySelector('span:last-child');
-    const cnt = parseInt(label.textContent)||0;
     if(iLiked) {
       const {error} = await sb.from('review_likes').delete().eq('book_id',bookId).eq('liked_by',currentUser.id);
       if(error) throw error;
       btn.dataset.liked='0';
-      heart.textContent='♡'; heart.style.color='var(--tx3)';
-      label.style.color='var(--tx3)';
-      label.textContent = cnt>1 ? (cnt-1)+' 공감' : '공감하기';
-      btn.style.borderColor='var(--border2)'; btn.style.background='none';
     } else {
       const {error} = await sb.from('review_likes').insert({book_id:bookId,liked_by:currentUser.id});
       if(error) throw error;
       btn.dataset.liked='1';
-      heart.textContent='♥'; heart.style.color='var(--acc)';
-      label.style.color='var(--acc)';
-      label.textContent = (cnt+1)+' 공감';
-      btn.style.borderColor='var(--acc)'; btn.style.background='#fff8f0';
     }
-  } catch(e) { console.error('[toggleReviewLike]',e); }
+  } catch(e) {
+    // 롤백
+    heart.textContent=prevHeart; heart.style.color=''; label.style.color='';
+    label.textContent=prevLabel; btn.style.borderColor=prevBorder; btn.style.background=prevBg;
+    console.error('[toggleReviewLike]',e);
+    if(e?.message?.includes('does not exist') || e?.code==='42P01') {
+      alert('공감 기능을 사용하려면 관리자가 review_likes 테이블을 먼저 생성해야 합니다.');
+    }
+  }
   finally { btn.disabled=false; }
 }
 
