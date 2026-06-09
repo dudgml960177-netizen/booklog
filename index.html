@@ -8,7 +8,6 @@
   <!-- manifest 비활성화: icon-192.png 파일 없음 -->
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.iamport.kr/v1/iamport.js" defer></script>
 </head>
 <body>
 
@@ -142,47 +141,52 @@
 
       <!-- 결제 가능 기간 -->
       <div id="payment-available" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.15rem 1rem 1rem;box-shadow:0 2px 12px rgba(70,40,10,.06);">
-        <div style="text-align:center;margin-bottom:.95rem;">
-          <div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin-bottom:.18rem;">사전 결제</div>
-          <div style="font-size:.71rem;color:var(--tx3);">결제 후 이메일로 초대코드가 발송됩니다</div>
-        </div>
+        <!-- step1: 플랜 선택 + 신청 -->
+        <div id="pay-step1">
+          <div style="text-align:center;margin-bottom:.95rem;">
+            <div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin-bottom:.18rem;">사전 결제</div>
+            <div style="font-size:.71rem;color:var(--tx3);">입금 확인 후 이메일로 초대코드가 발송됩니다</div>
+          </div>
 
-        <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem;">
-          <div class="pay-plan" data-plan="plan_a" data-amount="15000" data-invites="1" onclick="selectPayPlan(this)">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div>
-                <div style="font-size:.83rem;font-weight:600;color:var(--tx1);">가입권 + 초대장 1장</div>
-                <div style="font-size:.66rem;color:var(--tx3);margin-top:.07rem;">본인 + 1명 초대 가능</div>
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.85rem;">
+            <div class="pay-plan" data-plan="plan_a" data-amount="15000" data-invites="1" onclick="selectPayPlan(this)">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-size:.83rem;font-weight:600;color:var(--tx1);">가입권 + 초대장 1장</div>
+                  <div style="font-size:.66rem;color:var(--tx3);margin-top:.07rem;">본인 + 1명 초대 가능</div>
+                </div>
+                <div style="font-size:.95rem;font-weight:700;color:var(--acc);white-space:nowrap;padding-left:.5rem;">15,000원</div>
               </div>
-              <div style="font-size:.95rem;font-weight:700;color:var(--acc);white-space:nowrap;padding-left:.5rem;">15,000원</div>
+            </div>
+            <div class="pay-plan" data-plan="plan_b" data-amount="28000" data-invites="2" onclick="selectPayPlan(this)">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-size:.83rem;font-weight:600;color:var(--tx1);">가입권 + 초대장 2장</div>
+                  <div style="font-size:.66rem;color:var(--tx3);margin-top:.07rem;">본인 + 2명 초대 가능</div>
+                </div>
+                <div style="font-size:.95rem;font-weight:700;color:var(--acc);white-space:nowrap;padding-left:.5rem;">28,000원</div>
+              </div>
+            </div>
+            <div class="pay-plan" data-plan="plan_c" data-amount="38000" data-invites="3" onclick="selectPayPlan(this)">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-size:.83rem;font-weight:600;color:var(--tx1);">가입권 + 초대장 3장</div>
+                  <div style="font-size:.66rem;color:var(--tx3);margin-top:.07rem;">본인 + 3명 초대 가능</div>
+                </div>
+                <div style="font-size:.95rem;font-weight:700;color:var(--acc);white-space:nowrap;padding-left:.5rem;">38,000원</div>
+              </div>
             </div>
           </div>
-          <div class="pay-plan" data-plan="plan_b" data-amount="28000" data-invites="2" onclick="selectPayPlan(this)">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div>
-                <div style="font-size:.83rem;font-weight:600;color:var(--tx1);">가입권 + 초대장 2장</div>
-                <div style="font-size:.66rem;color:var(--tx3);margin-top:.07rem;">본인 + 2명 초대 가능</div>
-              </div>
-              <div style="font-size:.95rem;font-weight:700;color:var(--acc);white-space:nowrap;padding-left:.5rem;">28,000원</div>
-            </div>
-          </div>
-          <div class="pay-plan" data-plan="plan_c" data-amount="38000" data-invites="3" onclick="selectPayPlan(this)">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div>
-                <div style="font-size:.83rem;font-weight:600;color:var(--tx1);">가입권 + 초대장 3장</div>
-                <div style="font-size:.66rem;color:var(--tx3);margin-top:.07rem;">본인 + 3명 초대 가능</div>
-              </div>
-              <div style="font-size:.95rem;font-weight:700;color:var(--acc);white-space:nowrap;padding-left:.5rem;">38,000원</div>
-            </div>
+
+          <input type="email" id="payment-email" class="auth-input" placeholder="코드 받을 이메일 주소" style="margin-bottom:.55rem;">
+          <button id="btn-pay" class="auth-btn" onclick="submitPaymentRequest()" style="margin-top:0;">신청하기</button>
+
+          <div id="donation-area" style="text-align:center;margin-top:.55rem;">
+            <button onclick="openDonation()" style="background:none;border:none;font-size:.72rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;text-underline-offset:2px;">+ 추가 후원하기</button>
           </div>
         </div>
-
-        <input type="email" id="payment-email" class="auth-input" placeholder="코드 받을 이메일 주소" style="margin-bottom:.55rem;">
-        <button id="btn-pay" class="auth-btn" onclick="startPayment()" style="margin-top:0;">결제하기</button>
-
-        <div id="donation-area" style="text-align:center;margin-top:.55rem;">
-          <button onclick="openDonation()" style="background:none;border:none;font-size:.72rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;text-underline-offset:2px;">+ 추가 후원하기</button>
-        </div>
+        <!-- step2: 입금 안내 (JS로 채움) -->
+        <div id="pay-step2" style="display:none;"></div>
       </div>
 
       <!-- 결제 마감 -->

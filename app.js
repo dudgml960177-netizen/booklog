@@ -11,9 +11,7 @@ window.onerror = (msg, src, line) => {
 // ═══════════════════════════════════════════
 // 북로그 v3
 // ═══════════════════════════════════════════
-// ── 결제 설정 (포트원 가맹점 식별코드 교체 필요)
-const PORTONE_IMP    = 'imp00000000'; // TODO: 포트원 가맹점 식별코드 입력
-const PORTONE_PG     = 'html5_inicis'; // KG이니시스 기본; 계약 PG로 변경
+// ── 결제 설정
 const PAYMENT_OPEN   = '2026-06-15';
 const PAYMENT_CLOSE  = '2026-08-15';
 const PAYMENT_PLANS  = {
@@ -21,6 +19,8 @@ const PAYMENT_PLANS  = {
   plan_b: { name: '가입권 + 초대장 2장', amount: 28000, invites: 2 },
   plan_c: { name: '가입권 + 초대장 3장', amount: 38000, invites: 3 }
 };
+// TODO: 실제 계좌 정보로 교체
+const BANK_INFO = { bank: '카카오뱅크', account: '3333-XX-XXXXXXX', holder: '홍길동' };
 
 const SUPABASE_URL = 'https://xowlwzpoxrudgaoavkbr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhvd2x3enBveHJ1ZGdhb2F2a2JyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NTgxNjQsImV4cCI6MjA5MjIzNDE2NH0.Dlv8KYcQAieS1jQ9J6zjfsodco2U-m3ObuP5LXJPaVQ';
@@ -8385,9 +8385,6 @@ function initPaymentSection() {
     document.getElementById('payment-closed').style.display = 'block';
   } else {
     document.getElementById('payment-available').style.display = 'block';
-    // PortOne SDK 초기화 (SDK가 로드됐을 때만)
-    if (typeof IMP !== 'undefined') IMP.init(PORTONE_IMP);
-    else window.addEventListener('load', () => { if(typeof IMP !== 'undefined') IMP.init(PORTONE_IMP); });
   }
 }
 
@@ -8401,7 +8398,7 @@ function selectPayPlan(el) {
   };
 }
 
-async function startPayment() {
+async function submitPaymentRequest() {
   if (!_selectedPlan) {
     _payMsg('플랜을 선택해주세요.', 'warn'); return;
   }
@@ -8409,72 +8406,73 @@ async function startPayment() {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     _payMsg('유효한 이메일 주소를 입력해주세요.', 'warn'); return;
   }
-  if (typeof IMP === 'undefined') {
-    _payMsg('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.', 'warn'); return;
-  }
-  const plan = PAYMENT_PLANS[_selectedPlan.id];
-  const orderId = 'BKLOG-' + Date.now() + '-' + Math.random().toString(36).slice(2,6).toUpperCase();
   const btn = document.getElementById('btn-pay');
-  if (btn) { btn.disabled = true; btn.textContent = '결제창 여는 중…'; }
-
-  IMP.request_pay({
-    pg: PORTONE_PG,
-    pay_method: 'card',
-    merchant_uid: orderId,
-    name: plan.name,
-    amount: _selectedPlan.amount,
-    buyer_email: email,
-    buyer_name: email.split('@')[0]
-  }, async (rsp) => {
-    if (btn) { btn.disabled = false; btn.textContent = '결제하기'; }
-    if (rsp.success) {
-      await _handlePaymentSuccess(rsp.imp_uid, email, _selectedPlan.id);
-    } else if (rsp.error_msg && !rsp.error_msg.includes('취소')) {
-      _payMsg('결제 실패: ' + rsp.error_msg, 'error');
-    }
-  });
-}
-
-async function _handlePaymentSuccess(imp_uid, email, planId) {
-  const btn = document.getElementById('btn-pay');
-  if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '신청 중…'; }
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/process-payment`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/payment-request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SUPABASE_KEY}` },
-      body: JSON.stringify({ imp_uid, email, plan: planId })
+      body: JSON.stringify({ email, plan: _selectedPlan.id })
     });
     const data = await res.json();
-    if (res.ok && data.codes?.length) {
-      _showPaySuccess(email, data.codes);
+    if (res.ok && data.transfer_code) {
+      _showTransferInfo({ ...data, email, plan: _selectedPlan.id });
     } else {
-      _payMsg('결제는 완료됐으나 처리 중 오류가 발생했습니다. 이메일을 확인하거나 관리자에게 문의해주세요. (' + (data.error || 'ERR') + ')', 'error');
+      _payMsg('오류가 발생했습니다. 잠시 후 다시 시도해주세요. (' + (data.error || 'ERR') + ')', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
     }
   } catch(e) {
     _payMsg('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '결제하기'; }
+    if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
   }
 }
 
-function _showPaySuccess(email, codes) {
-  const avail = document.getElementById('payment-available');
-  if (!avail) return;
-  const codeHtml = codes.map((c, i) => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .6rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-top:.3rem;">
-      <span style="font-size:.65rem;color:var(--tx3);">${i===0?'내 가입 코드':'초대 코드 '+(i)}</span>
-      <span style="font-size:.85rem;font-weight:700;color:var(--acc);letter-spacing:.07em;">${c}</span>
-    </div>`).join('');
-  avail.innerHTML = `
-    <div style="text-align:center;padding:1rem .5rem .6rem;">
-      <div style="font-size:1.5rem;margin-bottom:.5rem;">📬</div>
-      <div style="font-size:.9rem;font-weight:700;color:var(--tx1);margin-bottom:.3rem;">결제 완료!</div>
-      <div style="font-size:.73rem;color:var(--tx3);line-height:1.65;margin-bottom:.85rem;">
-        <b style="color:var(--tx2);">${email}</b>으로<br>초대코드가 발송되었습니다.
+function _showTransferInfo(info) {
+  const step1 = document.getElementById('pay-step1');
+  const step2 = document.getElementById('pay-step2');
+  if (!step1 || !step2) return;
+  step1.style.display = 'none';
+  const plan = PAYMENT_PLANS[info.plan] || {};
+  const amt = (info.amount || plan.amount || 0).toLocaleString();
+  step2.innerHTML = `
+    <div style="text-align:center;margin-bottom:.9rem;">
+      <div style="font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin-bottom:.18rem;">입금 안내</div>
+      <div style="font-size:.73rem;color:var(--tx3);">아래 계좌로 <b style="color:var(--tx1);">${amt}원</b>을 이체해주세요</div>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.75rem .85rem;margin-bottom:.7rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+        <span style="font-size:.67rem;color:var(--tx3);">은행</span>
+        <span style="font-size:.82rem;font-weight:600;color:var(--tx1);">${BANK_INFO.bank}</span>
       </div>
-      ${codeHtml}
-      <div style="font-size:.63rem;color:var(--tx3);margin-top:.7rem;">이메일에서도 코드를 확인할 수 있어요</div>
-    </div>`;
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+        <span style="font-size:.67rem;color:var(--tx3);">계좌번호</span>
+        <span style="font-size:.82rem;font-weight:600;color:var(--tx1);letter-spacing:.04em;">${BANK_INFO.account}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+        <span style="font-size:.67rem;color:var(--tx3);">예금주</span>
+        <span style="font-size:.82rem;font-weight:600;color:var(--tx1);">${BANK_INFO.holder}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:.67rem;color:var(--tx3);">입금자명 (필수)</span>
+        <span style="font-size:.88rem;font-weight:700;color:var(--acc);letter-spacing:.06em;background:#fff8f0;border:1.5px solid var(--acc);border-radius:5px;padding:.1rem .45rem;">${info.transfer_code}</span>
+      </div>
+    </div>
+    <div style="font-size:.67rem;color:var(--tx3);line-height:1.8;margin-bottom:.75rem;">
+      • 입금자명을 반드시 <b style="color:var(--tx2);">${info.transfer_code}</b>으로 입력해주세요.<br>
+      • 입금 확인 후 <b style="color:var(--tx2);">${info.email}</b>으로 초대코드가 발송됩니다.<br>
+      • 확인까지 최대 24시간 소요될 수 있습니다.
+    </div>
+    <button onclick="_resetPaymentForm()" style="width:100%;padding:.5rem;background:none;border:1px solid var(--border2);border-radius:8px;font-size:.73rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);">← 처음으로</button>`;
+  step2.style.display = 'block';
+}
+
+function _resetPaymentForm() {
+  const step1 = document.getElementById('pay-step1');
+  const step2 = document.getElementById('pay-step2');
+  if (step1) step1.style.display = 'block';
+  if (step2) { step2.style.display = 'none'; step2.innerHTML = ''; }
+  const btn = document.getElementById('btn-pay');
+  if (btn) { btn.disabled = false; btn.textContent = '신청하기'; }
 }
 
 function _payMsg(msg, type='warn') {
@@ -8492,40 +8490,20 @@ function _payMsg(msg, type='warn') {
   setTimeout(() => el?.remove(), 5000);
 }
 
-// ── 추가 후원
+// ── 추가 후원 (계좌이체 안내)
 function openDonation() {
   const area = document.getElementById('donation-area');
   if (!area) return;
   area.innerHTML = `
-    <div style="display:flex;gap:.4rem;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:.2rem;">
-      <input type="number" id="donation-amount" value="5000" min="1000" step="1000"
-        style="width:85px;padding:.32rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.78rem;font-family:var(--ff);text-align:center;background:var(--bg);color:var(--tx1);">
-      <span style="font-size:.75rem;color:var(--tx3);">원</span>
-      <button onclick="processDonation()" style="background:var(--acc);color:#fff;border:none;border-radius:6px;padding:.32rem .75rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);">후원</button>
+    <div style="margin-top:.5rem;padding:.65rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;text-align:left;">
+      <div style="font-size:.67rem;color:var(--tx3);margin-bottom:.4rem;text-align:center;">계좌로 후원해주세요</div>
+      <div style="font-size:.75rem;color:var(--tx2);line-height:1.9;">
+        ${BANK_INFO.bank} ${BANK_INFO.account}<br>
+        <span style="color:var(--tx3);">예금주</span> ${BANK_INFO.holder}
+      </div>
       <button onclick="document.getElementById('donation-area').innerHTML='<div style=\\'text-align:center\\'><button onclick=\\'openDonation()\\' style=\\'background:none;border:none;font-size:.72rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;text-underline-offset:2px;\\'>+ 추가 후원하기</button></div>'"
-        style="background:none;border:1px solid var(--border2);border-radius:6px;padding:.32rem .6rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);color:var(--tx3);">취소</button>
+        style="margin-top:.45rem;width:100%;background:none;border:1px solid var(--border2);border-radius:6px;padding:.28rem .6rem;font-size:.67rem;cursor:pointer;font-family:var(--ff);color:var(--tx3);">닫기</button>
     </div>`;
-}
-
-function processDonation() {
-  const amt = parseInt(document.getElementById('donation-amount')?.value || '0');
-  if (!amt || amt < 1000) { _payMsg('최소 1,000원 이상 입력해주세요.', 'warn'); return; }
-  if (typeof IMP === 'undefined') { _payMsg('결제 모듈 로딩 중입니다.', 'warn'); return; }
-  const orderId = 'BKLOG-DON-' + Date.now();
-  IMP.request_pay({
-    pg: PORTONE_PG,
-    pay_method: 'card',
-    merchant_uid: orderId,
-    name: '북로그 추가 후원',
-    amount: amt
-  }, (rsp) => {
-    if (rsp.success) {
-      const area = document.getElementById('donation-area');
-      if (area) area.innerHTML = '<div style="font-size:.72rem;color:var(--tx3);text-align:center;padding:.3rem 0;">소중한 후원 감사합니다 ❤️</div>';
-    } else if (rsp.error_msg && !rsp.error_msg.includes('취소')) {
-      _payMsg('결제 실패: ' + rsp.error_msg, 'error');
-    }
-  });
 }
 
 // 결제 섹션 초기화 (DOMContentLoaded)
