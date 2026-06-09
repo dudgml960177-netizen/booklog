@@ -323,9 +323,9 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .toggle-wrap input:checked+.toggle{background:var(--acc);}
 .toggle-wrap input:checked+.toggle::after{transform:translateX(16px);}
 /* 검색 */
-.search-section{margin-bottom:1rem;}
-.search-row{display:flex;gap:.45rem;}
-.search-input{flex:1;padding:.58rem .82rem;border:1px solid var(--border);border-radius:var(--rs);font-size:.8rem;font-family:var(--ff);background:var(--bg);color:var(--tx1);outline:none;transition:border .15s;}
+.search-section{margin-bottom:1rem;overflow:hidden;}
+.search-row{display:flex;gap:.45rem;overflow:hidden;}
+.search-input{flex:1;min-width:0;padding:.58rem .82rem;border:1px solid var(--border);border-radius:var(--rs);font-size:.8rem;font-family:var(--ff);background:var(--bg);color:var(--tx1);outline:none;transition:border .15s;}
 .search-input:focus{border-color:var(--acc);}
 .search-btn{padding:.58rem .9rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);font-size:.78rem;font-weight:600;font-family:var(--ff);cursor:pointer;white-space:nowrap;}
 .search-results{margin-top:.65rem;display:flex;flex-direction:column;gap:.45rem;max-height:250px;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;}
