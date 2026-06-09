@@ -596,7 +596,7 @@ async function doSignup() {
     // 구매 코드로 가입한 경우: 같은 구매의 나머지 코드를 owner로 할당
     const { data: purchase } = await sb.from('pending_payments').select('id,codes').eq('status','confirmed').filter('codes', 'cs', JSON.stringify([code])).maybeSingle();
     if (purchase?.codes?.length) {
-      const siblingCodes = purchase.codes.filter((c: string) => c !== code);
+      const siblingCodes = purchase.codes.filter((c) => c !== code);
       if (siblingCodes.length) {
         await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
       }
