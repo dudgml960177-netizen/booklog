@@ -285,7 +285,7 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .modal-title{font-family:var(--fs);font-size:1.05rem;color:var(--tx1);}
 .modal-close{width:32px;height:32px;border:none;background:none;font-size:1rem;color:var(--tx3);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .modal-close:hover{background:var(--border);}
-.modal-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:.9rem 1.05rem;}
+.modal-body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:.9rem 1.05rem;}
 .modal-footer{display:flex;gap:.55rem;padding:.85rem 1.05rem;border-top:1px solid var(--border);flex-shrink:0;}
 /* 폼 */
 .form-group{margin-bottom:.85rem;}
