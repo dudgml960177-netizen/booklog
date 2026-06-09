@@ -5339,6 +5339,8 @@ function openAddBook() {
   document.getElementById('search-results').innerHTML='';
   document.getElementById('book-search-input').value='';
   document.getElementById('book-review').value='';
+  document.getElementById('book-review-shared').checked=false;
+  const rsw=document.getElementById('review-share-wrap'); if(rsw) rsw.style.display='none';
   document.getElementById('book-genre').value='';
   document.getElementById('book-start').value='';
   document.getElementById('book-finish').value=new Date().toISOString().slice(0,10);
@@ -5852,7 +5854,8 @@ async function saveBook() {
   }).filter(q=>q.text);
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
   if(existing?.rating && existing.rating <= 2 && curRating && curRating >= 4) localStorage.setItem('bl_rating_revised_up', '1');
-  const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null};
+  const reviewShared=document.getElementById('book-review-shared')?.checked||false;
+  const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null,review_shared:review?reviewShared:false};
   try {
     let bookId=editingBookId;
     if(editingBookId){const{error}=await sb.from('books').update(bookData).eq('id',editingBookId);if(error)throw error;await sb.from('quotes').delete().eq('book_id',editingBookId);}
@@ -5960,8 +5963,42 @@ function openDetail(bookId) {
   if(!quotes.length) html+=`<div style="font-size:.68rem;color:var(--tx3);text-align:center;padding:.65rem 0;font-style:italic;">아직 수집된 문장이 없어요.</div>`;
   html+='</div>';
 
+  // 다른 산책자의 감상 플레이스홀더 (ISBN 있을 때만)
+  if(b.isbn) html+=`<div id="shared-reviews-section" style="margin-top:.7rem;"></div>`;
+
   document.getElementById('detail-body').innerHTML=html;
   openModal('modal-detail');
+
+  // 비동기로 공유 감상 로드
+  if(b.isbn) loadSharedReviews(b.isbn, b.id);
+}
+
+async function loadSharedReviews(isbn, currentBookId) {
+  const section = document.getElementById('shared-reviews-section');
+  if(!section) return;
+  try {
+    const { data } = await sb.from('books')
+      .select('review, user_id, profiles(display_name, username)')
+      .eq('isbn', isbn)
+      .eq('review_shared', true)
+      .neq('user_id', currentUser.id)
+      .not('review', 'is', null)
+      .limit(10);
+    const reviews = (data||[]).filter(r=>r.review?.trim());
+    if(!reviews.length) return;
+    const cards = reviews.map(r=>{
+      const name = r.profiles?.display_name || r.profiles?.username || '산책자';
+      const rv = r.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      return `<div style="background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.65rem .75rem;position:relative;">
+        <div style="font-size:.6rem;letter-spacing:.04em;color:var(--acc);opacity:.7;margin-bottom:.32rem;">${name}</div>
+        <div style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;">${rv}</div>
+      </div>`;
+    }).join('');
+    section.innerHTML=`<div style="padding-top:.7rem;border-top:1px solid var(--border);">
+      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.55rem;">다른 산책자의 감상</div>
+      <div style="display:flex;flex-direction:column;gap:.45rem;">${cards}</div>
+    </div>`;
+  } catch(_) {}
 }
 
 async function saveReadingProgress(bookId, showOnly=false) {
@@ -5990,6 +6027,12 @@ async function saveReadingProgress(bookId, showOnly=false) {
     // 칩 업데이트 (모달 열린 채로)
     openDetail(bookId);
   } catch(e) { alert('저장 오류: '+e.message); }
+}
+
+function toggleReviewShareWrap() {
+  const wrap = document.getElementById('review-share-wrap');
+  const ta = document.getElementById('book-review');
+  if(wrap && ta) wrap.style.display = ta.value.trim() ? 'flex' : 'none';
 }
 
 function toggleDesc(el) {
@@ -6027,6 +6070,10 @@ function editBook() {
     document.querySelectorAll('.status-btn').forEach(btn=>btn.classList.toggle('on',btn.textContent===curStatus));
     document.getElementById('book-genre').value=Array.isArray(b.genre)?b.genre[0]:(b.genre||'');
     document.getElementById('book-review').value=b.review||'';
+    const rsw=document.getElementById('review-share-wrap');
+    if(rsw){ rsw.style.display=b.review?'flex':'none'; }
+    const rsc=document.getElementById('book-review-shared');
+    if(rsc) rsc.checked=b.review_shared||false;
     document.getElementById('book-start').value=b.date_start||'';
     document.getElementById('book-finish').value=b.date_finish||'';
     document.getElementById('book-reread').checked=b.reread||false;

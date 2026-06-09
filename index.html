@@ -658,7 +658,14 @@
           <div style="font-size:.6rem;font-weight:600;color:var(--tx3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem;">감상</div>
           <textarea id="book-review" class="form-textarea"
             placeholder="이 책을 읽고 느낀 점..."
-            rows="3" style="font-size:.78rem;resize:vertical;"></textarea>
+            rows="3" style="font-size:.78rem;resize:vertical;" oninput="toggleReviewShareWrap()"></textarea>
+          <div id="review-share-wrap" style="display:none;align-items:center;justify-content:space-between;padding:.38rem .65rem;background:#faf6ef;border-radius:var(--rs);margin-top:.28rem;">
+            <span style="font-size:.72rem;color:var(--tx2);">이 감상 다른 산책자와 공유하기</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="book-review-shared">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
         <!-- 문장 + 다시읽기 -->
         <div style="margin-bottom:.7rem;">
