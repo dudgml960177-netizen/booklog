@@ -2275,26 +2275,46 @@ async function saveTimer() {
   if(!bookId){alert('책을 선택해주세요.');return;}
   const book=allBooks.find(b=>b.id===bookId);
   if(!book){alert('책을 찾을 수 없어요.');return;}
-  const mins=Math.round(timerSeconds/60);
-  const today=new Date().toISOString().slice(0,10);
+  const totalMins=Math.round(timerSeconds/60);
+
+  // 날짜별 분리 (자정 경계 처리)
+  const toLocalDs = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const endMs = Date.now();
+  const startMs = parseInt(localStorage.getItem('bl_timer_start')||'0') || (endMs - timerSeconds*1000);
+  const dayMins = {};
+  let cur = startMs;
+  while(cur < endMs) {
+    const d = new Date(cur);
+    const ds = toLocalDs(d);
+    const midnight = new Date(d); midnight.setHours(24,0,0,0);
+    const segEnd = Math.min(midnight.getTime(), endMs);
+    const m = Math.round((segEnd - cur) / 60000);
+    if(m > 0) dayMins[ds] = (dayMins[ds]||0) + m;
+    cur = segEnd;
+  }
+  // 반올림 오차 보정: 마지막 날짜에 차이 반영
+  const splitDays = Object.keys(dayMins).sort();
+  const lastDay = splitDays[splitDays.length-1] || toLocalDs(new Date());
+  if(!dayMins[lastDay]) dayMins[lastDay] = 0;
+  const calcTotal = Object.values(dayMins).reduce((s,v)=>s+v,0);
+  if(calcTotal !== totalMins) dayMins[lastDay] += (totalMins - calcTotal);
+  if(dayMins[lastDay] <= 0) delete dayMins[lastDay];
+
   const cy = new Date().getFullYear();
   try {
-    // 연도별 독서 시간 누적
     const cyStr = String(cy);
     const yearData = book.reading_time_year || {};
-    // string 키로 통일 (Supabase jsonb 왕복 후 키가 string이 됨)
-    yearData[cyStr] = (yearData[cyStr] ?? yearData[cy] ?? 0) + mins;
+    yearData[cyStr] = (yearData[cyStr] ?? yearData[cy] ?? 0) + totalMins;
     if(yearData[cy] !== undefined && cy !== cyStr) delete yearData[cy];
-    // 날짜별 기록 (트래커 + 통계 정확도)
+    // 날짜별 기록 — 자정 분할 적용
     const timeLog = book.reading_time_log || {};
-    timeLog[today] = (timeLog[today] || 0) + mins;
+    Object.entries(dayMins).forEach(([ds, m]) => { if(m>0) timeLog[ds] = (timeLog[ds]||0)+m; });
     const updateData = {
-      reading_time:(book.reading_time||0)+mins,
+      reading_time:(book.reading_time||0)+totalMins,
       reading_time_year: yearData,
       reading_time_log: timeLog,
-      last_read:today
+      last_read: lastDay
     };
-    // 타이머에서 현재 페이지 입력값 반영
     const timerPageInput = document.getElementById('timer-current-page');
     if(timerPageInput?.value) {
       const cp = parseInt(timerPageInput.value);
@@ -2302,14 +2322,19 @@ async function saveTimer() {
     }
     const {error} = await sb.from('books').update(updateData).eq('id',bookId).eq('user_id',currentUser.id);
     if(error) throw error;
-    if(mins <= 2) localStorage.setItem('bl_quick_timer_count', String((parseInt(localStorage.getItem('bl_quick_timer_count')||'0')+1)));
+    if(totalMins <= 2) localStorage.setItem('bl_quick_timer_count', String((parseInt(localStorage.getItem('bl_quick_timer_count')||'0')+1)));
     clearInterval(timerInterval);timerRunning=false;timerSeconds=0;timerInterval=null;
     localStorage.removeItem('bl_timer_start');
     localStorage.removeItem('bl_timer_book_id');
     localStorage.removeItem('bl_timer_offset');
     if(timerPageInput) timerPageInput.value='';
     await loadData(); updateTimerDisplay(); updateTimerBtn(); updateTimerIndicator(); buildTimer();
-    alert(`${mins}분 저장됐어요!`);
+    if(splitDays.length > 1) {
+      const detail = splitDays.map(d=>`${d.slice(5).replace('-','/')} ${dayMins[d]}분`).join(', ');
+      alert(`총 ${totalMins}분 저장됐어요!\n(${detail})`);
+    } else {
+      alert(`${totalMins}분 저장됐어요!`);
+    }
   } catch(e){ alert('저장 오류: '+(e.message||'알 수 없는 오류')); }
 }
 function moveTimerMonth(dir) {
