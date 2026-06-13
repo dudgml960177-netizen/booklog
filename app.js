@@ -3720,9 +3720,8 @@ async function grantInviteCode(quest) {
     await sb.from('invite_codes').insert({
       code: newCode,
       owner_id: currentUser.id,
+      source: 'quest_reward',
       created_at: new Date().toISOString(),
-      quest_reward: true,
-      quest_id: quest.id,
     });
     // 초대권 발급 알림 팝업
     await new Promise(resolve => {
@@ -3746,16 +3745,7 @@ async function grantInviteCode(quest) {
         const profileModal = document.getElementById('modal-profile');
         if(profileModal && profileModal.style.display !== 'none') {
           sb.from('invite_codes').select('*').eq('owner_id', currentUser.id).then(({data}) => {
-            const codeWrap = document.getElementById('profile-invite-codes');
-            if(codeWrap && data) {
-              const available = data.filter(c => !c.used_by);
-              const used = data.filter(c => c.used_by);
-              codeWrap.innerHTML = `<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
-                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
-                  <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
-                + (available.length === 0 ? '<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
-                + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '');
-            }
+            renderInviteCodeSection(document.getElementById('profile-invite-codes'), data);
           });
         }
       };
@@ -6388,16 +6378,24 @@ async function openProfile() {
     if(catSel) catSel.value = profile.category_visibility || 'public';
   }
   // 초대코드 표시
-  const codeWrap=document.getElementById('profile-invite-codes');
-  if(codeWrap && myCodes) {
-    const available=myCodes.filter(c=>!c.used_by);
-    const used=myCodes.filter(c=>c.used_by);
-    codeWrap.innerHTML=`<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
-      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
-        <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
-      +(available.length===0?'<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
-      +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
-  }
+  renderInviteCodeSection(document.getElementById('profile-invite-codes'), myCodes);
+}
+
+function renderInviteCodeSection(codeWrap, codes) {
+  if(!codeWrap || !codes) return;
+  const available = codes.filter(c=>!c.used_by);
+  const used = codes.filter(c=>c.used_by);
+  codeWrap.innerHTML =
+    `<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.35rem;">내 초대코드</div>` +
+    available.map(c=>
+      `<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;background:#ede4d0;border:1px solid var(--border2);border-radius:6px;padding:.3rem .65rem;margin-bottom:.25rem;">
+        <span style="font-family:monospace;font-size:.78rem;letter-spacing:.06em;color:var(--tx1);">${c.code}</span>
+        <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='복사됨✓';this.style.color='var(--acc)';setTimeout(()=>{this.textContent='복사';this.style.color='var(--tx3)'},1800)}).catch(()=>{})"
+          style="font-size:.62rem;color:var(--tx3);background:none;border:none;cursor:pointer;font-family:var(--ff);padding:0;white-space:nowrap;flex-shrink:0;">복사</button>
+      </div>`
+    ).join('') +
+    (available.length===0 ? '<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '') +
+    (used.length ? `<div style="font-size:.62rem;color:var(--tx3);margin-top:.25rem;">${used.length}개 사용됨</div>` : '');
 }
 function openContact() {
   closeModal('modal-profile');
