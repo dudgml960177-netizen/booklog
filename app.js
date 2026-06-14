@@ -1070,7 +1070,7 @@ async function shareQuoteCard(qtId, btn) {
   // HTML 서식 보존 텍스트 준비
   const rawText = qt.text || '';
   // \n → <br> 변환 (이미 <br>이면 그대로)
-  const richText = rawText
+  let richText = rawText
     .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
     .replace(/<\/div>\s*<div>/gi, '<br>')
     .replace(/<div>/gi, '<br>').replace(/<\/div>/gi, '')
@@ -1158,7 +1158,7 @@ async function shareQuoteCard(qtId, btn) {
   const dataUrls = [];
   for(let i = 0; i < total; i++) {
     const card = document.createElement('div');
-    card.style.cssText = `position:fixed;left:-9999px;top:0;width:380px;min-width:380px;max-width:380px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
+    card.style.cssText = `position:absolute;left:-9999px;top:0;width:380px;min-width:380px;max-width:380px;background:${bg};padding:24px 26px 18px;font-family:'Nanum Myeongjo','Georgia',serif;box-sizing:border-box;border-radius:12px;`;
     const isFirst = i === 0;
     const isLast = i === total - 1;
     const pageLabel = total > 1 ? `<div style="font-size:9px;color:${acc};opacity:.5;text-align:right;margin-bottom:8px;font-family:sans-serif;">${i+1} / ${total}</div>` : '';
@@ -1268,13 +1268,16 @@ async function shareQuoteCard(qtId, btn) {
     `;
     document.body.appendChild(card);
     try {
+      const cardH = card.scrollHeight || card.offsetHeight || 800;
       const canvas = await html2canvas(card, {
         scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: bg,
         width: 380,
+        height: cardH,
         windowWidth: 460,
+        windowHeight: cardH + 200,
         logging: false,
         imageTimeout: 8000,
       });
