@@ -62,10 +62,9 @@ serve(async (req) => {
       if (fetchErr || !payment) return json({ error: "payment_not_found" }, 404);
       if (payment.status !== "pending") return json({ error: "already_processed" }, 409);
 
-      // 초대코드 생성 (가입권 1개 + 초대장 N개)
-      const totalCodes = payment.invite_count + 1;
-      const codes: string[] = [];
-      for (let i = 0; i < totalCodes; i++) {
+      // 코드 생성: 가입권은 BK 입금코드 재사용, 초대장은 랜덤 생성
+      const codes: string[] = [payment.transfer_code];
+      for (let i = 0; i < payment.invite_count; i++) {
         const code =
           Math.random().toString(36).slice(2, 8).toUpperCase() +
           "-" +
@@ -78,9 +77,6 @@ serve(async (req) => {
         codes.map((code) => ({
           code,
           owner_id: null,
-          quest_reward: false,
-          source: "purchase",
-          purchase_id: payment.id,
           created_at: new Date().toISOString(),
         }))
       );
