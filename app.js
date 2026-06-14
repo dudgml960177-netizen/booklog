@@ -1079,8 +1079,8 @@ async function shareQuoteCard(qtId, btn) {
     .replace(/(<br>){3,}/gi, '<br><br>');
   // html2canvas가 형광펜 span 내 텍스트 색상을 상속받지 못하는 버그 대응:
   // background-color가 있는 span에 명시적으로 color 추가
-  // Fix 1: inject color:#2e1f0e explicitly, stripping any pre-existing color first
-  // (CSS last-value-wins: if the span already had color:, it would override a prepended one)
+  // Fix 1: 형광펜 span에 명시적 color 주입 (기존 color 제거 후 재주입)
+  // html2canvas가 background-color를 text color로 잘못 사용하는 버그 방지
   richText = richText.replace(
     /<span([^>]*)style="([^"]*)"/gi,
     (match, before, styleVal) => {
@@ -1150,9 +1150,19 @@ async function shareQuoteCard(qtId, btn) {
                : pLen > 150 || lineCount > 9  ? 11
                : pLen > 80  || lineCount > 5  ? 12 : 13;
   let lineH = fontSize <= 10 ? 1.75 : 1.9;
-  // Fix 3: 브라우저 실제 레이아웃으로 하이라이트 span 자연 줄바꿈 위치 측정 후 분리
-  // html2canvas 버그: background-color span이 자연 줄바꿈되면 텍스트가 사라지거나 위치가 어긋남
-  // 글자 수 예측이 아니라 Range API로 실제 top 좌표를 측정해 정확히 분리
+
+  // Fix 4: 하이라이트 span이 줄 중간에 시작하면 앞에 <br> 삽입
+  // html2canvas 버그: background-color span이 x>0 에서 시작하면 텍스트 좌표가 잘못 계산돼
+  // 텍스트가 하이라이트 뒤로 숨거나 오른쪽으로 밀려남
+  // → 모든 하이라이트 span을 항상 줄 맨 앞(x=0)에서 시작하도록 강제
+  richText = richText.replace(
+    /([^>])<span([^>]*style="[^"]*background[^"]*"[^>]*)>/gi,
+    '$1<br><span$2>'
+  );
+
+  // Fix 3: 실제 브라우저 레이아웃으로 자연 줄바꿈 위치 측정 후 span 분리
+  // Fix 4로 모든 span이 x=0에서 시작하므로 측정이 정확함
+  // DOM 수정 없이 splitOps를 수집한 뒤 richText 문자열에 직접 적용 (직렬화 오차 방지)
   await document.fonts.ready;
   (() => {
     const mDiv = document.createElement('div');
@@ -1161,13 +1171,13 @@ async function shareQuoteCard(qtId, btn) {
       `font-family:'Nanum Myeongjo','Georgia',serif;color:#2e1f0e;`;
     mDiv.innerHTML = richText;
     document.body.appendChild(mDiv);
-    void mDiv.getBoundingClientRect(); // force layout
-    const hlSpans = [...mDiv.querySelectorAll('span')].filter(
+    void mDiv.getBoundingClientRect();
+    const splitOps = [];
+    for (const span of [...mDiv.querySelectorAll('span')].filter(
       s => /background/i.test(s.getAttribute('style') || '')
-    );
-    for (const span of hlSpans) {
+    )) {
       const tNode = [...span.childNodes].find(n => n.nodeType === 3);
-      if (!tNode || tNode.textContent.length <= 1) continue;
+      if (!tNode || tNode.textContent.length <= 1) { splitOps.push(null); continue; }
       const txt = tNode.textContent;
       const range = document.createRange();
       const bps = [];
@@ -1180,24 +1190,38 @@ async function shareQuoteCard(qtId, btn) {
         if (lastTop !== null && top > lastTop + 2) bps.push(i);
         lastTop = top;
       }
-      if (!bps.length) continue;
-      const style = span.getAttribute('style') || '';
-      const parts = [];
-      let prev = 0;
-      for (const bp of bps) { parts.push(txt.slice(prev, bp).trimEnd()); prev = bp; }
-      parts.push(txt.slice(prev).trimStart());
-      const frag = document.createDocumentFragment();
-      parts.filter(Boolean).forEach((p, idx) => {
-        if (idx > 0) frag.appendChild(document.createElement('br'));
-        const s = document.createElement('span');
-        s.setAttribute('style', style); s.textContent = p;
-        frag.appendChild(s);
-      });
-      span.replaceWith(frag);
+      splitOps.push(bps.length ? {bps} : null);
     }
-    richText = mDiv.innerHTML;
     mDiv.remove();
+    let si = 0;
+    richText = richText.replace(
+      /<span([^>]*style="[^"]*background[^"]*"[^>]*)>([\s\S]*?)<\/span>/gi,
+      (match, attrs, content) => {
+        const op = splitOps[si++];
+        if (!op || /</.test(content)) return match;
+        const parts = [];
+        let prev = 0;
+        for (const bp of op.bps) { parts.push(content.slice(prev, bp).trimEnd()); prev = bp; }
+        parts.push(content.slice(prev).trimStart());
+        return parts.filter(Boolean).map(p => `<span${attrs}>${p}</span>`).join('<br>');
+      }
+    );
   })();
+
+  // Fix 1b: html2canvas가 display:inline span의 background-color를 렌더링 안 하는 버그 대응
+  // Fix 3에서 줄바꿈 분리 완료 후 display:inline-block 적용
+  // (Fix 3 측정은 display:inline 상태에서 해야 정확하므로 측정 후에 적용)
+  richText = richText.replace(
+    /<span([^>]*style="[^"]*background[^"]*"[^>]*)>/gi,
+    (match, attrs) => {
+      const newAttrs = attrs.replace(/style="([^"]*)"/, (m, s) => {
+        const clean = s.replace(/(?:^|;)\s*display\s*:[^;]+/gi, '').replace(/^;+/, '').trim();
+        return `style="display:inline-block;${clean}"`;
+      });
+      return `<span${newAttrs}>`;
+    }
+  );
+
   lines = richText.split(/<br>/i);
   const chunks = [lines.join('<br>')];
   const total = 1;
