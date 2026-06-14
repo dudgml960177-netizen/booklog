@@ -12,8 +12,9 @@ window.onerror = (msg, src, line) => {
 // 북로그 v3
 // ═══════════════════════════════════════════
 // ── 결제 설정
-const PAYMENT_OPEN   = '2026-06-15';
-const PAYMENT_CLOSE  = '2026-08-15';
+const PAYMENT_OPEN       = '2026-06-15';
+const PAYMENT_CLOSE_DATE = '2026-07-15';
+const PAYMENT_CLOSE_MS   = new Date('2026-07-15T23:55:00+09:00').getTime(); // 7/15 23:55 KST
 const PAYMENT_PLANS  = {
   plan_a: { name: '가입권 + 초대장 1장', amount: 15000, invites: 1 },
   plan_b: { name: '가입권 + 초대장 2장', amount: 28000, invites: 2 },
@@ -600,8 +601,8 @@ async function doSignup() {
       if (siblingCodes.length) {
         await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
       }
-    } else {
-      // 구매 코드가 아닌 경우 기존처럼 초대코드 1개 자동 발급
+    } else if (codeRow.source !== 'event_registration') {
+      // 이벤트 가입권이 아닌 경우에만 초대코드 1개 자동 발급
       const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
       await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
     }
@@ -8548,7 +8549,7 @@ function initPaymentSection() {
   section.style.display = 'block';
   if (today < PAYMENT_OPEN) {
     document.getElementById('payment-upcoming').style.display = 'block';
-  } else if (today > PAYMENT_CLOSE) {
+  } else if (Date.now() >= PAYMENT_CLOSE_MS) {
     document.getElementById('payment-closed').style.display = 'block';
   } else {
     document.getElementById('payment-available').style.display = 'block';
