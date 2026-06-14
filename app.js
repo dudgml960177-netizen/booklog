@@ -6345,6 +6345,9 @@ async function openProfile() {
     // 혹시 display가 안먹히면 visibility로도 처리
     adminBtn.hidden = curUserRole !== 'admin';
   }
+  // 관리자 뱃지
+  const adminBadge = document.getElementById('profile-admin-badge');
+  if(adminBadge) adminBadge.style.display = curUserRole === 'admin' ? '' : 'none';
 
   // 프로필 + 코드 로드
   const [{data:profile},{data:myCodes}]=await Promise.all([
