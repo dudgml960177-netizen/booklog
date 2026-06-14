@@ -7583,7 +7583,8 @@ async function loadFriends() {
 async function searchFriend() {
   const q = document.getElementById('friend-search-input')?.value.trim();
   const resultEl = document.getElementById('friend-search-result');
-  if(!q || !resultEl) return;
+  if(!resultEl) return;
+  if(!q) { resultEl.innerHTML = ''; return; }
   const [_r1] = await Promise.all([
     sb.from('profiles').select('id,display_name,username,avatar_url,role').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);

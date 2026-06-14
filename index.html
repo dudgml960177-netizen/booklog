@@ -1183,7 +1183,8 @@
           <input type="text" id="friend-search-input" class="form-input"
             placeholder="닉네임으로 친구 찾기..."
             style="padding-left:2rem;font-size:.78rem;border-radius:20px;background:#f5f0e8;"
-            onkeydown="if(event.key==='Enter')searchFriend()">
+            onkeydown="if(event.key==='Enter')searchFriend()"
+            oninput="if(!this.value.trim())document.getElementById('friend-search-result').innerHTML=''">
         </div>
         <button onclick="searchFriend()" style="width:36px;height:36px;border-radius:50%;background:var(--acc);border:none;color:#fff;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">→</button>
       </div>
