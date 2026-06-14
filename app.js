@@ -300,7 +300,7 @@ async function startApp(user) {
     if(fabInit) fabInit.style.display = 'flex';
 
     // 방문 횟수 카운트
-    const _vtd=new Date().toISOString().slice(0,10);
+    const _vtd=kstToday();
     const _vk='bl_visit_'+_vtd;
     const _vc=parseInt(localStorage.getItem(_vk)||'0')+1;
     localStorage.setItem(_vk, String(_vc));
@@ -2143,13 +2143,13 @@ function buildWeeklyStats() {
   const el = document.getElementById('timer-weekly');
   if(!el) return;
   const today = new Date();
-  const todayStr = today.toISOString().slice(0,10);
+  const todayStr = kstToday();
   const DOW = ['일','월','화','수','목','금','토'];
   // 최근 7일
   const days = [];
   for(let i=6;i>=0;i--){
     const d=new Date(today); d.setDate(d.getDate()-i);
-    const ds=d.toISOString().slice(0,10);
+    const ds=toKSTDate(d.toISOString());
     const lsMins=parseInt(localStorage.getItem('bl_daily_timer_'+ds)||'0');
     const bookMins=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds]||0),0);
     days.push({ds,mins:Math.max(lsMins,bookMins),dow:d.getDay()});
@@ -2160,7 +2160,7 @@ function buildWeeklyStats() {
   let lastTotal=0;
   for(let i=7;i<=13;i++){
     const d2=new Date(today); d2.setDate(d2.getDate()-i);
-    const ds2=d2.toISOString().slice(0,10);
+    const ds2=toKSTDate(d2.toISOString());
     const m=parseInt(localStorage.getItem('bl_daily_timer_'+ds2)||'0');
     const bm=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds2]||0),0);
     lastTotal+=Math.max(m,bm);
@@ -2250,7 +2250,7 @@ function toggleTimer() {
   } else {
     // 시작 시 카운트
     localStorage.setItem('bl_timer_total', String((parseInt(localStorage.getItem('bl_timer_total')||'0')+1)));
-    const _td=new Date().toISOString().slice(0,10);
+    const _td=kstToday();
     const _dtk='bl_daily_timer_'+_td;
     const _dtc=parseInt(localStorage.getItem(_dtk)||'0')+1;
     localStorage.setItem(_dtk, String(_dtc));
@@ -2375,7 +2375,7 @@ async function saveTimer() {
   const book=allBooks.find(b=>b.id===bookId);
   if(!book){alert('책을 찾을 수 없어요.');return;}
   const mins=Math.round(timerSeconds/60);
-  const today=new Date().toISOString().slice(0,10);
+  const today=kstToday();
   const cy = new Date().getFullYear();
   try {
     // 연도별 독서 시간 누적
@@ -3488,7 +3488,7 @@ const QUESTS = [
     desc: '읽지 않는 것도 재능인 법',
     condition: (books) => {
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
-      const cutoffStr = cutoff.toISOString().slice(0,10);
+      const cutoffStr = toKSTDate(cutoff.toISOString());
       return books.filter(b => b.status==='읽는중' && !b.reading_time && b.date_start && b.date_start <= cutoffStr).length >= 3;
     },
     reward: {
@@ -3861,7 +3861,7 @@ async function checkAndGrantQuests() {
   }
 
   // 연속 로그인 체크
-  const today = new Date().toISOString().slice(0,10);
+  const today = kstToday();
   const lastLogin = localStorage.getItem('bl_last_login_date');
   if(lastLogin) {
     const diff = (new Date(today) - new Date(lastLogin)) / 86400000;
@@ -4438,7 +4438,7 @@ function buildStats() {
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
   // 최장 연속 독서일 계산
   const longestStreak = (() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = kstToday();
     const readDays = new Set();
     allBooks.forEach(b => {
       if (!b.date_start) return;
@@ -6606,7 +6606,7 @@ async function loadNotifications() {
             <div style="color:var(--tx1);margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               ${(()=>{const first=(n.message||'').split('\n').find(l=>l.trim())||n.message||'';return first.length>40?first.slice(0,40)+'…':first;})()}
             </div>
-            <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
+            <div style="color:var(--tx3);font-size:.63rem;">${toKSTDateTime(n.created_at)} ${n.is_read?'':'· 새 알림'}</div>
           </div>
           <button onclick="event.stopPropagation();deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
         </div>`).join('');
@@ -6623,7 +6623,7 @@ async function goToNotif(notifId) {
         const msgHtml = (n.message||'').split('\n').map(l=>l===''?'<br>':l).join('<br>');
     detailEl.innerHTML = `
       <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${msgHtml}</div>
-      <div style="font-size:.65rem;color:var(--tx3);">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
+      <div style="font-size:.65rem;color:var(--tx3);">${toKSTDateTime(n.created_at)}</div>
       ${postId ? `<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
         <button class="btn-save" style="width:100%;padding:.5rem;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
       </div>` : ''}`;
@@ -6871,7 +6871,7 @@ function renderMemberList(filter='') {
       </div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:.78rem;font-weight:600;color:${m.is_banned?'#c0392b':'var(--tx1)'};">${name} ${m.role==='admin'?'<span style="font-size:.6rem;color:var(--acc);background:#ede4d0;padding:1px 4px;border-radius:2px;">관리자</span>':''} ${m.is_banned?'<span style="font-size:.6rem;color:#c0392b;">⛔제한됨</span>':''}</div>
-        <div style="font-size:.62rem;color:var(--tx3);">${m.created_at?.slice(0,10)}</div>
+        <div style="font-size:.62rem;color:var(--tx3);">${toKSTDate(m.created_at)}</div>
       </div>
       <button onclick="event.stopPropagation();toggleMemberBan('${m.id}',${!m.is_banned})" style="font-size:.62rem;padding:2px 6px;border:1px solid ${m.is_banned?'#a8d8a8':'#f5c6cb'};border-radius:3px;background:none;cursor:pointer;color:${m.is_banned?'#2e7d32':'#c0392b'};">
         ${m.is_banned?'해제':'제한'}
@@ -7366,6 +7366,23 @@ function cleanEditorHtml(h) {
   // 5. 줄바꿈 정리
   s = s.replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
   return s.trim();
+}
+
+// UTC ISO 문자열을 KST(UTC+9) 날짜 문자열(YYYY-MM-DD)로 변환
+function toKSTDate(utcStr) {
+  if (!utcStr) return '';
+  const kst = new Date(new Date(utcStr).getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+// KST 기준 오늘 날짜 (YYYY-MM-DD)
+function kstToday() {
+  return toKSTDate(new Date().toISOString());
+}
+// UTC ISO 문자열을 KST 날짜+시간 문자열(YYYY-MM-DD HH:MM)로 변환
+function toKSTDateTime(utcStr) {
+  if (!utcStr) return '';
+  const kst = new Date(new Date(utcStr).getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 16).replace('T', ' ');
 }
 
 function formatDate(s) {
@@ -7907,7 +7924,7 @@ async function buildBoard() {
     el.onclick = () => openPostDetail(n.id);
     el.innerHTML = `<span style="font-size:.65rem;background:#e0a020;color:#fff;border-radius:3px;padding:1px 5px;flex-shrink:0;">공지</span>
       <span style="font-size:.78rem;font-weight:600;color:#2e1f0e;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.title}</span>
-      <span style="font-size:.62rem;color:#a08c72;">${n.created_at?.slice(0,10)}</span>`;
+      <span style="font-size:.62rem;color:#a08c72;">${toKSTDate(n.created_at)}</span>`;
     nWrap.appendChild(el);
   });
 
@@ -7969,7 +7986,7 @@ function renderPostItems(list, posts, count, catLabel) {
             ${excerpt?`<div style="font-size:.7rem;color:var(--tx3);margin-top:.18rem;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${excerpt}</div>`:''}
           </div>
           <div style="flex-shrink:0;text-align:right;padding-left:.3rem;">
-            <div class="board-meta" style="margin-bottom:.15rem;">${p.created_at?.slice(5,10).replace('-','.')}</div>
+            <div class="board-meta" style="margin-bottom:.15rem;">${toKSTDate(p.created_at).slice(5,10).replace('-','.')}</div>
             <div class="board-meta" style="color:var(--acc);font-size:.63rem;">❤ ${p.likes||0}</div>
           </div>
         </div>`;
@@ -8022,7 +8039,7 @@ async function showMyPosts() {
         <span class="board-title">${p.is_hidden?'🚫 블라인드 처리됨':p.title}</span>
       </div>
       <div style="display:flex;align-items:center;gap:.6rem;">
-        <span class="board-meta">${p.created_at?.slice(0,10)}</span>
+        <span class="board-meta">${toKSTDate(p.created_at)}</span>
         <span class="board-meta" style="margin-left:auto;">❤️ ${p.likes||0}</span>
       </div>`;
     wrap.appendChild(el);
@@ -8137,7 +8154,7 @@ async function openPostDetail(postId) {
     const replyHtml = replies.map(r => {
       const rCanDelete = r.user_id===currentUser.id || isAdmin;
       return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
-        <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${r.created_at?.slice(0,10)}</div>
+        <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${toKSTDate(r.created_at)}</div>
         <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;">${r.content}</div>
         ${rCanDelete?`<button onclick="deleteComment('${r.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;margin-top:.1rem;">삭제</button>`:''}
       </div>`;
@@ -8145,7 +8162,7 @@ async function openPostDetail(postId) {
     return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
       <div style="display:flex;align-items:flex-start;gap:.5rem;">
         <div style="flex:1;">
-          <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${c.created_at?.slice(0,10)}</div>
+          <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${toKSTDate(c.created_at)}</div>
           <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
         </div>
         <div style="display:flex;gap:.3rem;flex-shrink:0;">
@@ -8168,7 +8185,7 @@ async function openPostDetail(postId) {
       ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
       ${post.is_notice?'<span style="background:#e0a020;color:#fff;font-size:.63rem;border-radius:3px;padding:1px 6px;">공지</span>':''}
       <span class="board-meta">산책자</span>
-      <span class="board-meta">${post.created_at?.slice(0,10)}</span>
+      <span class="board-meta">${toKSTDate(post.created_at)}</span>
     </div>
     <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':'var(--tx1)'};border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;">
       ${post.is_hidden
