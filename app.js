@@ -1076,6 +1076,29 @@ async function shareQuoteCard(qtId, btn) {
     .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
     .replace(/\n/g, '<br>')
     .replace(/(<br>){3,}/gi, '<br><br>');
+  // html2canvas가 형광펜 span 내 텍스트 색상을 상속받지 못하는 버그 대응:
+  // background-color가 있는 span에 명시적으로 color 추가
+  // Fix 1: inject color:#2e1f0e explicitly, stripping any pre-existing color first
+  // (CSS last-value-wins: if the span already had color:, it would override a prepended one)
+  richText = richText.replace(
+    /<span([^>]*)style="([^"]*)"/gi,
+    (match, before, styleVal) => {
+      if (!/background/i.test(styleVal)) return match;
+      const clean = styleVal.replace(/(?:^|;)\s*color\s*:[^;]+/gi, '').replace(/^;+/, '').trim();
+      return `<span${before}style="color:#2e1f0e;${clean}"`;
+    }
+  );
+  // Fix 2: split highlight spans at every <br> so each visual line is a self-contained span
+  // html2canvas misrenders text inside a background-color span that contains <br>
+  richText = richText.replace(
+    /<span([^>]*style="[^"]*background[^"]*"[^>]*)>([\s\S]*?)<\/span>/gi,
+    (match, attrs, content) => {
+      if (!/<br>/i.test(content)) return match;
+      return content.split(/<br>/i)
+        .map(p => `<span${attrs}>${p}</span>`)
+        .join('<br>');
+    }
+  );
   const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
   const lines = richText.split(/<br>/i);
 
