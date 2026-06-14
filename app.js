@@ -734,7 +734,7 @@ function showUnsavedTimerBanner() {
 function sw(name, btn) {
   // 기록 탭 벗어날 때 미저장 타이머 알림
   const currentPanel = [...document.querySelectorAll('.panel.on')].map(p=>p.id.replace('p-',''))[0];
-  if(currentPanel === 'record' && name !== 'record' && timerSeconds >= 60) {
+  if(currentPanel === 'record' && name !== 'record' && timerSeconds >= 60 && !timerRunning) {
     showUnsavedTimerBanner();
   }
   // FAB 버튼: 어느 탭에서든 책 추가 가능
@@ -2034,6 +2034,7 @@ function buildTimer() {
   sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
   allBooks.filter(b=>b.status==='읽는중').forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
   sel.onchange = () => showTimerBookDetail(sel.value);
+  if(timerBookId) { sel.value = timerBookId; showTimerBookDetail(timerBookId); }
   updateTimerDisplay();
   buildWeeklyStats();
   updateTrackerPeriodBtns();
