@@ -305,6 +305,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .star-input{display:flex;gap:.28rem;}
 .star{font-size:1.55rem;color:#ede4d0;cursor:pointer;transition:color .1s;line-height:1;}
 .star.on{color:var(--acc);}
+.star.half{background:linear-gradient(90deg,var(--acc) 50%,#ede4d0 50%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.gi-hstar{display:inline-block;background:linear-gradient(90deg,var(--acc) 50%,#ddd0b8 50%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .quote-field{display:flex;flex-direction:column;gap:.38rem;background:#f5f0e6;border:1px solid var(--border);border-radius:var(--rs);padding:.65rem;margin-bottom:.45rem;position:relative;}
 .quote-field-row{display:grid;grid-template-columns:1fr;gap:.38rem;}
 .quote-remove{position:absolute;top:.38rem;right:.38rem;width:20px;height:20px;border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;}

@@ -5753,13 +5753,13 @@ function renderStars(rating) {
   wrap.innerHTML = '';
   for(let i=1; i<=5; i++) {
     const full = document.createElement('span');
-    full.className = 'star' + (rating >= i ? ' on' : '');
+    full.className = 'star' + (rating >= i ? ' on' : rating >= i-0.5 ? ' half' : '');
     full.style.cssText = 'position:relative;cursor:pointer;font-size:1.4rem;';
     // 왼쪽 절반 클릭 = i-0.5, 오른쪽 절반 클릭 = i
     full.innerHTML = `
       <span style="position:absolute;left:0;top:0;width:50%;height:100%;z-index:2;" onclick="setStar(${i-0.5})"></span>
       <span style="position:absolute;right:0;top:0;width:50%;height:100%;z-index:2;" onclick="setStar(${i})"></span>
-      ${rating >= i ? '★' : rating >= i-0.5 ? '⯨' : '☆'}`;
+      ${rating >= i ? '★' : rating >= i-0.5 ? '★' : '☆'}`;
     wrap.appendChild(full);
   }
   // 현재 점수 표시
@@ -5970,7 +5970,7 @@ function openDetail(bookId) {
   const b=allBooks.find(b=>b.id===bookId);if(!b)return;
   const quotes=allQuotes.filter(q=>q.book_id===bookId);
   const genre=Array.isArray(b.genre)?b.genre.join(', '):(b.genre||'');
-  const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'⯨':'☆';return s;};
+  const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'<span class="gi-hstar">★</span>':'☆';return s;};
   const pct=b.pages&&b.current_page?Math.min(100,Math.round(b.current_page/b.pages*100)):0;
   const statusColor={완독:'#2e7d32',읽는중:'#1565c0',읽고싶음:'#7b1fa2',중단:'#c62828'}[b.status]||'var(--tx3)';
   const statusBg={완독:'#e8f5e9',읽는중:'#e3f2fd',읽고싶음:'#f3e5f5',중단:'#ffebee'}[b.status]||'#f5f5f5';
@@ -7796,7 +7796,7 @@ function renderLibGallery() {
       <div class="gi-cover">${img}</div>
       <div class="gi-title">${b.title}</div>
       <div class="gi-author">${b.author||''}</div>
-      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'⯨':'☆').join('')}</div>
+      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'<span class="gi-hstar">★</span>':'☆').join('')}</div>
       <span class="gi-status">${b.status||''}</span>`;
     g.appendChild(el);
   });
