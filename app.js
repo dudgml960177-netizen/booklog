@@ -1149,38 +1149,56 @@ async function shareQuoteCard(qtId, btn) {
                : pLen > 250 || lineCount > 14 ? 10
                : pLen > 150 || lineCount > 9  ? 11
                : pLen > 80  || lineCount > 5  ? 12 : 13;
-  // Fix 3: 긴 하이라이트 span을 단어 경계에서 추가 분리
-  // html2canvas 버그: background-color span이 자연 줄바꿈되면 텍스트가 사라짐
-  // 한 span이 한 시각적 줄 이상 차지하지 않도록 미리 분리
-  const CARD_W = 328; // 380px - 좌우 padding 26px*2
-  const maxCPL = Math.max(6, Math.floor(CARD_W / (fontSize * 1.05)));
-  richText = richText.replace(
-    /<span([^>]*style="[^"]*background[^"]*"[^>]*)>([^<]*)<\/span>/gi,
-    (match, attrs, content) => {
-      if (content.length <= maxCPL) return match;
-      const parts = [];
-      let rem = content;
-      while (rem.length > maxCPL) {
-        let cut = rem.lastIndexOf(' ', maxCPL);
-        if (cut <= 0) cut = maxCPL;
-        parts.push(rem.slice(0, cut).trimEnd());
-        rem = rem.slice(cut).trimStart();
+  let lineH = fontSize <= 10 ? 1.75 : 1.9;
+  // Fix 3: 브라우저 실제 레이아웃으로 하이라이트 span 자연 줄바꿈 위치 측정 후 분리
+  // html2canvas 버그: background-color span이 자연 줄바꿈되면 텍스트가 사라지거나 위치가 어긋남
+  // 글자 수 예측이 아니라 Range API로 실제 top 좌표를 측정해 정확히 분리
+  await document.fonts.ready;
+  (() => {
+    const mDiv = document.createElement('div');
+    mDiv.style.cssText = `position:absolute;visibility:hidden;left:-9999px;top:0;width:328px;` +
+      `font-size:${fontSize}px;line-height:${lineH};` +
+      `font-family:'Nanum Myeongjo','Georgia',serif;color:#2e1f0e;`;
+    mDiv.innerHTML = richText;
+    document.body.appendChild(mDiv);
+    void mDiv.getBoundingClientRect(); // force layout
+    const hlSpans = [...mDiv.querySelectorAll('span')].filter(
+      s => /background/i.test(s.getAttribute('style') || '')
+    );
+    for (const span of hlSpans) {
+      const tNode = [...span.childNodes].find(n => n.nodeType === 3);
+      if (!tNode || tNode.textContent.length <= 1) continue;
+      const txt = tNode.textContent;
+      const range = document.createRange();
+      const bps = [];
+      let lastTop = null;
+      for (let i = 0; i < txt.length; i++) {
+        range.setStart(tNode, i); range.setEnd(tNode, i + 1);
+        const r = range.getClientRects()[0];
+        if (!r) continue;
+        const top = Math.round(r.top);
+        if (lastTop !== null && top > lastTop + 2) bps.push(i);
+        lastTop = top;
       }
-      if (rem) parts.push(rem);
-      return parts.length > 1
-        ? parts.map(p => `<span${attrs}>${p}</span>`).join('<br>')
-        : match;
+      if (!bps.length) continue;
+      const style = span.getAttribute('style') || '';
+      const parts = [];
+      let prev = 0;
+      for (const bp of bps) { parts.push(txt.slice(prev, bp).trimEnd()); prev = bp; }
+      parts.push(txt.slice(prev).trimStart());
+      const frag = document.createDocumentFragment();
+      parts.filter(Boolean).forEach((p, idx) => {
+        if (idx > 0) frag.appendChild(document.createElement('br'));
+        const s = document.createElement('span');
+        s.setAttribute('style', style); s.textContent = p;
+        frag.appendChild(s);
+      });
+      span.replaceWith(frag);
     }
-  );
-  // Fix 3 이후 lines/fontSize 재계산 (새 <br>이 추가됐을 수 있음)
+    richText = mDiv.innerHTML;
+    mDiv.remove();
+  })();
   lines = richText.split(/<br>/i);
-  lineCount = lines.length;
-  fontSize = pLen > 400 || lineCount > 20 ? 9
-           : pLen > 250 || lineCount > 14 ? 10
-           : pLen > 150 || lineCount > 9  ? 11
-           : pLen > 80  || lineCount > 5  ? 12 : 13;
-  // 줄 간격도 조정
-  const lineH = fontSize <= 10 ? 1.75 : 1.9;
   const chunks = [lines.join('<br>')];
   const total = 1;
 
