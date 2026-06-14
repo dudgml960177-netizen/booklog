@@ -1101,7 +1101,7 @@ async function shareQuoteCard(qtId, btn) {
     }
   );
   const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
-  const lines = richText.split(/<br>/i);
+  let lines = richText.split(/<br>/i);
 
   // 책 표지 base64 변환 (CORS 우회)
   let coverB64 = '';
@@ -1144,11 +1144,41 @@ async function shareQuoteCard(qtId, btn) {
   // 전체를 한 장에 담기 (분할 없음)
   // 폰트 크기: 글자 수에 따라 자동 축소
   const pLen = plainText.length;
-  const lineCount = lines.length;
-  const fontSize = pLen > 400 || lineCount > 20 ? 9
-                 : pLen > 250 || lineCount > 14 ? 10
-                 : pLen > 150 || lineCount > 9  ? 11
-                 : pLen > 80  || lineCount > 5  ? 12 : 13;
+  let lineCount = lines.length;
+  let fontSize = pLen > 400 || lineCount > 20 ? 9
+               : pLen > 250 || lineCount > 14 ? 10
+               : pLen > 150 || lineCount > 9  ? 11
+               : pLen > 80  || lineCount > 5  ? 12 : 13;
+  // Fix 3: 긴 하이라이트 span을 단어 경계에서 추가 분리
+  // html2canvas 버그: background-color span이 자연 줄바꿈되면 텍스트가 사라짐
+  // 한 span이 한 시각적 줄 이상 차지하지 않도록 미리 분리
+  const CARD_W = 328; // 380px - 좌우 padding 26px*2
+  const maxCPL = Math.max(6, Math.floor(CARD_W / (fontSize * 1.05)));
+  richText = richText.replace(
+    /<span([^>]*style="[^"]*background[^"]*"[^>]*)>([^<]*)<\/span>/gi,
+    (match, attrs, content) => {
+      if (content.length <= maxCPL) return match;
+      const parts = [];
+      let rem = content;
+      while (rem.length > maxCPL) {
+        let cut = rem.lastIndexOf(' ', maxCPL);
+        if (cut <= 0) cut = maxCPL;
+        parts.push(rem.slice(0, cut).trimEnd());
+        rem = rem.slice(cut).trimStart();
+      }
+      if (rem) parts.push(rem);
+      return parts.length > 1
+        ? parts.map(p => `<span${attrs}>${p}</span>`).join('<br>')
+        : match;
+    }
+  );
+  // Fix 3 이후 lines/fontSize 재계산 (새 <br>이 추가됐을 수 있음)
+  lines = richText.split(/<br>/i);
+  lineCount = lines.length;
+  fontSize = pLen > 400 || lineCount > 20 ? 9
+           : pLen > 250 || lineCount > 14 ? 10
+           : pLen > 150 || lineCount > 9  ? 11
+           : pLen > 80  || lineCount > 5  ? 12 : 13;
   // 줄 간격도 조정
   const lineH = fontSize <= 10 ? 1.75 : 1.9;
   const chunks = [lines.join('<br>')];
