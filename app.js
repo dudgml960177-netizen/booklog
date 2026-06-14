@@ -600,8 +600,9 @@ async function doSignup() {
       if (siblingCodes.length) {
         await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
       }
-    } else {
-      // 구매 코드가 아닌 경우 기존처럼 초대코드 1개 자동 발급
+    } else if (codeRow.source !== 'event_registration') {
+      // 이벤트 가입권(event_registration)이 아닌 경우에만 초대코드 1개 자동 발급
+      // (이벤트 당첨자는 가입만 가능, 초대코드 미지급 — 퀘스트 보상 초대권은 별도 경로라 정상 획득)
       const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
       await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
     }
