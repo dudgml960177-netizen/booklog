@@ -1069,13 +1069,19 @@ async function shareQuoteCard(qtId, btn) {
   // HTML 서식 보존 텍스트 준비
   const rawText = qt.text || '';
   // \n → <br> 변환 (이미 <br>이면 그대로)
-  const richText = rawText
+  let richText = rawText
     .replace(/<div><br\s*\/?><\/div>/gi, '<br>')
     .replace(/<\/div>\s*<div>/gi, '<br>')
     .replace(/<div>/gi, '<br>').replace(/<\/div>/gi, '')
     .replace(/<p>/gi, '').replace(/<\/p>/gi, '<br>')
     .replace(/\n/g, '<br>')
     .replace(/(<br>){3,}/gi, '<br><br>');
+  // html2canvas가 형광펜 span 내 텍스트 색상을 상속받지 못하는 버그 대응:
+  // background-color가 있는 span에 명시적으로 color 추가
+  richText = richText.replace(
+    /<span([^>]*)style="([^"]*background(?:-color)?[^"]*)"/gi,
+    (_, before, styleVal) => `<span${before}style="color:#2e1f0e;${styleVal}"`
+  );
   const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
   const lines = richText.split(/<br>/i);
 
