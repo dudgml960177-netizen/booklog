@@ -2147,9 +2147,10 @@ function buildWeeklyStats() {
   const DOW = ['일','월','화','수','목','금','토'];
   // 최근 7일
   const days = [];
+  const fmtLocal=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   for(let i=6;i>=0;i--){
     const d=new Date(today); d.setDate(d.getDate()-i);
-    const ds=toKSTDate(d.toISOString());
+    const ds=fmtLocal(d);
     const lsMins=parseInt(localStorage.getItem('bl_daily_timer_'+ds)||'0');
     const bookMins=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds]||0),0);
     days.push({ds,mins:Math.max(lsMins,bookMins),dow:d.getDay()});
@@ -2160,7 +2161,7 @@ function buildWeeklyStats() {
   let lastTotal=0;
   for(let i=7;i<=13;i++){
     const d2=new Date(today); d2.setDate(d2.getDate()-i);
-    const ds2=toKSTDate(d2.toISOString());
+    const ds2=fmtLocal(d2);
     const m=parseInt(localStorage.getItem('bl_daily_timer_'+ds2)||'0');
     const bm=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds2]||0),0);
     lastTotal+=Math.max(m,bm);
@@ -6464,7 +6465,7 @@ async function saveProfile() {
       }
     }
     const titleEl = document.getElementById('profile-title-select');
-    const updateData = {display_name:name};
+    const updateData = {display_name:name, username:name};
     if(titleEl) updateData.user_title = titleEl.value || null;
     const {error} = await sb.from('profiles').update(updateData).eq('id',currentUser.id);
     if(error) throw error;
@@ -6735,13 +6736,9 @@ async function searchDmUser() {
   if(!q) { listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">닉네임을 입력해주세요.</div>'; return; }
   listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">검색 중...</div>';
   try {
-    // display_name 검색
+    // display_name 검색만 (username은 내부식별자라 제외)
     const { data: byDisplay } = await sb.from('profiles').select('id,display_name,username,role').ilike('display_name', `%${q}%`).neq('id', currentUser.id).limit(10);
-    // username 검색
-    const { data: byUser } = await sb.from('profiles').select('id,display_name,username,role').ilike('username', `%${q}%`).neq('id', currentUser.id).limit(10);
-    // 합치고 중복 제거
-    const seen = new Set();
-    const results = [...(byDisplay||[]), ...(byUser||[])].filter(u => { if(seen.has(u.id)) return false; seen.add(u.id); return true; });
+    const results = (byDisplay||[]);
     listEl.innerHTML = '';
     if(!results.length) { listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">검색 결과가 없어요.</div>'; return; }
     results.slice(0,10).forEach(u => {
@@ -7377,9 +7374,10 @@ function toKSTDate(utcStr) {
   const kst = new Date(new Date(utcStr).getTime() + 9 * 60 * 60 * 1000);
   return kst.toISOString().slice(0, 10);
 }
-// KST 기준 오늘 날짜 (YYYY-MM-DD)
+// 로컬 기준 오늘 날짜 (YYYY-MM-DD) - 브라우저 로컬 시간 = 사용자 기기 시간대
 function kstToday() {
-  return toKSTDate(new Date().toISOString());
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 // UTC ISO 문자열을 KST 날짜+시간 문자열(YYYY-MM-DD HH:MM)로 변환
 function toKSTDateTime(utcStr) {
@@ -7586,12 +7584,11 @@ async function searchFriend() {
   const q = document.getElementById('friend-search-input')?.value.trim();
   const resultEl = document.getElementById('friend-search-result');
   if(!q || !resultEl) return;
-  const [_r1,_r2] = await Promise.all([
-    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
-    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
+  const [_r1] = await Promise.all([
+    sb.from('profiles').select('id,display_name,username,avatar_url,role').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);
   const _seen=new Set();
-  const data=[...(_r1.data||[]),...(_r2.data||[])].filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
+  const data=(_r1.data||[]).filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
   resultEl.innerHTML = '';
   if(!data?.length) {
     resultEl.innerHTML='<div style="padding:.6rem .8rem;font-size:.75rem;color:var(--tx3);text-align:center;">검색 결과가 없어요.</div>';
@@ -7599,13 +7596,14 @@ async function searchFriend() {
   }
   data.forEach(u => {
     const name = u.display_name || u.username;
+    const adminBadge = u.role==='admin' ? '<span style="font-size:.55rem;background:var(--acc);color:#fff;border-radius:3px;padding:1px 5px;font-weight:600;margin-left:.25rem;vertical-align:middle;">관리자</span>' : '';
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-bottom:1px solid var(--border);background:#fff;';
     el.onmouseenter = () => el.style.background = '#faf6ef';
     el.onmouseleave = () => el.style.background = '#fff';
     el.innerHTML = `
       ${makeAvatarHtml(name, u.avatar_url, 32)}
-      <span style="flex:1;min-width:0;font-size:.82rem;font-weight:500;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+      <span style="flex:1;min-width:0;font-size:.82rem;font-weight:500;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}${adminBadge}</span>
       <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);flex-shrink:0;">+ 친구</button>
       <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);flex-shrink:0;">서재</button>`;
     resultEl.appendChild(el);
