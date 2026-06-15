@@ -965,6 +965,14 @@ let quoteSearchQ = '';
 let quoteSelectMode = false;
 let quoteHlFilter = null;
 let selectedQuoteIds = new Set();
+let quotePage = 1;
+const QUOTES_PER_PAGE = 20;
+
+function qGoPage(p) {
+  quotePage = p;
+  renderQuotes();
+  document.getElementById('q-feed')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function buildQuotes() {
   const filterEl = document.getElementById('q-filter');
@@ -1006,13 +1014,14 @@ function buildQuotes() {
   filterEl.appendChild(filterRow);
 
   const inp = document.getElementById('quote-search-input');
-  if(inp) inp.oninput = (e) => { quoteSearchQ = e.target.value; renderQuotes(); };
+  if(inp) inp.oninput = (e) => { quoteSearchQ = e.target.value; quotePage = 1; renderQuotes(); };
 
   renderQuotes();
 }
 
 function toggleHlFilter(color, btn) {
   quoteHlFilter = quoteHlFilter === color ? null : color;
+  quotePage = 1;
   buildQuotes(); // 버튼 상태 포함 재렌더
 }
 function toggleQuoteSelect() {
@@ -1529,7 +1538,13 @@ function renderQuotes() {
     return new Date(a.created_at) - new Date(b.created_at);
   });
 
-  list.forEach(qt => {
+  // 페이지네이션
+  const totalQ = list.length;
+  const totalQPages = Math.ceil(totalQ / QUOTES_PER_PAGE);
+  if(quotePage > totalQPages) quotePage = 1;
+  const pageList = list.slice((quotePage - 1) * QUOTES_PER_PAGE, quotePage * QUOTES_PER_PAGE);
+
+  pageList.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
     const color = randomQuoteColor(qt.book_id);
     const isSelected = selectedQuoteIds.has(qt.id);
@@ -1617,6 +1632,25 @@ function renderQuotes() {
     el.style.position = 'relative';
     feed.appendChild(el);
   });
+
+  // 페이지네이션 UI
+  const pg = document.getElementById('q-pagination');
+  if(pg) {
+    if(totalQPages <= 1) { pg.innerHTML = ''; }
+    else {
+      let html = `<button class="yr-btn" onclick="qGoPage(${quotePage-1})" ${quotePage===1?'disabled ':''}style="font-size:.72rem;">‹</button>`;
+      for(let i=1;i<=totalQPages;i++){
+        if(totalQPages>7 && i>2 && i<totalQPages-1 && Math.abs(i-quotePage)>1){
+          if(i===3||i===totalQPages-2) html+=`<span style="padding:0 .2rem;color:var(--tx3);">…</span>`;
+          continue;
+        }
+        html+=`<button class="yr-btn${i===quotePage?' on':''}" onclick="qGoPage(${i})" style="${i===quotePage?'background:var(--acc);color:#fff;border-color:transparent;':''}">${i}</button>`;
+      }
+      html+=`<button class="yr-btn" onclick="qGoPage(${quotePage+1})" ${quotePage===totalQPages?'disabled ':''}style="font-size:.72rem;">›</button>`;
+      html+=`<span style="font-size:.7rem;color:var(--tx3);margin-left:.3rem;">${quotePage}/${totalQPages}</span>`;
+      pg.innerHTML = html;
+    }
+  }
 }
 
 function openEditQuote(qt) {
@@ -8006,14 +8040,24 @@ function renderPostItems(list, posts, count, catLabel) {
   pg.innerHTML = '';
   if(boardFilter !== 'notice' && count > BOARD_PER_PAGE) {
     const totalPages = Math.ceil(count/BOARD_PER_PAGE);
+    let html = `<button class="yr-btn" onclick="boardGoPage(${boardPage-1})" ${boardPage===1?'disabled ':''}style="font-size:.72rem;">‹</button>`;
     for(let i=1;i<=totalPages;i++){
-      const btn=document.createElement('button');
-      btn.className='yr-btn'+(i===boardPage?' on':'');
-      btn.style.cssText=i===boardPage?'background:var(--acc);color:#fff;border-color:transparent;':'';
-      btn.textContent=i; btn.onclick=()=>{boardPage=i;renderBoardList();};
-      pg.appendChild(btn);
+      if(totalPages>7 && i>2 && i<totalPages-1 && Math.abs(i-boardPage)>1){
+        if(i===3||i===totalPages-2) html+=`<span style="padding:0 .2rem;color:var(--tx3);">…</span>`;
+        continue;
+      }
+      html+=`<button class="yr-btn${i===boardPage?' on':''}" onclick="boardGoPage(${i})" style="${i===boardPage?'background:var(--acc);color:#fff;border-color:transparent;':''}">${i}</button>`;
     }
+    html+=`<button class="yr-btn" onclick="boardGoPage(${boardPage+1})" ${boardPage===totalPages?'disabled ':''}style="font-size:.72rem;">›</button>`;
+    html+=`<span style="font-size:.7rem;color:var(--tx3);margin-left:.3rem;">${boardPage}/${totalPages}</span>`;
+    pg.innerHTML = html;
   }
+}
+
+function boardGoPage(p) {
+  boardPage = p;
+  renderBoardList();
+  document.getElementById('board-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 
