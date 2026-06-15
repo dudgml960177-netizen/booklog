@@ -7516,6 +7516,11 @@ function makeAvatarHtml(name, avatarUrl, size=32) {
 }
 async function openSocialModal() {
   openModal('modal-social');
+  // 이전 검색 결과 초기화
+  const searchInput = document.getElementById('friend-search-input');
+  const searchResult = document.getElementById('friend-search-result');
+  if(searchInput) searchInput.value = '';
+  if(searchResult) searchResult.innerHTML = '';
   loadFriends();
 }
 
