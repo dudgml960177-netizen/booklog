@@ -3898,11 +3898,12 @@ async function grantInviteCode(quest) {
             if(codeWrap && data) {
               const available = data.filter(c => !c.used_by);
               const used = data.filter(c => c.used_by);
-              codeWrap.innerHTML = `<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
-                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
-                  <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
-                + (available.length === 0 ? '<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
-                + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '');
+              codeWrap.innerHTML = `<div class="profile-card"><div class="profile-card-title">내 초대코드</div>`
+                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;">
+                  <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span></div>`).join('')
+                + (available.length === 0 ? '<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
+                + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '')
+                + `</div>`;
             }
           });
         }
@@ -6467,11 +6468,13 @@ async function openProfile() {
   if(codeWrap && myCodes) {
     const available=myCodes.filter(c=>!c.used_by);
     const used=myCodes.filter(c=>c.used_by);
-    codeWrap.innerHTML=`<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
-      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
-        <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
-      +(available.length===0?'<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
-      +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
+    codeWrap.innerHTML=`<div class="profile-card">
+      <div class="profile-card-title">내 초대코드</div>`
+      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;">
+        <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span></div>`).join('')
+      +(available.length===0?'<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
+      +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'')
+      +`</div>`;
   }
 }
 function openContact() {
