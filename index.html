@@ -716,6 +716,19 @@
         <label class="form-label">닉네임 변경</label>
         <input type="text" id="profile-display-name" class="form-input">
       </div>
+      <!-- 비밀번호 변경 -->
+      <div style="margin-bottom:.6rem;">
+        <button id="pw-change-toggle" onclick="togglePwChange()" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:transparent;border:1px solid var(--border2);border-radius:var(--rs);padding:.45rem .7rem;font-size:.73rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);transition:all .15s;" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background='transparent'">
+          <span>🔑 비밀번호 변경</span><span id="pw-change-arrow" style="font-size:.65rem;">▾</span>
+        </button>
+        <div id="pw-change-form" style="display:none;padding:.6rem .7rem;background:#faf6ef;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--rs) var(--rs);">
+          <input type="password" id="pw-current" class="form-input" placeholder="현재 비밀번호" style="margin-bottom:.35rem;">
+          <input type="password" id="pw-new" class="form-input" placeholder="새 비밀번호 (6자 이상)" style="margin-bottom:.35rem;">
+          <input type="password" id="pw-confirm" class="form-input" placeholder="새 비밀번호 확인" style="margin-bottom:.45rem;">
+          <div id="pw-change-msg" style="font-size:.67rem;margin-bottom:.35rem;display:none;"></div>
+          <button onclick="changePassword()" class="btn-save" style="width:100%;padding:.42rem;">변경하기</button>
+        </div>
+      </div>
       <!-- 칭호 선택 (퀘스트 달성 시 표시) -->
       <div id="profile-title-wrap" style="display:none;margin-bottom:.8rem;">
         <div class="form-group">

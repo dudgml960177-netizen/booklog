@@ -575,6 +575,45 @@ async function doUpdatePassword() {
   setTimeout(() => { sb.auth.signOut(); authSwitch('login', document.querySelectorAll('.auth-tab')[0]); }, 2000);
 }
 
+function togglePwChange() {
+  const form = document.getElementById('pw-change-form');
+  const arrow = document.getElementById('pw-change-arrow');
+  const msg = document.getElementById('pw-change-msg');
+  if(!form) return;
+  const open = form.style.display !== 'none';
+  form.style.display = open ? 'none' : 'block';
+  if(arrow) arrow.textContent = open ? '▾' : '▴';
+  if(!open) {
+    ['pw-current','pw-new','pw-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    if(msg) { msg.style.display='none'; msg.textContent=''; }
+  }
+}
+
+async function changePassword() {
+  const cur = document.getElementById('pw-current')?.value || '';
+  const pw = document.getElementById('pw-new')?.value || '';
+  const pw2 = document.getElementById('pw-confirm')?.value || '';
+  const msg = document.getElementById('pw-change-msg');
+  const showMsg = (text, ok=false) => {
+    if(!msg) return;
+    msg.textContent = text;
+    msg.style.color = ok ? '#2a7a3a' : '#c0392b';
+    msg.style.display = 'block';
+  };
+  if(!cur) { showMsg('현재 비밀번호를 입력해주세요.'); return; }
+  if(pw.length < 6) { showMsg('새 비밀번호는 6자 이상이어야 해요.'); return; }
+  if(pw !== pw2) { showMsg('새 비밀번호가 일치하지 않아요.'); return; }
+  // 현재 비밀번호 재인증
+  const email = currentUser.email;
+  const { error: signInErr } = await sb.auth.signInWithPassword({ email, password: cur });
+  if(signInErr) { showMsg('현재 비밀번호가 올바르지 않아요.'); return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if(error) { showMsg('변경 오류: ' + error.message); return; }
+  showMsg('비밀번호가 변경됐어요!', true);
+  ['pw-current','pw-new','pw-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  setTimeout(() => togglePwChange(), 2000);
+}
+
 async function doSignup() {
   const email = document.getElementById('signup-email').value.trim();
   const pw    = document.getElementById('signup-pw').value;
@@ -6658,16 +6697,48 @@ async function goToNotif(notifId) {
   const detailEl = document.getElementById('notif-detail-body');
   if(detailEl) {
     const postId = n.post_id || null;
-        const msgHtml = (n.message||'').split('\n').map(l=>l===''?'<br>':l).join('<br>');
+    const msgHtml = (n.message||'').split('\n').map(l=>l===''?'<br>':l).join('<br>');
+    const isInquiry = curUserRole === 'admin' && n.sender_id && (n.message||'').startsWith('📩 문의');
     detailEl.innerHTML = `
       <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${msgHtml}</div>
       <div style="font-size:.65rem;color:var(--tx3);">${toKSTDateTime(n.created_at)}</div>
       ${postId ? `<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
         <button class="btn-save" style="width:100%;padding:.5rem;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
+      </div>` : ''}
+      ${isInquiry ? `
+      <div style="margin-top:.9rem;border-top:1px solid var(--border);padding-top:.75rem;">
+        <div style="font-size:.7rem;font-weight:600;color:var(--tx2);margin-bottom:.4rem;">답변 보내기</div>
+        <textarea id="inquiry-reply-input" style="width:100%;box-sizing:border-box;border:1px solid var(--border2);border-radius:var(--rs);padding:.5rem .6rem;font-size:.78rem;font-family:var(--ff);color:var(--tx1);background:var(--bg);resize:vertical;min-height:80px;outline:none;" placeholder="답변 내용을 입력하세요…"></textarea>
+        <div id="inquiry-reply-msg" style="font-size:.67rem;margin:.25rem 0;display:none;"></div>
+        <button onclick="sendInquiryReply('${n.sender_id}')" class="btn-save" style="width:100%;margin-top:.3rem;padding:.42rem;">답변 보내기</button>
       </div>` : ''}`;
     openModal('modal-notif-detail');
   }
   sb.from('notifications').update({is_read:true}).eq('id', notifId).then(()=>loadNotifications());
+}
+
+async function sendInquiryReply(receiverId) {
+  const content = document.getElementById('inquiry-reply-input')?.value.trim();
+  const msg = document.getElementById('inquiry-reply-msg');
+  const showMsg = (text, ok=false) => {
+    if(!msg) return;
+    msg.textContent = text; msg.style.color = ok ? '#2a7a3a' : '#c0392b'; msg.style.display = 'block';
+  };
+  if(!content) { showMsg('답변 내용을 입력해주세요.'); return; }
+  try {
+    const { error } = await sb.from('notifications').insert({
+      user_id: receiverId,
+      sender_id: currentUser.id,
+      type: 'admin_dm',
+      message: `📩 관리자 답변: ${content}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    showMsg('답변을 보냈어요!', true);
+    if(document.getElementById('inquiry-reply-input')) document.getElementById('inquiry-reply-input').value = '';
+    setTimeout(() => closeModal('modal-notif-detail'), 1500);
+  } catch(e) { showMsg('전송 오류: ' + (e.message || '잠시 후 다시 시도해주세요.')); }
 }
 async function goToPost(postId) {
   closeModal('modal-notif-detail');
