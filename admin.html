@@ -37,7 +37,7 @@
     .btn:disabled { opacity: .5; cursor: default; }
     .err { font-size: .72rem; color: #b8001f; margin-bottom: .4rem; }
 
-    #admin-screen { display: none; padding: 1.5rem 1rem; max-width: 800px; margin: 0 auto; }
+    #admin-screen { display: none; padding: 1.5rem 1rem; max-width: 900px; margin: 0 auto; }
     .admin-header {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 1.3rem;
@@ -48,13 +48,32 @@
       background: none; font-size: .72rem; font-family: var(--ff);
       color: var(--tx3); cursor: pointer;
     }
-    .filter-row { display: flex; gap: .4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-row { display: flex; gap: .4rem; margin-bottom: .75rem; flex-wrap: wrap; align-items: center; }
     .filter-btn {
       padding: .28rem .7rem; border: 1.5px solid var(--border); border-radius: 20px;
       background: none; font-size: .72rem; font-family: var(--ff);
       color: var(--tx3); cursor: pointer; transition: all .13s;
     }
     .filter-btn.on { border-color: var(--acc); color: var(--acc); background: #fff8f0; font-weight: 600; }
+    .search-bar {
+      display: flex; gap: .4rem; margin-bottom: 1rem; align-items: center;
+    }
+    .search-bar input {
+      flex: 1; padding: .42rem .75rem; border: 1.5px solid var(--border); border-radius: 20px;
+      font-size: .8rem; font-family: var(--ff); background: var(--card);
+      color: var(--tx1); outline: none;
+    }
+    .search-bar input:focus { border-color: var(--acc); }
+    .search-bar button {
+      padding: .4rem .9rem; border: none; border-radius: 20px;
+      background: var(--acc); color: #fff; font-size: .75rem; font-family: var(--ff);
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .search-clear {
+      padding: .4rem .7rem; border: 1px solid var(--border2); border-radius: 20px;
+      background: none; font-size: .75rem; font-family: var(--ff);
+      color: var(--tx3); cursor: pointer;
+    }
     .stats-row { display: flex; gap: .6rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
     .stat-chip {
       background: var(--card); border: 1px solid var(--border); border-radius: 8px;
@@ -89,6 +108,19 @@
     .loading { text-align: center; padding: 2rem; font-size: .82rem; color: var(--tx3); }
     .plan-name { font-size: .72rem; color: var(--tx2); }
     .amt { font-weight: 700; color: var(--tx1); }
+    .pagination {
+      display: flex; justify-content: center; align-items: center;
+      gap: .35rem; margin-top: .9rem; flex-wrap: wrap;
+    }
+    .pg-btn {
+      padding: .28rem .6rem; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--card); font-size: .75rem; font-family: var(--ff);
+      color: var(--tx2); cursor: pointer; transition: all .12s;
+    }
+    .pg-btn:hover { border-color: var(--acc); color: var(--acc); }
+    .pg-btn.on { background: var(--acc); color: #fff; border-color: var(--acc); font-weight: 600; }
+    .pg-btn:disabled { opacity: .35; cursor: default; }
+    .search-hint { font-size: .72rem; color: var(--acc); margin-left: .3rem; }
     @media (max-width: 600px) {
       td, th { padding: .4rem .45rem; }
       th:nth-child(3), td:nth-child(3) { display: none; }
@@ -125,11 +157,21 @@
     <button class="filter-btn" data-filter="pending" onclick="setFilter('pending',this)">입금 대기</button>
     <button class="filter-btn" data-filter="confirmed" onclick="setFilter('confirmed',this)">확인 완료</button>
     <button class="filter-btn" data-filter="cancelled" onclick="setFilter('cancelled',this)">취소</button>
+    <span id="search-hint" class="search-hint" style="display:none;"></span>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="이메일 또는 입금코드 검색..."
+      onkeydown="if(event.key==='Enter')doSearch()"
+      oninput="if(!this.value.trim())clearSearch()">
+    <button onclick="doSearch()">검색</button>
+    <button class="search-clear" id="clear-btn" style="display:none;" onclick="clearSearch()">✕ 초기화</button>
   </div>
 
   <div id="table-wrap">
     <div class="loading">불러오는 중…</div>
   </div>
+  <div id="pagination" class="pagination"></div>
 </div>
 
 <script>
@@ -142,9 +184,13 @@ const PLAN_NAMES = {
   plan_c: '가입권 + 초대장 3장',
 };
 
+const PER_PAGE = 20;
+
 let _secret = '';
 let _payments = [];
 let _filter = 'all';
+let _searchQ = '';
+let _page = 1;
 
 function doLogin() {
   const pw = document.getElementById('admin-pw').value.trim();
@@ -165,13 +211,44 @@ function doLogout() {
 
 function setFilter(f, el) {
   _filter = f;
+  _page = 1;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('on'));
   el.classList.add('on');
   renderTable();
 }
 
+function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  _searchQ = q;
+  _page = 1;
+  document.getElementById('clear-btn').style.display = q ? '' : 'none';
+  renderTable();
+}
+
+function clearSearch() {
+  _searchQ = '';
+  _page = 1;
+  document.getElementById('search-input').value = '';
+  document.getElementById('clear-btn').style.display = 'none';
+  renderTable();
+}
+
+function getFiltered() {
+  let list = _filter === 'all' ? _payments : _payments.filter(p => p.status === _filter);
+  if (_searchQ) {
+    const q = _searchQ.toLowerCase();
+    list = list.filter(p =>
+      p.email?.toLowerCase().includes(q) ||
+      p.transfer_code?.toLowerCase().includes(q) ||
+      (p.codes || []).some(c => c.toLowerCase().includes(q))
+    );
+  }
+  return list;
+}
+
 async function loadPayments() {
   document.getElementById('table-wrap').innerHTML = '<div class="loading">불러오는 중…</div>';
+  document.getElementById('pagination').innerHTML = '';
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-payments`, {
       method: 'POST',
@@ -205,16 +282,32 @@ function renderStats() {
     <div class="stat-chip"><b>${pending}</b>입금 대기</div>
     <div class="stat-chip"><b>${confirmed}</b>확인 완료</div>
     <div class="stat-chip"><b>${totalAmt.toLocaleString()}원</b>총 확인 금액</div>
+    <div class="stat-chip"><b>${_payments.length}</b>전체</div>
   `;
 }
 
 function renderTable() {
-  const list = _filter === 'all' ? _payments : _payments.filter(p => p.status === _filter);
-  if (!list.length) {
+  const filtered = getFiltered();
+  const hint = document.getElementById('search-hint');
+
+  if (_searchQ) {
+    hint.style.display = '';
+    hint.textContent = `"${_searchQ}" 검색 결과 ${filtered.length}건`;
+  } else {
+    hint.style.display = 'none';
+  }
+
+  if (!filtered.length) {
     document.getElementById('table-wrap').innerHTML = '<div class="empty">내역이 없습니다.</div>';
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
-  const rows = list.map(p => {
+
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  if (_page > totalPages) _page = totalPages;
+  const pageItems = filtered.slice((_page - 1) * PER_PAGE, _page * PER_PAGE);
+
+  const rows = pageItems.map(p => {
     const date = new Date(p.created_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
     const badge = p.status === 'pending'
       ? '<span class="badge badge-pending">입금 대기</span>'
@@ -252,6 +345,31 @@ function renderTable() {
       </thead>
       <tbody>${rows}</tbody>
     </table>`;
+
+  renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  let html = `<button class="pg-btn" onclick="goPage(${_page-1})" ${_page===1?'disabled':''}>‹</button>`;
+  for (let i = 1; i <= totalPages; i++) {
+    if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - _page) > 1) {
+      if (i === 3 || i === totalPages - 2) html += `<span style="padding:0 .2rem;color:var(--tx3);">…</span>`;
+      continue;
+    }
+    html += `<button class="pg-btn ${i===_page?'on':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  html += `<button class="pg-btn" onclick="goPage(${_page+1})" ${_page===totalPages?'disabled':''}>›</button>`;
+  html += `<span style="font-size:.7rem;color:var(--tx3);margin-left:.3rem;">${_page}/${totalPages} (${getFiltered().length}건)</span>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) {
+  _page = p;
+  renderTable();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function resendEmail(id) {
@@ -295,7 +413,6 @@ async function confirmPayment(id) {
       if (btn) { btn.disabled = false; btn.textContent = '✓ 확인'; }
       return;
     }
-    // 성공: 목록 새로고침
     await loadPayments();
   } catch(e) {
     alert('네트워크 오류: ' + e.message);
