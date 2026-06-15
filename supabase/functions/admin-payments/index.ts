@@ -1,15 +1,9 @@
 /**
  * admin-payments Edge Function
  *
- * action:'list'    → 전체 결제 신청 목록 반환
- * action:'confirm' → 입금 확인 처리: 초대코드 생성 → invite_codes 저장 → 고객 이메일 발송
- *
- * 필요한 Supabase Edge Function secrets:
- *   ADMIN_SECRET          관리자 인증 시크릿 (임의 문자열)
- *   RESEND_API_KEY        Resend API 키
- *   RESEND_FROM           발신 이메일
- *   SUPABASE_URL          자동 주입
- *   SUPABASE_SERVICE_ROLE_KEY  자동 주입
+ * action:'list'         → 전체 결제 신청 목록 반환
+ * action:'confirm'      → 입금 확인 처리: 초대코드 생성 → invite_codes 저장 → 고객 이메일 발송
+ * action:'resend_email' → 이미 confirm된 결제의 코드 이메일 재발송
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -62,10 +56,9 @@ serve(async (req) => {
       if (fetchErr || !payment) return json({ error: "payment_not_found" }, 404);
       if (payment.status !== "pending") return json({ error: "already_processed" }, 409);
 
-      // 초대코드 생성 (가입권 1개 + 초대장 N개)
-      const totalCodes = payment.invite_count + 1;
-      const codes: string[] = [];
-      for (let i = 0; i < totalCodes; i++) {
+      // 코드 생성: 가입권은 BK 입금코드 재사용, 초대장은 랜덤 생성
+      const codes: string[] = [payment.transfer_code];
+      for (let i = 0; i < payment.invite_count; i++) {
         const code =
           Math.random().toString(36).slice(2, 8).toUpperCase() +
           "-" +
@@ -78,9 +71,6 @@ serve(async (req) => {
         codes.map((code) => ({
           code,
           owner_id: null,
-          quest_reward: false,
-          source: "purchase",
-          purchase_id: payment.id,
           created_at: new Date().toISOString(),
         }))
       );
@@ -139,6 +129,72 @@ serve(async (req) => {
       }
 
       return json({ success: true, codes });
+    }
+
+    // ── 이메일 재발송
+    if (action === "resend_email") {
+      if (!payment_id) return json({ error: "missing_payment_id" }, 400);
+
+      const { data: payment, error: fetchErr } = await sb
+        .from("pending_payments")
+        .select("*")
+        .eq("id", payment_id)
+        .single();
+
+      if (fetchErr || !payment) return json({ error: "payment_not_found" }, 404);
+      if (!payment.codes?.length) return json({ error: "no_codes" }, 400);
+
+      const resendKey = Deno.env.get("RESEND_API_KEY");
+      const resendFrom = Deno.env.get("RESEND_FROM") || "북로그 <noreply@booklog-app.com>";
+      if (!resendKey) return json({ error: "no_resend_key" }, 500);
+
+      const codes: string[] = payment.codes;
+      const codeListHtml = codes
+        .map(
+          (c: string, i: number) =>
+            `<tr>
+              <td style="padding:6px 12px;font-size:12px;color:#a08c72;">${i === 0 ? "내 가입 코드" : `초대 코드 ${i}`}</td>
+              <td style="padding:6px 12px;font-family:monospace;font-weight:700;font-size:15px;color:#b07030;letter-spacing:2px;">${c}</td>
+            </tr>`
+        )
+        .join("");
+
+      const emailRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: payment.email,
+          subject: "북로그 초대코드가 도착했습니다 📬",
+          html: `
+<!DOCTYPE html>
+<html lang="ko">
+<body style="margin:0;padding:20px;background:#f2ece0;font-family:'Apple SD Gothic Neo',sans-serif;">
+  <div style="max-width:420px;margin:0 auto;background:#faf6ef;border-radius:12px;padding:28px 24px;border:1px solid #ddd0b8;">
+    <h2 style="margin:0 0 6px;font-size:20px;color:#2e1f0e;">북로그 초대코드</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:#a08c72;">아래 코드로 북로그에 가입하세요.</p>
+    <table style="width:100%;border-collapse:collapse;background:#f2ece0;border-radius:8px;overflow:hidden;">
+      ${codeListHtml}
+    </table>
+    <p style="margin:20px 0 0;font-size:12px;color:#a08c72;line-height:1.7;">
+      • 첫 번째 코드는 본인 가입용입니다.<br>
+      • 나머지 코드는 친구에게 전달하여 초대할 수 있습니다.<br>
+      • 코드는 1회만 사용 가능합니다.
+    </p>
+    <hr style="margin:18px 0;border:none;border-top:1px solid #ddd0b8;">
+    <p style="margin:0;font-size:11px;color:#c0a880;">결제 문의: 북로그 관리자에게 연락해주세요.</p>
+  </div>
+</body>
+</html>`,
+        }),
+      });
+
+      if (!emailRes.ok) {
+        const errBody = await emailRes.text();
+        return json({ error: "email_send_failed", detail: errBody }, 500);
+      }
+
+      return json({ success: true });
     }
 
     return json({ error: "unknown_action" }, 400);

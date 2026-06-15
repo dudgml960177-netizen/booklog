@@ -12,9 +12,8 @@ window.onerror = (msg, src, line) => {
 // 북로그 v3
 // ═══════════════════════════════════════════
 // ── 결제 설정
-const PAYMENT_OPEN       = '2026-06-15';
-const PAYMENT_CLOSE_DATE = '2026-07-15';
-const PAYMENT_CLOSE_MS   = new Date('2026-07-15T23:55:00+09:00').getTime(); // 7/15 23:55 KST
+const PAYMENT_OPEN   = '2026-06-15';
+const PAYMENT_CLOSE  = '2026-08-15';
 const PAYMENT_PLANS  = {
   plan_a: { name: '가입권 + 초대장 1장', amount: 15000, invites: 1 },
   plan_b: { name: '가입권 + 초대장 2장', amount: 28000, invites: 2 },
@@ -301,7 +300,7 @@ async function startApp(user) {
     if(fabInit) fabInit.style.display = 'flex';
 
     // 방문 횟수 카운트
-    const _vtd=new Date().toISOString().slice(0,10);
+    const _vtd=kstToday();
     const _vk='bl_visit_'+_vtd;
     const _vc=parseInt(localStorage.getItem(_vk)||'0')+1;
     localStorage.setItem(_vk, String(_vc));
@@ -602,7 +601,8 @@ async function doSignup() {
         await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
       }
     } else if (codeRow.source !== 'event_registration') {
-      // 이벤트 가입권이 아닌 경우에만 초대코드 1개 자동 발급
+      // 이벤트 가입권(event_registration)이 아닌 경우에만 초대코드 1개 자동 발급
+      // (이벤트 당첨자는 가입만 가능, 초대코드 미지급 — 퀘스트 보상 초대권은 별도 경로라 정상 획득)
       const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
       await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
     }
@@ -735,7 +735,7 @@ function showUnsavedTimerBanner() {
 function sw(name, btn) {
   // 기록 탭 벗어날 때 미저장 타이머 알림
   const currentPanel = [...document.querySelectorAll('.panel.on')].map(p=>p.id.replace('p-',''))[0];
-  if(currentPanel === 'record' && name !== 'record' && timerSeconds >= 60 && !timerRunning) {
+  if(currentPanel === 'record' && name !== 'record' && timerSeconds >= 60) {
     showUnsavedTimerBanner();
   }
   // FAB 버튼: 어느 탭에서든 책 추가 가능
@@ -1079,12 +1079,29 @@ async function shareQuoteCard(qtId, btn) {
     .replace(/(<br>){3,}/gi, '<br><br>');
   // html2canvas가 형광펜 span 내 텍스트 색상을 상속받지 못하는 버그 대응:
   // background-color가 있는 span에 명시적으로 color 추가
+  // Fix 1: 형광펜 span에 명시적 color 주입 (기존 color 제거 후 재주입)
+  // html2canvas가 background-color를 text color로 잘못 사용하는 버그 방지
   richText = richText.replace(
-    /<span([^>]*)style="([^"]*background(?:-color)?[^"]*)"/gi,
-    (_, before, styleVal) => `<span${before}style="color:#2e1f0e;${styleVal}"`
+    /<span([^>]*)style="([^"]*)"/gi,
+    (match, before, styleVal) => {
+      if (!/background/i.test(styleVal)) return match;
+      const clean = styleVal.replace(/(?:^|;)\s*color\s*:[^;]+/gi, '').replace(/^;+/, '').trim();
+      return `<span${before}style="color:#2e1f0e;${clean}"`;
+    }
+  );
+  // Fix 2: split highlight spans at every <br> so each visual line is a self-contained span
+  // html2canvas misrenders text inside a background-color span that contains <br>
+  richText = richText.replace(
+    /<span([^>]*style="[^"]*background[^"]*"[^>]*)>([\s\S]*?)<\/span>/gi,
+    (match, attrs, content) => {
+      if (!/<br>/i.test(content)) return match;
+      return content.split(/<br>/i)
+        .map(p => `<span${attrs}>${p}</span>`)
+        .join('<br>');
+    }
   );
   const plainText = rawText.replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').trim();
-  const lines = richText.split(/<br>/i);
+  let lines = richText.split(/<br>/i);
 
   // 책 표지 base64 변환 (CORS 우회)
   let coverB64 = '';
@@ -1127,13 +1144,85 @@ async function shareQuoteCard(qtId, btn) {
   // 전체를 한 장에 담기 (분할 없음)
   // 폰트 크기: 글자 수에 따라 자동 축소
   const pLen = plainText.length;
-  const lineCount = lines.length;
-  const fontSize = pLen > 400 || lineCount > 20 ? 9
-                 : pLen > 250 || lineCount > 14 ? 10
-                 : pLen > 150 || lineCount > 9  ? 11
-                 : pLen > 80  || lineCount > 5  ? 12 : 13;
-  // 줄 간격도 조정
-  const lineH = fontSize <= 10 ? 1.75 : 1.9;
+  let lineCount = lines.length;
+  let fontSize = pLen > 400 || lineCount > 20 ? 9
+               : pLen > 250 || lineCount > 14 ? 10
+               : pLen > 150 || lineCount > 9  ? 11
+               : pLen > 80  || lineCount > 5  ? 12 : 13;
+  let lineH = fontSize <= 10 ? 1.75 : 1.9;
+
+  // Fix 4: 하이라이트 span이 줄 중간에 시작하면 앞에 <br> 삽입
+  // html2canvas 버그: background-color span이 x>0 에서 시작하면 텍스트 좌표가 잘못 계산돼
+  // 텍스트가 하이라이트 뒤로 숨거나 오른쪽으로 밀려남
+  // → 모든 하이라이트 span을 항상 줄 맨 앞(x=0)에서 시작하도록 강제
+  richText = richText.replace(
+    /([^>])<span([^>]*style="[^"]*background[^"]*"[^>]*)>/gi,
+    '$1<br><span$2>'
+  );
+
+  // Fix 3: 실제 브라우저 레이아웃으로 자연 줄바꿈 위치 측정 후 span 분리
+  // Fix 4로 모든 span이 x=0에서 시작하므로 측정이 정확함
+  // DOM 수정 없이 splitOps를 수집한 뒤 richText 문자열에 직접 적용 (직렬화 오차 방지)
+  await document.fonts.ready;
+  (() => {
+    const mDiv = document.createElement('div');
+    mDiv.style.cssText = `position:absolute;visibility:hidden;left:-9999px;top:0;width:328px;` +
+      `font-size:${fontSize}px;line-height:${lineH};` +
+      `font-family:'Nanum Myeongjo','Georgia',serif;color:#2e1f0e;`;
+    mDiv.innerHTML = richText;
+    document.body.appendChild(mDiv);
+    void mDiv.getBoundingClientRect();
+    const splitOps = [];
+    for (const span of [...mDiv.querySelectorAll('span')].filter(
+      s => /background/i.test(s.getAttribute('style') || '')
+    )) {
+      const tNode = [...span.childNodes].find(n => n.nodeType === 3);
+      if (!tNode || tNode.textContent.length <= 1) { splitOps.push(null); continue; }
+      const txt = tNode.textContent;
+      const range = document.createRange();
+      const bps = [];
+      let lastTop = null;
+      for (let i = 0; i < txt.length; i++) {
+        range.setStart(tNode, i); range.setEnd(tNode, i + 1);
+        const r = range.getClientRects()[0];
+        if (!r) continue;
+        const top = Math.round(r.top);
+        if (lastTop !== null && top > lastTop + 2) bps.push(i);
+        lastTop = top;
+      }
+      splitOps.push(bps.length ? {bps} : null);
+    }
+    mDiv.remove();
+    let si = 0;
+    richText = richText.replace(
+      /<span([^>]*style="[^"]*background[^"]*"[^>]*)>([\s\S]*?)<\/span>/gi,
+      (match, attrs, content) => {
+        const op = splitOps[si++];
+        if (!op || /</.test(content)) return match;
+        const parts = [];
+        let prev = 0;
+        for (const bp of op.bps) { parts.push(content.slice(prev, bp).trimEnd()); prev = bp; }
+        parts.push(content.slice(prev).trimStart());
+        return parts.filter(Boolean).map(p => `<span${attrs}>${p}</span>`).join('<br>');
+      }
+    );
+  })();
+
+  // Fix 1b: html2canvas가 display:inline span의 background-color를 렌더링 안 하는 버그 대응
+  // Fix 3에서 줄바꿈 분리 완료 후 display:inline-block 적용
+  // (Fix 3 측정은 display:inline 상태에서 해야 정확하므로 측정 후에 적용)
+  richText = richText.replace(
+    /<span([^>]*style="[^"]*background[^"]*"[^>]*)>/gi,
+    (match, attrs) => {
+      const newAttrs = attrs.replace(/style="([^"]*)"/, (m, s) => {
+        const clean = s.replace(/(?:^|;)\s*display\s*:[^;]+/gi, '').replace(/^;+/, '').trim();
+        return `style="display:inline-block;${clean}"`;
+      });
+      return `<span${newAttrs}>`;
+    }
+  );
+
+  lines = richText.split(/<br>/i);
   const chunks = [lines.join('<br>')];
   const total = 1;
 
@@ -2044,7 +2133,6 @@ function buildTimer() {
   sel.innerHTML = '<option value="">읽는 중인 책 선택...</option>';
   allBooks.filter(b=>b.status==='읽는중').forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.title;sel.appendChild(o);});
   sel.onchange = () => showTimerBookDetail(sel.value);
-  if(timerBookId) { sel.value = timerBookId; showTimerBookDetail(timerBookId); }
   updateTimerDisplay();
   buildWeeklyStats();
   updateTrackerPeriodBtns();
@@ -2055,13 +2143,14 @@ function buildWeeklyStats() {
   const el = document.getElementById('timer-weekly');
   if(!el) return;
   const today = new Date();
-  const todayStr = today.toISOString().slice(0,10);
+  const todayStr = kstToday();
   const DOW = ['일','월','화','수','목','금','토'];
   // 최근 7일
   const days = [];
+  const fmtLocal=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   for(let i=6;i>=0;i--){
     const d=new Date(today); d.setDate(d.getDate()-i);
-    const ds=d.toISOString().slice(0,10);
+    const ds=fmtLocal(d);
     const lsMins=parseInt(localStorage.getItem('bl_daily_timer_'+ds)||'0');
     const bookMins=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds]||0),0);
     days.push({ds,mins:Math.max(lsMins,bookMins),dow:d.getDay()});
@@ -2072,7 +2161,7 @@ function buildWeeklyStats() {
   let lastTotal=0;
   for(let i=7;i<=13;i++){
     const d2=new Date(today); d2.setDate(d2.getDate()-i);
-    const ds2=d2.toISOString().slice(0,10);
+    const ds2=fmtLocal(d2);
     const m=parseInt(localStorage.getItem('bl_daily_timer_'+ds2)||'0');
     const bm=allBooks.reduce((s,b)=>s+(b.reading_time_log?.[ds2]||0),0);
     lastTotal+=Math.max(m,bm);
@@ -2162,7 +2251,7 @@ function toggleTimer() {
   } else {
     // 시작 시 카운트
     localStorage.setItem('bl_timer_total', String((parseInt(localStorage.getItem('bl_timer_total')||'0')+1)));
-    const _td=new Date().toISOString().slice(0,10);
+    const _td=kstToday();
     const _dtk='bl_daily_timer_'+_td;
     const _dtc=parseInt(localStorage.getItem(_dtk)||'0')+1;
     localStorage.setItem(_dtk, String(_dtc));
@@ -2286,46 +2375,26 @@ async function saveTimer() {
   if(!bookId){alert('책을 선택해주세요.');return;}
   const book=allBooks.find(b=>b.id===bookId);
   if(!book){alert('책을 찾을 수 없어요.');return;}
-  const totalMins=Math.round(timerSeconds/60);
-
-  // 날짜별 분리 (자정 경계 처리)
-  const toLocalDs = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const endMs = Date.now();
-  const startMs = parseInt(localStorage.getItem('bl_timer_start')||'0') || (endMs - timerSeconds*1000);
-  const dayMins = {};
-  let cur = startMs;
-  while(cur < endMs) {
-    const d = new Date(cur);
-    const ds = toLocalDs(d);
-    const midnight = new Date(d); midnight.setHours(24,0,0,0);
-    const segEnd = Math.min(midnight.getTime(), endMs);
-    const m = Math.round((segEnd - cur) / 60000);
-    if(m > 0) dayMins[ds] = (dayMins[ds]||0) + m;
-    cur = segEnd;
-  }
-  // 반올림 오차 보정: 마지막 날짜에 차이 반영
-  const splitDays = Object.keys(dayMins).sort();
-  const lastDay = splitDays[splitDays.length-1] || toLocalDs(new Date());
-  if(!dayMins[lastDay]) dayMins[lastDay] = 0;
-  const calcTotal = Object.values(dayMins).reduce((s,v)=>s+v,0);
-  if(calcTotal !== totalMins) dayMins[lastDay] += (totalMins - calcTotal);
-  if(dayMins[lastDay] <= 0) delete dayMins[lastDay];
-
+  const mins=Math.round(timerSeconds/60);
+  const today=kstToday();
   const cy = new Date().getFullYear();
   try {
+    // 연도별 독서 시간 누적
     const cyStr = String(cy);
     const yearData = book.reading_time_year || {};
-    yearData[cyStr] = (yearData[cyStr] ?? yearData[cy] ?? 0) + totalMins;
+    // string 키로 통일 (Supabase jsonb 왕복 후 키가 string이 됨)
+    yearData[cyStr] = (yearData[cyStr] ?? yearData[cy] ?? 0) + mins;
     if(yearData[cy] !== undefined && cy !== cyStr) delete yearData[cy];
-    // 날짜별 기록 — 자정 분할 적용
+    // 날짜별 기록 (트래커 + 통계 정확도)
     const timeLog = book.reading_time_log || {};
-    Object.entries(dayMins).forEach(([ds, m]) => { if(m>0) timeLog[ds] = (timeLog[ds]||0)+m; });
+    timeLog[today] = (timeLog[today] || 0) + mins;
     const updateData = {
-      reading_time:(book.reading_time||0)+totalMins,
+      reading_time:(book.reading_time||0)+mins,
       reading_time_year: yearData,
       reading_time_log: timeLog,
-      last_read: lastDay
+      last_read:today
     };
+    // 타이머에서 현재 페이지 입력값 반영
     const timerPageInput = document.getElementById('timer-current-page');
     if(timerPageInput?.value) {
       const cp = parseInt(timerPageInput.value);
@@ -2333,19 +2402,14 @@ async function saveTimer() {
     }
     const {error} = await sb.from('books').update(updateData).eq('id',bookId).eq('user_id',currentUser.id);
     if(error) throw error;
-    if(totalMins <= 2) localStorage.setItem('bl_quick_timer_count', String((parseInt(localStorage.getItem('bl_quick_timer_count')||'0')+1)));
+    if(mins <= 2) localStorage.setItem('bl_quick_timer_count', String((parseInt(localStorage.getItem('bl_quick_timer_count')||'0')+1)));
     clearInterval(timerInterval);timerRunning=false;timerSeconds=0;timerInterval=null;
     localStorage.removeItem('bl_timer_start');
     localStorage.removeItem('bl_timer_book_id');
     localStorage.removeItem('bl_timer_offset');
     if(timerPageInput) timerPageInput.value='';
     await loadData(); updateTimerDisplay(); updateTimerBtn(); updateTimerIndicator(); buildTimer();
-    if(splitDays.length > 1) {
-      const detail = splitDays.map(d=>`${d.slice(5).replace('-','/')} ${dayMins[d]}분`).join(', ');
-      alert(`총 ${totalMins}분 저장됐어요!\n(${detail})`);
-    } else {
-      alert(`${totalMins}분 저장됐어요!`);
-    }
+    alert(`${mins}분 저장됐어요!`);
   } catch(e){ alert('저장 오류: '+(e.message||'알 수 없는 오류')); }
 }
 function moveTimerMonth(dir) {
@@ -3425,7 +3489,7 @@ const QUESTS = [
     desc: '읽지 않는 것도 재능인 법',
     condition: (books) => {
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
-      const cutoffStr = cutoff.toISOString().slice(0,10);
+      const cutoffStr = toKSTDate(cutoff.toISOString());
       return books.filter(b => b.status==='읽는중' && !b.reading_time && b.date_start && b.date_start <= cutoffStr).length >= 3;
     },
     reward: {
@@ -3731,8 +3795,9 @@ async function grantInviteCode(quest) {
     await sb.from('invite_codes').insert({
       code: newCode,
       owner_id: currentUser.id,
-      source: 'quest_reward',
       created_at: new Date().toISOString(),
+      quest_reward: true,
+      quest_id: quest.id,
     });
     // 초대권 발급 알림 팝업
     await new Promise(resolve => {
@@ -3756,7 +3821,16 @@ async function grantInviteCode(quest) {
         const profileModal = document.getElementById('modal-profile');
         if(profileModal && profileModal.style.display !== 'none') {
           sb.from('invite_codes').select('*').eq('owner_id', currentUser.id).then(({data}) => {
-            renderInviteCodeSection(document.getElementById('profile-invite-codes'), data);
+            const codeWrap = document.getElementById('profile-invite-codes');
+            if(codeWrap && data) {
+              const available = data.filter(c => !c.used_by);
+              const used = data.filter(c => c.used_by);
+              codeWrap.innerHTML = `<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
+                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
+                  <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
+                + (available.length === 0 ? '<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
+                + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '');
+            }
           });
         }
       };
@@ -3788,7 +3862,7 @@ async function checkAndGrantQuests() {
   }
 
   // 연속 로그인 체크
-  const today = new Date().toISOString().slice(0,10);
+  const today = kstToday();
   const lastLogin = localStorage.getItem('bl_last_login_date');
   if(lastLogin) {
     const diff = (new Date(today) - new Date(lastLogin)) / 86400000;
@@ -4365,7 +4439,7 @@ function buildStats() {
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
   // 최장 연속 독서일 계산
   const longestStreak = (() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = kstToday();
     const readDays = new Set();
     allBooks.forEach(b => {
       if (!b.date_start) return;
@@ -5680,13 +5754,13 @@ function renderStars(rating) {
   wrap.innerHTML = '';
   for(let i=1; i<=5; i++) {
     const full = document.createElement('span');
-    full.className = 'star' + (rating >= i ? ' on' : '');
+    full.className = 'star' + (rating >= i ? ' on' : rating >= i-0.5 ? ' half' : '');
     full.style.cssText = 'position:relative;cursor:pointer;font-size:1.4rem;';
     // 왼쪽 절반 클릭 = i-0.5, 오른쪽 절반 클릭 = i
     full.innerHTML = `
       <span style="position:absolute;left:0;top:0;width:50%;height:100%;z-index:2;" onclick="setStar(${i-0.5})"></span>
       <span style="position:absolute;right:0;top:0;width:50%;height:100%;z-index:2;" onclick="setStar(${i})"></span>
-      ${rating >= i ? '★' : rating >= i-0.5 ? '<span style="background:linear-gradient(to right,var(--acc) 50%,#ede4d0 50%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">★</span>' : '☆'}`;
+      ${rating >= i ? '★' : rating >= i-0.5 ? '★' : '☆'}`;
     wrap.appendChild(full);
   }
   // 현재 점수 표시
@@ -5897,7 +5971,7 @@ function openDetail(bookId) {
   const b=allBooks.find(b=>b.id===bookId);if(!b)return;
   const quotes=allQuotes.filter(q=>q.book_id===bookId);
   const genre=Array.isArray(b.genre)?b.genre.join(', '):(b.genre||'');
-  const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'<span style="background:linear-gradient(to right,#c8a050 50%,#ddd0b8 50%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">★</span>':'☆';return s;};
+  const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'<span class="gi-hstar">★</span>':'☆';return s;};
   const pct=b.pages&&b.current_page?Math.min(100,Math.round(b.current_page/b.pages*100)):0;
   const statusColor={완독:'#2e7d32',읽는중:'#1565c0',읽고싶음:'#7b1fa2',중단:'#c62828'}[b.status]||'var(--tx3)';
   const statusBg={완독:'#e8f5e9',읽는중:'#e3f2fd',읽고싶음:'#f3e5f5',중단:'#ffebee'}[b.status]||'#f5f5f5';
@@ -6004,107 +6078,31 @@ function openDetail(bookId) {
 async function loadSharedReviews(isbn, currentBookId, hasMyReview) {
   const inner = document.getElementById('shared-reviews-inner');
   if(!inner) return;
-  const sep = hasMyReview ? 'margin-top:.45rem;padding-top:.45rem;border-top:1px solid var(--border);' : '';
   try {
-    const { data: booksData, error } = await sb.from('books')
-      .select('id, review, user_id')
+    const { data } = await sb.from('books')
+      .select('review, user_id, profiles(display_name, username)')
       .eq('isbn', isbn)
       .eq('review_shared', true)
       .neq('user_id', currentUser.id)
       .not('review', 'is', null)
-      .limit(20);
-    if(error) throw error;
-    const reviews = (booksData||[]).filter(r=>r.review?.trim());
+      .limit(10);
+    const reviews = (data||[]).filter(r=>r.review?.trim());
     if(!reviews.length) {
-      inner.innerHTML=`<div style="${sep}"><div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.4rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div></div>`;
+      inner.innerHTML=`<div style="margin-top:${hasMyReview?'.45rem':'0'};padding-top:${hasMyReview?'.45rem;border-top:1px solid var(--border)':'0'}">
+        <div style="font-size:.68rem;color:var(--tx3);line-height:1.7;font-style:italic;text-align:center;padding:.4rem 0;">아무도 감상을 적지 않았어요.<br>감상을 공유하는 첫 산책자가 되어보세요.</div>
+      </div>`;
       return;
     }
-    const userIds = [...new Set(reviews.map(r=>r.user_id))];
-    const bookIds = reviews.map(r=>r.id);
-    // profiles + 공감 수 + 내 공감 병렬 조회
-    const [pfRes, likesRes, myLikesRes] = await Promise.all([
-      sb.from('profiles').select('id,display_name,username').in('id', userIds),
-      sb.from('review_likes').select('book_id').in('book_id', bookIds).then(r=>r, ()=>({data:[]})),
-      sb.from('review_likes').select('book_id').in('book_id', bookIds).eq('liked_by', currentUser.id).then(r=>r, ()=>({data:[]}))
-    ]);
-    const pfMap = {};
-    (pfRes.data||[]).forEach(p=>{ pfMap[p.id]=p; });
-    const likeMap = {};
-    (likesRes.data||[]).forEach(l=>{ likeMap[l.book_id]=(likeMap[l.book_id]||0)+1; });
-    const myLikes = new Set((myLikesRes.data||[]).map(l=>l.book_id));
-    // 공감 많은 순 정렬
-    reviews.sort((a,b)=>(likeMap[b.id]||0)-(likeMap[a.id]||0));
-    const MAX_LEN = 100;
-    const esc = s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
     const cards = reviews.map(r=>{
-      const pf = pfMap[r.user_id];
-      const name = pf?.display_name || pf?.username || '산책자';
-      const iLiked = myLikes.has(r.id);
-      const cnt = likeMap[r.id]||0;
-      const long = r.review.length > MAX_LEN;
-      const reviewHtml = long
-        ? `<span class="rv-s">${esc(r.review.slice(0,MAX_LEN))}…</span><span class="rv-f" style="display:none;">${esc(r.review)}</span><button onclick="var w=this.closest('.rv-wrap');w.querySelector('.rv-s').style.display='none';w.querySelector('.rv-f').style.display='inline';this.style.display='none';" style="background:none;border:none;color:var(--acc);font-size:.62rem;cursor:pointer;font-family:var(--ff);padding:0 0 0 .18rem;">더 보기</button>`
-        : esc(r.review);
-      const likeLabel = cnt ? cnt+' 공감' : '공감하기';
+      const name = r.profiles?.display_name || r.profiles?.username || '산책자';
+      const rv = r.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
       return `<div style="background:#faf6ef;border:1px solid var(--border);border-radius:8px;padding:.6rem .72rem;">
-        <div style="font-size:.55rem;font-weight:600;color:var(--tx3);letter-spacing:.03em;margin-bottom:.22rem;">${name}</div>
-        <div class="rv-wrap" style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;margin-bottom:.38rem;">${reviewHtml}</div>
-        <button data-bid="${r.id}" data-liked="${iLiked?1:0}" onclick="toggleReviewLike(this)"
-          style="display:inline-flex;align-items:center;gap:.28rem;border:1px solid ${iLiked?'var(--acc)':'var(--border2)'};border-radius:20px;padding:.18rem .58rem;background:${iLiked?'#fff8f0':'none'};cursor:pointer;font-family:var(--ff);transition:all .15s;">
-          <span style="font-size:.82rem;line-height:1;color:${iLiked?'var(--acc)':'var(--tx3)'};">${iLiked?'♥':'♡'}</span>
-          <span style="font-size:.62rem;font-weight:600;color:${iLiked?'var(--acc)':'var(--tx3)'};">${likeLabel}</span>
-        </button>
+        <div style="font-size:.55rem;font-weight:600;color:var(--tx3);letter-spacing:.03em;margin-bottom:.25rem;">${name}</div>
+        <div style="font-size:.7rem;color:var(--tx2);line-height:1.75;font-family:var(--ff-disp);font-style:italic;">${rv}</div>
       </div>`;
     }).join('');
-    inner.innerHTML=`<div style="${sep}display:flex;flex-direction:column;gap:.4rem;">${cards}</div>`;
-  } catch(e) {
-    console.error('[loadSharedReviews]', e);
-    inner.innerHTML=`<div style="${sep}"><div style="font-size:.65rem;color:var(--tx3);text-align:center;padding:.4rem 0;">감상을 불러올 수 없어요.</div></div>`;
-  }
-}
-
-async function toggleReviewLike(btn) {
-  const bookId = btn.dataset.bid;
-  const iLiked = btn.dataset.liked === '1';
-  btn.disabled = true;
-  const heart = btn.querySelector('span:first-child');
-  const label = btn.querySelector('span:last-child');
-  const prevHeart = heart.textContent, prevLabel = label.textContent;
-  const prevBorder = btn.style.borderColor, prevBg = btn.style.background;
-  // 낙관적 UI 업데이트
-  const cnt = parseInt(label.textContent)||0;
-  if(iLiked) {
-    heart.textContent='♡'; heart.style.color='var(--tx3)'; label.style.color='var(--tx3)';
-    label.textContent = cnt>1 ? (cnt-1)+' 공감' : '공감하기';
-    btn.style.borderColor='var(--border2)'; btn.style.background='none';
-  } else {
-    heart.textContent='♥'; heart.style.color='var(--acc)'; label.style.color='var(--acc)';
-    label.textContent=(cnt+1)+' 공감';
-    btn.style.borderColor='var(--acc)'; btn.style.background='#fff8f0';
-  }
-  try {
-    if(iLiked) {
-      const {error} = await sb.from('review_likes').delete().eq('book_id',bookId).eq('liked_by',currentUser.id);
-      if(error) throw error;
-      btn.dataset.liked='0';
-    } else {
-      const {error} = await sb.from('review_likes').insert({book_id:bookId,liked_by:currentUser.id});
-      if(error) throw error;
-      btn.dataset.liked='1';
-    }
-  } catch(e) {
-    // 롤백
-    heart.textContent=prevHeart; heart.style.color=''; label.style.color='';
-    label.textContent=prevLabel; btn.style.borderColor=prevBorder; btn.style.background=prevBg;
-    console.error('[toggleReviewLike]', e);
-    const msg = e?.message || e?.error_description || JSON.stringify(e);
-    if(msg?.includes('does not exist') || e?.code==='42P01') {
-      alert('공감 기능을 사용하려면 Supabase에서 review_likes 테이블을 먼저 생성해야 합니다.');
-    } else {
-      alert('공감 저장 실패: ' + (msg || '알 수 없는 오류'));
-    }
-  }
-  finally { btn.disabled=false; }
+    inner.innerHTML=`<div style="margin-top:${hasMyReview?'.45rem':'0'};${hasMyReview?'padding-top:.45rem;border-top:1px solid var(--border);':''}display:flex;flex-direction:column;gap:.4rem;">${cards}</div>`;
+  } catch(_) {}
 }
 
 async function saveReadingProgress(bookId, showOnly=false) {
@@ -6348,6 +6346,9 @@ async function openProfile() {
     // 혹시 display가 안먹히면 visibility로도 처리
     adminBtn.hidden = curUserRole !== 'admin';
   }
+  // 관리자 뱃지
+  const adminBadge = document.getElementById('profile-admin-badge');
+  if(adminBadge) adminBadge.style.display = curUserRole === 'admin' ? '' : 'none';
 
   // 프로필 + 코드 로드
   const [{data:profile},{data:myCodes}]=await Promise.all([
@@ -6389,24 +6390,16 @@ async function openProfile() {
     if(catSel) catSel.value = profile.category_visibility || 'public';
   }
   // 초대코드 표시
-  renderInviteCodeSection(document.getElementById('profile-invite-codes'), myCodes);
-}
-
-function renderInviteCodeSection(codeWrap, codes) {
-  if(!codeWrap || !codes) return;
-  const available = codes.filter(c=>!c.used_by);
-  const used = codes.filter(c=>c.used_by);
-  codeWrap.innerHTML =
-    `<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.35rem;">내 초대코드</div>` +
-    available.map(c=>
-      `<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;background:#ede4d0;border:1px solid var(--border2);border-radius:6px;padding:.3rem .65rem;margin-bottom:.25rem;">
-        <span style="font-family:monospace;font-size:.78rem;letter-spacing:.06em;color:var(--tx1);">${c.code}</span>
-        <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='복사됨✓';this.style.color='var(--acc)';setTimeout(()=>{this.textContent='복사';this.style.color='var(--tx3)'},1800)}).catch(()=>{})"
-          style="font-size:.62rem;color:var(--tx3);background:none;border:none;cursor:pointer;font-family:var(--ff);padding:0;white-space:nowrap;flex-shrink:0;">복사</button>
-      </div>`
-    ).join('') +
-    (available.length===0 ? '<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '') +
-    (used.length ? `<div style="font-size:.62rem;color:var(--tx3);margin-top:.25rem;">${used.length}개 사용됨</div>` : '');
+  const codeWrap=document.getElementById('profile-invite-codes');
+  if(codeWrap && myCodes) {
+    const available=myCodes.filter(c=>!c.used_by);
+    const used=myCodes.filter(c=>c.used_by);
+    codeWrap.innerHTML=`<div style="font-size:.68rem;font-weight:600;color:var(--acc2);margin-bottom:.3rem;">내 초대코드</div>`
+      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:#ede4d0;border:1px solid var(--border2);border-radius:4px;padding:.25rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;">
+        <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);">사용 가능</span></div>`).join('')
+      +(available.length===0?'<div style="font-size:.72rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
+      +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'');
+  }
 }
 function openContact() {
   closeModal('modal-profile');
@@ -6472,7 +6465,7 @@ async function saveProfile() {
       }
     }
     const titleEl = document.getElementById('profile-title-select');
-    const updateData = {display_name:name};
+    const updateData = {display_name:name, username:name};
     if(titleEl) updateData.user_title = titleEl.value || null;
     const {error} = await sb.from('profiles').update(updateData).eq('id',currentUser.id);
     if(error) throw error;
@@ -6617,7 +6610,7 @@ async function loadNotifications() {
             <div style="color:var(--tx1);margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               ${(()=>{const first=(n.message||'').split('\n').find(l=>l.trim())||n.message||'';return first.length>40?first.slice(0,40)+'…':first;})()}
             </div>
-            <div style="color:var(--tx3);font-size:.63rem;">${n.created_at?.slice(0,16).replace('T',' ')} ${n.is_read?'':'· 새 알림'}</div>
+            <div style="color:var(--tx3);font-size:.63rem;">${toKSTDateTime(n.created_at)} ${n.is_read?'':'· 새 알림'}</div>
           </div>
           <button onclick="event.stopPropagation();deleteNotif('${n.id}')" style="border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.7rem;flex-shrink:0;padding:.1rem .3rem;" title="삭제">✕</button>
         </div>`).join('');
@@ -6634,7 +6627,7 @@ async function goToNotif(notifId) {
         const msgHtml = (n.message||'').split('\n').map(l=>l===''?'<br>':l).join('<br>');
     detailEl.innerHTML = `
       <div style="font-size:.85rem;line-height:1.85;color:var(--tx1);padding-bottom:.8rem;">${msgHtml}</div>
-      <div style="font-size:.65rem;color:var(--tx3);">${(n.created_at||'').slice(0,16).replace('T',' ')}</div>
+      <div style="font-size:.65rem;color:var(--tx3);">${toKSTDateTime(n.created_at)}</div>
       ${postId ? `<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.7rem;">
         <button class="btn-save" style="width:100%;padding:.5rem;" onclick="goToPost('${postId}')">📖 게시글 보러가기</button>
       </div>` : ''}`;
@@ -6743,13 +6736,9 @@ async function searchDmUser() {
   if(!q) { listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">닉네임을 입력해주세요.</div>'; return; }
   listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">검색 중...</div>';
   try {
-    // display_name 검색
+    // display_name 검색만 (username은 내부식별자라 제외)
     const { data: byDisplay } = await sb.from('profiles').select('id,display_name,username,role').ilike('display_name', `%${q}%`).neq('id', currentUser.id).limit(10);
-    // username 검색
-    const { data: byUser } = await sb.from('profiles').select('id,display_name,username,role').ilike('username', `%${q}%`).neq('id', currentUser.id).limit(10);
-    // 합치고 중복 제거
-    const seen = new Set();
-    const results = [...(byDisplay||[]), ...(byUser||[])].filter(u => { if(seen.has(u.id)) return false; seen.add(u.id); return true; });
+    const results = (byDisplay||[]);
     listEl.innerHTML = '';
     if(!results.length) { listEl.innerHTML='<div style="padding:.5rem .8rem;font-size:.75rem;color:var(--tx3);">검색 결과가 없어요.</div>'; return; }
     results.slice(0,10).forEach(u => {
@@ -6882,7 +6871,7 @@ function renderMemberList(filter='') {
       </div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:.78rem;font-weight:600;color:${m.is_banned?'#c0392b':'var(--tx1)'};">${name} ${m.role==='admin'?'<span style="font-size:.6rem;color:var(--acc);background:#ede4d0;padding:1px 4px;border-radius:2px;">관리자</span>':''} ${m.is_banned?'<span style="font-size:.6rem;color:#c0392b;">⛔제한됨</span>':''}</div>
-        <div style="font-size:.62rem;color:var(--tx3);">${m.created_at?.slice(0,10)}</div>
+        <div style="font-size:.62rem;color:var(--tx3);">${toKSTDate(m.created_at)}</div>
       </div>
       <button onclick="event.stopPropagation();toggleMemberBan('${m.id}',${!m.is_banned})" style="font-size:.62rem;padding:2px 6px;border:1px solid ${m.is_banned?'#a8d8a8':'#f5c6cb'};border-radius:3px;background:none;cursor:pointer;color:${m.is_banned?'#2e7d32':'#c0392b'};">
         ${m.is_banned?'해제':'제한'}
@@ -7379,6 +7368,24 @@ function cleanEditorHtml(h) {
   return s.trim();
 }
 
+// UTC ISO 문자열을 KST(UTC+9) 날짜 문자열(YYYY-MM-DD)로 변환
+function toKSTDate(utcStr) {
+  if (!utcStr) return '';
+  const kst = new Date(new Date(utcStr).getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+// 로컬 기준 오늘 날짜 (YYYY-MM-DD) - 브라우저 로컬 시간 = 사용자 기기 시간대
+function kstToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// UTC ISO 문자열을 KST 날짜+시간 문자열(YYYY-MM-DD HH:MM)로 변환
+function toKSTDateTime(utcStr) {
+  if (!utcStr) return '';
+  const kst = new Date(new Date(utcStr).getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 16).replace('T', ' ');
+}
+
 function formatDate(s) {
   if(!s) return null;
   if(s instanceof Date) return s.toISOString().slice(0,10);
@@ -7509,6 +7516,11 @@ function makeAvatarHtml(name, avatarUrl, size=32) {
 }
 async function openSocialModal() {
   openModal('modal-social');
+  // 이전 검색 결과 초기화
+  const searchInput = document.getElementById('friend-search-input');
+  const searchResult = document.getElementById('friend-search-result');
+  if(searchInput) searchInput.value = '';
+  if(searchResult) searchResult.innerHTML = '';
   loadFriends();
 }
 
@@ -7576,13 +7588,13 @@ async function loadFriends() {
 async function searchFriend() {
   const q = document.getElementById('friend-search-input')?.value.trim();
   const resultEl = document.getElementById('friend-search-result');
-  if(!q || !resultEl) return;
-  const [_r1,_r2] = await Promise.all([
-    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
-    sb.from('profiles').select('id,display_name,username,avatar_url').ilike('username',`%${q}%`).neq('id',currentUser.id).limit(5),
+  if(!resultEl) return;
+  if(!q) { resultEl.innerHTML = ''; return; }
+  const [_r1] = await Promise.all([
+    sb.from('profiles').select('id,display_name,username,avatar_url,role').ilike('display_name',`%${q}%`).neq('id',currentUser.id).limit(5),
   ]);
   const _seen=new Set();
-  const data=[...(_r1.data||[]),...(_r2.data||[])].filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
+  const data=(_r1.data||[]).filter(u=>{if(_seen.has(u.id))return false;_seen.add(u.id);return true;}).slice(0,5);
   resultEl.innerHTML = '';
   if(!data?.length) {
     resultEl.innerHTML='<div style="padding:.6rem .8rem;font-size:.75rem;color:var(--tx3);text-align:center;">검색 결과가 없어요.</div>';
@@ -7590,13 +7602,14 @@ async function searchFriend() {
   }
   data.forEach(u => {
     const name = u.display_name || u.username;
+    const adminBadge = u.role==='admin' ? '<span style="font-size:.55rem;background:var(--acc);color:#fff;border-radius:3px;padding:1px 5px;font-weight:600;margin-left:.25rem;vertical-align:middle;">관리자</span>' : '';
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-bottom:1px solid var(--border);background:#fff;';
     el.onmouseenter = () => el.style.background = '#faf6ef';
     el.onmouseleave = () => el.style.background = '#fff';
     el.innerHTML = `
       ${makeAvatarHtml(name, u.avatar_url, 32)}
-      <span style="flex:1;min-width:0;font-size:.82rem;font-weight:500;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+      <span style="flex:1;min-width:0;font-size:.82rem;font-weight:500;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}${adminBadge}</span>
       <button onclick="sendFriendRequest('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:none;border-radius:12px;background:var(--acc);cursor:pointer;color:#fff;font-family:var(--ff);flex-shrink:0;">+ 친구</button>
       <button onclick="openLibrary('${u.id}','${name}')" style="font-size:.7rem;padding:.22rem .6rem;border:1px solid var(--border2);border-radius:12px;background:none;cursor:pointer;color:var(--tx2);font-family:var(--ff);flex-shrink:0;">서재</button>`;
     resultEl.appendChild(el);
@@ -7790,7 +7803,7 @@ function renderLibGallery() {
       <div class="gi-cover">${img}</div>
       <div class="gi-title">${b.title}</div>
       <div class="gi-author">${b.author||''}</div>
-      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'<span style="background:linear-gradient(to right,#c8a050 50%,#ddd0b8 50%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">★</span>':'☆').join('')}</div>
+      <div class="gi-stars">${Array.from({length:5},(_,i)=>(parseFloat(b.rating)||0)>=i+1?'★':(parseFloat(b.rating)||0)>=i+0.5?'<span class="gi-hstar">★</span>':'☆').join('')}</div>
       <span class="gi-status">${b.status||''}</span>`;
     g.appendChild(el);
   });
@@ -7918,7 +7931,7 @@ async function buildBoard() {
     el.onclick = () => openPostDetail(n.id);
     el.innerHTML = `<span style="font-size:.65rem;background:#e0a020;color:#fff;border-radius:3px;padding:1px 5px;flex-shrink:0;">공지</span>
       <span style="font-size:.78rem;font-weight:600;color:#2e1f0e;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.title}</span>
-      <span style="font-size:.62rem;color:#a08c72;">${n.created_at?.slice(0,10)}</span>`;
+      <span style="font-size:.62rem;color:#a08c72;">${toKSTDate(n.created_at)}</span>`;
     nWrap.appendChild(el);
   });
 
@@ -7980,7 +7993,7 @@ function renderPostItems(list, posts, count, catLabel) {
             ${excerpt?`<div style="font-size:.7rem;color:var(--tx3);margin-top:.18rem;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${excerpt}</div>`:''}
           </div>
           <div style="flex-shrink:0;text-align:right;padding-left:.3rem;">
-            <div class="board-meta" style="margin-bottom:.15rem;">${p.created_at?.slice(5,10).replace('-','.')}</div>
+            <div class="board-meta" style="margin-bottom:.15rem;">${toKSTDate(p.created_at).slice(5,10).replace('-','.')}</div>
             <div class="board-meta" style="color:var(--acc);font-size:.63rem;">❤ ${p.likes||0}</div>
           </div>
         </div>`;
@@ -8033,7 +8046,7 @@ async function showMyPosts() {
         <span class="board-title">${p.is_hidden?'🚫 블라인드 처리됨':p.title}</span>
       </div>
       <div style="display:flex;align-items:center;gap:.6rem;">
-        <span class="board-meta">${p.created_at?.slice(0,10)}</span>
+        <span class="board-meta">${toKSTDate(p.created_at)}</span>
         <span class="board-meta" style="margin-left:auto;">❤️ ${p.likes||0}</span>
       </div>`;
     wrap.appendChild(el);
@@ -8148,7 +8161,7 @@ async function openPostDetail(postId) {
     const replyHtml = replies.map(r => {
       const rCanDelete = r.user_id===currentUser.id || isAdmin;
       return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
-        <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${r.created_at?.slice(0,10)}</div>
+        <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${toKSTDate(r.created_at)}</div>
         <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;">${r.content}</div>
         ${rCanDelete?`<button onclick="deleteComment('${r.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;margin-top:.1rem;">삭제</button>`:''}
       </div>`;
@@ -8156,7 +8169,7 @@ async function openPostDetail(postId) {
     return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
       <div style="display:flex;align-items:flex-start;gap:.5rem;">
         <div style="flex:1;">
-          <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${c.created_at?.slice(0,10)}</div>
+          <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${toKSTDate(c.created_at)}</div>
           <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
         </div>
         <div style="display:flex;gap:.3rem;flex-shrink:0;">
@@ -8179,7 +8192,7 @@ async function openPostDetail(postId) {
       ${catLabel?`<span class="board-cat">${catLabel}</span>`:''}
       ${post.is_notice?'<span style="background:#e0a020;color:#fff;font-size:.63rem;border-radius:3px;padding:1px 6px;">공지</span>':''}
       <span class="board-meta">산책자</span>
-      <span class="board-meta">${post.created_at?.slice(0,10)}</span>
+      <span class="board-meta">${toKSTDate(post.created_at)}</span>
     </div>
     <div style="font-size:.85rem;line-height:1.9;color:${post.is_hidden?'var(--tx3)':'var(--tx1)'};border-top:1px solid var(--border);padding-top:.8rem;margin-bottom:1rem;">
       ${post.is_hidden
@@ -8549,7 +8562,7 @@ function initPaymentSection() {
   section.style.display = 'block';
   if (today < PAYMENT_OPEN) {
     document.getElementById('payment-upcoming').style.display = 'block';
-  } else if (Date.now() >= PAYMENT_CLOSE_MS) {
+  } else if (today > PAYMENT_CLOSE) {
     document.getElementById('payment-closed').style.display = 'block';
   } else {
     document.getElementById('payment-available').style.display = 'block';
