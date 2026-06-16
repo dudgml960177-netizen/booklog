@@ -119,6 +119,9 @@
         <input type="password" id="newpw-input" class="auth-input" placeholder="새 비밀번호 (6자 이상)">
         <input type="password" id="newpw-confirm" class="auth-input" placeholder="비밀번호 확인">
         <button class="auth-btn" onclick="doUpdatePassword()">비밀번호 변경</button>
+        <div style="text-align:center;margin-top:.55rem;">
+          <button onclick="authSwitch('reset',null)" style="background:none;border:none;font-size:.68rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);opacity:.7;">링크가 안 되나요? 재발송 →</button>
+        </div>
       </div>
       <div id="form-signup" style="display:none;">
         <input type="email" id="signup-email" class="auth-input" placeholder="이메일">

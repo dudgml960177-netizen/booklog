@@ -377,6 +377,7 @@ sb.auth.onAuthStateChange(async (event, session) => {
       }
     }
     if(event === 'PASSWORD_RECOVERY') {
+      clearTimeout(window._recoveryTimeout);
       showScreen('auth');
       authSwitch('newpw', null);
       showAuthError('새 비밀번호를 입력해주세요.', true);
@@ -416,16 +417,43 @@ function init() {
   history.pushState(null, '', location.href);
   history.pushState(null, '', location.href);
 
-  // URL 해시 토큰 처리 (비밀번호 재설정)
+  // URL 토큰 처리 (비밀번호 재설정)
+  // ① 에러 파라미터 먼저 확인 (이미 만료된 링크)
+  const urlQ = new URLSearchParams(window.location.search);
+  const urlErr = urlQ.get('error') || urlQ.get('error_code');
+  if(urlErr) {
+    window.history.replaceState(null, '', window.location.pathname);
+    showScreen('auth');
+    authSwitch('reset', null);
+    showAuthError('링크가 만료됐거나 이미 사용됐어요.\n이메일을 다시 입력해서 새 링크를 받으세요.');
+    return;
+  }
+  // ② 신형 PKCE 방식: ?code=... (Supabase 클라이언트가 자동 교환)
+  if(urlQ.get('type') === 'recovery' || urlQ.get('code')) {
+    window.history.replaceState(null, '', window.location.pathname);
+    showScreen('auth');
+    authSwitch('reset', null);
+    showAuthError('재설정 링크 확인 중…', true);
+    // onAuthStateChange의 PASSWORD_RECOVERY 이벤트가 발동되면 newpw 화면으로 전환됨
+    // 6초 후에도 전환 없으면 만료로 판단
+    window._recoveryTimeout = setTimeout(() => {
+      const newpwForm = document.getElementById('form-newpw');
+      if(!newpwForm || newpwForm.style.display === 'none') {
+        showAuthError('링크가 만료됐거나 이미 사용됐어요.\n이메일을 다시 입력해서 새 링크를 받으세요.');
+      }
+    }, 6000);
+    return;
+  }
+  // ③ 구형 implicit 방식: #access_token=...
   const hash = window.location.hash;
   if(hash.includes('type=recovery') || hash.includes('access_token')) {
     try {
-      const params = new URLSearchParams(hash.replace('#',''));
-      const accessToken = params.get('access_token');
+      const hashParams = new URLSearchParams(hash.replace('#',''));
+      const accessToken = hashParams.get('access_token');
       if(accessToken) {
-        sb.auth.setSession({ access_token: accessToken, refresh_token: params.get('refresh_token')||'' })
+        sb.auth.setSession({ access_token: accessToken, refresh_token: hashParams.get('refresh_token')||'' })
           .then(() => { window.history.replaceState(null,'',window.location.pathname); showScreen('auth'); authSwitch('newpw',null); showAuthError('새 비밀번호를 입력해주세요.',true); })
-          .catch(() => { showScreen('auth'); loadSavedEmail(); });
+          .catch(() => { showScreen('auth'); authSwitch('reset',null); showAuthError('링크가 만료됐거나 이미 사용됐어요.\n이메일을 다시 입력해서 새 링크를 받으세요.'); });
         return;
       }
     } catch(e) {}
