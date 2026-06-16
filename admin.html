@@ -172,6 +172,21 @@
   </div>
 </div>
 
+<!-- 임시 비밀번호 모달 -->
+<div class="modal-overlay" id="pw-modal">
+  <div class="modal-box">
+    <h3>🔐 임시 비밀번호 설정</h3>
+    <div id="pw-target-label" style="font-size:.75rem;color:var(--tx3);margin-bottom:.5rem;"></div>
+    <input type="text" id="pw-input" class="input" placeholder="임시 비밀번호 (6자 이상)" autocomplete="off" style="margin-bottom:.35rem;">
+    <div style="font-size:.69rem;color:var(--tx3);margin-bottom:.5rem;">사용자는 로그인 후 앱에서 직접 비밀번호를 변경하도록 안내하세요.</div>
+    <div id="pw-err" style="font-size:.7rem;color:#c0392b;margin-bottom:.4rem;display:none;"></div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closePwModal()">취소</button>
+      <button class="modal-send" onclick="doSetTempPw()">설정</button>
+    </div>
+  </div>
+</div>
+
 <!-- DM 모달 -->
 <div class="modal-overlay" id="dm-modal">
   <div class="modal-box">
@@ -435,6 +450,7 @@ function renderUserTable() {
       <td>${lastLogin}</td>
       <td>
         <div class="action-cell">
+          <button class="btn-ghost" onclick="openPwModal('${uid}','${name}')" title="임시 비밀번호 설정">🔐 임시PW</button>
           <button class="btn-ghost" onclick="sendPwReset('${email}')" title="비밀번호 재설정 이메일 발송">🔑 재설정</button>
           <button class="btn-ghost" onclick="openDmModal('${uid}','${name}')" title="쪽지 보내기">💬 쪽지</button>
           <button class="btn-danger" onclick="deleteUser('${uid}','${name}')">삭제</button>
@@ -473,6 +489,36 @@ async function deleteUser(userId, displayName) {
     alert('삭제됐습니다.');
     await loadUsers();
   } catch(e) { alert('네트워크 오류: ' + e.message); }
+}
+
+// ── 임시 비밀번호 모달
+let _pwTarget = null;
+function openPwModal(userId, displayName) {
+  _pwTarget = { id: userId, name: displayName };
+  document.getElementById('pw-target-label').textContent = `대상: ${displayName}`;
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-err').style.display = 'none';
+  document.getElementById('pw-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pw-input').focus(), 50);
+}
+function closePwModal() {
+  document.getElementById('pw-modal').classList.remove('open');
+  _pwTarget = null;
+}
+async function doSetTempPw() {
+  if (!_pwTarget) return;
+  const pw = document.getElementById('pw-input').value.trim();
+  const errEl = document.getElementById('pw-err');
+  if (!pw) { errEl.textContent = '비밀번호를 입력해주세요.'; errEl.style.display = ''; return; }
+  if (pw.length < 6) { errEl.textContent = '6자 이상이어야 합니다.'; errEl.style.display = ''; return; }
+  errEl.style.display = 'none';
+  try {
+    const res = await callUsers({ action: 'set_password', user_id: _pwTarget.id, password: pw });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = '오류: ' + (data.error||'') + (data.detail ? ' — '+data.detail:''); errEl.style.display = ''; return; }
+    closePwModal();
+    alert(`${_pwTarget.name}님의 임시 비밀번호가 설정됐습니다.\n\n임시 비밀번호: ${pw}\n\n사용자에게 직접 전달 후 변경하도록 안내하세요.`);
+  } catch(e) { errEl.textContent = '네트워크 오류: ' + e.message; errEl.style.display = ''; }
 }
 
 // ── DM 모달
@@ -526,8 +572,9 @@ function goPg(ns, p) {
 }
 
 // ESC로 모달 닫기
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDmModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDmModal(); closePwModal(); } });
 document.getElementById('dm-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDmModal(); });
+document.getElementById('pw-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closePwModal(); });
 </script>
 </body>
 </html>

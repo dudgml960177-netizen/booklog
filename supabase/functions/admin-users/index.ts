@@ -132,6 +132,18 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    // ── 임시 비밀번호 설정
+    if (action === "set_password") {
+      const { user_id, password } = body;
+      if (!user_id || !password) return json({ error: "missing_params" }, 400);
+      if (password.length < 6) return json({ error: "password_too_short" }, 400);
+
+      const { error } = await sb.auth.admin.updateUserById(user_id, { password });
+      if (error) return json({ error: "set_password_failed", detail: error.message }, 500);
+
+      return json({ success: true });
+    }
+
     // ── 쪽지 발송
     if (action === "send_dm") {
       const { user_id, message, admin_id } = body;
