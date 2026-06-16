@@ -607,10 +607,10 @@ async function leaveLibrary(){
     location.href='index.html';
   } else {
     try{window.close();}catch(e){}
+    // Fallback: 모바일 새 탭 등 window.close()가 작동하지 않을 때
     setTimeout(()=>{
-      const m=document.getElementById('lib-main');
-      if(m) m.innerHTML='<div class="empty"><div class="empty-icon">👋</div><div class="empty-txt">독서 시간이 저장됐어요.<br>이 창을 닫아도 됩니다.</div></div>';
-    },300);
+      if(!window.closed) location.href='index.html';
+    },400);
   }
 }
 
@@ -620,8 +620,11 @@ function saveTime(){
   const mins=Math.round(readingMs()/60000);
   joinedAt=null; // beforeunload 중복 저장 방지
   if(mins<1) return;
+  // 로컬 날짜 기준 (UTC 쓰면 자정 이후 이전 날짜로 기록됨)
+  const d=new Date();
+  const today=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   localStorage.setItem('bl_lib_session_done',JSON.stringify({
-    bookId:params.bookId,minutes:mins,date:new Date().toISOString().slice(0,10)
+    bookId:params.bookId,minutes:mins,date:today
   }));
 }
 
