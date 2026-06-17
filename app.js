@@ -5768,21 +5768,65 @@ function showManualBookEntry() {
   res.innerHTML = `
     <div style="padding:.5rem;border:1px solid var(--border);border-radius:8px;background:var(--card);margin-top:.3rem;">
       <div style="font-size:.62rem;color:var(--tx3);margin-bottom:.5rem;">웹소설·직접 입력</div>
-      <input type="text" id="manual-book-title" placeholder="제목 (필수)" class="form-input" style="font-size:.78rem;margin-bottom:.35rem;">
-      <input type="text" id="manual-book-author" placeholder="저자 (선택)" class="form-input" style="font-size:.78rem;margin-bottom:.45rem;">
+      <div style="display:flex;gap:.6rem;margin-bottom:.45rem;">
+        <div id="manual-cover-preview"
+          onclick="document.getElementById('manual-cover-input').click()"
+          style="width:52px;height:70px;flex-shrink:0;border:1.5px dashed var(--border2);border-radius:5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--bg);overflow:hidden;">
+          <span style="font-size:.95rem;">📷</span>
+          <span style="font-size:.52rem;color:var(--tx3);text-align:center;line-height:1.2;">표지<br>추가</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:.35rem;">
+          <input type="text" id="manual-book-title" placeholder="제목 (필수)" class="form-input" style="font-size:.78rem;margin-bottom:0;">
+          <input type="text" id="manual-book-author" placeholder="저자 (선택)" class="form-input" style="font-size:.78rem;margin-bottom:0;">
+        </div>
+      </div>
+      <input type="file" id="manual-cover-input" accept="image/*" style="display:none;" onchange="pickManualCover(this)">
       <div style="display:flex;gap:.4rem;">
         <button onclick="submitManualBook()" style="background:var(--acc);color:#fff;border:none;border-radius:8px;padding:.28rem .8rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);line-height:1.2;">추가</button>
         <button onclick="document.getElementById('search-results').innerHTML=''" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:.28rem .7rem;font-size:.72rem;cursor:pointer;font-family:var(--ff);color:var(--tx3);line-height:1.2;">취소</button>
       </div>
     </div>`;
+  window._manualCoverB64 = '';
   setTimeout(() => document.getElementById('manual-book-title')?.focus(), 50);
+}
+
+function pickManualCover(input) {
+  const file = input.files?.[0];
+  if(!file) return;
+  const preview = document.getElementById('manual-cover-preview');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const W = 180, H = 240;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      // 비율 유지 center-crop
+      const imgRatio = img.width / img.height;
+      const tgtRatio = W / H;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if(imgRatio > tgtRatio) { sw = img.height * tgtRatio; sx = (img.width - sw) / 2; }
+      else { sh = img.width / tgtRatio; sy = (img.height - sh) / 2; }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+      const b64 = canvas.toDataURL('image/jpeg', 0.78);
+      window._manualCoverB64 = b64;
+      if(preview) {
+        preview.innerHTML = `<img src="${b64}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
 }
 
 function submitManualBook() {
   const title = document.getElementById('manual-book-title')?.value.trim();
   if(!title) { alert('제목을 입력해주세요.'); return; }
   const author = document.getElementById('manual-book-author')?.value.trim() || '';
-  selectBook({ title, author, publisher: '', cover: '', description: '', isbn: '', pages: null });
+  const cover = window._manualCoverB64 || '';
+  selectBook({ title, author, publisher: '', cover, description: '', isbn: '', pages: null });
 }
 
 // 알라딘 아이템 배열에서 페이지 수 추출
