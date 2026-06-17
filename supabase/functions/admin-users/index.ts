@@ -75,7 +75,7 @@ serve(async (req) => {
       // 2단계: 유저 본인 활동 데이터 삭제 (FK 의존 순서)
       await sb.from("post_likes").delete().eq("user_id", user_id);
       await sb.from("comments").delete().eq("user_id", user_id);
-      await sb.from("reports").delete().eq("user_id", user_id);
+      await sb.from("reports").delete().eq("reporter_id", user_id);
       await sb.from("notifications").delete().eq("user_id", user_id);
       await sb.from("notifications").delete().eq("sender_id", user_id);
       await sb.from("user_goals").delete().eq("user_id", user_id);
