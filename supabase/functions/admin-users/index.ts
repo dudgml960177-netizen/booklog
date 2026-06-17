@@ -64,12 +64,14 @@ serve(async (req) => {
       const { user_id } = body;
       if (!user_id) return json({ error: "missing_user_id" }, 400);
 
-      // 1단계: 이 유저의 posts에 달린 다른 사람의 댓글/좋아요 먼저 삭제
+      // 1단계: 이 유저의 posts에 달린 모든 참조 데이터 먼저 삭제
       const { data: userPosts } = await sb.from("posts").select("id").eq("user_id", user_id);
       const postIds = (userPosts || []).map((p: any) => p.id);
       if (postIds.length > 0) {
         await sb.from("post_likes").delete().in("post_id", postIds);
         await sb.from("comments").delete().in("post_id", postIds);
+        await sb.from("reports").delete().in("post_id", postIds);
+        await sb.from("notifications").delete().in("post_id", postIds);
       }
 
       // 2단계: 유저 본인 활동 데이터 삭제 (FK 의존 순서)
