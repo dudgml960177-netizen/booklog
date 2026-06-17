@@ -683,12 +683,15 @@ async function changePassword() {
   if(!cur) { showMsg('현재 비밀번호를 입력해주세요.'); return; }
   if(pw.length < 6) { showMsg('새 비밀번호는 6자 이상이어야 해요.'); return; }
   if(pw !== pw2) { showMsg('새 비밀번호가 일치하지 않아요.'); return; }
-  // 현재 비밀번호 재인증
-  const email = currentUser.email;
-  const { error: signInErr } = await sb.auth.signInWithPassword({ email, password: cur });
-  if(signInErr) { showMsg('현재 비밀번호가 올바르지 않아요.'); return; }
+  if(cur === pw) { showMsg('새 비밀번호가 현재 비밀번호와 같아요.'); return; }
+
   const { error } = await sb.auth.updateUser({ password: pw });
-  if(error) { showMsg('변경 오류: ' + error.message); return; }
+  if(error) {
+    if(error.message?.toLowerCase().includes('same password')) {
+      showMsg('현재 비밀번호와 다른 비밀번호를 입력해주세요.'); return;
+    }
+    showMsg('변경 실패: 다시 로그인 후 시도해주세요.'); return;
+  }
   showMsg('비밀번호가 변경됐어요!', true);
   ['pw-current','pw-new','pw-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   setTimeout(() => togglePwChange(), 2000);
