@@ -102,6 +102,13 @@
     .modal-cancel { background: var(--bg); color: var(--tx3); border: 1px solid var(--border2) !important; }
     .modal-send { background: var(--acc); color: #fff; }
 
+    /* 분석 차트 */
+    .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1rem; }
+    .chart-title { font-size: .78rem; font-weight: 700; color: var(--tx2); margin-bottom: .65rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .4rem; }
+    .badge-invite { background: #d4edda; color: #155724; }
+    .badge-purchase { background: #cce5ff; color: #004085; }
+    .badge-both { background: #e2ccff; color: #4a0082; }
+
     @media (max-width: 640px) {
       td, th { padding: .4rem .4rem; font-size: .72rem; }
       th:nth-child(3), td:nth-child(3),
@@ -136,6 +143,7 @@
   <div class="tab-bar">
     <button class="tab-btn on" id="tab-payment" onclick="switchTab('payment')">결제 관리</button>
     <button class="tab-btn" id="tab-users" onclick="switchTab('users')">회원 관리</button>
+    <button class="tab-btn" id="tab-analytics" onclick="switchTab('analytics')">분석</button>
   </div>
 
   <!-- ── 결제 관리 탭 ── -->
@@ -169,6 +177,33 @@
     </div>
     <div id="user-table-wrap"><div class="loading">불러오는 중…</div></div>
     <div id="user-pagination" class="pagination"></div>
+  </div>
+
+  <!-- ── 분석 탭 ── -->
+  <div id="section-analytics" style="display:none;">
+    <div id="analytics-stats-row" class="stats-row"></div>
+
+    <div class="chart-card">
+      <div class="chart-title">가입 경로 분석</div>
+      <div id="chart-join-type"><div class="loading">불러오는 중…</div></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>가입 추이</span>
+        <span style="display:flex;gap:.3rem;">
+          <button class="filter-btn on" id="trend-btn-day" onclick="setTrend('day',this)">일간 30일</button>
+          <button class="filter-btn" id="trend-btn-month" onclick="setTrend('month',this)">월간 12개월</button>
+          <button class="filter-btn" id="trend-btn-year" onclick="setTrend('year',this)">연간</button>
+        </span>
+      </div>
+      <div id="chart-trend"></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">가입 시간대 분포 (KST 기준)</div>
+      <div id="chart-hour"></div>
+    </div>
   </div>
 </div>
 
@@ -240,7 +275,9 @@ function switchTab(tab) {
   document.getElementById('tab-' + tab).classList.add('on');
   document.getElementById('section-payment').style.display = tab === 'payment' ? '' : 'none';
   document.getElementById('section-users').style.display = tab === 'users' ? '' : 'none';
+  document.getElementById('section-analytics').style.display = tab === 'analytics' ? '' : 'none';
   if (tab === 'users' && !_users.length) loadUsers();
+  if (tab === 'analytics') { if (!_users.length) loadUsers(); else renderAnalytics(); }
 }
 
 function refreshCurrent() {
@@ -391,6 +428,7 @@ async function loadUsers() {
     _userFiltered = _users;
     renderUserStats();
     renderUserTable();
+    if (_curTab === 'analytics') renderAnalytics();
   } catch(e) {
     document.getElementById('user-table-wrap').innerHTML = `<div class="empty">오류: ${e.message}</div>`;
   }
@@ -439,12 +477,16 @@ function renderUserTable() {
       ? new Date(u.last_sign_in_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' })
       : '—';
     const roleBadge = u.role === 'admin' ? '<span class="badge badge-admin">관리자</span>' : '<span class="badge badge-user">일반</span>';
+    const joinBadge = u.join_type === 'invite' ? '<span class="badge badge-invite">초대</span>'
+      : u.join_type === 'purchase' ? '<span class="badge badge-purchase">구매</span>'
+      : u.join_type === 'both' ? '<span class="badge badge-both">초대+구매</span>'
+      : '';
     const emailBadge = u.email_confirmed ? '<span class="badge badge-ok">인증</span>' : '<span class="badge badge-no">미인증</span>';
     const uid = escAttr(u.id), email = escAttr(u.email), name = escAttr(u.display_name);
     return `<tr>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${esc(u.display_name)}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${email}">${esc(u.email)}</td>
-      <td>${roleBadge}</td>
+      <td>${roleBadge} ${joinBadge}</td>
       <td>${emailBadge}</td>
       <td>${joinDate}</td>
       <td>${lastLogin}</td>
@@ -569,6 +611,146 @@ function goPg(ns, p) {
   if (ns === 'pay') { _payPage = p; renderPayTable(); }
   else { _userPage = p; renderUserTable(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ─────────────────────────────────────────
+// 분석
+// ─────────────────────────────────────────
+let _trendPeriod = 'day';
+
+function setTrend(period, el) {
+  _trendPeriod = period;
+  ['trend-btn-day','trend-btn-month','trend-btn-year'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('on', id === `trend-btn-${period}`);
+  });
+  renderTrendChart();
+}
+
+function renderAnalytics() {
+  renderAnalyticsStats();
+  renderJoinTypeChart();
+  renderTrendChart();
+  renderHourChart();
+}
+
+function renderAnalyticsStats() {
+  const total = _users.length;
+  const now = new Date();
+  const day7 = new Date(now.getTime() - 7*24*3600*1000);
+  const day30 = new Date(now.getTime() - 30*24*3600*1000);
+  const recent7 = _users.filter(u => new Date(u.created_at) >= day7).length;
+  const recent30 = _users.filter(u => new Date(u.created_at) >= day30).length;
+  const invite = _users.filter(u => u.join_type === 'invite' || u.join_type === 'both').length;
+  const purchase = _users.filter(u => u.join_type === 'purchase' || u.join_type === 'both').length;
+  document.getElementById('analytics-stats-row').innerHTML = `
+    <div class="stat-chip"><b>${total}</b>전체 회원</div>
+    <div class="stat-chip"><b>${recent7}</b>최근 7일 가입</div>
+    <div class="stat-chip"><b>${recent30}</b>최근 30일 가입</div>
+    <div class="stat-chip"><b>${invite}</b>초대 가입</div>
+    <div class="stat-chip"><b>${purchase}</b>구매 가입</div>`;
+}
+
+function renderJoinTypeChart() {
+  const needsRedeploy = _users.length > 0 && _users.every(u => !u.join_type);
+  if (needsRedeploy) {
+    document.getElementById('chart-join-type').innerHTML = `<div style="font-size:.75rem;color:var(--tx3);padding:.3rem 0;">📌 가입 경로 표시를 위해 Supabase 대시보드에서 <b>admin-users Edge Function을 재배포</b>해주세요.</div>`;
+    return;
+  }
+  const total = _users.length || 1;
+  const groups = [
+    { label: '초대로만 가입', key: 'invite', color: '#3d9970' },
+    { label: '구매로만 가입', key: 'purchase', color: '#2176ae' },
+    { label: '초대 + 구매', key: 'both', color: '#9b59b6' },
+    { label: '미분류 (관리자 등)', key: 'unknown', color: '#a08c72' },
+  ];
+  const html = groups.map(g => {
+    const cnt = _users.filter(u => u.join_type === g.key).length;
+    const pct = Math.round((cnt / total) * 100);
+    return `<div style="margin-bottom:.55rem;">
+      <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.22rem;">
+        <span style="color:var(--tx1);">${g.label}</span>
+        <span style="color:var(--tx3);">${cnt}명&nbsp;(${pct}%)</span>
+      </div>
+      <div style="background:var(--bg);border-radius:4px;height:10px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${g.color};border-radius:4px;min-width:${cnt?'3px':'0'};"></div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('chart-join-type').innerHTML = html;
+}
+
+function kstDayKey(isoStr) {
+  const d = new Date(new Date(isoStr).getTime() + 9 * 3600 * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+}
+
+function kstMonthKey(isoStr) {
+  const d = new Date(new Date(isoStr).getTime() + 9 * 3600 * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+}
+
+function renderTrendChart() {
+  const now = new Date();
+  let items = [];
+
+  if (_trendPeriod === 'day') {
+    const dayCounts = {};
+    _users.forEach(u => { const k = kstDayKey(u.created_at); dayCounts[k] = (dayCounts[k]||0)+1; });
+    const kstNow = new Date(now.getTime() + 9*3600*1000);
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate() - i));
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+      const label = `${d.getUTCMonth()+1}/${d.getUTCDate()}`;
+      const shortLabel = (i === 29 || i === 0 || i % 7 === 0) ? label : '';
+      items.push({ label, shortLabel, value: dayCounts[key]||0 });
+    }
+  } else if (_trendPeriod === 'month') {
+    const moCounts = {};
+    _users.forEach(u => { const k = kstMonthKey(u.created_at); moCounts[k] = (moCounts[k]||0)+1; });
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const label = `${String(d.getFullYear()).slice(2)}/${String(d.getMonth()+1).padStart(2,'0')}`;
+      items.push({ label, value: moCounts[key]||0 });
+    }
+  } else {
+    const yrCounts = {};
+    _users.forEach(u => { const y = new Date(u.created_at).getFullYear(); yrCounts[y] = (yrCounts[y]||0)+1; });
+    const years = Object.keys(yrCounts).map(Number).sort();
+    if (!years.length) years.push(now.getFullYear());
+    years.forEach(y => items.push({ label: String(y), value: yrCounts[y]||0 }));
+  }
+
+  document.getElementById('chart-trend').innerHTML = makeBarChart(items);
+}
+
+function renderHourChart() {
+  const hourCounts = Array(24).fill(0);
+  _users.forEach(u => { hourCounts[(new Date(u.created_at).getUTCHours() + 9) % 24]++; });
+  const items = hourCounts.map((v, h) => ({
+    label: `${h}시`,
+    shortLabel: h % 6 === 0 ? `${h}시` : (h % 3 === 0 ? `${h}` : ''),
+    value: v,
+  }));
+  document.getElementById('chart-hour').innerHTML = makeBarChart(items);
+}
+
+function makeBarChart(items, barH = 80) {
+  if (!items.length) return '<div style="text-align:center;padding:1rem;font-size:.78rem;color:var(--tx3);">데이터 없음</div>';
+  const maxVal = Math.max(...items.map(i => i.value), 1);
+  const bars = items.map(item => {
+    const filled = Math.max(Math.round((item.value / maxVal) * barH), item.value ? 2 : 0);
+    const spacer = barH - filled;
+    const lbl = item.shortLabel !== undefined ? item.shortLabel : item.label;
+    return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;" title="${item.label}: ${item.value}명">
+      <span style="font-size:.45rem;color:var(--acc);display:block;height:10px;line-height:10px;text-align:center;">${item.value||''}</span>
+      <div style="height:${spacer}px;"></div>
+      <div style="width:calc(100% - 2px);max-width:30px;height:${filled}px;background:var(--acc);border-radius:2px 2px 0 0;opacity:.82;"></div>
+      <div style="width:100%;font-size:.43rem;color:var(--tx3);text-align:center;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${lbl}</div>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;gap:1px;overflow-x:hidden;">${bars}</div>`;
 }
 
 // ESC로 모달 닫기

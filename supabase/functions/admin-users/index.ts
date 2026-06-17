@@ -105,23 +105,37 @@ serve(async (req) => {
 
     // ── 회원 목록
     if (action === "list") {
-      const [authRes, profRes] = await Promise.all([
+      const [authRes, profRes, inviteRes, payRes] = await Promise.all([
         sb.auth.admin.listUsers({ perPage: 1000 }),
         sb.from("profiles").select("id, display_name, role, avatar_url"),
+        sb.from("invite_codes").select("used_by").not("used_by", "is", null),
+        sb.from("payments").select("email").eq("status", "confirmed"),
       ]);
       if (authRes.error) return json({ error: "auth_list_failed", detail: authRes.error.message }, 500);
 
+      const invitedSet = new Set((inviteRes.data || []).map((r: any) => r.used_by));
+      const purchaserEmails = new Set((payRes.data || []).map((r: any) => (r.email || "").toLowerCase()));
+
       const profMap = new Map((profRes.data || []).map((p) => [p.id, p]));
       const users = (authRes.data.users || [])
-        .map((u) => ({
-          id: u.id,
-          email: u.email ?? "",
-          created_at: u.created_at,
-          last_sign_in_at: u.last_sign_in_at ?? null,
-          email_confirmed: !!u.email_confirmed_at,
-          display_name: profMap.get(u.id)?.display_name || u.email?.split("@")[0] || "—",
-          role: profMap.get(u.id)?.role || "user",
-        }))
+        .map((u) => {
+          const via_invite = invitedSet.has(u.id);
+          const via_purchase = purchaserEmails.has((u.email || "").toLowerCase());
+          const join_type = via_invite && via_purchase ? "both"
+            : via_invite ? "invite"
+            : via_purchase ? "purchase"
+            : "unknown";
+          return {
+            id: u.id,
+            email: u.email ?? "",
+            created_at: u.created_at,
+            last_sign_in_at: u.last_sign_in_at ?? null,
+            email_confirmed: !!u.email_confirmed_at,
+            display_name: profMap.get(u.id)?.display_name || u.email?.split("@")[0] || "—",
+            role: profMap.get(u.id)?.role || "user",
+            join_type,
+          };
+        })
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       return json({ users });
