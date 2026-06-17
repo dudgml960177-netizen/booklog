@@ -8682,17 +8682,22 @@ function toggleLibGhost() {
 function openLibraryEntry() {
   const sel = document.getElementById('lib-book-select');
   if(sel) {
+    // 읽는중 우선, 없으면 완독 제외 전체 목록 (읽고싶음·중단·다시읽기 포함)
     const reading = (allBooks||[]).filter(b => b.status === '읽는중');
+    const candidates = reading.length > 0
+      ? reading
+      : (allBooks||[]).filter(b => b.status !== '완독').sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
     sel.innerHTML = '<option value="">표시 안함</option>';
-    reading.forEach(b => {
+    candidates.forEach(b => {
       const opt = document.createElement('option');
       opt.value = b.id;
-      opt.textContent = b.title.length > 22 ? b.title.slice(0,22)+'…' : b.title;
+      const statusTag = b.status !== '읽는중' ? ` (${b.status})` : '';
+      opt.textContent = (b.title.length > 20 ? b.title.slice(0,20)+'…' : b.title) + statusTag;
       sel.appendChild(opt);
     });
-    if(reading.length > 0) sel.value = reading[0].id;
+    if(candidates.length > 0) sel.value = candidates[0].id;
     const wrap = document.getElementById('lib-book-select-wrap');
-    if(wrap) wrap.style.display = reading.length > 0 ? '' : 'none';
+    if(wrap) wrap.style.display = (allBooks||[]).length > 0 ? '' : 'none';
   }
   const toggle = document.getElementById('library-ghost-toggle');
   const track  = document.getElementById('lib-ghost-track');
@@ -8769,6 +8774,10 @@ async function _addLibraryTime(bookId, minutes, date) {
       last_read: date
     }).eq('id', bookId).eq('user_id', currentUser.id);
     await loadData();
+    // 트래커·목표·통계 UI 갱신
+    if(typeof buildTrackerGrid === 'function') buildTrackerGrid();
+    if(typeof buildGoalDisplay === 'function') buildGoalDisplay();
+    if(typeof buildWeeklyStats === 'function') buildWeeklyStats();
   } catch(e) { console.warn('library time save:', e); }
 }
 
