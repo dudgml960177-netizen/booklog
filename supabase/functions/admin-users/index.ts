@@ -89,18 +89,27 @@ serve(async (req) => {
         ["notifications", "sender_id", user_id],
         ["user_goals", "user_id", user_id],
         ["quotes", "user_id", user_id],
-        ["invite_codes", "user_id", user_id],
         ["books", "user_id", user_id],
         ["posts", "user_id", user_id],
-        ["avatars", "user_id", user_id],
-        ["profiles", "id", user_id],
       ];
       for (const [table, col, val] of steps) {
         const { error: e } = await (sb.from(table) as any).delete().eq(col, val);
         if (e) stepErrors.push(`${table}/${col}: ${e.message}`);
       }
-      const { error: fe } = await sb.from("friendships").delete().or(`user_id.eq.${user_id},friend_id.eq.${user_id}`);
+
+      // friendships: requester_id / receiver_id 컬럼
+      const { error: fe } = await sb.from("friendships").delete().or(`requester_id.eq.${user_id},receiver_id.eq.${user_id}`);
       if (fe) stepErrors.push("friendships: " + fe.message);
+
+      // invite_codes: 사용한 코드 used_by 초기화(profiles FK), 소유 코드 삭제
+      const { error: icNull } = await sb.from("invite_codes").update({ used_by: null }).eq("used_by", user_id);
+      if (icNull) stepErrors.push("invite_codes/used_by: " + icNull.message);
+      const { error: icDel } = await sb.from("invite_codes").delete().eq("owner_id", user_id);
+      if (icDel) stepErrors.push("invite_codes/owner_id: " + icDel.message);
+
+      // profiles 삭제
+      const { error: profErr } = await sb.from("profiles").delete().eq("id", user_id);
+      if (profErr) stepErrors.push("profiles/id: " + profErr.message);
 
       if (stepErrors.length > 0) {
         return json({ error: "pre_delete_failed", detail: stepErrors.join(" | ") }, 500);
