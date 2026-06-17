@@ -64,34 +64,51 @@ serve(async (req) => {
       const { user_id } = body;
       if (!user_id) return json({ error: "missing_user_id" }, 400);
 
+      const stepErrors: string[] = [];
+
       // 1단계: 이 유저의 posts에 달린 모든 참조 데이터 먼저 삭제
       const { data: userPosts } = await sb.from("posts").select("id").eq("user_id", user_id);
       const postIds = (userPosts || []).map((p: any) => p.id);
       if (postIds.length > 0) {
-        await sb.from("post_likes").delete().in("post_id", postIds);
-        await sb.from("comments").delete().in("post_id", postIds);
-        await sb.from("reports").delete().in("post_id", postIds);
-        await sb.from("notifications").delete().in("post_id", postIds);
+        const r1 = await sb.from("post_likes").delete().in("post_id", postIds);
+        if (r1.error) stepErrors.push("post_likes/post_id: " + r1.error.message);
+        const r2 = await sb.from("comments").delete().in("post_id", postIds);
+        if (r2.error) stepErrors.push("comments/post_id: " + r2.error.message);
+        const r3 = await sb.from("reports").delete().in("post_id", postIds);
+        if (r3.error) stepErrors.push("reports/post_id: " + r3.error.message);
+        const r4 = await sb.from("notifications").delete().in("post_id", postIds);
+        if (r4.error) stepErrors.push("notifications/post_id: " + r4.error.message);
       }
 
       // 2단계: 유저 본인 활동 데이터 삭제 (FK 의존 순서)
-      await sb.from("post_likes").delete().eq("user_id", user_id);
-      await sb.from("comments").delete().eq("user_id", user_id);
-      await sb.from("reports").delete().eq("reporter_id", user_id);
-      await sb.from("notifications").delete().eq("user_id", user_id);
-      await sb.from("notifications").delete().eq("sender_id", user_id);
-      await sb.from("user_goals").delete().eq("user_id", user_id);
-      await sb.from("quotes").delete().eq("user_id", user_id);
-      await sb.from("friendships").delete().or(`user_id.eq.${user_id},friend_id.eq.${user_id}`);
-      await sb.from("invite_codes").delete().eq("user_id", user_id);
-      await sb.from("books").delete().eq("user_id", user_id);
-      await sb.from("posts").delete().eq("user_id", user_id);
-      await sb.from("avatars").delete().eq("user_id", user_id);
-      await sb.from("profiles").delete().eq("id", user_id);
+      const steps: [string, string, string][] = [
+        ["post_likes", "user_id", user_id],
+        ["comments", "user_id", user_id],
+        ["reports", "reporter_id", user_id],
+        ["notifications", "user_id", user_id],
+        ["notifications", "sender_id", user_id],
+        ["user_goals", "user_id", user_id],
+        ["quotes", "user_id", user_id],
+        ["invite_codes", "user_id", user_id],
+        ["books", "user_id", user_id],
+        ["posts", "user_id", user_id],
+        ["avatars", "user_id", user_id],
+        ["profiles", "id", user_id],
+      ];
+      for (const [table, col, val] of steps) {
+        const { error: e } = await (sb.from(table) as any).delete().eq(col, val);
+        if (e) stepErrors.push(`${table}/${col}: ${e.message}`);
+      }
+      const { error: fe } = await sb.from("friendships").delete().or(`user_id.eq.${user_id},friend_id.eq.${user_id}`);
+      if (fe) stepErrors.push("friendships: " + fe.message);
+
+      if (stepErrors.length > 0) {
+        return json({ error: "pre_delete_failed", detail: stepErrors.join(" | ") }, 500);
+      }
 
       // 3단계: auth 유저 삭제
       const { error } = await sb.auth.admin.deleteUser(user_id);
-      if (error) return json({ error: "delete_failed", detail: error.message || JSON.stringify(error) || "unknown" }, 500);
+      if (error) return json({ error: "delete_failed", detail: String(error) }, 500);
 
       return json({ success: true });
     }
