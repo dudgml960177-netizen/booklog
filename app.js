@@ -8407,15 +8407,15 @@ async function openPostDetail(postId) {
       const rCanDelete = r.user_id===currentUser.id || isAdmin;
       return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
         <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${toKSTDate(r.created_at)}</div>
-        <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;">${r.content}</div>
+        <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;word-break:break-word;">${r.content}</div>
         ${rCanDelete?`<button onclick="deleteComment('${r.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;margin-top:.1rem;">삭제</button>`:''}
       </div>`;
     }).join('');
     return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
       <div style="display:flex;align-items:flex-start;gap:.5rem;">
-        <div style="flex:1;">
+        <div style="flex:1;min-width:0;">
           <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${toKSTDate(c.created_at)}</div>
-          <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;">${c.content}</div>
+          <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;word-break:break-word;">${c.content}</div>
         </div>
         <div style="display:flex;gap:.3rem;flex-shrink:0;">
           <button onclick="showReplyInput('${c.id}')" style="font-size:.6rem;color:var(--acc);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;background:none;cursor:pointer;">답글</button>
@@ -8423,9 +8423,9 @@ async function openPostDetail(postId) {
         </div>
       </div>
       ${replyHtml}
-      <div id="reply-box-${c.id}" style="display:none;margin-top:.4rem;margin-left:1rem;">
+      <div id="reply-box-${c.id}" style="display:none;margin-top:.4rem;margin-left:1rem;overflow:hidden;">
         <div style="display:flex;gap:.3rem;">
-          <input type="text" placeholder="답글 입력..." style="flex:1;padding:.3rem .6rem;border:1px solid var(--border2);border-radius:4px;font-size:.75rem;font-family:var(--ff);" id="reply-input-${c.id}">
+          <input type="text" placeholder="답글 입력..." style="flex:1;min-width:0;padding:.3rem .6rem;border:1px solid var(--border2);border-radius:4px;font-size:.75rem;font-family:var(--ff);" id="reply-input-${c.id}">
           <button onclick="submitReply('${postId}','${c.id}')" class="btn-save" style="padding:.3rem .6rem;font-size:.72rem;">등록</button>
         </div>
       </div>
