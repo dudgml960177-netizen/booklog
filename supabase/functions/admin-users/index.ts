@@ -108,19 +108,27 @@ serve(async (req) => {
       const [authRes, profRes, inviteRes, payRes] = await Promise.all([
         sb.auth.admin.listUsers({ perPage: 1000 }),
         sb.from("profiles").select("id, display_name, role, avatar_url"),
-        sb.from("invite_codes").select("used_by").not("used_by", "is", null),
+        sb.from("invite_codes").select("owner_id, used_by").not("used_by", "is", null),
         sb.from("payments").select("email").eq("status", "confirmed"),
       ]);
       if (authRes.error) return json({ error: "auth_list_failed", detail: authRes.error.message }, 500);
 
-      const invitedSet = new Set((inviteRes.data || []).map((r: any) => r.used_by));
+      // owner_id != used_by → 남이 준 코드로 가입 = 순수 초대
+      // owner_id == used_by → 자기 코드를 자기가 씀 = 구매 후 가입
+      const inviteCodes = inviteRes.data || [];
+      const invitedByOthersSet = new Set(
+        inviteCodes.filter((r: any) => r.owner_id !== r.used_by).map((r: any) => r.used_by)
+      );
+      const selfUsedSet = new Set(
+        inviteCodes.filter((r: any) => r.owner_id === r.used_by).map((r: any) => r.used_by)
+      );
       const purchaserEmails = new Set((payRes.data || []).map((r: any) => (r.email || "").toLowerCase()));
 
       const profMap = new Map((profRes.data || []).map((p) => [p.id, p]));
       const users = (authRes.data.users || [])
         .map((u) => {
-          const via_invite = invitedSet.has(u.id);
-          const via_purchase = purchaserEmails.has((u.email || "").toLowerCase());
+          const via_purchase = purchaserEmails.has((u.email || "").toLowerCase()) || selfUsedSet.has(u.id);
+          const via_invite = invitedByOthersSet.has(u.id);
           const join_type = via_invite && via_purchase ? "both"
             : via_invite ? "invite"
             : via_purchase ? "purchase"
