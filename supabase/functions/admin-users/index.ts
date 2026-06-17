@@ -19,6 +19,74 @@ const CORS = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
+  // ── 공개 액션: request_reset (관리자 인증 불필요)
+  // 유저가 직접 비밀번호 재설정을 요청할 때 사용
+  // 이메일 링크를 앱 URL로 래핑해 이메일 보안 스캐너의 토큰 소비를 방지
+  let _publicBody: any = null;
+  try { _publicBody = await req.clone().json(); } catch { /* ignore */ }
+  if (_publicBody?.action === 'request_reset') {
+    const { email } = _publicBody;
+    if (!email) return json({ error: "missing_email" }, 400);
+
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: linkData, error: linkErr } = await sb.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: { redirectTo: "https://booklog-neon.vercel.app/" },
+    });
+    if (linkErr) return json({ error: "generate_failed", detail: linkErr.message }, 500);
+
+    const actionLink = (linkData as any)?.properties?.action_link || (linkData as any)?.action_link;
+    if (!actionLink) return json({ error: "no_action_link" }, 500);
+
+    const proxyLink = `https://booklog-neon.vercel.app/?pw_go=${btoa(actionLink)}`;
+
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    const resendFrom = Deno.env.get("RESEND_FROM") || "북로그 <noreply@booklog-app.com>";
+    if (!resendKey) return json({ error: "no_resend_key" }, 500);
+
+    const emailRes = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
+      body: JSON.stringify({
+        from: resendFrom,
+        to: email,
+        subject: "북로그 비밀번호 재설정",
+        html: `
+<!DOCTYPE html>
+<html lang="ko">
+<body style="margin:0;padding:20px;background:#f2ece0;font-family:'Apple SD Gothic Neo',sans-serif;">
+  <div style="max-width:420px;margin:0 auto;background:#faf6ef;border-radius:12px;padding:28px 24px;border:1px solid #ddd0b8;">
+    <h2 style="margin:0 0 6px;font-size:20px;color:#2e1f0e;">비밀번호 재설정</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:#a08c72;line-height:1.7;">
+      비밀번호 재설정을 요청하셨어요.<br>
+      아래 버튼을 눌러 새 비밀번호를 설정하세요. (버튼을 직접 클릭해야 동작합니다)
+    </p>
+    <a href="${proxyLink}" style="display:block;text-align:center;background:#b07030;color:#fff;text-decoration:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;">비밀번호 재설정하기</a>
+    <p style="margin:16px 0 0;font-size:11px;color:#a08c72;line-height:1.7;">
+      • 이 링크는 1시간 후 만료됩니다.<br>
+      • 본인이 요청하지 않았다면 무시하세요.
+    </p>
+    <hr style="margin:18px 0;border:none;border-top:1px solid #ddd0b8;">
+    <p style="margin:0;font-size:11px;color:#c0a880;">북로그 팀</p>
+  </div>
+</body>
+</html>`,
+      }),
+    });
+
+    if (!emailRes.ok) {
+      const errBody = await emailRes.text();
+      return json({ error: "email_send_failed", detail: errBody }, 500);
+    }
+
+    return json({ success: true });
+  }
+
   // 관리자 인증
   const adminSecret = Deno.env.get("ADMIN_SECRET");
   const reqSecret = req.headers.get("x-admin-secret");
@@ -142,6 +210,7 @@ serve(async (req) => {
       const resendFrom = Deno.env.get("RESEND_FROM") || "북로그 <noreply@booklog-app.com>";
       if (!resendKey) return json({ error: "no_resend_key" }, 500);
 
+      const proxyLink = `https://booklog-neon.vercel.app/?pw_go=${btoa(actionLink)}`;
       const emailRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
@@ -157,9 +226,9 @@ serve(async (req) => {
     <h2 style="margin:0 0 6px;font-size:20px;color:#2e1f0e;">비밀번호 재설정</h2>
     <p style="margin:0 0 20px;font-size:13px;color:#a08c72;line-height:1.7;">
       관리자가 비밀번호 재설정 링크를 보냈어요.<br>
-      아래 버튼을 눌러 새 비밀번호를 설정하세요.
+      아래 버튼을 눌러 새 비밀번호를 설정하세요. (버튼을 직접 클릭해야 동작합니다)
     </p>
-    <a href="${actionLink}" style="display:block;text-align:center;background:#b07030;color:#fff;text-decoration:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;">비밀번호 재설정하기</a>
+    <a href="${proxyLink}" style="display:block;text-align:center;background:#b07030;color:#fff;text-decoration:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;">비밀번호 재설정하기</a>
     <p style="margin:16px 0 0;font-size:11px;color:#a08c72;line-height:1.7;">
       • 이 링크는 1시간 후 만료됩니다.<br>
       • 본인이 요청하지 않았다면 무시하세요.

@@ -418,8 +418,18 @@ function init() {
   history.pushState(null, '', location.href);
 
   // URL 토큰 처리 (비밀번호 재설정)
-  // ① 에러 파라미터 먼저 확인 (이미 만료된 링크)
   const urlQ = new URLSearchParams(window.location.search);
+
+  // ⓪ 프록시 비밀번호 재설정 링크 감지 (스캐너 우회)
+  // 이메일 보안 스캐너는 JS onclick을 실행하지 못하므로 PKCE 토큰이 보호됨
+  const pwGo = urlQ.get('pw_go');
+  if(pwGo) {
+    window.history.replaceState(null, '', window.location.pathname);
+    showPwGoScreen(pwGo);
+    return;
+  }
+
+  // ① 에러 파라미터 먼저 확인 (이미 만료된 링크)
   const urlErr = urlQ.get('error') || urlQ.get('error_code');
   if(urlErr) {
     window.history.replaceState(null, '', window.location.pathname);
@@ -586,10 +596,52 @@ function openInviteCheck() {
 async function doResetPassword() {
   const email = document.getElementById('reset-email').value.trim();
   if(!email) { showAuthError('이메일을 입력해주세요.'); return; }
-  const redirectTo = window.location.origin + window.location.pathname;
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-  if(error) { showAuthError(error.message); return; }
-  showAuthError('재설정 링크를 보냈어요! 이메일을 확인해주세요.', true);
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}` },
+      body: JSON.stringify({ action: 'request_reset', email })
+    });
+    const data = await res.json();
+    if(!res.ok) { showAuthError('오류가 발생했어요. 잠시 후 다시 시도해주세요.'); return; }
+    showAuthError('재설정 링크를 보냈어요! 이메일을 확인하고 버튼을 직접 눌러주세요.', true);
+  } catch(e) {
+    showAuthError('네트워크 오류가 발생했어요.');
+  }
+}
+
+function showPwGoScreen(encoded) {
+  // 스캐너가 미리 방문해도 이 함수가 실행되지만 버튼 클릭은 못함
+  // 실제 유저만 버튼을 클릭해 Supabase URL로 이동
+  window._pwGoEncoded = encoded;
+  showScreen('auth');
+  authSwitch('reset', null);
+
+  // reset 폼을 숨기고 확인 버튼 화면으로 교체
+  const resetForm = document.getElementById('form-reset');
+  if(resetForm) {
+    resetForm.innerHTML = `
+      <div style="text-align:center;padding:1rem 0;">
+        <div style="font-size:1.3rem;margin-bottom:.6rem;">🔑</div>
+        <div style="font-size:.88rem;color:var(--tx1);font-weight:600;margin-bottom:.4rem;">비밀번호 재설정</div>
+        <div style="font-size:.77rem;color:var(--tx3);line-height:1.6;margin-bottom:1.1rem;">
+          아래 버튼을 눌러 비밀번호를 재설정하세요.<br>
+          <span style="font-size:.7rem;">(버튼을 직접 클릭해야 진행됩니다)</span>
+        </div>
+        <button onclick="proceedPwReset()" style="width:100%;padding:.65rem;background:var(--acc);color:#fff;border:none;border-radius:8px;font-size:.88rem;font-weight:600;cursor:pointer;font-family:var(--ff);">비밀번호 재설정 계속하기 →</button>
+      </div>
+    `;
+  }
+}
+
+function proceedPwReset() {
+  try {
+    const url = atob(window._pwGoEncoded || '');
+    if(!url.startsWith('https://')) { showAuthError('유효하지 않은 링크예요.'); return; }
+    window.location.href = url;
+  } catch(e) {
+    showAuthError('링크가 올바르지 않아요.');
+  }
 }
 
 async function doUpdatePassword() {
