@@ -89,7 +89,7 @@ serve(async (req) => {
 
       // 3단계: auth 유저 삭제
       const { error } = await sb.auth.admin.deleteUser(user_id);
-      if (error) return json({ error: "delete_failed", detail: error.message }, 500);
+      if (error) return json({ error: "delete_failed", detail: error.message || JSON.stringify(error) || "unknown" }, 500);
 
       return json({ success: true });
     }
