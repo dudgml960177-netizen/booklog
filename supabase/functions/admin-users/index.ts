@@ -64,10 +64,30 @@ serve(async (req) => {
       const { user_id } = body;
       if (!user_id) return json({ error: "missing_user_id" }, 400);
 
-      // profile, notifications 삭제 (books 등은 CASCADE 또는 user_id nullable)
+      // 1단계: 이 유저의 posts에 달린 다른 사람의 댓글/좋아요 먼저 삭제
+      const { data: userPosts } = await sb.from("posts").select("id").eq("user_id", user_id);
+      const postIds = (userPosts || []).map((p: any) => p.id);
+      if (postIds.length > 0) {
+        await sb.from("post_likes").delete().in("post_id", postIds);
+        await sb.from("comments").delete().in("post_id", postIds);
+      }
+
+      // 2단계: 유저 본인 활동 데이터 삭제 (FK 의존 순서)
+      await sb.from("post_likes").delete().eq("user_id", user_id);
+      await sb.from("comments").delete().eq("user_id", user_id);
+      await sb.from("reports").delete().eq("user_id", user_id);
       await sb.from("notifications").delete().eq("user_id", user_id);
+      await sb.from("notifications").delete().eq("sender_id", user_id);
+      await sb.from("user_goals").delete().eq("user_id", user_id);
+      await sb.from("quotes").delete().eq("user_id", user_id);
+      await sb.from("friendships").delete().or(`user_id.eq.${user_id},friend_id.eq.${user_id}`);
+      await sb.from("invite_codes").delete().eq("user_id", user_id);
+      await sb.from("books").delete().eq("user_id", user_id);
+      await sb.from("posts").delete().eq("user_id", user_id);
+      await sb.from("avatars").delete().eq("user_id", user_id);
       await sb.from("profiles").delete().eq("id", user_id);
 
+      // 3단계: auth 유저 삭제
       const { error } = await sb.auth.admin.deleteUser(user_id);
       if (error) return json({ error: "delete_failed", detail: error.message }, 500);
 
