@@ -3948,13 +3948,12 @@ const QUESTS = [
 async function grantInviteCode(quest) {
   try {
     const newCode = Math.random().toString(36).slice(2,8).toUpperCase() + '-' + quest.id.slice(0,4).toUpperCase();
-    await sb.from('invite_codes').insert({
+    const { error: insertErr } = await sb.from('invite_codes').insert({
       code: newCode,
       owner_id: currentUser.id,
       created_at: new Date().toISOString(),
-      quest_reward: true,
-      quest_id: quest.id,
     });
+    if(insertErr) throw insertErr;
     // 초대권 발급 알림 팝업
     await new Promise(resolve => {
       const overlay = document.createElement('div');
@@ -3982,8 +3981,12 @@ async function grantInviteCode(quest) {
               const available = data.filter(c => !c.used_by);
               const used = data.filter(c => c.used_by);
               codeWrap.innerHTML = `<div class="profile-card"><div class="profile-card-title">내 초대코드</div>`
-                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;">
-                  <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span></div>`).join('')
+                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
+                  <span>${c.code}</span>
+                  <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0;">
+                    <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='복사',1200)})" style="font-size:.6rem;padding:.15rem .4rem;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:var(--ff);flex-shrink:0;">복사</button>
+                    <span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span>
+                  </div></div>`).join('')
                 + (available.length === 0 ? '<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
                 + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '')
                 + `</div>`;
@@ -6597,8 +6600,12 @@ async function openProfile() {
     const used=myCodes.filter(c=>c.used_by);
     codeWrap.innerHTML=`<div class="profile-card">
       <div class="profile-card-title">내 초대코드</div>`
-      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;">
-        <span>${c.code}</span><span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span></div>`).join('')
+      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
+        <span>${c.code}</span>
+        <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0;">
+          <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='복사',1200)})" style="font-size:.6rem;padding:.15rem .4rem;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:var(--ff);flex-shrink:0;">복사</button>
+          <span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span>
+        </div></div>`).join('')
       +(available.length===0?'<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
       +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'')
       +`</div>`;
