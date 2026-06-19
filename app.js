@@ -317,6 +317,7 @@ async function startApp(user) {
       } catch(_) {}
     }
 
+    if(typeof flushPendingInviteCodes === 'function') setTimeout(flushPendingInviteCodes, 800);
     if(typeof loadNotifications === 'function') setTimeout(loadNotifications, 500);
     if(typeof checkAndGrantQuests === 'function') setTimeout(checkAndGrantQuests, 1500);
     if(typeof checkBoardNew === 'function') setTimeout(checkBoardNew, 2000);
@@ -3944,62 +3945,104 @@ const QUESTS = [
   },
 ];
 
+// 퀘스트 보상 초대코드 DB 저장 (실패 시 localStorage 임시 보관 → 다음 로그인 때 재시도)
+async function _saveInviteCodeToDB(code) {
+  const { error } = await sb.from('invite_codes').insert({
+    code,
+    owner_id: currentUser.id,
+    created_at: new Date().toISOString(),
+  });
+  if(error) {
+    // 중복 키 오류는 이미 저장된 것이므로 성공으로 간주
+    if(error.code === '23505') return true;
+    return false;
+  }
+  return true;
+}
+
+async function flushPendingInviteCodes() {
+  if(!currentUser) return;
+  try {
+    const pending = JSON.parse(localStorage.getItem('bl_pending_invite_codes') || '[]');
+    if(!pending.length) return;
+    const remaining = [];
+    for(const item of pending) {
+      const { data: existing } = await sb.from('invite_codes').select('code').eq('code', item.code).maybeSingle();
+      if(existing) continue; // 이미 DB에 있음
+      const ok = await _saveInviteCodeToDB(item.code);
+      if(!ok) remaining.push(item);
+    }
+    localStorage.setItem('bl_pending_invite_codes', JSON.stringify(remaining));
+  } catch(e) { console.warn('flush pending invite codes failed:', e); }
+}
+
+// 프로필 초대코드 섹션 새로고침 (공통)
+async function _refreshProfileCodes() {
+  const codeWrap = document.getElementById('profile-invite-codes');
+  if(!codeWrap) return;
+  const { data } = await sb.from('invite_codes').select('*').eq('owner_id', currentUser.id);
+  if(!data) return;
+  const available = data.filter(c => !c.used_by);
+  const used = data.filter(c => c.used_by);
+  codeWrap.innerHTML = `<div class="profile-card"><div class="profile-card-title">내 초대코드</div>`
+    + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
+      <span>${c.code}</span>
+      <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0;">
+        <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='복사',1200)})" style="font-size:.6rem;padding:.15rem .4rem;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:var(--ff);flex-shrink:0;">복사</button>
+        <span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span>
+      </div></div>`).join('')
+    + (available.length === 0 ? '<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
+    + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '')
+    + `</div>`;
+}
+
 // 초대권 자동 발급 (hasInvite:true 퀘스트 달성 시)
 async function grantInviteCode(quest) {
-  try {
-    const newCode = Math.random().toString(36).slice(2,8).toUpperCase() + '-' + quest.id.slice(0,4).toUpperCase();
-    const { error: insertErr } = await sb.from('invite_codes').insert({
-      code: newCode,
-      owner_id: currentUser.id,
-      created_at: new Date().toISOString(),
-    });
-    if(insertErr) throw insertErr;
-    // 초대권 발급 알림 팝업
-    await new Promise(resolve => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
-      const box = document.createElement('div');
-      box.style.cssText = 'background:#fdf8ee;border-radius:16px;padding:1.6rem 1.4rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid #e8d4a0;';
-      box.innerHTML = `
-        <div style="font-size:2rem;margin-bottom:.5rem;">🎟️</div>
-        <div style="font-size:.72rem;font-weight:700;color:#c8a050;letter-spacing:.08em;margin-bottom:.3rem;">북로그 초대권 발급!</div>
-        <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${quest.name} 달성 보상</div>
-        <div style="background:#f5f0e0;border-radius:8px;padding:.6rem;margin-bottom:.8rem;font-family:monospace;font-size:1rem;font-weight:700;color:#8B6B3A;letter-spacing:.1em;">${newCode}</div>
-        <div style="font-size:.65rem;color:#a08c72;margin-bottom:.9rem;">설정 메뉴에서 초대코드를 확인할 수 있어요</div>`;
-      const btn = document.createElement('button');
-      btn.textContent = '확인';
-      btn.style.cssText = 'background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);';
-      btn.onclick = () => {
-        overlay.remove();
-        resolve();
-        // 설정 모달이 열려있으면 초대코드 섹션 갱신
-        const profileModal = document.getElementById('modal-profile');
-        if(profileModal && profileModal.style.display !== 'none') {
-          sb.from('invite_codes').select('*').eq('owner_id', currentUser.id).then(({data}) => {
-            const codeWrap = document.getElementById('profile-invite-codes');
-            if(codeWrap && data) {
-              const available = data.filter(c => !c.used_by);
-              const used = data.filter(c => c.used_by);
-              codeWrap.innerHTML = `<div class="profile-card"><div class="profile-card-title">내 초대코드</div>`
-                + available.map(c => `<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
-                  <span>${c.code}</span>
-                  <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0;">
-                    <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='복사',1200)})" style="font-size:.6rem;padding:.15rem .4rem;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:var(--ff);flex-shrink:0;">복사</button>
-                    <span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span>
-                  </div></div>`).join('')
-                + (available.length === 0 ? '<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>' : '')
-                + (used.length ? `<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>` : '')
-                + `</div>`;
-            }
-          });
-        }
-      };
-      box.appendChild(btn);
-      overlay.appendChild(box);
-      overlay.addEventListener('click', e => { if(e.target===overlay){ overlay.remove(); resolve(); } });
-      document.body.appendChild(overlay);
-    });
-  } catch(e) { console.warn('invite code grant failed:', e); }
+  const newCode = Math.random().toString(36).slice(2,8).toUpperCase() + '-' + quest.id.slice(0,4).toUpperCase();
+
+  // DB 저장 시도 — 실패하면 localStorage에 임시 보관 (다음 로그인 때 재시도)
+  const saved = await _saveInviteCodeToDB(newCode);
+  if(!saved) {
+    try {
+      const pending = JSON.parse(localStorage.getItem('bl_pending_invite_codes') || '[]');
+      if(!pending.find(p => p.code === newCode)) {
+        pending.push({ code: newCode, questId: quest.id, at: new Date().toISOString() });
+        localStorage.setItem('bl_pending_invite_codes', JSON.stringify(pending));
+      }
+    } catch(e) {}
+    console.warn('invite code DB save failed, stored in localStorage:', newCode);
+  }
+
+  // 팝업은 DB 저장 성공 여부와 무관하게 항상 표시
+  await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fdf8ee;border-radius:16px;padding:1.6rem 1.4rem;max-width:280px;width:100%;text-align:center;box-shadow:0 16px 56px rgba(0,0,0,.3);border:2px solid #e8d4a0;';
+    box.innerHTML = `
+      <div style="font-size:2rem;margin-bottom:.5rem;">🎟️</div>
+      <div style="font-size:.72rem;font-weight:700;color:#c8a050;letter-spacing:.08em;margin-bottom:.3rem;">북로그 초대권 발급!</div>
+      <div style="font-size:.88rem;font-weight:700;color:#2e1f0e;margin-bottom:.5rem;">${quest.name} 달성 보상</div>
+      <div style="background:#f5f0e0;border-radius:8px;padding:.6rem .8rem;margin-bottom:.4rem;font-family:monospace;font-size:1rem;font-weight:700;color:#8B6B3A;letter-spacing:.1em;display:flex;align-items:center;justify-content:space-between;gap:.5rem;">
+        <span>${newCode}</span>
+        <button id="_ic_copy_${newCode}" onclick="navigator.clipboard.writeText('${newCode}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='복사',1500)})" style="font-size:.6rem;padding:.2rem .5rem;background:#c8a050;color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:var(--ff);flex-shrink:0;">복사</button>
+      </div>
+      <div style="font-size:.65rem;color:#a08c72;margin-bottom:.9rem;">설정 → 프로필에서 언제든 다시 확인할 수 있어요</div>`;
+    const btn = document.createElement('button');
+    btn.textContent = '확인';
+    btn.style.cssText = 'background:#c8a050;color:#fff;border:none;border-radius:20px;padding:.5rem 2rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--ff);';
+    btn.onclick = () => {
+      overlay.remove();
+      resolve();
+      // 프로필 모달이 열려있으면 즉시 갱신
+      const profileModal = document.getElementById('modal-profile');
+      if(profileModal && profileModal.style.display !== 'none') _refreshProfileCodes();
+    };
+    box.appendChild(btn);
+    overlay.appendChild(box);
+    overlay.addEventListener('click', e => { if(e.target===overlay){ overlay.remove(); resolve(); } });
+    document.body.appendChild(overlay);
+  });
 }
 
 // 퀘스트 달성 체크 및 자동 보상 적용
@@ -6593,23 +6636,8 @@ async function openProfile() {
     }
     if(catSel) catSel.value = profile.category_visibility || 'public';
   }
-  // 초대코드 표시
-  const codeWrap=document.getElementById('profile-invite-codes');
-  if(codeWrap && myCodes) {
-    const available=myCodes.filter(c=>!c.used_by);
-    const used=myCodes.filter(c=>c.used_by);
-    codeWrap.innerHTML=`<div class="profile-card">
-      <div class="profile-card-title">내 초대코드</div>`
-      +available.map(c=>`<div style="font-family:monospace;font-size:.78rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:.28rem .6rem;margin-bottom:.25rem;display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
-        <span>${c.code}</span>
-        <div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0;">
-          <button onclick="navigator.clipboard.writeText('${c.code}').then(()=>{this.textContent='✓';setTimeout(()=>this.textContent='복사',1200)})" style="font-size:.6rem;padding:.15rem .4rem;background:var(--acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:var(--ff);flex-shrink:0;">복사</button>
-          <span style="font-size:.65rem;color:var(--acc);font-weight:600;">사용 가능</span>
-        </div></div>`).join('')
-      +(available.length===0?'<div style="font-size:.73rem;color:var(--tx3);">사용 가능한 코드가 없어요.</div>':'')
-      +(used.length?`<div style="font-size:.65rem;color:var(--tx3);margin-top:.3rem;">${used.length}개 사용됨</div>`:'')
-      +`</div>`;
-  }
+  // 초대코드 표시 (공통 함수 사용)
+  if(document.getElementById('profile-invite-codes')) _refreshProfileCodes();
 }
 function openContact() {
   closeModal('modal-profile');
