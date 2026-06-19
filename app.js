@@ -722,9 +722,9 @@ async function doSignup() {
       if (siblingCodes.length) {
         await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
       }
-    } else if (codeRow.source !== 'event_registration') {
-      // 이벤트 가입권(event_registration)이 아닌 경우에만 초대코드 1개 자동 발급
-      // (이벤트 당첨자는 가입만 가능, 초대코드 미지급 — 퀘스트 보상 초대권은 별도 경로라 정상 획득)
+    } else if (codeRow.owner_id !== null && codeRow.source !== 'event_registration') {
+      // 기존 유저의 초대코드(owner_id 있음)로 가입한 경우에만 1개 자동 발급
+      // 구매 코드(owner_id null)나 이벤트 가입권은 제외 — 구매 패키지 수량 그대로만 지급
       const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
       await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
     }
@@ -3498,7 +3498,7 @@ const QUESTS = [
     name: '마지막 장의 수호자',
     hint: '끝날 때까지 끝난 게 아니다.',
     desc: '끝까지 가는 힘이 중요하죠.',
-    condition: (books) => books.filter(b => b.status === '완독').length >= 50 || parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
+    condition: (books) => books.filter(b => b.status === '완독' && b.source !== 'import').length >= 50 || parseInt(localStorage.getItem('bl_finish_count')||'0') >= 50,
     reward: {
       title: '🏁 마지막 장의 수호자', item: '✅',
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -3529,7 +3529,7 @@ const QUESTS = [
     name: '상시 독서가',
     hint: '늘 읽는 책이 존재하는 삶, 멋지잖아요.',
     desc: '책도 인생의 반려자가 되니까요.',
-    condition: (books) => books.filter(b=>b.status==='읽는중').length >= 5,
+    condition: (books) => books.filter(b=>b.status==='읽는중'&&b.source!=='import').length >= 5,
     reward: {
       title: '📚 상시 독서가', item: '📖',
       dotArt: `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g_stand" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#DEB887"/><stop offset="100%" stop-color="#8B4513"/></linearGradient><filter id="s_stand"><feDropShadow dx="1" dy="2" stdDeviation="1" flood-opacity="0.6"/></filter></defs><g filter="url(#s_stand)"><path d="M4 12l12-4 12 4v12l-12-4-12 4z" fill="#F5DEB3" stroke="#8B4513" stroke-width="1"/><path d="M16 8v12" stroke="#8B4513" stroke-width="1.5"/><rect x="12" y="24" width="8" height="4" fill="url(#g_stand)"/></g></svg>`,
@@ -3561,7 +3561,7 @@ const QUESTS = [
     desc: '거의 전공 수준인데요?',
     condition: (books) => {
       const ac={};
-      books.filter(b=>b.status==='완독'&&b.author).forEach(b=>{ac[b.author]=(ac[b.author]||0)+1;});
+      books.filter(b=>b.status==='완독'&&b.author&&b.source!=='import').forEach(b=>{ac[b.author]=(ac[b.author]||0)+1;});
       return Object.values(ac).some(c=>c>=10);
     },
     reward: {
@@ -3594,7 +3594,7 @@ const QUESTS = [
     desc: '눈, 손목, 다 괜찮은 거죠?',
     condition: (books) => {
       const dc={};
-      books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{dc[b.date_finish]=(dc[b.date_finish]||0)+1;});
+      books.filter(b=>b.status==='완독'&&b.date_finish&&b.source!=='import').forEach(b=>{dc[b.date_finish]=(dc[b.date_finish]||0)+1;});
       return Object.values(dc).some(c=>c>=3);
     },
     reward: {
@@ -3627,7 +3627,7 @@ const QUESTS = [
     desc: '현실보다 활자 세계에 오래 머무르셨습니다.',
     condition: (books) => {
       const mc={};
-      books.filter(b=>b.status==='완독'&&b.date_finish).forEach(b=>{const m=b.date_finish.slice(0,7);mc[m]=(mc[m]||0)+1;});
+      books.filter(b=>b.status==='완독'&&b.date_finish&&b.source!=='import').forEach(b=>{const m=b.date_finish.slice(0,7);mc[m]=(mc[m]||0)+1;});
       return Object.values(mc).some(c=>c>=15);
     },
     reward: {
@@ -3725,7 +3725,7 @@ const QUESTS = [
     name: '1월 1일의 독서가',
     hint: '새해 목표는 언제나! 이번 해는 얼마나 읽으실 거예요?',
     desc: 'Happy book year!',
-    condition: (books) => books.some(b => (b.date_finish||'').slice(5)==='01-01' || (b.date_start||'').slice(5)==='01-01'),
+    condition: (books) => books.some(b => b.source!=='import' && ((b.date_finish||'').slice(5)==='01-01' || (b.date_start||'').slice(5)==='01-01')),
     reward: {
       title: '🎊 1월 1일의 독서가', item: '📅',
       itemName: '새 달력', itemDesc: '새해 첫날에 책을 읽은 독서가에게',
@@ -3740,7 +3740,7 @@ const QUESTS = [
     name: '연말의 독서가',
     hint: '한 해의 마무리는 언제나! 마지막 페이지와 함께 한 해가 끝났습니다',
     desc: 'Happy Last Book Year!',
-    condition: (books) => books.some(b => b.status==='완독' && (b.date_finish||'').slice(5)==='12-31'),
+    condition: (books) => books.some(b => b.status==='완독' && b.source!=='import' && (b.date_finish||'').slice(5)==='12-31'),
     reward: {
       title: '🎁 연말의 독서가', item: '🎀',
       itemName: '연말 리본', itemDesc: '한 해의 마지막 날에 책을 완독한 독서가에게',
@@ -3770,7 +3770,7 @@ const QUESTS = [
     hint: '혼자 읽는 것도 나쁘지 않습니다.',
     desc: '고독을 유지하셨군요.',
     condition: (books, profile, extra) => {
-      const done = books.filter(b=>b.status==='완독').length;
+      const done = books.filter(b=>b.status==='완독'&&b.source!=='import').length;
       return done >= 50 && extra.friendCount === 0;
     },
     reward: {
@@ -3891,7 +3891,7 @@ const QUESTS = [
     name: '재판 대기자',
     hint: '판단을 미루고 계시는군요.',
     desc: '무슨 죄인지는 모르겠지만 평가는 하지 않았습니다.',
-    condition: (books) => books.filter(b=>b.status==='완독'&&!b.rating).length >= 50,
+    condition: (books) => books.filter(b=>b.status==='완독'&&!b.rating&&b.source!=='import').length >= 50,
     reward: {
       title: '📎 재판 대기자', item: '📋',
       itemName: '빈 판결문', itemDesc: '별점 없이 50권을 완독한 독서가에게',
@@ -7252,6 +7252,7 @@ async function importFromBookit(file) {
         rating:     C.rating >= 0 ? (v=>{const n=parseFloat(String(v||'').replace(/[^0-9.]/g,''));return n&&n>=0&&n<=5?Math.round(n*2)/2:null;})(r[C.rating]) : null,
         date_start: C.start >= 0 ? formatDate(r[C.start]) : null,
         date_finish:status === '완독' && C.finish >= 0 ? formatDate(r[C.finish]) : null,
+        source:     'import',
         user_id:    currentUser.id,
         created_at: new Date().toISOString(),
       };
@@ -7445,6 +7446,7 @@ async function importFromBookmori(file) {
         pages:      CI.pages>=0?(parseInt(String(getVal(r,CI.pages)||'').replace(/[^0-9]/g,''))||null):null,
         review:     String(getVal(r,CI.review)||'').trim(),
         isbn:       String(getVal(r,CI.isbn)||'').trim(),
+        source:     'import',
         genre:      (() => {
           // 북모리 태그에서 장르 추출 (#SF/판타지 → SF/판타지)
           const tagVal = String(getVal(r, CI.tags)||'').trim();
