@@ -7331,11 +7331,15 @@ async function importFromBookit(file) {
     for(const book of toUpdate) {
       const bookId = getExistingId(book.title);
       if(!bookId) continue;
-      await sb.from('books').update({
+      const upd = {
         status: book.status,
-        date_start: book.date_start||undefined,
-        date_finish: book.date_finish||undefined,
-      }).eq('id', bookId);
+        author: book.author||undefined,
+        publisher: book.publisher||undefined,
+        date_start: book.date_start||null,
+        date_finish: book.date_finish||null,
+      };
+      if(book.rating != null) upd.rating = book.rating;
+      await sb.from('books').update(upd).eq('id', bookId).eq('user_id', currentUser.id);
       insertedIds.push({id: bookId, title: book.title});
     }
 
@@ -7724,6 +7728,36 @@ async function bulkFetchCovers() {
   buildBooks();
   if(progressEl) progressEl.style.display = 'none';
   await showAlert(`✅ 표지 검색 완료!\n성공: ${success}권 / 실패: ${fail}권`);
+}
+
+// ══════════════════════════════════════
+// 북로그 CSV 내보내기
+// ══════════════════════════════════════
+async function downloadBooksCsv() {
+  try {
+    const { data: books, error } = await sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at');
+    if(error) throw error;
+    const statusLabel = {완독:'읽은 책', 읽는중:'읽고 있는 책', 읽고싶음:'읽고 싶은 책', 중단:'중단'};
+    const headers = ['제목','저자','출판사','독서상태','별점','시작일','읽은 날짜','메모'];
+    const rows = (books||[]).map(b => [
+      b.title||'',
+      b.author||'',
+      b.publisher||'',
+      statusLabel[b.status]||b.status||'',
+      b.rating != null ? b.rating : '',
+      b.date_start||'',
+      b.date_finish||'',
+      (b.memo||'').replace(/\n/g,' '),
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+      .join('\r\n');
+    const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `booklog_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  } catch(e) { alert('내보내기 오류: '+e.message); }
 }
 
 // ══════════════════════════════════════
@@ -8232,6 +8266,15 @@ async function buildBoard() {
   await renderBoardList();
 }
 
+async function batchFetchLikes(posts) {
+  if (!posts.length) return {};
+  const ids = posts.map(p => p.id);
+  const { data } = await sb.from('post_likes').select('post_id').in('post_id', ids);
+  const counts = {};
+  (data||[]).forEach(r => { counts[r.post_id] = (counts[r.post_id]||0) + 1; });
+  return counts;
+}
+
 async function renderBoardList() {
   const list = document.getElementById('board-list');
   if(!list) return;
@@ -8247,7 +8290,8 @@ async function renderBoardList() {
     let q = sb.from('posts').select('*',{count:'exact'}).eq('is_notice',true).order('created_at',{ascending:false});
     if(searchQ) q = q.ilike('title', `%${searchQ}%`);
     const { data: posts, count } = await q;
-    renderPostItems(list, posts||[], count||0, catLabel);
+    const likeCounts = await batchFetchLikes(posts||[]);
+    renderPostItems(list, posts||[], count||0, catLabel, likeCounts);
     return;
   }
   // 전체/카테고리 필터에서는 board-notice-wrap 다시 표시
@@ -8261,10 +8305,11 @@ async function renderBoardList() {
   const from = (boardPage-1)*BOARD_PER_PAGE, to = from+BOARD_PER_PAGE-1;
   query = query.range(from, to);
   const { data: posts, count } = await query;
-  renderPostItems(list, posts||[], count||0, catLabel);
+  const likeCounts = await batchFetchLikes(posts||[]);
+  renderPostItems(list, posts||[], count||0, catLabel, likeCounts);
 }
 
-function renderPostItems(list, posts, count, catLabel) {
+function renderPostItems(list, posts, count, catLabel, likeCounts = {}) {
   list.innerHTML = '';
   if(!posts.length) {
     list.innerHTML = '<div class="empty-state" style="padding:2rem;">게시글이 없어요.</div>';
@@ -8291,7 +8336,7 @@ function renderPostItems(list, posts, count, catLabel) {
           </div>
           <div style="flex-shrink:0;text-align:right;padding-left:.3rem;">
             <div class="board-meta" style="margin-bottom:.15rem;">${toKSTDate(p.created_at).slice(5,10).replace('-','.')}</div>
-            <div class="board-meta" style="color:var(--acc);font-size:.63rem;">❤ ${p.likes||0}</div>
+            <div class="board-meta" style="color:var(--acc);font-size:.63rem;">❤ ${likeCounts[p.id]??p.likes??0}</div>
           </div>
         </div>`;
       list.appendChild(el);
@@ -8460,10 +8505,12 @@ async function openPostDetail(postId) {
   if(titleEl) titleEl.textContent = (post.is_notice ? '📌 ' : '') + post.title;
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'}[post.category]||'';
 
-  // 좋아요 중복 방지 - localStorage 기반
-  const { data: likedRow } = await sb.from('post_likes')
-    .select('post_id').eq('post_id', postId).eq('user_id', currentUser.id).single();
+  const [{ data: likedRow }, { count: actualLikeCount }] = await Promise.all([
+    sb.from('post_likes').select('post_id').eq('post_id', postId).eq('user_id', currentUser.id).single(),
+    sb.from('post_likes').select('*', {count:'exact', head:true}).eq('post_id', postId),
+  ]);
   const alreadyLiked = !!likedRow;
+  const likeCount = actualLikeCount ?? post.likes ?? 0;
 
   const commentsHtml = (comms||[]).filter(c=>!c.parent_id).map(c => {
     const replies = (comms||[]).filter(r=>r.parent_id===c.id);
@@ -8514,8 +8561,8 @@ async function openPostDetail(postId) {
         : (post.content||'').replace(/\n/g,'<br>')}
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
-      <button id="post-like-btn-${postId}" onclick="likePost('${postId}')" title="${alreadyLiked?'공감 취소':'공감하기'}" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);" data-liked="${alreadyLiked?'1':'0'}" data-count="${post.likes||0}">
-        ${alreadyLiked?'🩷':'❤️'} ${post.likes||0}${alreadyLiked?' ✓':''}
+      <button id="post-like-btn-${postId}" onclick="likePost('${postId}')" title="${alreadyLiked?'공감 취소':'공감하기'}" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);" data-liked="${alreadyLiked?'1':'0'}" data-count="${likeCount}">
+        ${alreadyLiked?'🩷':'❤️'} ${likeCount}${alreadyLiked?' ✓':''}
       </button>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:.75rem;">

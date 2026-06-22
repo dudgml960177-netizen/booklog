@@ -300,9 +300,9 @@
       <button class="tab" onclick="sw('quotes',this)">문장</button>
       <button class="tab" onclick="sw('record',this)">기록</button>
       <button class="tab" onclick="sw('graph',this)">통계</button>
-      <button class="tab tab-right" id="board-tab" onclick="sw('board',this)" style="position:relative;">산책<span id="board-new-dot" style="display:none;position:absolute;top:4px;right:3px;width:5px;height:5px;background:#e03030;border-radius:50%;box-shadow:0 0 0 1px var(--bg);pointer-events:none;"></span></button>
-      <button class="tab" onclick="openComingSoonModal('박물관')" style="color:var(--tx3);">박물관</button>
+      <button class="tab tab-right" onclick="openComingSoonModal('박물관')" style="color:var(--tx3);">박물관</button>
       <button class="tab" onclick="openComingSoonModal('탐험')" style="color:var(--tx3);">탐험</button>
+      <button class="tab" id="board-tab" onclick="sw('board',this)" style="position:relative;">산책<span id="board-new-dot" style="display:none;position:absolute;top:4px;right:3px;width:5px;height:5px;background:#e03030;border-radius:50%;box-shadow:0 0 0 1px var(--bg);pointer-events:none;"></span></button>
     </div>
   </div>
 
@@ -1159,19 +1159,22 @@
         <input type="file" id="restore-file" accept=".json" style="display:none;" onchange="restoreBackup(this.files[0])">
         <button class="btn-cancel" style="width:100%;" onclick="document.getElementById('restore-file').click()">복원 파일 선택</button>
       </div>
-      <!-- CSV 가져오기 -->
+      <!-- CSV 내보내기/가져오기 -->
       <div style="padding:.7rem .9rem;background:#fff8f0;border:1px solid #f0d4b0;border-radius:var(--rs);margin-bottom:.6rem;">
-        <div style="font-size:.75rem;font-weight:600;color:#8a5a1a;margin-bottom:.3rem;">📚 CSV로 가져오기</div>
-        <div style="font-size:.7rem;color:#9a7a3a;margin-bottom:.3rem;line-height:1.6;">
-          독서 앱에서 내보낸 CSV 파일을 업로드해주세요.<br>
-          <span style="opacity:.7;">※ CSV 형식에 따라 일부 정보가 가져와지지 않을 수 있어요.</span>
+        <div style="font-size:.75rem;font-weight:600;color:#8a5a1a;margin-bottom:.3rem;">📊 CSV 내보내기 / 가져오기</div>
+        <div style="font-size:.7rem;color:#9a7a3a;margin-bottom:.55rem;line-height:1.6;">
+          북로그 CSV에는 별점이 포함돼요. 내보낸 CSV를 다시 가져오면 별점도 반영돼요.<br>
+          <span style="opacity:.7;">※ 북적북적 등 다른 앱 CSV도 가져올 수 있어요. (별점 컬럼 없으면 제외)</span>
         </div>
-        <label style="display:flex;align-items:center;gap:.4rem;font-size:.7rem;color:#8a5a1a;margin-bottom:.5rem;cursor:pointer;">
+        <div style="display:flex;gap:.4rem;margin-bottom:.5rem;">
+          <button style="flex:1;background:#8a5a1a;color:#fff;border:none;border-radius:var(--rs);padding:.4rem;font-size:.73rem;cursor:pointer;font-family:var(--ff);" onclick="downloadBooksCsv()">⬇ CSV 내보내기</button>
+          <input type="file" id="bookit-file" accept=".csv" style="display:none;" onchange="importFromBookit(this.files[0])">
+          <button style="flex:1;background:#a06828;color:#fff;border:none;border-radius:var(--rs);padding:.4rem;font-size:.73rem;cursor:pointer;font-family:var(--ff);" onclick="document.getElementById('bookit-file').click()">⬆ CSV 가져오기</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:#8a5a1a;cursor:pointer;">
           <input type="checkbox" id="bookit-upsert-mode" checked style="accent-color:#8a5a1a;">
-          <span>이미 있는 책은 덮어쓰기</span>
+          <span>겹치는 책은 덮어쓰기 (별점·상태·날짜 전부 업데이트)</span>
         </label>
-        <input type="file" id="bookit-file" accept=".csv" style="display:none;" onchange="importFromBookit(this.files[0])">
-        <button style="width:100%;background:#8a5a1a;color:#fff;border:none;border-radius:var(--rs);padding:.4rem;font-size:.75rem;cursor:pointer;font-family:var(--ff);" onclick="document.getElementById('bookit-file').click()">CSV 파일 선택</button>
       </div>
       <!-- 엑셀 가져오기 -->
       <div style="padding:.7rem .9rem;background:#f0f4ff;border:1px solid #c8d4f0;border-radius:var(--rs);margin-bottom:.6rem;">
