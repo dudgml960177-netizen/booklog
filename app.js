@@ -2175,7 +2175,7 @@ function renderCal() {
   const dows = [...grid.querySelectorAll('.dow')]; grid.innerHTML=''; dows.forEach(d=>grid.appendChild(d));
   const first=new Date(calY,calM,1).getDay(), days=new Date(calY,calM+1,0).getDate(), prev=new Date(calY,calM,0).getDate(), today=new Date();
   // 빈 칸
-  for(let i=0;i<first;i++){const d=document.createElement('div');d.className='day other';const dn=document.createElement('span');dn.textContent=prev-first+1+i;d.appendChild(dn);grid.appendChild(d);}
+  for(let i=0;i<first;i++){const d=document.createElement('div');d.className='day other';const dn=document.createElement('div');dn.style.cssText='width:100%;text-align:center;';dn.textContent=prev-first+1+i;d.appendChild(dn);grid.appendChild(d);}
   for(let d=1;d<=days;d++){
     const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const book=allBooks.find(b=>b.date_finish===ds&&b.status==='완독');
@@ -2258,7 +2258,7 @@ function renderCal() {
     }
     grid.appendChild(el);
   }
-  const rem=42-first-days; for(let i=1;i<=rem;i++){const d=document.createElement('div');d.className='day other';const dn=document.createElement('span');dn.textContent=i;d.appendChild(dn);grid.appendChild(d);}
+  const rem=42-first-days; for(let i=1;i<=rem;i++){const d=document.createElement('div');d.className='day other';const dn=document.createElement('div');dn.style.cssText='width:100%;text-align:center;';dn.textContent=i;d.appendChild(dn);grid.appendChild(d);}
   // 완독 리스트
   const list=document.getElementById('cal-list'); list.innerHTML='';
   const mk=calY+'-'+String(calM+1).padStart(2,'0');
