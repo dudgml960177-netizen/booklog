@@ -8836,24 +8836,36 @@ async function _addLibraryTime(bookId, minutes, date) {
 }
 
 // ── 앱 시작 시 옵저버 구독 (입장 카드 카운트 표시 전용)
+function _updateLibraryBadge() {
+  if(!_libChannel) return;
+  try {
+    const count = Object.values(_libChannel.presenceState()).flat()
+      .filter(m => m.is_observer !== true).length;
+    const badge = document.getElementById('library-entry-count');
+    const num   = document.getElementById('library-entry-num');
+    if(badge) {
+      badge.style.display = count > 0 ? '' : 'none';
+      badge.title = count > 0 ? `현재 ${count}명이 도서관에서 읽고 있어요` : '';
+    }
+    if(num) num.textContent = count;
+  } catch(_) {}
+}
+
 function joinLibraryObserver() {
   if(!currentUser || _libChannel) return;
   _libChannel = sb.channel('bl_library', {
-    config: { presence: { key: currentUser.id + '_obs' } }
+    config: { presence: { key: currentUser.id + '_obs' }, broadcast: { self: false } }
   });
   _libChannel
-    .on('presence', { event: 'sync' }, () => {
-      const count = Object.values(_libChannel.presenceState()).flat().filter(m=>!m.is_observer).length;
-      const badge = document.getElementById('library-entry-count');
-      const num   = document.getElementById('library-entry-num');
-      if(badge) {
-        badge.style.display = count > 0 ? '' : 'none';
-        badge.title = count > 0 ? `현재 ${count}명이 도서관에서 읽고 있어요` : '';
-      }
-      if(num) num.textContent = count;
-    })
+    .on('presence', { event: 'sync' },  _updateLibraryBadge)
+    .on('presence', { event: 'join' },  _updateLibraryBadge)
+    .on('presence', { event: 'leave' }, _updateLibraryBadge)
     .subscribe(async status => {
-      if(status === 'SUBSCRIBED') try { await _libChannel.track({ is_observer: true }); } catch(_) {}
+      if(status === 'SUBSCRIBED') {
+        try { await _libChannel.track({ is_observer: true }); } catch(_) {}
+        // 구독 직후 presenceState가 아직 비어있을 수 있어 딜레이 후 한 번 더 갱신
+        setTimeout(_updateLibraryBadge, 1500);
+      }
     });
 }
 
