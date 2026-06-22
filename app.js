@@ -8723,6 +8723,7 @@ function joinPresence() {
 
 // 전역 상태 (옵저버 채널만 유지 — 실제 입장은 library.html 팝업이 담당)
 let _libChannel = null;
+let _libBcMembers = {}; // broadcast 기반 멤버 맵 (presence 실패자 보완용)
 
 // ── 입장 팝업 열기 (책 목록 채우기)
 function toggleLibGhost() {
@@ -8839,8 +8840,12 @@ async function _addLibraryTime(bookId, minutes, date) {
 function _updateLibraryBadge() {
   if(!_libChannel) return;
   try {
-    const count = Object.values(_libChannel.presenceState()).flat()
-      .filter(m => m.is_observer !== true).length;
+    const presence = Object.values(_libChannel.presenceState()).flat()
+      .filter(m => m.is_observer !== true);
+    const presIds = new Set(presence.map(m => m.user_id).filter(Boolean));
+    // presence에 없는 broadcast 전용 멤버도 합산
+    const bcOnly = Object.values(_libBcMembers).filter(m => !presIds.has(m.user_id));
+    const count = presence.length + bcOnly.length;
     const badge = document.getElementById('library-entry-count');
     const num   = document.getElementById('library-entry-num');
     if(badge) {
@@ -8853,6 +8858,7 @@ function _updateLibraryBadge() {
 
 function joinLibraryObserver() {
   if(!currentUser || _libChannel) return;
+  _libBcMembers = {};
   _libChannel = sb.channel('bl_library', {
     config: { presence: { key: currentUser.id + '_obs' }, broadcast: { self: false } }
   });
@@ -8860,10 +8866,14 @@ function joinLibraryObserver() {
     .on('presence', { event: 'sync' },  _updateLibraryBadge)
     .on('presence', { event: 'join' },  _updateLibraryBadge)
     .on('presence', { event: 'leave' }, _updateLibraryBadge)
+    .on('broadcast', { event: 'bl_join' },      ({ payload: p }) => { if(p?.user_id) { _libBcMembers[p.user_id] = {...p, _seen: Date.now()}; _updateLibraryBadge(); } })
+    .on('broadcast', { event: 'bl_heartbeat' }, ({ payload: p }) => { if(p?.user_id) { _libBcMembers[p.user_id] = {...p, _seen: Date.now()}; _updateLibraryBadge(); } })
+    .on('broadcast', { event: 'bl_leave' },     ({ payload: p }) => { if(p?.user_id) { delete _libBcMembers[p.user_id]; _updateLibraryBadge(); } })
     .subscribe(async status => {
       if(status === 'SUBSCRIBED') {
         try { await _libChannel.track({ is_observer: true }); } catch(_) {}
-        // 구독 직후 presenceState가 아직 비어있을 수 있어 딜레이 후 한 번 더 갱신
+        // bl_hello 전송 → 기존 도서관 멤버들이 bl_heartbeat로 응답 → 카운트 갱신
+        try { _libChannel.send({ type: 'broadcast', event: 'bl_hello', payload: { user_id: currentUser.id + '_obs' } }); } catch(_) {}
         setTimeout(_updateLibraryBadge, 1500);
       }
     });
