@@ -1,13 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- warm cream background -->
   <rect width="64" height="64" rx="10" fill="#ede4d2"/>
-  <!-- calligraphic Bl - italic serif, matching app header style -->
-  <text
-    x="34" y="50"
-    font-family="'DM Serif Display','Georgia','Times New Roman',serif"
-    font-style="italic"
-    font-size="44"
-    font-weight="400"
-    fill="#c47028"
-    text-anchor="middle"
-    letter-spacing="-3">Bl</text>
+  <g stroke="#c47028" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- main oval (Bok body) -->
+    <ellipse cx="26" cy="38" rx="17" ry="9" transform="rotate(-12 26 38)" stroke-width="3"/>
+    <!-- small dot inside oval -->
+    <circle cx="22" cy="39" r="1.8" fill="#c47028" stroke="none"/>
+    <!-- left upward stroke (B upper) -->
+    <path d="M14 32 C12 22 13 14 17 10 C19 7 22 8 21 12" stroke-width="2.8"/>
+    <!-- right loop (L stroke going upper right) -->
+    <path d="M37 30 C42 20 50 12 56 14 C60 16 57 26 50 32 C44 37 38 40 36 46" stroke-width="2.8"/>
+    <!-- bottom tail from oval -->
+    <path d="M20 46 C19 52 22 57 26 56" stroke-width="2.5"/>
+  </g>
 </svg>
