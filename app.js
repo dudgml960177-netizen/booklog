@@ -8855,8 +8855,11 @@ function _updateLibraryBadge() {
     const presence = Object.values(_libChannel.presenceState()).flat()
       .filter(m => m.is_observer !== true);
     const presIds = new Set(presence.map(m => m.user_id).filter(Boolean));
-    // presence에 없는 broadcast 전용 멤버도 합산
-    const bcOnly = Object.values(_libBcMembers).filter(m => !presIds.has(m.user_id));
+    // broadcast 전용 멤버 합산 — 45초 TTL (heartbeat 15초 × 3회)
+    // presence에 이미 있거나 마지막 heartbeat가 45초 이상 지난 경우 제외
+    const cutoff = Date.now() - 45 * 1000;
+    const bcOnly = Object.values(_libBcMembers)
+      .filter(m => !presIds.has(m.user_id) && (m._seen||0) > cutoff);
     const count = presence.length + bcOnly.length;
     const badge = document.getElementById('library-entry-count');
     const num   = document.getElementById('library-entry-num');
@@ -8877,7 +8880,11 @@ function joinLibraryObserver() {
   _libChannel
     .on('presence', { event: 'sync' },  _updateLibraryBadge)
     .on('presence', { event: 'join' },  _updateLibraryBadge)
-    .on('presence', { event: 'leave' }, _updateLibraryBadge)
+    // presence leave 시 _libBcMembers에서도 제거 (이중 카운팅 방지)
+    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      (leftPresences||[]).forEach(p => { if(p.user_id) delete _libBcMembers[p.user_id]; });
+      _updateLibraryBadge();
+    })
     .on('broadcast', { event: 'bl_join' },      ({ payload: p }) => { if(p?.user_id) { _libBcMembers[p.user_id] = {...p, _seen: Date.now()}; _updateLibraryBadge(); } })
     .on('broadcast', { event: 'bl_heartbeat' }, ({ payload: p }) => { if(p?.user_id) { _libBcMembers[p.user_id] = {...p, _seen: Date.now()}; _updateLibraryBadge(); } })
     .on('broadcast', { event: 'bl_leave' },     ({ payload: p }) => { if(p?.user_id) { delete _libBcMembers[p.user_id]; _updateLibraryBadge(); } })
