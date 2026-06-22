@@ -8149,6 +8149,11 @@ async function saveLibraryPublic(val) {
 // ── 모달 유틸
 function openModal(id){const el=document.getElementById(id);if(el){el.style.display='flex';history.pushState({modal:id},'',location.href);}}
 function closeModal(id){document.getElementById(id).style.display='none';}
+function openComingSoonModal(name){
+  const t=document.getElementById('coming-soon-title');
+  if(t) t.textContent=name;
+  openModal('modal-coming-soon');
+}
 // modal overlay click-outside: init에서 등록
 
 // ══════════════════════════════════════
@@ -8219,14 +8224,18 @@ async function renderBoardList() {
   const searchQ = (document.getElementById('board-search')?.value||'').trim();
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'};
 
-  // 공지 필터
+  // 공지 필터: board-notice-wrap 숨기고 board-list에만 표시 (중복 방지)
+  const nWrap = document.getElementById('board-notice-wrap');
   if(boardFilter === 'notice') {
+    if(nWrap) nWrap.style.display = 'none';
     let q = sb.from('posts').select('*',{count:'exact'}).eq('is_notice',true).order('created_at',{ascending:false});
     if(searchQ) q = q.ilike('title', `%${searchQ}%`);
     const { data: posts, count } = await q;
     renderPostItems(list, posts||[], count||0, catLabel);
     return;
   }
+  // 전체/카테고리 필터에서는 board-notice-wrap 다시 표시
+  if(nWrap) nWrap.style.display = '';
 
   // 일반 목록 (전체/카테고리 + 검색)
   let query = sb.from('posts').select('*',{count:'exact'})
@@ -8313,6 +8322,9 @@ async function showMyPosts() {
   const myBtn = document.getElementById('board-mine-btn');
   if(myBtn) myBtn.classList.add('on');
   boardFilter = 'mine'; boardPage = 1;
+  // 내 글 필터에서는 공지 배너 숨기기
+  const nWrap2 = document.getElementById('board-notice-wrap');
+  if(nWrap2) nWrap2.style.display = 'none';
   wrap.innerHTML = '';
   if(!posts?.length) { wrap.innerHTML='<div class="empty-state">작성한 글이 없어요.</div>'; return; }
   const catLabel = {free:'💭 자유', book:'📖 책 이야기', review:'✨ 감상 공유'};
