@@ -8894,6 +8894,8 @@ function joinLibraryObserver() {
         // bl_hello 전송 → 기존 도서관 멤버들이 bl_heartbeat로 응답 → 카운트 갱신
         try { _libChannel.send({ type: 'broadcast', event: 'bl_hello', payload: { user_id: currentUser.id + '_obs' } }); } catch(_) {}
         setTimeout(_updateLibraryBadge, 1500);
+        // 30초마다 TTL 지난 항목 정리 (이벤트 없이도 뱃지가 자동 갱신됨)
+        setInterval(_updateLibraryBadge, 30000);
       }
     });
 }

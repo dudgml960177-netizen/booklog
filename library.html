@@ -597,9 +597,10 @@ async function leaveLibrary(){
   clearInterval(clockTick);
   clearInterval(renderTick);
   if(channel){
-    try{await channel.untrack();}catch(e){}
-    try{await channel.unsubscribe();}catch(e){}
+    const ch=channel;
     channel=null;
+    try{ch.untrack();}catch(e){}      // fire-and-forget (await 하면 네트워크 불량 시 hang)
+    try{ch.unsubscribe();}catch(e){}
   }
   const isInline=localStorage.getItem('bl_lib_from_app')&&!(window.opener&&window.opener!==window);
   localStorage.removeItem('bl_lib_from_app');
@@ -746,7 +747,7 @@ async function init(){
           /* 15초마다: 잔류시간 갱신 + 하트비트 + 오래된 멤버 정리 */
           renderTick=setInterval(()=>{
             sendBc('bl_heartbeat', myPayload);
-            const cutoff=Date.now()-3*60*1000;
+            const cutoff=Date.now()-5*60*1000;
             Object.keys(bcMembers).forEach(uid=>{ if((bcMembers[uid]._seen||0)<cutoff) delete bcMembers[uid]; });
             _renderHash='';
             render();
@@ -758,6 +759,8 @@ async function init(){
             _renderHash='';
             render();
             sendBc('bl_join', myPayload);
+            // bl_hello → 기존 멤버들이 heartbeat로 응답 → 재연결 후 멤버 목록 복원
+            setTimeout(()=>sendBc('bl_hello',{user_id:myUserId}), 800);
           }
         }
 
@@ -783,6 +786,7 @@ document.addEventListener('visibilitychange', async ()=>{
     const st=await channel.track(myPayload,{timeout:5000});
     if(st==='ok'){
       sendBc('bl_join', myPayload);
+      setTimeout(()=>sendBc('bl_hello',{user_id:myUserId}), 600);
       _renderHash='';
       render();
     }
@@ -795,6 +799,7 @@ window.addEventListener('online', async ()=>{
   try{
     await channel.track(myPayload,{timeout:5000});
     sendBc('bl_join', myPayload);
+    setTimeout(()=>sendBc('bl_hello',{user_id:myUserId}), 600);
     _renderHash='';
     render();
   }catch(e){}
