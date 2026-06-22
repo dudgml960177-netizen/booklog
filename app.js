@@ -2216,7 +2216,7 @@ function renderCal() {
       el.className='day'+(isT?' today':'');
       // 날짜 숫자
       const dn=document.createElement('div');
-      dn.textContent=d; dn.style.cssText='font-family:var(--ff-disp);font-size:.7rem;'+(isT?'color:var(--rust);font-style:italic;':'');
+      dn.textContent=d; dn.style.cssText='font-family:var(--ff-disp);font-size:.7rem;width:100%;text-align:center;'+(isT?'color:var(--rust);font-style:italic;':'');
       el.appendChild(dn);
       // 형광펜 바 (타이머·독서 기록 있는 날)
       if(hasActivity){
