@@ -7315,11 +7315,15 @@ async function importFromBookit(file) {
     for(const book of toUpdate) {
       const bookId = getExistingId(book.title);
       if(!bookId) continue;
-      await sb.from('books').update({
+      const upd = {
         status: book.status,
-        date_start: book.date_start||undefined,
-        date_finish: book.date_finish||undefined,
-      }).eq('id', bookId);
+        author: book.author||undefined,
+        publisher: book.publisher||undefined,
+        date_start: book.date_start||null,
+        date_finish: book.date_finish||null,
+      };
+      if(book.rating != null) upd.rating = book.rating;
+      await sb.from('books').update(upd).eq('id', bookId).eq('user_id', currentUser.id);
       insertedIds.push({id: bookId, title: book.title});
     }
 
@@ -7708,6 +7712,36 @@ async function bulkFetchCovers() {
   buildBooks();
   if(progressEl) progressEl.style.display = 'none';
   await showAlert(`✅ 표지 검색 완료!\n성공: ${success}권 / 실패: ${fail}권`);
+}
+
+// ══════════════════════════════════════
+// 북로그 CSV 내보내기
+// ══════════════════════════════════════
+async function downloadBooksCsv() {
+  try {
+    const { data: books, error } = await sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at');
+    if(error) throw error;
+    const statusLabel = {완독:'읽은 책', 읽는중:'읽고 있는 책', 읽고싶음:'읽고 싶은 책', 중단:'중단'};
+    const headers = ['제목','저자','출판사','독서상태','별점','시작일','읽은 날짜','메모'];
+    const rows = (books||[]).map(b => [
+      b.title||'',
+      b.author||'',
+      b.publisher||'',
+      statusLabel[b.status]||b.status||'',
+      b.rating != null ? b.rating : '',
+      b.date_start||'',
+      b.date_finish||'',
+      (b.memo||'').replace(/\n/g,' '),
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))
+      .join('\r\n');
+    const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `booklog_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  } catch(e) { alert('내보내기 오류: '+e.message); }
 }
 
 // ══════════════════════════════════════
