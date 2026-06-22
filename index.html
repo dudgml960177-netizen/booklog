@@ -292,7 +292,9 @@
       <button class="tab" onclick="sw('quotes',this)">문장</button>
       <button class="tab" onclick="sw('record',this)">기록</button>
       <button class="tab" onclick="sw('graph',this)">통계</button>
-      <button class="tab tab-right" id="board-tab" onclick="sw('board',this)" style="position:relative;">산책<span id="board-new-dot" style="display:none;position:absolute;top:4px;right:3px;width:5px;height:5px;background:#e03030;border-radius:50%;box-shadow:0 0 0 1px var(--bg);pointer-events:none;"></span></button>
+      <button class="tab tab-right" onclick="openComingSoonModal('박물관')" style="color:var(--tx3);">박물관</button>
+      <button class="tab" onclick="openComingSoonModal('탐험')" style="color:var(--tx3);">탐험</button>
+      <button class="tab" id="board-tab" onclick="sw('board',this)" style="position:relative;">산책<span id="board-new-dot" style="display:none;position:absolute;top:4px;right:3px;width:5px;height:5px;background:#e03030;border-radius:50%;box-shadow:0 0 0 1px var(--bg);pointer-events:none;"></span></button>
     </div>
   </div>
 

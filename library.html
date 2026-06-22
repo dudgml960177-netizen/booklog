@@ -308,6 +308,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth:{ persistSession:true, storageKey:'booklog-auth', storage:window.localStorage, autoRefreshToken:true }
 });
 
+const ADMIN_ID='191744c3-0cdd-4c15-b08c-6ec82e9ab3f8';
 let params={}, channel=null, joinedAt=null, clockTick=null, renderTick=null, myUserId=null;
 let localSelf=null;       // 본인 payload (즉시 표시용)
 let bcMembers={};         // Broadcast 기반 멤버 맵 {user_id → payload}
@@ -450,12 +451,21 @@ function makeSeatCell(m){
   const badge=isSelf?'<div class="tbl-me">나</div>':'';
   const restBadge=m.is_resting?'<div class="tbl-rest">💤 휴식 중</div>':'';
   const avStyle=m.is_resting?' style="filter:grayscale(1);opacity:.6;transition:filter .25s,opacity .25s;"':'';
+  const kickBtn=(myUserId===ADMIN_ID&&!isSelf)
+    ?`<button onclick="event.stopPropagation();kickMember('${m.user_id}')" style="margin-top:.35rem;font-size:.6rem;padding:.2rem .55rem;border:1px solid #c0392b;border-radius:4px;background:none;color:#c0392b;cursor:pointer;">퇴장</button>`
+    :'';
   return `<div class="tbl-cell">
     ${bubble}
     <div class="tbl-av"${avStyle}>${av}${badge}${restBadge}</div>
     <div class="tbl-name">${esc(name)}</div>
     ${makeBookCard(m)}
+    ${kickBtn}
   </div>`;
+}
+
+function kickMember(uid){
+  if(!confirm('이 멤버를 도서관에서 퇴장시킬까요?')) return;
+  sendBc('bl_kick',{user_id:myUserId, target_id:uid});
 }
 
 /* ── 현재 멤버 목록 ── */
@@ -550,6 +560,12 @@ function handleBcMsg(event,p){
   } else if(event==='bl_leave'){
     delete bcMembers[p.user_id];
     render();
+  } else if(event==='bl_kick'){
+    if(p.target_id===myUserId){
+      alert('관리자에 의해 도서관에서 퇴장 처리되었습니다.');
+      sendBc('bl_leave',{user_id:myUserId});
+      location.replace('index.html');
+    }
   }
 }
 
@@ -652,6 +668,12 @@ async function init(){
   }catch(e){ params={}; }
   console.log('[lib] params:', JSON.stringify(params));
 
+  /* 직접 주소 입력으로 들어온 경우 차단 (params 없음) */
+  if(!params.displayName && !params.isGhost){
+    location.replace('index.html');
+    return;
+  }
+
   /* ── 세션 가져오기 ── */
   let session=null;
   try{
@@ -722,6 +744,7 @@ async function init(){
     .on('broadcast',{event:'bl_heartbeat'}, ({payload:p})=>handleBcMsg('bl_heartbeat',p))
     .on('broadcast',{event:'bl_hello'},     ()=>{ if(myPayload) sendBc('bl_heartbeat',myPayload); })
     .on('broadcast',{event:'bl_leave'},     ({payload:p})=>handleBcMsg('bl_leave',p))
+    .on('broadcast',{event:'bl_kick'},      ({payload:p})=>handleBcMsg('bl_kick',p))
     .subscribe(async status=>{
       console.log('[lib] channel status:',status);
 
