@@ -108,7 +108,7 @@ serve(async (req) => {
       const [authRes, profRes, inviteRes, payRes] = await Promise.all([
         sb.auth.admin.listUsers({ perPage: 1000 }),
         sb.from("profiles").select("id, display_name, role, avatar_url"),
-        sb.from("invite_codes").select("owner_id, used_by").not("used_by", "is", null),
+        sb.from("invite_codes").select("code, owner_id, used_by").not("used_by", "is", null),
         sb.from("payments").select("email").eq("status", "confirmed"),
       ]);
       if (authRes.error) return json({ error: "auth_list_failed", detail: authRes.error.message }, 500);
@@ -123,6 +123,8 @@ serve(async (req) => {
         inviteCodes.filter((r: any) => r.owner_id === r.used_by).map((r: any) => r.used_by)
       );
       const purchaserEmails = new Set((payRes.data || []).map((r: any) => (r.email || "").toLowerCase()));
+      // 가입 시 사용한 코드 (used_by → code)
+      const usedCodeMap = new Map(inviteCodes.map((r: any) => [r.used_by, r.code]));
 
       const profMap = new Map((profRes.data || []).map((p) => [p.id, p]));
       const users = (authRes.data.users || [])
@@ -142,6 +144,7 @@ serve(async (req) => {
             display_name: profMap.get(u.id)?.display_name || u.email?.split("@")[0] || "—",
             role: profMap.get(u.id)?.role || "user",
             join_type,
+            join_code: usedCodeMap.get(u.id) || null,
           };
         })
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -209,6 +212,16 @@ serve(async (req) => {
       const { error } = await sb.auth.admin.deleteUser(user_id);
       if (error) return json({ error: "delete_failed", detail: String(error) }, 500);
 
+      return json({ success: true });
+    }
+
+    // ── 계정 역할 변경 (제한/해제)
+    if (action === "set_role") {
+      const { user_id, role } = body;
+      if (!user_id || !role) return json({ error: "missing_params" }, 400);
+      if (!["user", "admin", "restricted"].includes(role)) return json({ error: "invalid_role" }, 400);
+      const { error: roleErr } = await sb.from("profiles").update({ role }).eq("id", user_id);
+      if (roleErr) return json({ error: "update_failed", detail: roleErr.message }, 500);
       return json({ success: true });
     }
 

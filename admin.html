@@ -63,6 +63,7 @@
     .badge-cancelled { background: #f8d7da; color: #842029; }
     .badge-admin { background: #b07030; color: #fff; }
     .badge-user { background: #e8dcc8; color: #6b4c2a; }
+    .badge-restricted { background: #f8d7da; color: #842029; font-weight: 700; }
     .badge-ok { background: #d1e7dd; color: #0a5d2a; }
     .badge-no { background: #f8d7da; color: #842029; }
     .code-cell { font-family: monospace; font-weight: 700; letter-spacing: .08em; color: var(--acc); }
@@ -498,7 +499,10 @@ function filterUsers() {
   _userSearchQ = q;
   _userPage = 1;
   _userFiltered = q
-    ? _users.filter(u => u.email.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q))
+    ? _users.filter(u =>
+        u.email.toLowerCase().includes(q) ||
+        u.display_name.toLowerCase().includes(q) ||
+        (u.join_code||'').toLowerCase().includes(q))
     : _users;
   const hint = document.getElementById('user-search-hint');
   hint.style.display = q ? '' : 'none';
@@ -535,22 +539,30 @@ function renderUserTable() {
     const lastLogin = u.last_sign_in_at
       ? new Date(u.last_sign_in_at).toLocaleDateString('ko-KR', { month:'2-digit', day:'2-digit' })
       : '—';
-    const roleBadge = u.role === 'admin' ? '<span class="badge badge-admin">관리자</span>' : '<span class="badge badge-user">일반</span>';
+    const roleBadge = u.role === 'admin' ? '<span class="badge badge-admin">관리자</span>'
+      : u.role === 'restricted' ? '<span class="badge badge-restricted">제한됨</span>'
+      : '<span class="badge badge-user">일반</span>';
     const joinBadge = u.join_type === 'invite' ? '<span class="badge badge-invite">초대</span>'
       : u.join_type === 'purchase' ? '<span class="badge badge-purchase">구매</span>'
       : u.join_type === 'both' ? '<span class="badge badge-both">초대+구매</span>'
       : '';
     const emailBadge = u.email_confirmed ? '<span class="badge badge-ok">인증</span>' : '<span class="badge badge-no">미인증</span>';
+    const codeTd = u.join_code ? `<span class="code-cell" style="font-size:.72rem;">${esc(u.join_code)}</span>` : '—';
+    const restrictBtn = u.role === 'restricted'
+      ? `<button class="btn-ghost" onclick="setUserRole('${escAttr(u.id)}','${name}','user')" style="color:#0a5d2a;">✅ 제한해제</button>`
+      : `<button class="btn-ghost" onclick="setUserRole('${escAttr(u.id)}','${name}','restricted')" style="color:#842029;">🚫 제한</button>`;
     const uid = escAttr(u.id), email = escAttr(u.email), name = escAttr(u.display_name);
-    return `<tr>
+    return `<tr${u.role==='restricted'?' style="background:#fff5f5;"':''}>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${esc(u.display_name)}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${email}">${esc(u.email)}</td>
       <td>${roleBadge} ${joinBadge}</td>
       <td>${emailBadge}</td>
+      <td>${codeTd}</td>
       <td>${joinDate}</td>
       <td>${lastLogin}</td>
       <td>
         <div class="action-cell">
+          ${restrictBtn}
           <button class="btn-ghost" onclick="openPwModal('${uid}','${name}')" title="임시 비밀번호 설정">🔐 임시PW</button>
           <button class="btn-ghost" onclick="sendPwReset('${email}')" title="비밀번호 재설정 이메일 발송">🔑 재설정</button>
           <button class="btn-ghost" onclick="openDmModal('${uid}','${name}')" title="쪽지 보내기">💬 쪽지</button>
@@ -562,7 +574,7 @@ function renderUserTable() {
 
   document.getElementById('user-table-wrap').innerHTML = `
     <table><thead><tr>
-      <th>닉네임</th><th>이메일</th><th>역할</th><th>이메일</th><th>가입일</th><th>최근 로그인</th><th>관리</th>
+      <th>닉네임</th><th>이메일</th><th>역할</th><th>이메일</th><th>가입코드</th><th>가입일</th><th>최근 로그인</th><th>관리</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   renderPagination('user', totalPages, _userPage, () => renderUserTable());
 }
@@ -577,6 +589,17 @@ async function sendPwReset(email) {
     const data = await res.json();
     if (!res.ok) alert('오류: ' + (data.error||'') + (data.detail ? '\n'+JSON.stringify(data.detail):''));
     else alert('재설정 이메일을 발송했습니다.');
+  } catch(e) { alert('네트워크 오류: ' + e.message); }
+}
+
+async function setUserRole(userId, displayName, role) {
+  const label = role === 'restricted' ? '제한' : '제한 해제';
+  if (!confirm(`"${displayName}" 계정을 ${label}할까요?`)) return;
+  try {
+    const res = await callUsers({ action: 'set_role', user_id: userId, role });
+    const data = await res.json();
+    if (!res.ok) { alert('오류: ' + (data.error||'') + (data.detail ? '\n'+data.detail:'')); return; }
+    await loadUsers();
   } catch(e) { alert('네트워크 오류: ' + e.message); }
 }
 

@@ -172,7 +172,7 @@ const TRACKER_COLORS = [
 // ── 초기화
 let _loadingRetryTimer = null;
 function showScreen(name) {
-  ['loading','auth','app'].forEach(n => {
+  ['loading','auth','app','restricted'].forEach(n => {
     const el = document.getElementById('screen-'+n);
     if (el) el.style.display = 'none';
   });
@@ -287,6 +287,14 @@ async function startApp(user) {
     // 데이터 로딩 중 SIGNED_OUT 등으로 취소된 경우 앱 화면 진입하지 않음
     if(_appState !== 'starting') {
       clearTimeout(_abortTimer);
+      return;
+    }
+
+    // 제한된 계정 차단
+    if(curUserRole === 'restricted') {
+      clearTimeout(_abortTimer);
+      _appState = 'idle';
+      showScreen('restricted');
       return;
     }
 

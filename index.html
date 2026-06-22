@@ -11,6 +11,14 @@
 </head>
 <body>
 
+<!-- 계정 제한 -->
+<div id="screen-restricted" style="display:none;flex-direction:column;height:100vh;align-items:center;justify-content:center;background:#f2ece0;padding:2rem;text-align:center;">
+  <div style="font-size:2.5rem;margin-bottom:1rem;">🚫</div>
+  <div style="font-size:1.1rem;font-weight:700;color:#2e1f0e;margin-bottom:.6rem;">계정이 제한되었어요</div>
+  <div style="font-size:.9rem;color:#a08c72;line-height:1.7;max-width:280px;">이 계정은 관리자에 의해 접근이 제한되었습니다.<br>문의사항이 있으시면 관리자에게 연락해주세요.</div>
+  <button onclick="sb.auth.signOut().then(()=>location.reload())" style="margin-top:1.5rem;padding:.6rem 1.4rem;border:none;border-radius:20px;background:#c8956c;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;">로그아웃</button>
+</div>
+
 <!-- 로딩 -->
 <div id="screen-loading" style="display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center;background:#f2ece0;">
   <div class="loading-logo">북로그</div>
@@ -1305,6 +1313,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=523"></script>
+<script src="app.js?v=524"></script>
 </body>
 </html>
