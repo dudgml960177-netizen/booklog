@@ -8460,10 +8460,14 @@ async function openPostDetail(postId) {
         </div>
       </div>
       ${replyHtml}
-      <div id="reply-box-${c.id}" style="display:none;margin-top:.4rem;margin-left:1rem;overflow:hidden;">
-        <div style="display:flex;gap:.3rem;">
-          <input type="text" placeholder="답글 입력..." style="flex:1;min-width:0;padding:.3rem .6rem;border:1px solid var(--border2);border-radius:4px;font-size:.75rem;font-family:var(--ff);" id="reply-input-${c.id}">
-          <button onclick="submitReply('${postId}','${c.id}')" class="btn-save" style="padding:.3rem .6rem;font-size:.72rem;">등록</button>
+      <div id="reply-box-${c.id}" style="display:none;margin-top:.5rem;margin-left:1.2rem;">
+        <div style="background:var(--bg);border:1.5px solid var(--border2);border-radius:10px;overflow:hidden;">
+          <textarea id="reply-input-${c.id}" placeholder="답글을 입력해주세요..." rows="2"
+            style="width:100%;box-sizing:border-box;padding:.6rem .75rem;border:none;outline:none;font-size:.78rem;font-family:var(--ff);color:var(--tx1);background:transparent;resize:none;line-height:1.6;"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          <div style="display:flex;justify-content:flex-end;padding:.3rem .45rem;border-top:1px solid var(--border);">
+            <button onclick="submitReply('${postId}','${c.id}')" class="btn-save" style="padding:.3rem .9rem;font-size:.72rem;border-radius:6px;">등록</button>
+          </div>
         </div>
       </div>
     </div>`;
