@@ -301,6 +301,85 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    // ── 활동량 통계
+    if (action === "activity_stats") {
+      const days = typeof body.days === "number" ? Math.min(body.days, 365) : 30;
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const KST = 9 * 3600 * 1000;
+
+      const [booksRes, postsRes, quotesRes, commentsRes,
+             bkTot, ptTot, qtTot, cmTot] = await Promise.all([
+        sb.from("books").select("user_id, created_at").gte("created_at", since).limit(20000),
+        sb.from("posts").select("user_id, created_at").gte("created_at", since).limit(20000),
+        sb.from("quotes").select("user_id, created_at").gte("created_at", since).limit(20000),
+        sb.from("comments").select("user_id, created_at").gte("created_at", since).limit(20000),
+        sb.from("books").select("*", { count: "exact", head: true }),
+        sb.from("posts").select("*", { count: "exact", head: true }),
+        sb.from("quotes").select("*", { count: "exact", head: true }),
+        sb.from("comments").select("*", { count: "exact", head: true }),
+      ]);
+
+      function kstHour(iso: string) { return new Date(new Date(iso).getTime() + KST).getUTCHours(); }
+      function kstWeekday(iso: string) { return (new Date(new Date(iso).getTime() + KST).getUTCDay() + 6) % 7; }
+      function kstDay(iso: string) {
+        const d = new Date(new Date(iso).getTime() + KST);
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
+      }
+
+      const byHour = Array(24).fill(0);
+      const byWeekday = Array(7).fill(0);
+      type DayEntry = { total:number; books:number; posts:number; quotes:number; comments:number; users:Set<string>; };
+      const daily: Record<string, DayEntry> = {};
+      const userAct: Record<string, {books:number;posts:number;quotes:number;comments:number;total:number}> = {};
+
+      function agg(items: any[] | null, type: "books"|"posts"|"quotes"|"comments") {
+        for (const item of (items ?? [])) {
+          byHour[kstHour(item.created_at)]++;
+          byWeekday[kstWeekday(item.created_at)]++;
+          const d = kstDay(item.created_at);
+          if (!daily[d]) daily[d] = { total:0, books:0, posts:0, quotes:0, comments:0, users:new Set() };
+          daily[d].total++;
+          daily[d][type]++;
+          if (item.user_id) { daily[d].users.add(item.user_id); }
+          if (item.user_id) {
+            if (!userAct[item.user_id]) userAct[item.user_id] = { books:0, posts:0, quotes:0, comments:0, total:0 };
+            userAct[item.user_id][type]++;
+            userAct[item.user_id].total++;
+          }
+        }
+      }
+
+      agg(booksRes.data, "books");
+      agg(postsRes.data, "posts");
+      agg(quotesRes.data, "quotes");
+      agg(commentsRes.data, "comments");
+
+      const dailyOut: Record<string, any> = {};
+      for (const [k, v] of Object.entries(daily)) {
+        dailyOut[k] = { total:v.total, books:v.books, posts:v.posts, quotes:v.quotes, comments:v.comments, dau:v.users.size };
+      }
+
+      const topIds = Object.entries(userAct)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 10)
+        .map(([uid, stat]) => ({ user_id: uid, ...stat }));
+
+      const { data: profData } = topIds.length
+        ? await sb.from("profiles").select("id, display_name").in("id", topIds.map(u => u.user_id))
+        : { data: [] };
+      const profMap = new Map((profData ?? []).map((p: any) => [p.id, p.display_name]));
+      const topUsers = topIds.map(u => ({ ...u, display_name: profMap.get(u.user_id) || "—" }));
+
+      return json({
+        totals: { books: bkTot.count ?? 0, posts: ptTot.count ?? 0, quotes: qtTot.count ?? 0, comments: cmTot.count ?? 0 },
+        period_days: days,
+        by_hour: byHour,
+        by_weekday: byWeekday,
+        daily: dailyOut,
+        top_users: topUsers,
+      });
+    }
+
     return json({ error: "unknown_action" }, 400);
   } catch (e) {
     console.error("[admin-users]", e);

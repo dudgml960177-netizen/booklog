@@ -204,6 +204,64 @@
       <div class="chart-title">가입 시간대 분포 (KST 기준)</div>
       <div id="chart-hour"></div>
     </div>
+
+    <!-- ── 활동량 분석 구분선 ── -->
+    <div style="display:flex;align-items:center;gap:.65rem;margin:1.3rem 0 .8rem;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:.7rem;font-weight:700;color:var(--tx3);letter-spacing:.08em;white-space:nowrap;">📊 활동량 분석</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <div id="activity-stats-row" class="stats-row"></div>
+
+    <!-- 접속 시간대 (last_sign_in_at 기반, 즉시 표시) -->
+    <div class="chart-card">
+      <div class="chart-title">접속 시간대 분포 (KST, 최근 로그인 기준)</div>
+      <div id="chart-login-hour"><div class="loading">불러오는 중…</div></div>
+    </div>
+
+    <!-- 활동 시간대 (Edge Function) -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>활동 시간대 분포 (KST)</span>
+        <span style="display:flex;gap:.3rem;">
+          <button class="filter-btn on" id="act-btn-30" onclick="setActivityPeriod(30,this)">30일</button>
+          <button class="filter-btn" id="act-btn-7" onclick="setActivityPeriod(7,this)">7일</button>
+          <button class="filter-btn" id="act-btn-90" onclick="setActivityPeriod(90,this)">90일</button>
+        </span>
+      </div>
+      <div id="chart-activity-hour"><div class="loading">불러오는 중…</div></div>
+    </div>
+
+    <!-- 요일별 활동 -->
+    <div class="chart-card">
+      <div class="chart-title">요일별 활동 분포</div>
+      <div id="chart-activity-weekday"><div class="loading">불러오는 중…</div></div>
+    </div>
+
+    <!-- 일별 추이 (총 활동 / DAU 전환) -->
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>일별 추이</span>
+        <span style="display:flex;gap:.3rem;">
+          <button class="filter-btn on" id="daily-mode-total" onclick="setDailyMode('total',this)">총 활동</button>
+          <button class="filter-btn" id="daily-mode-dau" onclick="setDailyMode('dau',this)">DAU</button>
+        </span>
+      </div>
+      <div id="chart-activity-daily"><div class="loading">불러오는 중…</div></div>
+    </div>
+
+    <!-- 활동 유형 분포 -->
+    <div class="chart-card">
+      <div class="chart-title">활동 유형 분포 (기간 내)</div>
+      <div id="chart-activity-types"><div class="loading">불러오는 중…</div></div>
+    </div>
+
+    <!-- TOP 10 활동 유저 -->
+    <div class="chart-card">
+      <div class="chart-title" id="top-users-title">최다 활동 유저 TOP 10</div>
+      <div id="chart-top-users"><div class="loading">불러오는 중…</div></div>
+    </div>
   </div>
 </div>
 
@@ -282,6 +340,7 @@ function switchTab(tab) {
 
 function refreshCurrent() {
   if (_curTab === 'payment') loadPayments();
+  else if (_curTab === 'analytics') { _activityStats = null; loadUsers(); loadActivityStats(); }
   else loadUsers();
 }
 
@@ -617,6 +676,9 @@ function goPg(ns, p) {
 // 분석
 // ─────────────────────────────────────────
 let _trendPeriod = 'day';
+let _activityStats = null;
+let _actPeriod = 30;
+let _dailyMode = 'total';
 
 function setTrend(period, el) {
   _trendPeriod = period;
@@ -627,11 +689,33 @@ function setTrend(period, el) {
   renderTrendChart();
 }
 
+function setActivityPeriod(days, btn) {
+  _actPeriod = days;
+  [7, 30, 90].forEach(d => {
+    const b = document.getElementById(`act-btn-${d}`);
+    if (b) b.classList.toggle('on', d === days);
+  });
+  _activityStats = null;
+  loadActivityStats();
+}
+
+function setDailyMode(mode, btn) {
+  _dailyMode = mode;
+  ['total','dau'].forEach(m => {
+    const b = document.getElementById(`daily-mode-${m}`);
+    if (b) b.classList.toggle('on', m === mode);
+  });
+  if (_activityStats) renderActivityDailyChart();
+}
+
 function renderAnalytics() {
   renderAnalyticsStats();
   renderJoinTypeChart();
   renderTrendChart();
   renderHourChart();
+  renderLoginHourChart();
+  if (!_activityStats) loadActivityStats();
+  else renderActivityCharts();
 }
 
 function renderAnalyticsStats() {
@@ -751,6 +835,132 @@ function makeBarChart(items, barH = 80) {
     </div>`;
   }).join('');
   return `<div style="display:flex;gap:1px;overflow-x:hidden;">${bars}</div>`;
+}
+
+// ─────────────────────────────────────────
+// 활동량 분석
+// ─────────────────────────────────────────
+const ACT_IDS = ['chart-activity-hour','chart-activity-weekday','chart-activity-daily','chart-activity-types','chart-top-users'];
+
+async function loadActivityStats() {
+  ACT_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = '<div class="loading">불러오는 중…</div>'; });
+  document.getElementById('activity-stats-row').innerHTML = '';
+  try {
+    const res = await callUsers({ action: 'activity_stats', days: _actPeriod });
+    const data = await res.json();
+    if (!res.ok) {
+      if (data.error === 'unknown_action') throw new Error('Edge Function 재배포 필요 — Supabase 대시보드 → Edge Functions → admin-users → Deploy 클릭');
+      throw new Error(data.error || '로드 실패');
+    }
+    _activityStats = data;
+    renderActivityCharts();
+  } catch(e) {
+    const msg = `<div class="empty" style="font-size:.75rem;">${e.message}</div>`;
+    ACT_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = msg; });
+  }
+}
+
+function renderActivityCharts() {
+  if (!_activityStats) return;
+  renderActivityStats();
+  renderActivityHourChart();
+  renderActivityWeekdayChart();
+  renderActivityDailyChart();
+  renderActivityTypesChart();
+  renderTopUsersChart();
+}
+
+function renderActivityStats() {
+  const { totals, daily } = _activityStats;
+  const periodTotal = Object.values(daily || {}).reduce((s, d) => s + d.total, 0);
+  const periodDau = new Set(Object.values(daily || {}).flatMap(d => Array(d.dau).fill(null))).size; // rough
+  document.getElementById('activity-stats-row').innerHTML = `
+    <div class="stat-chip"><b>${totals.books.toLocaleString()}</b>전체 책 기록</div>
+    <div class="stat-chip"><b>${totals.posts.toLocaleString()}</b>전체 게시글</div>
+    <div class="stat-chip"><b>${totals.quotes.toLocaleString()}</b>전체 문장</div>
+    <div class="stat-chip"><b>${totals.comments.toLocaleString()}</b>전체 댓글</div>
+    <div class="stat-chip"><b>${periodTotal.toLocaleString()}</b>최근 ${_actPeriod}일 활동</div>
+    <div class="stat-chip"><b>${Math.round(periodTotal / _actPeriod * 10) / 10}</b>일평균 활동</div>`;
+}
+
+function renderLoginHourChart() {
+  if (!_users.length) { document.getElementById('chart-login-hour').innerHTML = '<div class="empty">데이터 없음</div>'; return; }
+  const hours = Array(24).fill(0);
+  _users.filter(u => u.last_sign_in_at).forEach(u => { hours[(new Date(u.last_sign_in_at).getUTCHours() + 9) % 24]++; });
+  document.getElementById('chart-login-hour').innerHTML = makeBarChart(
+    hours.map((v, h) => ({ label:`${h}시`, shortLabel: h%6===0?`${h}시`:h%3===0?`${h}`:'', value:v }))
+  );
+}
+
+function renderActivityHourChart() {
+  document.getElementById('chart-activity-hour').innerHTML = makeBarChart(
+    (_activityStats.by_hour||Array(24).fill(0)).map((v,h) => ({ label:`${h}시`, shortLabel:h%6===0?`${h}시`:h%3===0?`${h}`:'', value:v }))
+  );
+}
+
+function renderActivityWeekdayChart() {
+  const DAYS = ['월','화','수','목','금','토','일'];
+  document.getElementById('chart-activity-weekday').innerHTML = makeBarChart(
+    (_activityStats.by_weekday||Array(7).fill(0)).map((v,i) => ({ label:DAYS[i], shortLabel:DAYS[i], value:v }))
+  );
+}
+
+function renderActivityDailyChart() {
+  const daily = _activityStats.daily || {};
+  const kstNow = new Date(Date.now() + 9*3600*1000);
+  const items = [];
+  for (let i = _actPeriod-1; i >= 0; i--) {
+    const d = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate()-i));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+    const label = `${d.getUTCMonth()+1}/${d.getUTCDate()}`;
+    const shortLabel = (i===_actPeriod-1||i===0||i%7===0) ? label : '';
+    items.push({ label, shortLabel, value: _dailyMode==='dau' ? (daily[key]?.dau||0) : (daily[key]?.total||0) });
+  }
+  document.getElementById('chart-activity-daily').innerHTML = makeBarChart(items);
+}
+
+function renderActivityTypesChart() {
+  const daily = _activityStats.daily || {};
+  let bk=0, pt=0, qt=0, cm=0;
+  for (const d of Object.values(daily)) { bk+=d.books; pt+=d.posts; qt+=d.quotes; cm+=d.comments; }
+  const total = bk+pt+qt+cm || 1;
+  const groups = [
+    { label:'📚 책 기록', count:bk, color:'#3d9970' },
+    { label:'✍️ 게시글', count:pt, color:'#2176ae' },
+    { label:'✨ 문장',   count:qt, color:'#9b59b6' },
+    { label:'💬 댓글',   count:cm, color:'#c0392b' },
+  ];
+  document.getElementById('chart-activity-types').innerHTML = groups.map(g => {
+    const pct = Math.round((g.count/total)*100);
+    return `<div style="margin-bottom:.55rem;">
+      <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.22rem;">
+        <span>${g.label}</span>
+        <span style="color:var(--tx3);">${g.count.toLocaleString()}회&nbsp;(${pct}%)</span>
+      </div>
+      <div style="background:var(--bg);border-radius:4px;height:10px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${g.color};border-radius:4px;min-width:${g.count?'3px':'0'};"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTopUsersChart() {
+  const users = _activityStats.top_users || [];
+  const el = document.getElementById('chart-top-users');
+  if (!users.length) { el.innerHTML = '<div class="empty">데이터 없음</div>'; return; }
+  const rows = users.map((u,i) => `<tr>
+    <td style="color:var(--tx3);width:1.8rem;">${i+1}</td>
+    <td><b>${esc(u.display_name)}</b></td>
+    <td style="text-align:center;">${u.books}</td>
+    <td style="text-align:center;">${u.posts}</td>
+    <td style="text-align:center;">${u.quotes}</td>
+    <td style="text-align:center;">${u.comments}</td>
+    <td style="text-align:center;font-weight:700;color:var(--acc);">${u.total}</td>
+  </tr>`).join('');
+  el.innerHTML = `<div style="overflow-x:auto;"><table style="font-size:.75rem;min-width:360px;">
+    <thead><tr><th>#</th><th>닉네임</th><th style="text-align:center;">📚</th><th style="text-align:center;">✍️</th><th style="text-align:center;">✨</th><th style="text-align:center;">💬</th><th style="text-align:center;">합계</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+  document.getElementById('top-users-title').textContent = `최다 활동 유저 TOP 10 (최근 ${_actPeriod}일)`;
 }
 
 // ESC로 모달 닫기
