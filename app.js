@@ -8863,9 +8863,9 @@ function _updateLibraryBadge() {
     const presence = Object.values(_libChannel.presenceState()).flat()
       .filter(m => m.is_observer !== true);
     const presIds = new Set(presence.map(m => m.user_id).filter(Boolean));
-    // broadcast 전용 멤버 합산 — 45초 TTL (heartbeat 15초 × 3회)
-    // presence에 이미 있거나 마지막 heartbeat가 45초 이상 지난 경우 제외
-    const cutoff = Date.now() - 45 * 1000;
+    // broadcast 전용 멤버 합산 — 3분 TTL (heartbeat 15초 × 12회)
+    // presence에 이미 있거나 마지막 heartbeat가 3분 이상 지난 경우 제외
+    const cutoff = Date.now() - 3 * 60 * 1000;
     const bcOnly = Object.values(_libBcMembers)
       .filter(m => !presIds.has(m.user_id) && (m._seen||0) > cutoff);
     const count = presence.length + bcOnly.length;
@@ -8902,8 +8902,12 @@ function joinLibraryObserver() {
         // bl_hello 전송 → 기존 도서관 멤버들이 bl_heartbeat로 응답 → 카운트 갱신
         try { _libChannel.send({ type: 'broadcast', event: 'bl_hello', payload: { user_id: currentUser.id + '_obs' } }); } catch(_) {}
         setTimeout(_updateLibraryBadge, 1500);
-        // 30초마다 TTL 지난 항목 정리 (이벤트 없이도 뱃지가 자동 갱신됨)
+        // 30초마다 TTL 지난 항목 정리
         setInterval(_updateLibraryBadge, 30000);
+        // 60초마다 bl_hello 재전송 → 멤버들이 heartbeat로 응답 → 누락 방지
+        setInterval(() => {
+          try { _libChannel?.send({ type: 'broadcast', event: 'bl_hello', payload: { user_id: currentUser.id + '_obs' } }); } catch(_) {}
+        }, 60000);
       }
     });
 }
