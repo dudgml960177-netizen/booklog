@@ -548,10 +548,10 @@ function renderUserTable() {
       : '';
     const emailBadge = u.email_confirmed ? '<span class="badge badge-ok">인증</span>' : '<span class="badge badge-no">미인증</span>';
     const codeTd = u.join_code ? `<span class="code-cell" style="font-size:.72rem;">${esc(u.join_code)}</span>` : '—';
-    const restrictBtn = u.role === 'restricted'
-      ? `<button class="btn-ghost" onclick="setUserRole('${escAttr(u.id)}','${name}','user')" style="color:#0a5d2a;">✅ 제한해제</button>`
-      : `<button class="btn-ghost" onclick="setUserRole('${escAttr(u.id)}','${name}','restricted')" style="color:#842029;">🚫 제한</button>`;
     const uid = escAttr(u.id), email = escAttr(u.email), name = escAttr(u.display_name);
+    const restrictBtn = u.role === 'restricted'
+      ? `<button class="btn-ghost" onclick="setUserRole('${uid}','${name}','user')" style="color:#0a5d2a;">✅ 제한해제</button>`
+      : `<button class="btn-ghost" onclick="setUserRole('${uid}','${name}','restricted')" style="color:#842029;">🚫 제한</button>`;
     return `<tr${u.role==='restricted'?' style="background:#fff5f5;"':''}>
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${esc(u.display_name)}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${email}">${esc(u.email)}</td>
