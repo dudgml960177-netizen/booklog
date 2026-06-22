@@ -712,7 +712,11 @@ async function doSignup() {
   const name  = document.getElementById('signup-name').value.trim();
   const code  = document.getElementById('signup-code').value.trim().toUpperCase();
   if (!name) { showAuthError('닉네임을 입력해주세요.'); return; }
+  if (name.length > 12) { showAuthError('닉네임은 12자 이내로 입력해주세요.'); return; }
   if (!code) { showAuthError('초대코드를 입력해주세요.'); return; }
+  // 닉네임 중복 확인
+  const { data: dupCheck } = await sb.from('profiles').select('id').eq('display_name', name).maybeSingle();
+  if (dupCheck) { showAuthError('이미 사용 중인 닉네임이에요.'); return; }
   // 초대코드 검증
   const { data: codeRow, error: codeErr } = await sb
     .from('invite_codes').select('*').eq('code', code).single();
@@ -6694,6 +6698,10 @@ function submitContact() {
 async function saveProfile() {
   const name = document.getElementById('profile-display-name')?.value.trim();
   if(!name){alert('닉네임을 입력해주세요.');return;}
+  if(name.length > 12){alert('닉네임은 12자 이내로 입력해주세요.');return;}
+  // 닉네임 중복 확인 (본인 제외)
+  const { data: dupCheck } = await sb.from('profiles').select('id').eq('display_name', name).neq('id', currentUser.id).maybeSingle();
+  if(dupCheck){alert('이미 사용 중인 닉네임이에요.');return;}
   const saveBtn = document.querySelector('#modal-profile .btn-save, #modal-profile [onclick*="saveProfile"]');
   if(saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '저장 중...'; }
   try {
