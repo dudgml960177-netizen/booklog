@@ -8486,7 +8486,7 @@ async function openPostDetail(postId) {
         : (post.content||'').replace(/\n/g,'<br>')}
     </div>
     <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
-      <button onclick="likePost('${postId}')" title="${alreadyLiked?'공감 취소':'공감하기'}" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);">
+      <button id="post-like-btn-${postId}" onclick="likePost('${postId}')" title="${alreadyLiked?'공감 취소':'공감하기'}" style="font-size:.75rem;padding:.28rem .7rem;border:1px solid var(--border2);border-radius:4px;background:${alreadyLiked?'#ede4d0':'none'};cursor:pointer;color:var(--tx2);" data-liked="${alreadyLiked?'1':'0'}" data-count="${post.likes||0}">
         ${alreadyLiked?'🩷':'❤️'} ${post.likes||0}${alreadyLiked?' ✓':''}
       </button>
     </div>
@@ -8559,8 +8559,21 @@ async function openBanModal(userId) {
 
 
 async function likePost(postId) {
+  // 낙관적 업데이트 — DB 응답 전에 즉시 UI 반영
+  const likeBtn = document.getElementById(`post-like-btn-${postId}`);
+  if(likeBtn) {
+    const wasLiked = likeBtn.dataset.liked === '1';
+    const newLiked = !wasLiked;
+    const newCount = parseInt(likeBtn.dataset.count||'0') + (newLiked ? 1 : -1);
+    likeBtn.dataset.liked = newLiked ? '1' : '0';
+    likeBtn.dataset.count = newCount;
+    likeBtn.style.background = newLiked ? '#ede4d0' : 'none';
+    likeBtn.innerHTML = `${newLiked?'🩷':'❤️'} ${newCount}${newLiked?' ✓':''}`;
+    likeBtn.disabled = true;
+  }
+
   const { data: myProfile } = await sb.from('profiles').select('is_banned').eq('id',currentUser.id).single();
-  if(myProfile?.is_banned) { alert('계정이 제한되어 공감할 수 없어요.'); return; }
+  if(myProfile?.is_banned) { if(likeBtn){likeBtn.disabled=false;} alert('계정이 제한되어 공감할 수 없어요.'); return; }
 
   const { data: existing } = await sb.from('post_likes')
     .select('post_id').eq('post_id', postId).eq('user_id', currentUser.id).single();
@@ -8831,8 +8844,13 @@ function joinLibraryObserver() {
   _libChannel
     .on('presence', { event: 'sync' }, () => {
       const count = Object.values(_libChannel.presenceState()).flat().filter(m=>!m.is_observer).length;
-      const el = document.getElementById('library-entry-count');
-      if(el) el.textContent = count > 0 ? `지금 ${count}명이 조용히 읽고 있어요` : '지금은 아무도 없어요. 먼저 들어가볼까요?';
+      const badge = document.getElementById('library-entry-count');
+      const num   = document.getElementById('library-entry-num');
+      if(badge) {
+        badge.style.display = count > 0 ? '' : 'none';
+        badge.title = count > 0 ? `현재 ${count}명이 도서관에서 읽고 있어요` : '';
+      }
+      if(num) num.textContent = count;
     })
     .subscribe(async status => {
       if(status === 'SUBSCRIBED') try { await _libChannel.track({ is_observer: true }); } catch(_) {}
