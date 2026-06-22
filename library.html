@@ -672,8 +672,8 @@ async function init(){
   }catch(e){ console.warn('[lib] getSession error',e); }
 
   if(!session?.user){
-    console.warn('[lib] no session');
-    document.getElementById('lib-main').innerHTML=`<div class="empty"><div class="empty-icon">🔒</div><div class="empty-txt">로그인이 필요해요.<br>북로그에서 로그인 후 다시 시도해주세요.</div></div>`;
+    console.warn('[lib] no session → redirect to login');
+    location.replace('index.html');
     return;
   }
   console.log('[lib] session ok, uid:', session.user.id);
