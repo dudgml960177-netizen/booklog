@@ -66,6 +66,14 @@ body:not(.app-on) #fab-add-book { display: none !important; }
     width: 36px !important; height: 36px !important; color: var(--tx2) !important;
   }
   .header-btn:active { background: var(--border) !important; }
+  /* 모바일 헤더는 로고 + 알림 + 메뉴만. 나머지는 더보기 시트로 이동 */
+  .header-btn[onclick*="surfLibrary"],
+  .header-btn[onclick*="openSocialModal"],
+  .header-btn[onclick*="modal-backup"],
+  .header-btn[onclick*="openAddBook"] { display: none !important; }
+  /* 헤더 자체를 더 컴팩트하게 (웹 툴바 느낌 줄이기) */
+  .header-inner { padding: .45rem .9rem !important; }
+  .header-logo svg { width: 60px !important; height: 44px !important; }
 
   /* ── 서재 툴바 아이콘(정렬/뷰/카테고리/선택): 보더 제거 + 통일 ── */
   .view-btn {
