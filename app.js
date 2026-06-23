@@ -248,23 +248,25 @@ async function startApp(user) {
   _appState = 'starting';
   showScreen('loading');
 
-  // 20초 절대 타임아웃 — 네트워크 불량/세션 오염/SIGNED_OUT 등으로 로딩 화면에서 탈출
-  const _abortTimer = setTimeout(() => {
+  // 14초 절대 타임아웃 — 네트워크 불량/세션 오염 등으로 로딩 화면에서 탈출
+  // (탈출 시 손상 세션을 반드시 정리해야 새로고침 무한 멈춤이 안 생김)
+  const _abortTimer = setTimeout(async () => {
     const loadEl = document.getElementById('screen-loading');
     const isLoadingVisible = loadEl && loadEl.style.display !== 'none';
     if(isLoadingVisible && _appState !== 'running') {
-      console.warn('[startApp] 타임아웃 — 인증 화면으로 복귀');
+      console.warn('[startApp] 타임아웃 — 손상 세션 정리 후 인증 화면으로 복귀');
       _appState = 'idle';
       currentUser = null;
+      try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
       showScreen('auth');
       loadSavedEmail();
     }
-  }, 20000);
+  }, 14000);
 
   try {
     currentUser = user;
     // 데이터 로딩 (타임아웃 없이 완전히 기다림 - 중간에 강제 종료 시 데이터 누락)
-    const _loadTimeout = new Promise(res => setTimeout(res, 15000)); // 15초 최대
+    const _loadTimeout = new Promise(res => setTimeout(res, 10000)); // 10초 최대
     await Promise.race([
       Promise.all([
         typeof loadData === 'function' ? loadData().catch(e=>console.warn(e)) : Promise.resolve(),
@@ -341,6 +343,7 @@ async function startApp(user) {
     if(_appState === 'starting') {
       _appState = 'idle';
       currentUser = null;
+      try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
       showScreen('auth');
       loadSavedEmail();
     }
@@ -496,7 +499,7 @@ async function _initSession(retry=0) {
     // 5초 타임아웃 — 손상된 토큰/네트워크 불량으로 getSession이 무한 대기하는 상황 방지
     const sessionRace = Promise.race([
       sb.auth.getSession(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('session_timeout')), 5000))
+      new Promise((_, rej) => setTimeout(() => rej(new Error('session_timeout')), 4000))
     ]);
     const { data: { session }, error } = await sessionRace;
     if(error) throw error;
@@ -1745,6 +1748,11 @@ function renderQuotes() {
       // 태그 없는 경우도 처리
       if(!text.includes('<')) text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
     }
+    // 저장된 흰색/색상 글자가 안 보이는 문제 방지: 글자색 지정 제거 (형광펜 background는 유지)
+    text = text
+      .replace(/color\s*:\s*[^;"']+;?/gi, '')          // style="color:..."
+      .replace(/\scolor\s*=\s*["'][^"']*["']/gi, '')     // <font color="...">
+      .replace(/<\/?font[^>]*>/gi, '');                  // <font> 태그 자체 제거
     const plainLen = (qt.text||'').replace(/<[^>]+>/g,'').length;
     const isLong = plainLen > 150;
 
@@ -6250,7 +6258,12 @@ async function saveBook() {
   const existing=editingBookId?allBooks.find(b=>b.id===editingBookId):null;
   if(existing?.rating && existing.rating <= 2 && curRating && curRating >= 4) localStorage.setItem('bl_rating_revised_up', '1');
   const reviewShared=document.getElementById('book-review-shared')?.checked||false;
-  const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:dateStart||null,date_finish:dateFinish||null,review,reread,pages,source:source||null,category:category||null,review_shared:review?reviewShared:false};
+  // 상태별 날짜 정리: 완독/다시읽기만 완독일 보유, 읽고싶음은 날짜 없음
+  // (읽고싶음·읽는중 책이 달력/통계에 표지로 잘못 반영되는 문제 방지)
+  const _isDoneStatus=(curStatus==='완독'||curStatus==='다시읽기');
+  const _dfv=_isDoneStatus?(dateFinish||null):null;
+  const _dsv=(curStatus==='읽고싶음')?null:(dateStart||null);
+  const bookData={user_id:currentUser.id,title:selectedBook?.title||existing?.title||'',author:selectedBook?.author||existing?.author||'',publisher:selectedBook?.publisher||existing?.publisher||'',cover:selectedBook?.cover||existing?.cover||'',description:selectedBook?.description||existing?.description||'',isbn:selectedBook?.isbn||existing?.isbn||'',genre:genre?[genre]:[],rating:curRating||null,status:curStatus,date_start:_dsv,date_finish:_dfv,review,reread,pages,source:source||null,category:category||null,review_shared:review?reviewShared:false};
   try {
     let bookId=editingBookId;
     if(editingBookId){const{error}=await sb.from('books').update(bookData).eq('id',editingBookId);if(error)throw error;await sb.from('quotes').delete().eq('book_id',editingBookId);}
