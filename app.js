@@ -962,8 +962,12 @@ function getFilteredBooks() {
     // 제목 가나다순 → 동일 제목이면 저자순, 그 다음 최신 추가순
     list.sort((a, b) => _ko(a.title, b.title) || _ko(a.author, b.author) || _dd(a.created_at, b.created_at));
   } else if (curSort === 'finish') {
-    // 완독일 최신순 → 완독일 없는 책은 맨 뒤, 동일하면 최신 추가순
-    list.sort((a, b) => _dd(a.date_finish, b.date_finish) || _dd(a.created_at, b.created_at));
+    // 완독일 최신순 → 완독 상태가 아닌 책의 date_finish는 무시, 없으면 맨 뒤
+    list.sort((a, b) => {
+      const da = a.status === '완독' ? a.date_finish : null;
+      const db = b.status === '완독' ? b.date_finish : null;
+      return _dd(da, db) || _dd(a.created_at, b.created_at);
+    });
   }
   return list;
 }
