@@ -919,19 +919,51 @@ function getFilteredBooks() {
       (b.publisher||'').toLowerCase().includes(booksSearchQ)
     );
   }
+  // 정렬 보조 함수
+  const _ts = d => d ? new Date(d).getTime() : null;
+  const _ko = (a, b) => (a||'').localeCompare(b||'', 'ko');
+  const _dd = (da, db) => { // 날짜 내림차순, null은 항상 맨 뒤
+    const ta = _ts(da), tb = _ts(db);
+    if (ta === tb) return 0;
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return tb - ta;
+  };
   // 정렬
-  if(curSort === 'recent') {
-    list.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
-  } else if(curSort === 'oldest') {
-    list.sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
-  } else if(curSort === 'rating_high') {
-    list.sort((a,b) => (b.rating||0) - (a.rating||0));
-  } else if(curSort === 'rating_low') {
-    list.sort((a,b) => (a.rating||0) - (b.rating||0));
-  } else if(curSort === 'title') {
-    list.sort((a,b) => (a.title||'').localeCompare(b.title||'', 'ko'));
-  } else if(curSort === 'finish') {
-    list.sort((a,b) => new Date(b.date_finish||0) - new Date(a.date_finish||0));
+  if (curSort === 'recent') {
+    // 최신 추가순 → 추가일 내림차순, 동일하면 제목순
+    list.sort((a, b) => _dd(a.created_at, b.created_at) || _ko(a.title, b.title));
+  } else if (curSort === 'oldest') {
+    // 오래된 추가순 → 추가일 오름차순, 동일하면 제목순
+    list.sort((a, b) => {
+      const ta = _ts(a.created_at), tb = _ts(b.created_at);
+      if (ta == null && tb == null) return _ko(a.title, b.title);
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return (ta - tb) || _ko(a.title, b.title);
+    });
+  } else if (curSort === 'rating_high') {
+    // 별점 높은순 → 무평점은 맨 뒤, 동일 별점이면 최신 추가순
+    list.sort((a, b) => {
+      const ra = a.rating ?? 0, rb = b.rating ?? 0;
+      if (!ra && rb) return 1;
+      if (ra && !rb) return -1;
+      return (rb - ra) || _dd(a.created_at, b.created_at);
+    });
+  } else if (curSort === 'rating_low') {
+    // 별점 낮은순 → 무평점은 맨 뒤, 동일 별점이면 최신 추가순
+    list.sort((a, b) => {
+      const ra = a.rating ?? 0, rb = b.rating ?? 0;
+      if (!ra && rb) return 1;
+      if (ra && !rb) return -1;
+      return (ra - rb) || _dd(a.created_at, b.created_at);
+    });
+  } else if (curSort === 'title') {
+    // 제목 가나다순 → 동일 제목이면 저자순, 그 다음 최신 추가순
+    list.sort((a, b) => _ko(a.title, b.title) || _ko(a.author, b.author) || _dd(a.created_at, b.created_at));
+  } else if (curSort === 'finish') {
+    // 완독일 최신순 → 완독일 없는 책은 맨 뒤, 동일하면 최신 추가순
+    list.sort((a, b) => _dd(a.date_finish, b.date_finish) || _dd(a.created_at, b.created_at));
   }
   return list;
 }
