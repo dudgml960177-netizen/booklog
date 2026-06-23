@@ -3,7 +3,7 @@
    기존 sw() 패널 전환 로직을 재사용하고, 하단바 활성표시만 관리.
    ========================================================= */
 (function () {
-  var REAL = ['books', 'record', 'graph', 'board']; // 하단바 직행 패널
+  var REAL = ['books', 'quotes', 'record', 'graph', 'board']; // 하단바 직행 패널
 
   // 앱 화면(로그인 후)에서만 하단바가 보이도록 body 클래스 토글
   if (typeof window.showScreen === 'function') {
