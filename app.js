@@ -4776,8 +4776,10 @@ function buildMonthly() {
       });
       const maxYearPages=Math.max(...YEARS.map(y=>pagesByYear[y]||0),1);
 
-      // ── 전체 연도 히트맵 뷰
-      YEARS.forEach(y=>{
+      // ── 전체 연도 히트맵 뷰 (연도 많으면 오래된 연도 접기)
+      const HM_MAX=6;
+      const hmHide=Math.max(0,YEARS.length-HM_MAX);
+      YEARS.forEach((y,_idx)=>{
         const c=YC[y]||{line:'#8a7060'};
         const vals=Array(12).fill(0);
         done.filter(b=>parseInt(b.date_finish.slice(0,4))===y).forEach(b=>vals[parseInt(b.date_finish.slice(5,7))-1]++);
@@ -4787,6 +4789,7 @@ function buildMonthly() {
         const row=document.createElement('div');
         row.className='hm-row';
         row.style.cssText='display:flex;align-items:center;gap:.55rem;margin-bottom:.4rem;';
+        if(_idx<hmHide){ row.classList.add('hm-row-collapsed'); row.style.display='none'; }
         const yl=document.createElement('div');
         yl.className='hm-year';
         yl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.8rem;color:${c.line};min-width:34px;line-height:1;`;
@@ -4819,6 +4822,21 @@ function buildMonthly() {
         row.appendChild(yl);row.appendChild(cells);row.appendChild(tl);row.appendChild(pl);
         viz.appendChild(row);
       });
+      // 연도 많으면 오래된 연도 접기 토글 (맨 위)
+      if(hmHide>0){
+        const moreBtn=document.createElement('button');
+        moreBtn.className='hm-more-btn';
+        moreBtn.style.cssText='display:block;width:100%;text-align:center;background:none;border:none;border-bottom:1px dashed var(--border2);color:var(--tx3);font-family:var(--ff);font-size:.62rem;padding:.25rem 0 .45rem;margin-bottom:.45rem;cursor:pointer;';
+        let hmShown=false;
+        const setHmLabel=()=>{ moreBtn.textContent = hmShown ? '접기 ▴' : `이전 연도 ${hmHide}개 더 보기 ▾`; };
+        setHmLabel();
+        moreBtn.onclick=()=>{
+          hmShown=!hmShown;
+          viz.querySelectorAll('.hm-row-collapsed').forEach(r=>{ r.style.display = hmShown ? 'flex' : 'none'; });
+          setHmLabel();
+        };
+        viz.insertBefore(moreBtn, secLabel.nextSibling);
+      }
       // 월 레이블
       const lr=document.createElement('div');
       lr.style.cssText='display:flex;align-items:center;gap:.55rem;margin-top:.15rem;';

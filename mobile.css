@@ -107,11 +107,22 @@ body:not(.app-on) #fab-add-book { display: none !important; }
   .hm-pages { font-size: .62rem !important; }
 
   /* ── 산책 / 문장: 검색창·필터칩 터치 ── */
-  .search-input { font-size: .9rem !important; padding: .65rem .9rem !important; }
+  .search-input { font-size: .88rem !important; padding: .6rem .85rem !important; }
+  /* 산책 필터칩(전체/공지/내글): 작고 단정하게 */
   .filter-btn[id^="board-"] {
-    font-size: .82rem !important; padding: .45rem .95rem !important; border-radius: 999px !important;
+    font-size: .72rem !important; padding: .3rem .8rem !important; border-radius: 999px !important;
+  }
+  /* 글쓰기 버튼: 덜 투박하게 */
+  button[onclick="openPostWrite()"] {
+    font-size: .7rem !important; padding: .33rem .8rem !important;
   }
   .q-filter { gap: 6px !important; }
+
+  /* ── 통계: 모바일에서 그래프를 위로 (목표 다음, 지표/전리품 위) ── */
+  #p-graph.on { display: flex !important; flex-direction: column; }
+  #p-graph > #graph-section { order: 1; }
+  #p-graph > #stat-grid { order: 2; }
+  #p-graph > #lifetime-section { order: 3; }
 
   /* ── 카드 전반: 더 둥글고 부드럽게 (앱 느낌, 투박함 완화) ── */
   .card,

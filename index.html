@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="북로그">
   <link rel="stylesheet" href="style.css?v=2">
-  <link rel="stylesheet" href="mobile.css?v=11">
+  <link rel="stylesheet" href="mobile.css?v=12">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -546,7 +546,7 @@
         </div>
 
         <!-- 그래프 -->
-        <div style="margin-bottom:.8rem;">
+        <div id="graph-section" style="margin-bottom:.8rem;">
           <div class="gtabs">
             <button class="gst on" onclick="showGraph('monthly',this)">월별</button>
             <button class="gst" onclick="showGraph('genre',this)">장르</button>
@@ -569,7 +569,7 @@
         </div>
 
         <!-- 평생 기록 -->
-        <div style="padding:.65rem .8rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);">
+        <div id="lifetime-section" style="padding:.65rem .8rem .8rem;background:var(--card);border:1px solid var(--border);border-radius:var(--r);">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">
             <div style="font-size:.62rem;font-weight:600;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;">평생 독서 기록</div>
           </div>
@@ -1379,7 +1379,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
-<script src="app.js?v=526"></script>
+<script src="app.js?v=527"></script>
 <script src="mobile.js?v=3"></script>
 <script>
   // PWA 서비스 워커 등록
