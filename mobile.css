@@ -18,9 +18,9 @@
     padding: 1rem 1rem calc(76px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* 하단 탭바 */
+  /* 하단 탭바 — 앱 화면(로그인 후)에서만 표시 */
   .mnav {
-    display: flex;
+    display: none;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
     background: var(--card);
     border-top: 1px solid var(--border2);
@@ -28,6 +28,7 @@
     align-items: stretch;
     box-shadow: 0 -2px 14px rgba(70, 40, 10, 0.06);
   }
+  body.app-on .mnav { display: flex; }
   .mnav-i {
     flex: 1; background: none; border: none; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -50,29 +51,31 @@
     font-size: 1.7rem !important;
   }
 
-  /* ── 서재 갤러리: 4열 (표지 깔끔하게) ── */
-  .gallery { grid-template-columns: repeat(4, 1fr) !important; gap: 10px !important; }
-  .gi { padding: 0 !important; border: none !important; background: none !important; overflow: visible !important; }
+  /* ── 서재 갤러리: 4열 + 기존 웹 카드 디자인 유지 ── */
+  .gallery { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
   .gi:hover { transform: none !important; box-shadow: none !important; }
-  .gi-cover {
-    border-radius: 6px !important; margin-bottom: 5px !important;
-    box-shadow: 0 1px 6px rgba(70, 40, 10, 0.16) !important;
-  }
-  .gi-title { font-size: .64rem !important; white-space: nowrap !important; line-height: 1.25 !important; }
-  .gi-author { font-size: .56rem !important; margin-top: 1px !important; }
-  .gi-stars { font-size: .58rem !important; margin-top: 2px !important; }
-  /* 모바일에선 호버 말풍선 비활성화 (탭하면 상세 모달) */
+  /* 터치엔 호버 말풍선이 안 뜨므로 비활성화 (탭하면 상세 모달) */
   .gi-thought { display: none !important; }
 
-  /* ── 필터칩: 둥근 알약 + 터치영역 ── */
-  .filter-btn {
-    font-size: .8rem !important; padding: .42rem .95rem !important;
-    border-radius: 999px !important;
+  /* ── 헤더 아이콘 버튼: 박스 보더 제거 → 깔끔한 아이콘 ── */
+  .header-btn {
+    border: none !important; background: none !important;
+    width: 36px !important; height: 36px !important; color: var(--tx2) !important;
   }
-  /* 정렬/뷰/카테고리/선택 버튼 터치영역 키우기 */
-  .view-btn { width: 38px !important; height: 38px !important; font-size: 1.05rem !important; }
-  .cat-btn { height: 38px !important; font-size: .8rem !important; }
-  #sort-select { font-size: .78rem !important; padding: .3rem .5rem !important; max-width: none !important; }
+  .header-btn:active { background: var(--border) !important; }
+
+  /* ── 서재 툴바 아이콘(정렬/뷰/카테고리/선택): 보더 제거 + 통일 ── */
+  .view-btn {
+    border: none !important; background: none !important;
+    width: 36px !important; height: 36px !important;
+    font-size: 1.1rem !important; color: var(--tx3) !important; border-radius: 8px !important;
+  }
+  .view-btn.on { background: var(--acc) !important; color: #fff !important; }
+  .cat-btn {
+    border: none !important; background: none !important;
+    height: 36px !important; font-size: .85rem !important;
+    color: var(--tx2) !important; padding: 0 .45rem !important;
+  }
 
   /* ── 리스트 뷰 터치 영역 ── */
   .book-list-item { padding: .8rem .9rem !important; }

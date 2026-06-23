@@ -5,6 +5,15 @@
 (function () {
   var REAL = ['books', 'record', 'graph', 'board']; // 하단바 직행 패널
 
+  // 앱 화면(로그인 후)에서만 하단바가 보이도록 body 클래스 토글
+  if (typeof window.showScreen === 'function') {
+    var _showScreen = window.showScreen;
+    window.showScreen = function (name) {
+      _showScreen(name);
+      document.body.classList.toggle('app-on', name === 'app');
+    };
+  }
+
   function topTab(name) {
     return document.querySelector('.tab[onclick*="\'' + name + '\'"]');
   }
