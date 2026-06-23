@@ -762,7 +762,9 @@ async function doSignup() {
     if (purchase?.codes?.length) {
       const siblingCodes = purchase.codes.filter((c) => c !== code);
       if (siblingCodes.length) {
-        await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
+        // 아직 주인이 없고 미사용인 코드만 이전 (이미 구매자에게 귀속된 코드가 재이전돼 사라지는 버그 방지)
+        await sb.from('invite_codes').update({owner_id: data.user.id})
+          .in('code', siblingCodes).is('owner_id', null).is('used_by', null);
       }
     } else if (codeRow.owner_id !== null && codeRow.source !== 'event_registration') {
       // 기존 유저의 초대코드(owner_id 있음)로 가입한 경우에만 1개 자동 발급
@@ -2417,7 +2419,28 @@ function updateTimerDisplay() {
     saveBtn.style.outline = hasUnsaved ? '2px solid #c4714a' : '';
     saveBtn.style.boxShadow = hasUnsaved ? '0 0 0 3px rgba(196,113,74,.18)' : '';
   }
+  _updateTimerClock();
   updateTimerIndicator();
+}
+
+// 타이머 시계 모션: 실행 중일 때만 시계 바늘 회전 (기존 spin 키프레임 재사용)
+function _updateTimerClock() {
+  const disp = document.getElementById('timer-display');
+  if(!disp || !disp.parentNode) return;
+  let clock = document.getElementById('timer-clock');
+  if(!clock) {
+    const wrap = disp.parentNode;
+    wrap.style.display = 'flex';
+    wrap.style.flexDirection = 'column';
+    wrap.style.alignItems = 'center';
+    clock = document.createElement('div');
+    clock.id = 'timer-clock';
+    clock.style.cssText = 'margin-bottom:.2rem;line-height:0;';
+    clock.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line id="timer-clock-hand" x1="12" y1="12" x2="12" y2="6" style="transform-origin:12px 12px;animation:spin 2.4s linear infinite;animation-play-state:paused;"/></svg>';
+    wrap.insertBefore(clock, disp);
+  }
+  const hand = document.getElementById('timer-clock-hand');
+  if(hand) hand.style.animationPlayState = timerRunning ? 'running' : 'paused';
 }
 
 function updateTimerIndicator() {
