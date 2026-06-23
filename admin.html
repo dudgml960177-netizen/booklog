@@ -567,6 +567,7 @@ function renderUserTable() {
           <button class="btn-ghost" onclick="openPwModal('${uid}','${name}')" title="임시 비밀번호 설정">🔐 임시PW</button>
           <button class="btn-ghost" onclick="sendPwReset('${email}')" title="비밀번호 재설정 이메일 발송">🔑 재설정</button>
           <button class="btn-ghost" onclick="openDmModal('${uid}','${name}')" title="쪽지 보내기">💬 쪽지</button>
+          <button class="btn-ghost" onclick="addInviteCodes('${uid}','${name}')" title="초대권 지급" style="color:#3d9970;border-color:#3d9970;">🎁 초대권</button>
           <button class="btn-danger" onclick="deleteUser('${uid}','${name}')">삭제</button>
         </div>
       </td>
@@ -988,6 +989,20 @@ function renderTopUsersChart() {
     <thead><tr><th>#</th><th>닉네임</th><th style="text-align:center;">📚</th><th style="text-align:center;">✍️</th><th style="text-align:center;">✨</th><th style="text-align:center;">💬</th><th style="text-align:center;">합계</th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
   document.getElementById('top-users-title').textContent = `최다 활동 유저 TOP 10 (최근 ${_actPeriod}일)`;
+}
+
+// ── 초대권 지급
+async function addInviteCodes(userId, displayName) {
+  const count = prompt(`"${displayName}"님에게 초대권을 몇 장 지급할까요?`, '2');
+  if (count === null) return;
+  const n = parseInt(count);
+  if (isNaN(n) || n < 1 || n > 10) { alert('1~10 사이 숫자를 입력해주세요.'); return; }
+  try {
+    const res = await callUsers({ action: 'add_invite_codes', user_id: userId, count: n });
+    const data = await res.json();
+    if (!res.ok) { alert('오류: ' + (data.error||'') + (data.detail ? '\n'+data.detail:'')); return; }
+    alert(`${displayName}님에게 초대권 ${n}장이 지급됐습니다.\n\n코드 목록:\n${data.codes.join('\n')}`);
+  } catch(e) { alert('네트워크 오류: ' + e.message); }
 }
 
 // ESC로 모달 닫기
