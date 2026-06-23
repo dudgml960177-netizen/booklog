@@ -735,9 +735,8 @@ async function doSignup() {
       if (siblingCodes.length) {
         await sb.from('invite_codes').update({owner_id: data.user.id}).in('code', siblingCodes);
       }
-    } else if (codeRow.owner_id !== null && codeRow.source !== 'event_registration') {
-      // 기존 유저의 초대코드(owner_id 있음)로 가입한 경우에만 1개 자동 발급
-      // 구매 코드(owner_id null)나 이벤트 가입권은 제외 — 구매 패키지 수량 그대로만 지급
+    } else if (codeRow.source !== 'event_registration') {
+      // 이벤트 가입권 제외, 구매 코드·유저 초대코드 모두 1개 자동 발급
       const newCode = Math.random().toString(36).substring(2,8).toUpperCase()+Math.random().toString(36).substring(2,5).toUpperCase();
       await sb.from('invite_codes').insert({code:newCode, owner_id:data.user.id, created_at:new Date().toISOString()});
     }
