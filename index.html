@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="북로그">
   <link rel="stylesheet" href="style.css?v=2">
-  <link rel="stylesheet" href="mobile.css?v=8">
+  <link rel="stylesheet" href="mobile.css?v=9">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -490,7 +490,7 @@
       <div class="panel" id="p-board">
 
         <!-- ── 도서관 입장 ── -->
-        <div style="display:inline-flex;align-items:center;gap:.45rem;margin-bottom:.85rem;">
+        <div class="board-entry-row" style="display:inline-flex;align-items:center;gap:.45rem;margin-bottom:.85rem;">
           <div onclick="openLibraryEntry()" style="cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;padding:.38rem .72rem;background:rgba(160,100,30,.06);border:1px solid rgba(160,100,30,.16);border-radius:var(--rs);transition:background .15s;">
             <span style="font-size:.84rem;line-height:1;">📚</span>
             <span style="font-size:.73rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">도서관</span>
@@ -510,8 +510,8 @@
           <button onclick="openPostWrite()" style="font-size:.72rem;padding:.3rem .8rem;background:var(--acc);color:#fff;border:none;border-radius:var(--rs);cursor:pointer;font-family:var(--ff);font-weight:600;flex-shrink:0;">글쓰기</button>
         </div>
         <!-- 필터 + 검색 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.8rem;">
-          <div style="display:flex;gap:.3rem;align-items:center;flex:1;flex-wrap:wrap;">
+        <div class="board-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.8rem;">
+          <div class="board-chips" style="display:flex;gap:.3rem;align-items:center;flex:1;flex-wrap:wrap;">
             <button class="filter-btn on" id="board-all-btn" onclick="filterBoard('all',this)">전체</button>
             <button class="filter-btn" id="board-notice-btn" onclick="filterBoard('notice',this)">📌 공지</button>
             <button class="filter-btn" id="board-mine-btn" onclick="showMyPosts()">✏️ 내 글</button>

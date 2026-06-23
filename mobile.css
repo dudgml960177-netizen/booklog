@@ -99,11 +99,41 @@ body:not(.app-on) #fab-add-book { display: none !important; }
   .yr-btn { font-size: .74rem !important; padding: .3rem .75rem !important; }
 
   /* ── 산책 / 문장: 검색창·필터칩 터치 ── */
-  .search-input { font-size: .9rem !important; padding: .6rem .85rem !important; }
+  .search-input { font-size: .9rem !important; padding: .65rem .9rem !important; }
   .filter-btn[id^="board-"] {
-    font-size: .82rem !important; padding: .42rem .9rem !important; border-radius: 999px !important;
+    font-size: .82rem !important; padding: .45rem .95rem !important; border-radius: 999px !important;
   }
   .q-filter { gap: 6px !important; }
+
+  /* ── 카드 전반: 더 둥글고 부드럽게 (앱 느낌, 투박함 완화) ── */
+  .card,
+  .board-item,
+  .book-list-item,
+  .record-cal-card,
+  .record-timer-card {
+    border-radius: 14px !important;
+    border-color: rgba(160, 100, 30, .14) !important;
+    box-shadow: 0 1px 4px rgba(70, 40, 10, .05) !important;
+  }
+
+  /* ── 산책(커뮤니티) 모바일 재설계 ── */
+  /* 필터 + 검색: 칩 한 줄(가로 스크롤) / 검색 아래 한 줄 */
+  .board-toolbar {
+    flex-direction: column !important; align-items: stretch !important; gap: 9px !important;
+  }
+  .board-chips {
+    flex: none !important; flex-wrap: nowrap !important; overflow-x: auto;
+    gap: 7px !important; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .board-chips::-webkit-scrollbar { display: none; }
+  #board-search { width: 100% !important; }
+  /* 게시글 카드: 여백·가독성 ↑ */
+  .board-item { padding: .95rem 1.05rem !important; margin-bottom: .6rem !important; }
+  .board-title { font-size: .95rem !important; line-height: 1.4 !important; }
+  .board-item .board-title + div { font-size: .78rem !important; }
+  .post-notice { border-left-width: 4px !important; }
+  .board-cat, .post-badge-notice { font-size: .66rem !important; padding: 2px 8px !important; }
 }
 
 /* =========================================================
