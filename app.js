@@ -243,6 +243,18 @@ function initFontSize(sizeFromDB) {
 // ── 앱 상태 관리
 let _appState = 'idle'; // idle | starting | running | auth
 
+// 손상 세션을 '동기적으로' 정리 — await signOut이 멈추는 상황에서도 복구 보장
+// (signOut 결과를 기다리지 않고, 토큰을 localStorage에서 직접 제거)
+function _hardClearSession() {
+  try { sb.auth.signOut({ scope: 'local' }); } catch(_) {}
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && (k === 'booklog-auth' || /^sb-/.test(k) || /auth-token/i.test(k))) localStorage.removeItem(k);
+    }
+  } catch(_) {}
+}
+
 async function startApp(user) {
   if(_appState === 'running' || _appState === 'starting') return;
   _appState = 'starting';
@@ -257,7 +269,7 @@ async function startApp(user) {
       console.warn('[startApp] 타임아웃 — 손상 세션 정리 후 인증 화면으로 복귀');
       _appState = 'idle';
       currentUser = null;
-      try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
+      _hardClearSession();
       showScreen('auth');
       loadSavedEmail();
     }
@@ -343,7 +355,7 @@ async function startApp(user) {
     if(_appState === 'starting') {
       _appState = 'idle';
       currentUser = null;
-      try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
+      _hardClearSession();
       showScreen('auth');
       loadSavedEmail();
     }
@@ -492,6 +504,20 @@ function init() {
   // 로딩 화면 표시 후 세션 직접 확인
   showScreen('loading');
   _initSession();
+
+  // 절대 워치독: getSession/signOut/데이터로딩 등 어디서 멈추든 15초 후 강제 복구
+  // (다른 모든 타임아웃이 실패해도 이건 독립적으로 무조건 실행됨)
+  setTimeout(() => {
+    const le = document.getElementById('screen-loading');
+    if (le && le.style.display !== 'none' && _appState !== 'running') {
+      console.warn('[watchdog] 로딩 정체 — 세션 강제 정리 후 로그인 화면');
+      _appState = 'idle';
+      currentUser = null;
+      _hardClearSession();
+      showScreen('auth');
+      loadSavedEmail();
+    }
+  }, 15000);
 }
 
 async function _initSession(retry=0) {
@@ -510,7 +536,7 @@ async function _initSession(retry=0) {
         setTimeout(() => _initSession(retry+1), 2000);
       } else {
         // 세션 없음 — 로컬 토큰만 확실히 정리 후 로그인 화면
-        try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
+        _hardClearSession();
         _appState = 'auth';
         showScreen('auth');
         loadSavedEmail();
@@ -522,7 +548,7 @@ async function _initSession(retry=0) {
       setTimeout(() => _initSession(retry+1), 2000);
     } else {
       // 재시도 모두 실패 — 로컬 세션 강제 초기화 (네트워크 불필요)
-      try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
+      _hardClearSession();
       _appState = 'auth';
       showScreen('auth');
       loadSavedEmail();
@@ -807,7 +833,7 @@ async function doLogout() {
 }
 
 async function resetSession() {
-  try { await sb.auth.signOut({scope:'local'}); } catch(_) {}
+  _hardClearSession();
   _appState = 'idle';
   showAuthError('세션이 초기화됐어요. 다시 로그인해주세요.', true);
   setTimeout(() => { showScreen('auth'); loadSavedEmail(); }, 1500);
