@@ -798,9 +798,25 @@ async function init(){
     });
 }
 
+/* ── 도서관 진행중 알림 (앱이 백그라운드일 때 "참여 중" 리마인드) ── */
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); }
+async function showLibNotif(){
+  if(!('Notification' in window) || Notification.permission!=='granted' || !joinedAt) return;
+  const s=Math.floor(readingMs()/1000), m=Math.floor(s/60), h=Math.floor(m/60);
+  const t = h>0?`${h}시간 ${m%60}분`:`${m}분`;
+  const opts={ body:`${t} 독서 중 — 도서관에 머무는 중이에요!`, tag:'bl-library-session', icon:'/icon-192.png', badge:'/icon-192.png', silent:true, requireInteraction:true, data:{url:'/library.html'} };
+  try{ const reg=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(reg&&reg.showNotification){ await reg.showNotification('🏛 북로그 도서관 참여 중', opts); return; } }catch(e){}
+  try{ new Notification('🏛 북로그 도서관 참여 중', opts); }catch(e){}
+}
+async function closeLibNotif(){
+  try{ const reg=navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if(reg){ (await reg.getNotifications({tag:'bl-library-session'})).forEach(n=>n.close()); } }catch(e){}
+}
+
 /* ── 화면 복귀 시 presence 재등록 (모바일 잠금 해제) ── */
 document.addEventListener('visibilitychange', async ()=>{
-  if(document.hidden || !_connectedOnce || !myPayload || !channel) return;
+  if(document.hidden){ showLibNotif(); return; }
+  closeLibNotif();
+  if(!_connectedOnce || !myPayload || !channel) return;
   try{
     const st=await channel.track(myPayload,{timeout:5000});
     if(st==='ok'){
@@ -824,7 +840,7 @@ window.addEventListener('online', async ()=>{
   }catch(e){}
 });
 
-window.addEventListener('beforeunload',()=>{ saveTime(); });
+window.addEventListener('beforeunload',()=>{ saveTime(); closeLibNotif(); });
 document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>

@@ -2519,24 +2519,38 @@ async function requestTimerNotifPerm() {
   const p = await Notification.requestPermission();
   return p === 'granted';
 }
-function showTimerNotif() {
+async function showTimerNotif() {
   if(!timerRunning || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const h=Math.floor(timerSeconds/3600),m=Math.floor((timerSeconds%3600)/60);
+  const timeStr = h>0?`${h}시간 ${m}분`:`${m}분`;
+  const bookTitle = timerBookId ? (allBooks.find(b=>b.id===timerBookId)?.title||'') : '';
+  const opts = {
+    body: (bookTitle?`"${bookTitle}" · `:'')+timeStr+' 경과 — 아직 읽는 중이에요!',
+    tag: 'bl-reading-timer',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    silent: true,
+    requireInteraction: true,
+    data: { url: '/' }
+  };
+  // 1순위: 서비스워커 알림 (안드로이드/PWA에서 작동)
+  try {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    if(reg && reg.showNotification) { await reg.showNotification('📚 독서 타이머 진행 중', opts); return; }
+  } catch(e) {}
+  // 2순위: 데스크톱 폴백
   try {
     _timerNotif?.close();
-    const h=Math.floor(timerSeconds/3600),m=Math.floor((timerSeconds%3600)/60);
-    const timeStr = h>0?`${h}시간 ${m}분`:`${m}분`;
-    const bookTitle = timerBookId ? (allBooks.find(b=>b.id===timerBookId)?.title||'') : '';
-    _timerNotif = new Notification('📚 독서 타이머 작동 중', {
-      body: (bookTitle?`"${bookTitle}" · `:'')+timeStr+' 경과',
-      tag: 'bl-reading-timer',
-      silent: true,
-      requireInteraction: true
-    });
+    _timerNotif = new Notification('📚 독서 타이머 진행 중', opts);
     _timerNotif.onclick = () => { window.focus(); _timerNotif?.close(); };
   } catch(e) {}
 }
-function closeTimerNotif() {
+async function closeTimerNotif() {
   try { _timerNotif?.close(); _timerNotif = null; } catch(e) {}
+  try {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    if(reg) { (await reg.getNotifications({tag:'bl-reading-timer'})).forEach(n=>n.close()); }
+  } catch(e) {}
 }
 
 // 백그라운드·화면꺼짐·이탈 시 타이머 유지
@@ -8928,6 +8942,8 @@ function openLibraryEntry() {
 // ── 팝업 창으로 도서관 입장
 async function joinLibraryRoom() {
   if(!currentUser) { showAlert('로그인이 필요해요.'); return; }
+  // 도서관 진행중 알림용 권한 요청 (사용자 제스처 컨텍스트)
+  try { requestTimerNotifPerm(); } catch(_) {}
 
   const ghostToggle = document.getElementById('library-ghost-toggle');
   const isGhost = ghostToggle ? ghostToggle.checked : false;

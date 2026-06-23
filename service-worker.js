@@ -23,6 +23,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// 알림 클릭 → 앱 창으로 포커스(없으면 새로 열기)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cls) => {
+      for (const c of cls) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
