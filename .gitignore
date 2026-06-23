@@ -1,0 +1,4 @@
+
+# Supabase CLI 바이너리(로컬 배포용)
+.tools/
+supabase/.temp/
