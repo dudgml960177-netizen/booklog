@@ -84,6 +84,18 @@ body:not(.app-on) #fab-add-book { display: none !important; }
   .book-list-item { padding: .8rem .9rem !important; }
   .bli-title { font-size: .92rem !important; }
   .bli-author { font-size: .78rem !important; }
+
+  /* ── 통계: 그래프 탭 / 연도 칩 터치·가독성 ── */
+  .gtabs { gap: 4px !important; }
+  .gst { font-size: .82rem !important; padding: .5rem .9rem !important; }
+  .yr-btn { font-size: .74rem !important; padding: .3rem .75rem !important; }
+
+  /* ── 산책 / 문장: 검색창·필터칩 터치 ── */
+  .search-input { font-size: .9rem !important; padding: .6rem .85rem !important; }
+  .filter-btn[id^="board-"] {
+    font-size: .82rem !important; padding: .42rem .9rem !important; border-radius: 999px !important;
+  }
+  .q-filter { gap: 6px !important; }
 }
 
 /* =========================================================

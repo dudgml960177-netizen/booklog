@@ -314,6 +314,33 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    // ── 초대 코드 추가 지급
+    if (action === "add_invite_codes") {
+      const { user_id, count } = body;
+      if (!user_id || !count || count < 1 || count > 10) return json({ error: "missing_params" }, 400);
+
+      const codes: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const code =
+          Math.random().toString(36).slice(2, 8).toUpperCase() +
+          "-" +
+          Math.random().toString(36).slice(2, 5).toUpperCase();
+        codes.push(code);
+      }
+
+      const { error: insertErr } = await sb.from("invite_codes").insert(
+        codes.map((code) => ({
+          code,
+          owner_id: user_id,
+          quest_reward: true,
+          source: "quest",
+          created_at: new Date().toISOString(),
+        }))
+      );
+      if (insertErr) return json({ error: "insert_failed", detail: insertErr.message }, 500);
+      return json({ success: true, codes });
+    }
+
     // ── 활동량 통계
     if (action === "activity_stats") {
       const days = typeof body.days === "number" ? Math.min(body.days, 365) : 30;
