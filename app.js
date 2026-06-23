@@ -5667,6 +5667,7 @@ function openAddBook() {
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.toggle('on',b.textContent==='완독'));
   updateBookCategorySelect();
   openModal('modal-book');
+  setTimeout(()=>document.getElementById('book-search-input')?.focus(),150);
 }
 // 네이버 검색 결과를 UI에 렌더링
 // 검색 결과 아이템 렌더링 (네이버/알라딘/Google Books 공통)
