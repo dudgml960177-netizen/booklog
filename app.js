@@ -1048,7 +1048,10 @@ function buildGallery(list) {
            <div style="width:100%;height:1px;background:${stAccent};opacity:.4;"></div>
          </div>`;
     const ratingVal = parseFloat(b.rating)||0;
-    const ratingDisp = ratingVal>0 ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-top:.15rem;"><span style="width:6px;height:6px;border-radius:50%;background:${stColor};display:inline-block;"></span><span style="font-family:var(--ff-disp);font-size:.68rem;font-style:italic;color:var(--rust);">★ ${ratingVal}</span></span>` : '';
+    const _dot = `<span style="width:6px;height:6px;border-radius:50%;background:${stColor};display:inline-block;"></span>`;
+    const ratingDisp = ratingVal>0
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-top:.15rem;">${_dot}<span style="font-family:var(--ff-disp);font-size:.68rem;font-style:italic;color:var(--rust);">★ ${ratingVal}</span></span>`
+      : (b.status==='완독' ? `<span style="display:inline-flex;align-items:center;margin-top:.15rem;">${_dot}</span>` : '');
     const totalMins = b.reading_time || 0;
     let timeStr;
     if(totalMins===0) timeStr='독서 기록 없음';
@@ -1710,6 +1713,8 @@ function renderQuotes() {
       // 태그 없는 경우도 처리
       if(!text.includes('<')) text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
     }
+    // 저장된 흰색/색상 글자가 안 보이는 문제 방지: 인라인 color 제거 (형광펜 배경은 유지)
+    text = text.replace(/color\s*:\s*[^;"']+;?/gi, '');
     const plainLen = (qt.text||'').replace(/<[^>]+>/g,'').length;
     const isLong = plainLen > 150;
 

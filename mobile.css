@@ -107,15 +107,20 @@ body:not(.app-on) #fab-add-book { display: none !important; }
   .hm-pages { font-size: .62rem !important; }
 
   /* ── 산책 / 문장: 검색창·필터칩 터치 ── */
-  .search-input { font-size: .88rem !important; padding: .6rem .85rem !important; }
-  /* 산책 필터칩(전체/공지/내글): 작고 단정하게 */
+  .search-input { font-size: .82rem !important; padding: .5rem .8rem !important; }
+  /* 산책 필터칩(전체/공지/내글): 더 작고 단정하게 */
   .filter-btn[id^="board-"] {
-    font-size: .72rem !important; padding: .3rem .8rem !important; border-radius: 999px !important;
+    font-size: .68rem !important; padding: .26rem .72rem !important; border-radius: 999px !important;
   }
-  /* 글쓰기 버튼: 덜 투박하게 */
+  /* 글쓰기 버튼 */
   button[onclick="openPostWrite()"] {
-    font-size: .7rem !important; padding: .33rem .8rem !important;
+    font-size: .66rem !important; padding: .3rem .72rem !important;
   }
+  /* 도서관 입장 버튼 / 접속자 수 */
+  [onclick="openLibraryEntry()"] { padding: .28rem .6rem !important; }
+  #library-entry-count { font-size: .6rem !important; padding: .1rem .42rem !important; }
+  /* 산책 페이지네이션 버튼만 작게 (통계 연도칩과 분리) */
+  #board-pagination .yr-btn { font-size: .68rem !important; padding: .22rem .5rem !important; }
   .q-filter { gap: 6px !important; }
 
   /* ── 통계: 모바일에서 그래프를 위로 (목표 다음, 지표/전리품 위) ── */
@@ -153,11 +158,11 @@ body:not(.app-on) #fab-add-book { display: none !important; }
 
   /* 게시글 카드: 가벼운 피드 느낌 (여백↑, 테두리 연하게) */
   .board-item {
-    padding: .9rem 1rem !important; margin-bottom: .55rem !important;
+    padding: .72rem .85rem !important; margin-bottom: .5rem !important;
     border-color: rgba(160, 100, 30, .1) !important;
   }
-  .board-title { font-size: .95rem !important; line-height: 1.4 !important; }
-  .board-item .board-title + div { font-size: .78rem !important; margin-top: .25rem !important; }
+  .board-title { font-size: .88rem !important; line-height: 1.38 !important; }
+  .board-item .board-title + div { font-size: .74rem !important; margin-top: .22rem !important; }
   .post-notice { border-left-width: 4px !important; }
   /* 카테고리/공지 배지: 부드러운 알약 */
   .board-cat {
