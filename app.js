@@ -7358,7 +7358,7 @@ async function importFromBookit(file) {
     if(cleanLines.length < 2) { await showAlert('파일이 비어있어요.'); return; }
     const headers = parseCSVLine(cleanLines[0]).map(h => h.trim().replace(/"/g,''));
     console.log('북적북적 헤더:', headers);
-    const getIdx = (...keys) => headers.findIndex(h => keys.some(k => h.includes(k)));
+    const getIdx = (...keys) => headers.findIndex(h => keys.some(k => h === k || h.startsWith(k)));
     const rows2 = cleanLines.slice(1);
 
     const C = {
@@ -7374,16 +7374,18 @@ async function importFromBookit(file) {
 
     const statusConv = s => {
       const v = String(s||'').trim();
-      if(/읽은|완독|read/i.test(v)) return '완독';
-      if(/읽는\s*중|reading/i.test(v)) return '읽는중';
+      if(!v) return '읽고싶음'; // 상태 없으면 기본값
+      if(/읽은\s*책|완독|read/i.test(v)) return '완독';
+      if(/읽는\s*중|읽고\s*있|reading/i.test(v)) return '읽는중';
       if(/중단/i.test(v)) return '중단';
       if(/읽고\s*싶|want/i.test(v)) return '읽고싶음';
-      return '읽고싶음';
+      return null; // 메모 등 인식 불가한 값 → 건너뜀
     };
 
     const rows = rows2.map(l => parseCSVLine(l));
     const books = rows.filter(r => r.length > 1 && C.title >= 0 && r[C.title]?.trim()).map(r => {
       const status = statusConv(C.status >= 0 ? r[C.status] : '');
+      if(status === null) return null; // 인식 불가 상태(메모 등) → 건너뜀
       // 중단일이 있으면 중단으로 오버라이드
       const stopDate = C.stop >= 0 ? r[C.stop]?.trim() : '';
       return {
@@ -7398,7 +7400,7 @@ async function importFromBookit(file) {
         user_id:    currentUser.id,
         created_at: new Date().toISOString(),
       };
-    }).filter(b => b.title);
+    }).filter(b => b && b.title);
 
     if(!books.length) { await showAlert('가져올 책이 없어요.'); return; }
 
