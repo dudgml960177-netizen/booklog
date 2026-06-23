@@ -8,6 +8,9 @@
 .mnav { display: none; }
 .more-sheet-overlay { display: none; }
 
+/* 로그인 전(앱 화면 아님)에는 책추가 FAB 숨김 */
+body:not(.app-on) #fab-add-book { display: none !important; }
+
 @media (max-width: 640px) {
 
   /* ── 내비게이션: 상단 가로 탭바 → 하단 탭바 ── */
