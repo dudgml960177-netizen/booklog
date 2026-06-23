@@ -1523,8 +1523,8 @@ async function shareQuoteCard(qtId, btn) {
   ov.innerHTML = `
     <div class="modal" style="max-width:360px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
       <div style="background:var(--paper);padding:.85rem 1rem;display:flex;align-items:center;border-bottom:1px solid var(--border);justify-content:space-between;flex-shrink:0;">
-        <div style="font-size:.8rem;font-weight:700;color:#fff;font-family:var(--fs);">📷 문장 카드 ${total > 1 ? `(${total}장)` : ''}</div>
-        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:24px;height:24px;color:#fff;cursor:pointer;">✕</button>
+        <div style="font-size:.8rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">📷 문장 카드 ${total > 1 ? `(${total}장)` : ''}</div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:rgba(120,80,30,.12);border:none;border-radius:50%;width:24px;height:24px;color:var(--tx2);cursor:pointer;">✕</button>
       </div>
       <div style="padding:.75rem;overflow-y:auto;flex:1;">
         ${imgHtml}
