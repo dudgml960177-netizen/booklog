@@ -4785,14 +4785,18 @@ function buildMonthly() {
         const yPages=pagesByYear[y]||0;
         const moPages=pagesByYearMonth[y]||Array(12).fill(0);
         const row=document.createElement('div');
+        row.className='hm-row';
         row.style.cssText='display:flex;align-items:center;gap:.55rem;margin-bottom:.4rem;';
         const yl=document.createElement('div');
+        yl.className='hm-year';
         yl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.8rem;color:${c.line};min-width:34px;line-height:1;`;
         yl.textContent=y;
         const cells=document.createElement('div');
+        cells.className='hm-cells';
         cells.style.cssText='flex:1;display:flex;gap:2px;';
         vals.forEach((v,i)=>{
           const cell=document.createElement('div');
+          cell.className='hm-cell';
           const opacity=v>0?Math.max(v/maxV*.85+.15,0.15):0.05;
           cell.style.cssText=`flex:1;height:16px;border-radius:2px;background:${c.line};opacity:${opacity.toFixed(2)};transition:opacity .2s;cursor:default;`;
           const mp=moPages[i]||0;
@@ -4804,10 +4808,12 @@ function buildMonthly() {
         });
         // 권수
         const tl=document.createElement('div');
+        tl.className='hm-total';
         tl.style.cssText=`font-family:var(--fs);font-style:italic;font-size:.78rem;color:${c.line};min-width:22px;text-align:right;line-height:1;`;
         tl.textContent=total;
         // 페이지 수 (muted, smaller)
         const pl=document.createElement('div');
+        pl.className='hm-pages';
         pl.style.cssText=`font-size:.58rem;color:var(--tx3);min-width:46px;text-align:right;line-height:1;white-space:nowrap;`;
         pl.textContent=yPages?yPages.toLocaleString()+'p':'';
         row.appendChild(yl);row.appendChild(cells);row.appendChild(tl);row.appendChild(pl);

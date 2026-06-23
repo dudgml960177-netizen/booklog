@@ -98,6 +98,14 @@ body:not(.app-on) #fab-add-book { display: none !important; }
   .gst { font-size: .82rem !important; padding: .5rem .9rem !important; }
   .yr-btn { font-size: .74rem !important; padding: .3rem .75rem !important; }
 
+  /* ── 통계: 월별 완독 히트맵을 더 크고 감성적으로 ── */
+  .hm-row { margin-bottom: 8px !important; gap: 9px !important; }
+  .hm-cells { gap: 3px !important; }
+  .hm-cell { height: 27px !important; border-radius: 6px !important; }
+  .hm-year { font-size: 1rem !important; min-width: 42px !important; }
+  .hm-total { font-size: 1rem !important; min-width: 26px !important; }
+  .hm-pages { font-size: .62rem !important; }
+
   /* ── 산책 / 문장: 검색창·필터칩 터치 ── */
   .search-input { font-size: .9rem !important; padding: .65rem .9rem !important; }
   .filter-btn[id^="board-"] {
