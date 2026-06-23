@@ -170,6 +170,31 @@ body:not(.app-on) #fab-add-book { display: none !important; }
     background: rgba(160, 100, 30, .08) !important; border: none !important; color: var(--acc2) !important;
   }
   .post-badge-notice { font-size: .66rem !important; padding: 3px 10px !important; border-radius: 999px !important; }
+
+  /* ── 기록(달력/타이머) 모바일 다듬기 ── */
+  /* 달력 헤더: 네비·제목·공유 터치 좋게 */
+  .cal-hd { gap: 6px !important; margin-bottom: .85rem !important; }
+  .cal-nav {
+    font-size: .9rem !important; padding: .28rem .7rem !important; border-radius: 8px !important;
+    color: var(--tx2) !important;
+  }
+  .cal-ttl { font-size: 1.15rem !important; }
+  button[onclick="shareCalendar()"] { font-size: .72rem !important; padding: .35rem .85rem !important; }
+  /* 요일/날짜 가독성·여백 */
+  .dow { font-size: .7rem !important; padding: .35rem 0 !important; }
+  .cal-grid { gap: 4px !important; }
+  .record-cal-card .day { font-size: .85rem !important; }
+  .day { border-radius: 8px !important; }
+  .day.hbook { border-radius: 8px !important; }
+  .day.hbook .dnum { font-size: .56rem !important; }
+  .cal-list-ttl { font-size: .82rem !important; }
+  /* 타이머: 큰 디스플레이 + 터치 버튼 */
+  .timer-display { font-size: 2.5rem !important; }
+  .tbtn {
+    height: 42px !important; font-size: .85rem !important;
+    padding: 0 1.1rem !important; border-radius: 10px !important;
+  }
+  #timer-book-select { font-size: .85rem !important; padding: .55rem .7rem !important; }
 }
 
 /* =========================================================
