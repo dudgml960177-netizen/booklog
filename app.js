@@ -8741,18 +8741,27 @@ async function openPostDetail(postId) {
     footer.appendChild(rpBtn);
   }
   if(isAdmin) {
+    // 관리자 모더레이션 버튼은 평소 숨기고 "⚙ 관리" 토글로 펼침 (항상 떠 있어 피곤한 문제 해결)
+    const adminToggle=document.createElement('button');adminToggle.className='btn-cancel';
+    adminToggle.textContent='⚙ 관리';
+    const adminGroup=document.createElement('div');
+    adminGroup.style.cssText='display:none;gap:.4rem;flex-wrap:wrap;align-items:center;';
+    adminToggle.onclick=()=>{ adminGroup.style.display = adminGroup.style.display==='none'?'flex':'none'; };
+
     const noticeBtn=document.createElement('button');noticeBtn.className='btn-cancel';
     noticeBtn.textContent=post.is_notice?'📌 공지 해제':'📌 공지 지정';
     noticeBtn.onclick=async()=>{
       await sb.from('posts').update({is_notice:!post.is_notice}).eq('id',postId);
       closeModal('modal-post-detail'); await buildBoard();
     };
-    footer.appendChild(noticeBtn);
+    adminGroup.appendChild(noticeBtn);
+
     const blindBtn=document.createElement('button');blindBtn.className='btn-cancel';
     blindBtn.style.cssText='color:#c0392b;border-color:#e8b8a8;';
     blindBtn.textContent=post.is_hidden?'🔓 블라인드 해제':'🚫 블라인드';
     blindBtn.onclick=()=>toggleBlindPost(postId, post.user_id, !post.is_hidden);
-    footer.appendChild(blindBtn);
+    adminGroup.appendChild(blindBtn);
+
     // 작성자 제한 상태 비동기 확인
     sb.from('profiles').select('is_banned').eq('id',post.user_id).single().then(({data:pf})=>{
       const isBanned = pf?.is_banned;
@@ -8760,8 +8769,11 @@ async function openPostDetail(postId) {
       banBtn.style.cssText=isBanned?'color:#2e7d32;border-color:#a8d8a8;':'color:#8b0000;border-color:#f5c6cb;';
       banBtn.textContent=isBanned?'✅ 제한 해제':'⛔ 작성자 제한';
       banBtn.onclick=()=>openBanModal(post.user_id);
-      footer.insertBefore(banBtn, closeBtn);
+      adminGroup.appendChild(banBtn);
     });
+
+    footer.appendChild(adminToggle);
+    footer.appendChild(adminGroup);
   }
   if(isMine||isAdmin) {
     const editBtn=document.createElement('button');editBtn.className='btn-cancel';editBtn.textContent='수정';

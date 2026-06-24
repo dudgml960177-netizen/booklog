@@ -432,7 +432,7 @@ function makeSeatCell(m){
   if(m.is_ghost){
     const badge=isSelf?'<div class="tbl-me">나</div>':'';
     const ghostKickBtn=(myUserId===ADMIN_ID&&!isSelf)
-      ?`<button onclick="event.stopPropagation();kickMember('${m.user_id}')" style="margin-top:.35rem;font-size:.6rem;padding:.2rem .55rem;border:1px solid #c0392b;border-radius:4px;background:none;color:#c0392b;cursor:pointer;">퇴장</button>`
+      ?`<button onclick="event.stopPropagation();kickMember('${m.user_id}')" title="퇴장" style="position:absolute;top:4px;right:4px;z-index:6;font-size:.5rem;padding:.06rem .32rem;border:1px solid #d08070;border-radius:7px;background:rgba(253,248,242,.92);color:#c0392b;cursor:pointer;line-height:1.4;">퇴장</button>`
       :'';
     return `<div class="tbl-cell">
       ${bubble}
@@ -452,7 +452,7 @@ function makeSeatCell(m){
   const restBadge=m.is_resting?'<div class="tbl-rest">💤 휴식 중</div>':'';
   const avStyle=m.is_resting?' style="filter:grayscale(1);opacity:.6;transition:filter .25s,opacity .25s;"':'';
   const kickBtn=(myUserId===ADMIN_ID&&!isSelf)
-    ?`<button onclick="event.stopPropagation();kickMember('${m.user_id}')" style="margin-top:.35rem;font-size:.6rem;padding:.2rem .55rem;border:1px solid #c0392b;border-radius:4px;background:none;color:#c0392b;cursor:pointer;">퇴장</button>`
+    ?`<button onclick="event.stopPropagation();kickMember('${m.user_id}')" title="퇴장" style="position:absolute;top:4px;right:4px;z-index:6;font-size:.5rem;padding:.06rem .32rem;border:1px solid #d08070;border-radius:7px;background:rgba(253,248,242,.92);color:#c0392b;cursor:pointer;line-height:1.4;">퇴장</button>`
     :'';
   return `<div class="tbl-cell">
     ${bubble}
