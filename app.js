@@ -7387,8 +7387,14 @@ async function importFromBookit(file) {
       return '읽고싶음';
     };
 
+    // '독서상태' 열이 없으면 책 목록 CSV가 아님(메모/노트 export 등) → 책으로 잘못 들어가는 것 방지
+    if(C.status < 0) {
+      await showAlert('책 목록 CSV가 아닌 것 같아요.\n북적북적에서 "독서상태"가 포함된 책 목록을 내보내 주세요.');
+      return;
+    }
     const rows = rows2.map(l => parseCSVLine(l));
-    const books = rows.filter(r => r.length > 1 && C.title >= 0 && r[C.title]?.trim()).map(r => {
+    // 진짜 책 행은 독서상태가 채워져 있음 → 독서상태 없는 행(메모/노트)은 책에서 제외
+    const books = rows.filter(r => r.length > 1 && C.title >= 0 && r[C.title]?.trim() && String(r[C.status]||'').trim()).map(r => {
       const status = statusConv(C.status >= 0 ? r[C.status] : '');
       // 중단일이 있으면 중단으로 오버라이드
       const stopDate = C.stop >= 0 ? r[C.stop]?.trim() : '';
