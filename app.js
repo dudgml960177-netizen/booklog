@@ -4745,28 +4745,27 @@ function buildStats() {
   // 올해 등록된 문장
   const thisYearQuotes = allQuotes.filter(q=>q.created_at?.startsWith(String(cy)));
   // 최장 연속 독서일 계산
+  // 기준: 실제로 읽은 날(타이머/도서관 reading_time_log) + 완독한 날(date_finish)이 '연이어진' 최대 일수
   const longestStreak = (() => {
-    const todayStr = kstToday();
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
     const readDays = new Set();
     allBooks.forEach(b => {
-      if (!b.date_start) return;
-      const endStr = (b.status === '완독' && b.date_finish) ? b.date_finish
-                   : (b.status === '읽는중') ? todayStr
-                   : (b.date_finish) ? b.date_finish
-                   : b.date_start;
-      let d = new Date(b.date_start + 'T00:00:00');
-      const endD = new Date(endStr + 'T00:00:00');
-      while (d <= endD) {
-        readDays.add(d.toISOString().slice(0, 10));
-        d.setDate(d.getDate() + 1);
+      const log = b.reading_time_log;
+      if (log && typeof log === 'object') {
+        Object.keys(log).forEach(d => {
+          if (DATE_RE.test(d) && (log[d] || 0) > 0) readDays.add(d);
+        });
+      }
+      if (b.status === '완독' && b.date_finish && DATE_RE.test(b.date_finish)) {
+        readDays.add(b.date_finish);
       }
     });
     if (!readDays.size) return 0;
     const days = [...readDays].sort();
     let max = 1, cur = 1;
     for (let i = 1; i < days.length; i++) {
-      const diff = (new Date(days[i]) - new Date(days[i-1])) / 86400000;
-      cur = diff === 1 ? cur + 1 : 1;
+      const diff = Math.round((new Date(days[i] + 'T00:00:00') - new Date(days[i-1] + 'T00:00:00')) / 86400000);
+      cur = (diff === 1) ? cur + 1 : 1;
       if (cur > max) max = cur;
     }
     return max;
