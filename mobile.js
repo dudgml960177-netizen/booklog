@@ -57,6 +57,19 @@
     setActive('more');
   };
 
+  // ── 앱 모드 (커뮤니티/기록) — 모바일 앱 전용
+  window.getAppMode = function () { return localStorage.getItem('bl_app_mode') || 'community'; };
+  window.setAppMode = function (m) { localStorage.setItem('bl_app_mode', m); applyAppMode(); };
+  function applyAppMode() {
+    var m = window.getAppMode();
+    document.body.classList.toggle('mode-record', m === 'record');
+    // 기록 모드에서 숨겨진 탭(산책)에 있으면 서재로 이동
+    if (m === 'record' && currentPanel() === 'board') { window.mnav('books'); }
+    var cb = document.getElementById('mode-btn-community'), rb = document.getElementById('mode-btn-record');
+    if (cb) cb.classList.toggle('on', m === 'community');
+    if (rb) rb.classList.toggle('on', m === 'record');
+  }
+
   // 산책 새 글 알림 점: 기존 board-new-dot 과 동기화
   function syncBoardDot() {
     var src = document.getElementById('board-new-dot');
@@ -66,6 +79,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     setActive('books');
+    applyAppMode();
     syncBoardDot();
     var src = document.getElementById('board-new-dot');
     if (src && window.MutationObserver) {

@@ -32,6 +32,16 @@ body:not(.app-on) #fab-add-book { display: none !important; }
     box-shadow: 0 -2px 14px rgba(70, 40, 10, 0.06);
   }
   body.app-on .mnav { display: flex; }
+  /* 기록 모드: 산책·더보기 탭 숨김 (서재·문장·기록·통계만) */
+  body.mode-record .mnav-i[data-nav="board"],
+  body.mode-record .mnav-i[data-nav="more"] { display: none !important; }
+  /* 앱 모드 토글 (프로필 화면설정) — 모바일에서만 노출 */
+  .app-mode-row { display: block !important; }
+  .mode-seg {
+    flex: 1; padding: .5rem; border: 1px solid var(--border2); border-radius: 8px;
+    background: none; color: var(--tx2); font-family: var(--ff); font-size: .82rem; cursor: pointer;
+  }
+  .mode-seg.on { background: var(--acc); color: #fff; border-color: var(--acc); }
   .mnav-i {
     flex: 1; background: none; border: none; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
