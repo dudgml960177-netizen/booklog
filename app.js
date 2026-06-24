@@ -8128,7 +8128,7 @@ async function surfLibrary() {
 }
 
 // 서재 구경 상태
-let _libBooks = [], _libFilter = '전체', _libCatFilter = new Set(), _libUserId = null, _libUserName = '';
+let _libBooks = [], _libFilter = '전체', _libCatFilter = new Set(), _libSort = 'recent', _libUserId = null, _libUserName = '';
 let _libCalY = new Date().getFullYear(), _libCalM = new Date().getMonth();
 
 async function openLibrary(userId, userName) {
@@ -8165,7 +8165,7 @@ async function openLibrary(userId, userName) {
     targetProfile.category_visibility === 'public' ||
     (targetProfile.category_visibility === 'friends' && isFriend);
   _libBooks = books || [];
-  _libFilter = '전체';
+  _libFilter = '전체'; _libSort = 'recent';
   _libCatFilter = new Set();
   _libUserId = userId;
   _libUserName = userName;
@@ -8206,6 +8206,9 @@ async function openLibrary(userId, userName) {
       ${cats.length ? `<span style="font-size:.6rem;color:var(--border2);margin:0 .1rem;">│</span>
         <button class="filter-btn${_libCatFilter.size===0?' on':''}" id="lib-cat-all" onclick="libCatFilter(null,this)">전체</button>
         ${cats.map(c=>`<button class="filter-btn${_libCatFilter.has(c)?' on':''}" id="lib-cat-${c.replace(/\s/g,'_')}" onclick="libCatFilter('${c}',this)">${c}</button>`).join('')}` : ''}
+      <select id="lib-sort" onchange="setLibSort(this.value)" title="정렬" style="margin-left:auto;align-self:center;font-size:.66rem;padding:.18rem .35rem;border:1px solid var(--border2);border-radius:6px;background:var(--card);color:var(--tx2);font-family:var(--ff);cursor:pointer;">
+        <option value="recent">최신순</option><option value="oldest">오래된순</option><option value="rating_high">별점↓</option><option value="rating_low">별점↑</option><option value="title">제목순</option><option value="finish">완독일순</option>
+      </select>
     </div>`;
 
   body.innerHTML = `
@@ -8219,6 +8222,7 @@ async function openLibrary(userId, userName) {
   openModal('modal-library');
 }
 
+function setLibSort(v) { _libSort = v; renderLibGallery(); }
 function libFilter(f, btn) {
   _libFilter = f;
   _libCatFilter = new Set(); // 상태 필터 바꾸면 카테고리 필터도 초기화
@@ -8256,7 +8260,7 @@ function renderLibGallery() {
     else if(k==='finish') list.sort((a,b)=>new Date(b.date_finish||0)-new Date(a.date_finish||0));
     else if(k==='rating_high'||k==='rating_low'){ const d=k==='rating_high'?-1:1; list.sort((a,b)=>{const ra=a.rating||0,rb=b.rating||0,ah=ra>0,bh=rb>0; if(ah!==bh)return ah?-1:1; if(!ah)return new Date(b.created_at||0)-new Date(a.created_at||0); return ra!==rb?d*(ra-rb):new Date(b.created_at||0)-new Date(a.created_at||0);}); }
     else list.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-  })(curSort);
+  })(_libSort);
   g.innerHTML = '';
   if(!list.length) { g.innerHTML='<div class="empty-state">책이 없어요.</div>'; return; }
   list.forEach(b => {
