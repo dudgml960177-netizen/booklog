@@ -1049,6 +1049,37 @@ function buildBooks() {
     btn.style.fontWeight = on ? '700' : '500';
     btn.style.borderBottomColor = on ? 'var(--tx1)' : 'transparent';
   });
+  renderCategoryChips();
+}
+
+// 카테고리 칩 — 기존 필터 줄에 인라인으로(새 줄/버튼 군더더기 없이). 책 있는 카테고리만.
+function renderCategoryChips() {
+  const row = document.getElementById('status-filter-row');
+  if(!row) return;
+  row.querySelectorAll('.cat-chip-inline, .cat-chip-sep').forEach(e=>e.remove());
+  const cats = (allCategories||[]).filter(Boolean);
+  if(!cats.length) return;
+  let added = 0;
+  const frag = document.createDocumentFragment();
+  cats.forEach(cat => {
+    const cnt = allBooks.filter(b => (b.category||'') === cat).length;
+    if(!cnt) return;
+    const on = curCatFilter.has(cat);
+    const b = document.createElement('button');
+    b.className = 'cat-chip-inline';
+    b.style.cssText = `flex-shrink:0;white-space:nowrap;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'none'};color:${on?'#fff':'var(--tx2)'};border-radius:999px;padding:.16rem .6rem;font-size:.66rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;`;
+    b.textContent = `${cat} ${cnt}`;
+    b.onclick = () => { if(curCatFilter.has(cat)) curCatFilter.delete(cat); else curCatFilter.add(cat); buildBooks(); };
+    frag.appendChild(b);
+    added++;
+  });
+  if(added) {
+    const sep = document.createElement('span');
+    sep.className = 'cat-chip-sep';
+    sep.style.cssText = 'width:1px;height:13px;background:var(--border2);margin:0 .3rem;flex-shrink:0;align-self:center;opacity:.7;';
+    row.appendChild(sep);
+    row.appendChild(frag);
+  }
 }
 // ── 일괄 삭제
 let selectMode = false, selectedIds = new Set();
@@ -6325,7 +6356,14 @@ async function saveBook() {
 function openDetail(bookId) {
   curBookId=bookId;
   const b=allBooks.find(b=>b.id===bookId);if(!b)return;
-  const quotes=allQuotes.filter(q=>q.book_id===bookId);
+  const quotes=allQuotes.filter(q=>q.book_id===bookId).sort((a,b)=>{
+    const ap=(a.page!=null&&String(a.page)!=='null'&&a.page!=='')?parseInt(a.page):null;
+    const bp=(b.page!=null&&String(b.page)!=='null'&&b.page!=='')?parseInt(b.page):null;
+    if(ap!==null&&bp!==null) return ap-bp;
+    if(ap!==null) return -1;
+    if(bp!==null) return 1;
+    return new Date(a.created_at||0)-new Date(b.created_at||0);
+  });
   const genre=Array.isArray(b.genre)?b.genre.join(', '):(b.genre||'');
   const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'<span class="gi-hstar">★</span>':'☆';return s;};
   const pct=b.pages&&b.current_page?Math.min(100,Math.round(b.current_page/b.pages*100)):0;
@@ -8208,9 +8246,17 @@ function libCatFilter(cat, btn) {
 function renderLibGallery() {
   const g = document.getElementById('lib-gallery');
   if(!g) return;
-  let list = _libBooks;
+  let list = [..._libBooks];
   if(_libFilter !== '전체') list = list.filter(b=>b.status===_libFilter);
   if(_libCatFilter.size) list = list.filter(b=>_libCatFilter.has(b.category||''));
+  // 내 서재에서 고른 정렬(curSort)을 파도타기에도 동일 적용
+  (function(k){
+    if(k==='oldest') list.sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+    else if(k==='title') list.sort((a,b)=>(a.title||'').localeCompare(b.title||'','ko'));
+    else if(k==='finish') list.sort((a,b)=>new Date(b.date_finish||0)-new Date(a.date_finish||0));
+    else if(k==='rating_high'||k==='rating_low'){ const d=k==='rating_high'?-1:1; list.sort((a,b)=>{const ra=a.rating||0,rb=b.rating||0,ah=ra>0,bh=rb>0; if(ah!==bh)return ah?-1:1; if(!ah)return new Date(b.created_at||0)-new Date(a.created_at||0); return ra!==rb?d*(ra-rb):new Date(b.created_at||0)-new Date(a.created_at||0);}); }
+    else list.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  })(curSort);
   g.innerHTML = '';
   if(!list.length) { g.innerHTML='<div class="empty-state">책이 없어요.</div>'; return; }
   list.forEach(b => {
