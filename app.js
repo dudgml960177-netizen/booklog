@@ -956,10 +956,16 @@ function getFilteredBooks() {
     list.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
   } else if(curSort === 'oldest') {
     list.sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
-  } else if(curSort === 'rating_high') {
-    list.sort((a,b) => (b.rating||0) - (a.rating||0));
-  } else if(curSort === 'rating_low') {
-    list.sort((a,b) => (a.rating||0) - (b.rating||0));
+  } else if(curSort === 'rating_high' || curSort === 'rating_low') {
+    const dir = curSort === 'rating_high' ? -1 : 1;
+    list.sort((a,b) => {
+      const ra = a.rating||0, rb = b.rating||0;
+      const aHas = ra > 0, bHas = rb > 0;
+      if(aHas !== bHas) return aHas ? -1 : 1;          // 별점 없는 책은 항상 맨 뒤
+      if(!aHas) return new Date(b.created_at||0) - new Date(a.created_at||0); // 둘 다 없으면 최신순
+      if(ra !== rb) return dir * (ra - rb);             // 별점 순(높은/낮은)
+      return new Date(b.date_finish||b.created_at||0) - new Date(a.date_finish||a.created_at||0); // 동점은 최근
+    });
   } else if(curSort === 'title') {
     list.sort((a,b) => (a.title||'').localeCompare(b.title||'', 'ko'));
   } else if(curSort === 'finish') {
@@ -6369,7 +6375,14 @@ async function saveBook() {
 function openDetail(bookId) {
   curBookId=bookId;
   const b=allBooks.find(b=>b.id===bookId);if(!b)return;
-  const quotes=allQuotes.filter(q=>q.book_id===bookId);
+  const quotes=allQuotes.filter(q=>q.book_id===bookId).sort((a,b)=>{
+    const ap=(a.page!=null&&String(a.page)!=='null'&&a.page!=='')?parseInt(a.page):null;
+    const bp=(b.page!=null&&String(b.page)!=='null'&&b.page!=='')?parseInt(b.page):null;
+    if(ap!==null&&bp!==null) return ap-bp;   // 페이지 순
+    if(ap!==null) return -1;                  // 페이지 있는 게 먼저
+    if(bp!==null) return 1;
+    return new Date(a.created_at||0)-new Date(b.created_at||0); // 페이지 없으면 입력순
+  });
   const genre=Array.isArray(b.genre)?b.genre.join(', '):(b.genre||'');
   const starStr=r=>{let s='';for(let i=1;i<=5;i++)s+=r>=i?'★':r>=i-.5?'<span class="gi-hstar">★</span>':'☆';return s;};
   const pct=b.pages&&b.current_page?Math.min(100,Math.round(b.current_page/b.pages*100)):0;
