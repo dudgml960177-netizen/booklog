@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="북로그">
   <link rel="stylesheet" href="style.css?v=2">
-  <link rel="stylesheet" href="mobile.css?v=15">
+  <link rel="stylesheet" href="mobile.css?v=16">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -854,6 +854,17 @@
           </div>
           <div style="font-size:.62rem;color:var(--tx3);margin-top:.32rem;line-height:1.5;">커뮤니티: 전체 기능 · 기록: 서재·문장·기록·통계만</div>
         </div>
+        <!-- 테마 색 (모바일 앱 전용) -->
+        <div class="app-theme-row" style="display:none;margin-bottom:.7rem;">
+          <label class="form-label" style="margin-bottom:.3rem;">테마 색</label>
+          <div style="display:flex;gap:.55rem;">
+            <button type="button" class="theme-dot" data-theme="default" onclick="setTheme('default')" style="background:#b07030;" title="브라운" aria-label="브라운"></button>
+            <button type="button" class="theme-dot" data-theme="sage" onclick="setTheme('sage')" style="background:#6b8f6b;" title="세이지" aria-label="세이지"></button>
+            <button type="button" class="theme-dot" data-theme="slate" onclick="setTheme('slate')" style="background:#5a7a8a;" title="슬레이트" aria-label="슬레이트"></button>
+            <button type="button" class="theme-dot" data-theme="mauve" onclick="setTheme('mauve')" style="background:#8b6b8b;" title="모브" aria-label="모브"></button>
+            <button type="button" class="theme-dot" data-theme="clay" onclick="setTheme('clay')" style="background:#c4714a;" title="클레이" aria-label="클레이"></button>
+          </div>
+        </div>
         <label class="form-label" style="margin-bottom:.3rem;">서체</label>
         <select id="user-font-select" onchange="applySystemFont(this.value)" class="form-input" style="margin-bottom:.35rem;">
           <option value="">-- 서체 선택 --</option>
@@ -1389,7 +1400,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <script src="app.js?v=529"></script>
-<script src="mobile.js?v=4"></script>
+<script src="mobile.js?v=5"></script>
 <script>
   // PWA 서비스 워커 등록
   if ('serviceWorker' in navigator) {

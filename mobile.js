@@ -70,6 +70,16 @@
     if (rb) rb.classList.toggle('on', m === 'record');
   }
 
+  // ── 앱 테마색 (커스텀 액센트) — 모바일 앱 전용
+  var THEMES = ['default', 'sage', 'slate', 'mauve', 'clay'];
+  window.getTheme = function () { return localStorage.getItem('bl_app_theme') || 'default'; };
+  window.setTheme = function (t) { localStorage.setItem('bl_app_theme', t); applyTheme(); };
+  function applyTheme() {
+    var t = window.getTheme();
+    THEMES.forEach(function (x) { document.body.classList.toggle('theme-' + x, x === t); });
+    document.querySelectorAll('.theme-dot').forEach(function (d) { d.classList.toggle('on', d.dataset.theme === t); });
+  }
+
   // 산책 새 글 알림 점: 기존 board-new-dot 과 동기화
   function syncBoardDot() {
     var src = document.getElementById('board-new-dot');
@@ -80,6 +90,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     setActive('books');
     applyAppMode();
+    applyTheme();
     syncBoardDot();
     var src = document.getElementById('board-new-dot');
     if (src && window.MutationObserver) {

@@ -11,6 +11,13 @@
 /* 로그인 전(앱 화면 아님)에는 책추가 FAB 숨김 */
 body:not(.app-on) #fab-add-book { display: none !important; }
 
+/* ── 앱 테마색 (크림브라운 베이스 유지 + 액센트 교체). mobile.js가 body에 클래스 부여 ── */
+body.theme-sage  { --acc: #6b8f6b; --acc2: #4e7256; }
+body.theme-slate { --acc: #5a7a8a; --acc2: #3f5a68; }
+body.theme-mauve { --acc: #8b6b8b; --acc2: #6a4d6a; }
+body.theme-clay  { --acc: #c4714a; --acc2: #9a5232; }
+/* theme-default = :root 기본값 그대로 */
+
 @media (max-width: 640px) {
 
   /* ── 내비게이션: 상단 가로 탭바 → 하단 탭바 ── */
@@ -42,6 +49,14 @@ body:not(.app-on) #fab-add-book { display: none !important; }
     background: none; color: var(--tx2); font-family: var(--ff); font-size: .82rem; cursor: pointer;
   }
   .mode-seg.on { background: var(--acc); color: #fff; border-color: var(--acc); }
+  /* 테마색 선택 칩 */
+  .app-theme-row { display: block !important; }
+  .theme-dot {
+    width: 30px; height: 30px; border-radius: 50%; padding: 0; flex-shrink: 0;
+    border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--border2); cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .theme-dot.on { box-shadow: 0 0 0 2px var(--tx2); transform: scale(1.1); }
   .mnav-i {
     flex: 1; background: none; border: none; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
