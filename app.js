@@ -2512,7 +2512,37 @@ function updateTimerBtn() {
 
 // ── 백그라운드 타이머 알림
 let _timerNotif = null;
+
+// ── Capacitor 네이티브 앱 여부 + 로컬알림 헬퍼 (앱이면 "북로그" 네이티브 알림)
+function _isNativeApp() {
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+let _nativeNotifReady = false;
+async function _ensureNativeNotif() {
+  if(!_isNativeApp()) return false;
+  if(_nativeNotifReady) return true;
+  try {
+    const LN = window.Capacitor.Plugins.LocalNotifications;
+    await LN.requestPermissions();
+    await LN.createChannel({ id:'booklog-session', name:'독서 세션', description:'타이머·도서관 진행 중 알림', importance:4, visibility:1 });
+    _nativeNotifReady = true;
+  } catch(e) { console.warn('native notif init', e); }
+  return true;
+}
+async function _nativeNotify(id, title, body) {
+  try {
+    await _ensureNativeNotif();
+    await window.Capacitor.Plugins.LocalNotifications.schedule({
+      notifications: [{ id, title, body, channelId:'booklog-session', ongoing:true, autoCancel:false }]
+    });
+  } catch(e) { console.warn('native notify', e); }
+}
+async function _nativeCancel(id) {
+  try { await window.Capacitor.Plugins.LocalNotifications.cancel({ notifications:[{ id }] }); } catch(e) {}
+}
+
 async function requestTimerNotifPerm() {
+  if(_isNativeApp()) { await _ensureNativeNotif(); return true; }
   if(!('Notification' in window)) return false;
   if(Notification.permission === 'granted') return true;
   if(Notification.permission === 'denied') return false;
@@ -2520,10 +2550,16 @@ async function requestTimerNotifPerm() {
   return p === 'granted';
 }
 async function showTimerNotif() {
-  if(!timerRunning || !('Notification' in window) || Notification.permission !== 'granted') return;
+  if(!timerRunning) return;
   const h=Math.floor(timerSeconds/3600),m=Math.floor((timerSeconds%3600)/60);
   const timeStr = h>0?`${h}시간 ${m}분`:`${m}분`;
   const bookTitle = timerBookId ? (allBooks.find(b=>b.id===timerBookId)?.title||'') : '';
+  // 앱(네이티브): "북로그" 로컬 알림
+  if(_isNativeApp()) {
+    await _nativeNotify(1001, '📚 독서 타이머 진행 중', (bookTitle?`"${bookTitle}" · `:'')+timeStr+' 경과 — 아직 읽는 중이에요!');
+    return;
+  }
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
   const opts = {
     body: (bookTitle?`"${bookTitle}" · `:'')+timeStr+' 경과 — 아직 읽는 중이에요!',
     tag: 'bl-reading-timer',
@@ -2546,6 +2582,7 @@ async function showTimerNotif() {
   } catch(e) {}
 }
 async function closeTimerNotif() {
+  if(_isNativeApp()) { await _nativeCancel(1001); return; }
   try { _timerNotif?.close(); _timerNotif = null; } catch(e) {}
   try {
     const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
