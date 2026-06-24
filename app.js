@@ -560,8 +560,8 @@ else init();
 
 async function loadData() {
   const [bR, qR] = await Promise.all([
-    sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}),
-    sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(5000),
+    sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(10000),
+    sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(10000),
   ]);
   if(!bR.error && bR.data) allBooks = bR.data;
   else if(!bR.error) allBooks = [];
