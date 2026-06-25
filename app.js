@@ -6393,33 +6393,45 @@ function openDetail(bookId) {
   const sortedAll=[...allBooks].sort((a,c)=>new Date(a.created_at||0)-new Date(c.created_at||0));
   const bookNo=String(sortedAll.findIndex(x=>x.id===bookId)+1).padStart(3,'0');
 
+  const infoChip = (txt) => `<span class="dtl-chip" style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${txt}</span>`;
   let html=`
-  <div style="font-size:.48rem;letter-spacing:.22em;text-transform:uppercase;color:var(--tx3);margin-bottom:.35rem;">BOOK NO. ${bookNo}</div>
-  <div style="font-family:var(--ff-disp);font-size:1.3rem;font-style:italic;color:var(--tx1);line-height:1.2;margin-bottom:.2rem;letter-spacing:-.01em;">${b.title||''}</div>
-  ${b.author?`<div style="font-size:.6rem;color:var(--tx3);letter-spacing:.04em;margin-bottom:.65rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:'<div style="margin-bottom:.65rem;"></div>'}
-  <div style="display:flex;gap:.8rem;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
-    ${b.cover?`<img src="${b.cover}" alt="" style="width:68px;height:102px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.14);">`:`<div style="width:68px;height:102px;background:var(--bg);border:1px solid var(--border);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--tx3);">표지</div>`}
-    <div style="flex:1;min-width:0;">
-      ${b.rating?`<div style="display:flex;align-items:baseline;gap:.28rem;margin-bottom:.45rem;"><span style="font-size:.82rem;color:#c8a050;letter-spacing:.02em;">${starStr(b.rating)}</span><span style="font-family:var(--ff-disp);font-style:italic;font-size:.78rem;color:var(--tx2);">${b.rating}</span></div>`:''}
-      <div style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;">
-        ${b.status?`<span style="font-size:.57rem;font-weight:600;padding:.18rem .48rem;border-radius:9px;background:${statusBg};color:${statusColor};display:inline-flex;align-items:center;line-height:1;">${b.status}</span>`:''}
-        ${genre?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${genre}</span>`:''}
-        ${b.pages?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.pages}p</span>`:''}
-        ${b.date_start?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.date_start}</span>`:''}
-        ${b.date_finish?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.date_finish}</span>`:''}
-        ${b.reading_time?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">⏱ ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>`:''}
-        ${b.source?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.source}</span>`:''}
-        ${b.reread?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">🔁 재독</span>`:''}
+  <div class="dtl-no" style="font-size:.48rem;letter-spacing:.22em;text-transform:uppercase;color:var(--tx3);margin-bottom:.35rem;">BOOK NO. ${bookNo}</div>
+  <div class="dtl-hero" style="display:flex;gap:.8rem;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
+    <div class="dtl-cover-wrap" style="flex-shrink:0;">
+      ${b.cover?`<img class="dtl-cover" src="${b.cover}" alt="" style="width:68px;height:102px;object-fit:cover;border-radius:3px;box-shadow:0 3px 10px rgba(0,0,0,.14);">`:`<div class="dtl-cover" style="width:68px;height:102px;background:var(--bg);border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--tx3);">표지</div>`}
+    </div>
+    <div class="dtl-meta" style="flex:1;min-width:0;">
+      <div class="dtl-title" style="font-family:var(--ff-disp);font-size:1.1rem;font-style:italic;color:var(--tx1);line-height:1.2;margin-bottom:.18rem;letter-spacing:-.01em;">${b.title||''}</div>
+      ${b.author?`<div class="dtl-author" style="font-size:.6rem;color:var(--tx3);letter-spacing:.04em;margin-bottom:.45rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:''}
+      ${b.rating?`<div class="dtl-rating" style="display:flex;align-items:baseline;gap:.28rem;margin-bottom:.45rem;"><span style="font-size:.82rem;color:#c8a050;letter-spacing:.02em;">${starStr(b.rating)}</span><span style="font-family:var(--ff-disp);font-style:italic;font-size:.78rem;color:var(--tx2);">${b.rating}</span></div>`:''}
+      <div class="dtl-chips" style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;margin-bottom:.45rem;">
+        ${b.status?`<span class="dtl-status-chip" style="font-size:.57rem;font-weight:600;padding:.18rem .48rem;border-radius:9px;background:${statusBg};color:${statusColor};display:inline-flex;align-items:center;line-height:1;">${b.status}</span>`:''}
+        ${genre?infoChip(genre):''}
+        ${b.pages?infoChip(b.pages+'p'):''}
+        ${b.date_start?infoChip(b.date_start):''}
+        ${b.date_finish?infoChip(b.date_finish):''}
+        ${b.reading_time?infoChip('⏱ '+Math.floor(b.reading_time/60)+'h '+b.reading_time%60+'m'):''}
+        ${b.source?infoChip(b.source):''}
+        ${b.reread?infoChip('🔁 재독'):''}
       </div>
-      ${b.status==='읽는중'&&pct?`<div style="margin-top:.55rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;"></div></div><div style="font-size:.52rem;color:var(--tx3);margin-top:.12rem;">${b.current_page}p / ${b.pages}p · ${pct}%</div></div>`:''}
+      ${b.status==='읽는중'&&pct?`
+      <div class="dtl-prog-mini">
+        <div class="dtl-prog-header" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.32rem;">
+          <span style="font-size:.52rem;color:var(--tx3);">${b.current_page}p / ${b.pages}p</span>
+          <span class="dtl-prog-pct" style="font-size:.72rem;font-weight:700;color:var(--acc);">${pct}%</span>
+        </div>
+        <div class="dtl-prog-track" style="height:5px;background:var(--border);border-radius:999px;overflow:hidden;">
+          <div class="dtl-prog-fill" style="width:${pct}%;height:100%;background:var(--acc);border-radius:999px;"></div>
+        </div>
+      </div>`:''}
     </div>
   </div>`;
 
   // 줄거리
   const MAX_DESC=150;
   if(b.description){
-    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">줄거리</div>
+    html+=`<div class="dtl-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">줄거리</div>
       <div style="font-size:.7rem;color:var(--tx2);line-height:1.72;">
         ${b.description.length>MAX_DESC?`<span class="desc-short">${b.description.slice(0,MAX_DESC)}...</span><span class="desc-full" style="display:none;">${b.description}</span><span class="desc-toggle" onclick="toggleDesc(this)" style="cursor:pointer;color:var(--acc);font-size:.62rem;margin-left:.22rem;">더 보기</span>`:b.description}
       </div>
@@ -6428,8 +6440,8 @@ function openDetail(bookId) {
 
   // 감상 (내 감상 + 다른 산책자 통합)
   if(b.review || b.isbn){
-    html+=`<div id="reviews-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.5rem;">감상</div>`;
+    html+=`<div id="reviews-section" class="dtl-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.5rem;">감상</div>`;
     if(b.review){
       const rv=b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
       const MAX_REVIEW=120;
@@ -6447,23 +6459,31 @@ function openDetail(bookId) {
   if(b.status==='읽는중'){
     const cp=b.current_page||0,tp=b.pages||0;
     const pct2=tp&&cp?Math.min(100,Math.round(cp/tp*100)):0;
-    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
-      <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
+    html+=`<div class="dtl-section dtl-reading-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
+      ${tp&&cp?`<div class="dtl-prog-full">
+        <div class="dtl-prog-full-header" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.45rem;">
+          <span style="font-size:.62rem;color:var(--tx3);">${cp}p · ${tp-cp}p 남음</span>
+          <span class="dtl-prog-full-pct" style="font-family:var(--fs);font-size:1.1rem;font-weight:400;color:var(--acc);">${pct2}%</span>
+        </div>
+        <div class="dtl-prog-track dtl-prog-track-lg" style="height:7px;background:var(--border);border-radius:999px;overflow:hidden;margin-bottom:.55rem;">
+          <div class="dtl-prog-fill" style="width:${pct2}%;height:100%;background:linear-gradient(90deg,#b5481f,#e8903a);border-radius:999px;transition:width .4s ease;"></div>
+        </div>
+      </div>`:''}
+      <div class="dtl-reading-ctrl" style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
         <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}" placeholder="현재 쪽" style="width:68px;padding:.28rem .4rem;border:1px solid var(--border2);border-radius:5px;font-size:.76rem;font-family:var(--ff);text-align:center;">
         ${tp?`<span style="font-size:.62rem;color:var(--tx3);">/ ${tp}p</span>`:''}
-        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:7px;padding:.26rem .6rem;font-size:.68rem;line-height:1.2;cursor:pointer;font-family:var(--ff);">저장</button>
+        <button onclick="saveReadingProgress('${b.id}')" class="dtl-prog-save-btn" style="background:var(--acc);color:#fff;border:none;border-radius:7px;padding:.26rem .6rem;font-size:.68rem;line-height:1.2;cursor:pointer;font-family:var(--ff);">저장</button>
       </div>
-      ${tp&&cp?`<div style="margin-top:.4rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct2}%;height:100%;background:var(--acc);border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.51rem;color:var(--tx3);margin-top:.1rem;">${cp}p · ${pct2}% · ${tp-cp}p 남음</div></div>`:''}
     </div>`;
   }
 
   // 밑줄 · UNDERLINES
   const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
-  html+=`<div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
-      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.68rem;padding:.2rem .5rem;border:1px solid var(--acc);border-radius:7px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);line-height:1.2;">＋ 추가</button>
+  html+=`<div class="dtl-underlines">
+    <div class="dtl-ul-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
+      <button onclick="openAddQuoteFromDetail('${b.id}')" class="dtl-ul-add" style="font-size:.68rem;padding:.2rem .5rem;border:1px solid var(--acc);border-radius:7px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);line-height:1.2;">＋ 추가</button>
     </div>`;
   quotes.forEach((q,i)=>{
     const color=QCOLORS[i%QCOLORS.length];

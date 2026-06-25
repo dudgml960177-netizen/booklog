@@ -553,17 +553,198 @@
     border: 1.5px solid #2e1f0e !important;
     border-radius: 18px !important;
     box-shadow: 8px 10px 0 rgba(46,31,14,.14) !important;
-    max-width: 700px !important;
+    max-width: 720px !important;
     overflow: hidden !important;
   }
   #modal-detail #detail-body {
     background: #fbf6ec !important;
-    padding: 1.1rem 1.3rem !important;
+    padding: 1.3rem 1.5rem !important;
+    max-height: 82vh !important;
   }
   #modal-detail .modal > div:last-child {
     background: #f3ecdb !important;
     border-top: 1.5px solid rgba(46,31,14,.18) !important;
-    padding: .65rem 1.1rem !important;
+    padding: .7rem 1.3rem !important;
+  }
+
+  /* BOOK NO. */
+  #modal-detail .dtl-no {
+    font-size: .52rem !important;
+    letter-spacing: .2em !important;
+    color: var(--tx3) !important;
+    margin-bottom: .5rem !important;
+  }
+
+  /* ── 히어로 영역: 2열 레이아웃 ── */
+  #modal-detail .dtl-hero {
+    display: flex !important;
+    gap: 1.5rem !important;
+    margin-bottom: 1.2rem !important;
+    padding-bottom: 1.2rem !important;
+    border-bottom: 1.5px solid rgba(46,31,14,.12) !important;
+    align-items: flex-start !important;
+  }
+  #modal-detail .dtl-cover-wrap { flex-shrink: 0 !important; }
+  #modal-detail .dtl-cover {
+    width: 120px !important;
+    height: 180px !important;
+    object-fit: cover !important;
+    border-radius: 8px !important;
+    box-shadow: 4px 6px 0 rgba(46,31,14,.18), 0 8px 20px rgba(46,31,14,.12) !important;
+    display: block !important;
+  }
+  #modal-detail .dtl-meta {
+    flex: 1 !important;
+    min-width: 0 !important;
+    padding-top: .3rem !important;
+  }
+
+  /* 제목 */
+  #modal-detail .dtl-title {
+    font-family: var(--fs) !important;
+    font-size: 1.45rem !important;
+    font-style: italic !important;
+    font-weight: 400 !important;
+    color: #2e1f0e !important;
+    line-height: 1.25 !important;
+    margin-bottom: .3rem !important;
+    letter-spacing: -.02em !important;
+  }
+  /* 저자 */
+  #modal-detail .dtl-author {
+    font-size: .72rem !important;
+    color: var(--tx2) !important;
+    margin-bottom: .6rem !important;
+    letter-spacing: .03em !important;
+  }
+  /* 별점 */
+  #modal-detail .dtl-rating {
+    margin-bottom: .6rem !important;
+  }
+  #modal-detail .dtl-rating span:first-child {
+    font-size: .95rem !important;
+  }
+
+  /* 상태/메타 칩 */
+  #modal-detail .dtl-chips {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: .3rem !important;
+    margin-bottom: .8rem !important;
+  }
+  #modal-detail .dtl-chip {
+    background: rgba(46,31,14,.06) !important;
+    border: 1px solid rgba(46,31,14,.14) !important;
+    border-radius: 7px !important;
+    color: var(--tx2) !important;
+    font-size: .65rem !important;
+    padding: .22rem .55rem !important;
+  }
+  #modal-detail .dtl-status-chip {
+    border-radius: 7px !important;
+    font-size: .65rem !important;
+    padding: .22rem .65rem !important;
+    font-weight: 600 !important;
+  }
+
+  /* ── 읽는중 미니 진행바 (히어로 내부) ── */
+  #modal-detail .dtl-prog-mini { margin-top: .2rem !important; }
+  #modal-detail .dtl-prog-pct {
+    font-family: var(--fs) !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    color: #b5481f !important;
+  }
+  #modal-detail .dtl-prog-track {
+    height: 6px !important;
+    background: rgba(46,31,14,.1) !important;
+    border-radius: 999px !important;
+    overflow: hidden !important;
+  }
+  #modal-detail .dtl-prog-fill {
+    background: linear-gradient(90deg, #b5481f, #e8903a) !important;
+    border-radius: 999px !important;
+    height: 100% !important;
+    transition: width .4s ease !important;
+  }
+
+  /* ── 섹션 공통 ── */
+  #modal-detail .dtl-section {
+    margin-bottom: .9rem !important;
+    padding-bottom: .9rem !important;
+    border-bottom: 1.5px solid rgba(46,31,14,.08) !important;
+  }
+  #modal-detail .dtl-section-lbl {
+    font-family: var(--ff) !important;
+    font-size: .5rem !important;
+    letter-spacing: .2em !important;
+    text-transform: uppercase !important;
+    color: var(--tx3) !important;
+    margin-bottom: .45rem !important;
+    font-weight: 600 !important;
+  }
+
+  /* ── 독서 진행 (전체 진행바) ── */
+  #modal-detail .dtl-reading-section { }
+  #modal-detail .dtl-prog-full-pct {
+    font-family: var(--fs) !important;
+    font-size: 1.6rem !important;
+    font-weight: 400 !important;
+    color: #b5481f !important;
+    line-height: 1 !important;
+  }
+  #modal-detail .dtl-prog-track-lg {
+    height: 10px !important;
+    background: rgba(46,31,14,.1) !important;
+    border-radius: 999px !important;
+  }
+  #modal-detail .dtl-reading-ctrl {
+    gap: .55rem !important;
+  }
+  #modal-detail #current-page-input {
+    width: 80px !important;
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 9px !important;
+    background: #fffdf8 !important;
+    font-size: .82rem !important;
+    padding: .35rem .5rem !important;
+    text-align: center !important;
+  }
+  #modal-detail .dtl-prog-save-btn {
+    background: #b5481f !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 9px !important;
+    font-size: .75rem !important;
+    padding: .35rem .9rem !important;
+    font-weight: 600 !important;
+  }
+
+  /* ── 밑줄 섹션 ── */
+  #modal-detail .dtl-underlines { margin-top: .2rem !important; }
+  #modal-detail .dtl-ul-add {
+    border: 1.5px solid rgba(46,31,14,.25) !important;
+    border-radius: 8px !important;
+    color: var(--tx2) !important;
+    font-size: .68rem !important;
+    padding: .22rem .65rem !important;
+    transition: background .13s !important;
+  }
+  #modal-detail .dtl-ul-add:hover {
+    background: rgba(46,31,14,.05) !important;
+    color: #b5481f !important;
+    border-color: #b5481f !important;
+  }
+  #modal-detail #detail-body [style*="border-left:3px solid"],
+  #modal-detail #detail-body [style*="border-left: 3px solid"] {
+    background: rgba(46,31,14,.025) !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: .5rem .8rem .55rem .7rem !important;
+    margin-bottom: .45rem !important;
+    transition: background .13s !important;
+  }
+  #modal-detail #detail-body [style*="border-left:3px solid"]:hover,
+  #modal-detail #detail-body [style*="border-left: 3px solid"]:hover {
+    background: rgba(46,31,14,.06) !important;
   }
 
   /* ── 문장 에디터 모달 (qedit-modal): 에디토리얼 ── */
