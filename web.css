@@ -143,19 +143,23 @@
     will-change: transform;
   }
   #p-quotes .wq-nav {
-    width: 44px; height: 44px;
-    border: 1.5px solid #2e1f0e;
-    border-radius: 50%;
+    width: 36px; height: 36px;
+    border: 1.5px solid rgba(46,31,14,.3);
+    border-radius: 9px;
     background: #fbf6ec;
     color: #2e1f0e;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     line-height: 1;
     cursor: pointer; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    transition: background .13s;
+    transition: background .13s, border-color .13s;
+    box-shadow: 2px 2px 0 rgba(46,31,14,.08);
   }
-  #p-quotes .wq-nav:hover { background: #f0e6d2; }
-  #p-quotes .wq-nav:disabled { opacity: .28; cursor: default; }
+  #p-quotes .wq-nav:hover {
+    background: #f0e6d2;
+    border-color: rgba(46,31,14,.5);
+  }
+  #p-quotes .wq-nav:disabled { opacity: .22; cursor: default; box-shadow: none; }
 
   /* 세로 직사각형 카드 */
   #p-quotes .qcard {
@@ -338,31 +342,45 @@
     overflow: hidden !important;
   }
 
-  /* ── 문장 카드 푸터 (p. 페이지 + 태그) ── */
+  /* ── 문장 카드 푸터: 일기/저널 스타일 ── */
   #p-quotes .wq-bf {
     margin-top: auto;
     padding-top: 8px;
-    border-top: 1.5px solid rgba(46,31,14,.14);
-    background: rgba(46,31,14,.03);
-    margin-left: -1px; margin-right: -1px; margin-bottom: -1px;
-    padding-left: 1px; padding-right: 1px; padding-bottom: 4px;
-    border-radius: 0 0 6px 6px;
+    border-top: 1px dashed rgba(46,31,14,.22);
+    background: none;
+    margin-left: 0; margin-right: 0; margin-bottom: 0;
+    padding-left: 0; padding-right: 0; padding-bottom: 3px;
+    border-radius: 0;
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    align-items: center;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
     flex-shrink: 0;
   }
-  #p-quotes .wq-bf .qcard-chip {
-    background: rgba(46,31,14,.07) !important;
-    border: 1px solid rgba(46,31,14,.15) !important;
-    color: #5a4020 !important;
-    font-size: .58rem !important;
+  /* 페이지: 날짜 스탬프처럼 — 작고 이탤릭 세리프 */
+  #p-quotes .wq-bf .qcard-chip:not(.qcard-tag) {
+    background: none !important;
+    border: none !important;
+    color: var(--tx3) !important;
+    font-family: var(--fs) !important;
+    font-size: .62rem !important;
+    font-style: italic !important;
+    font-weight: 400 !important;
+    padding: 0 !important;
+    letter-spacing: .01em !important;
   }
+  /* 코멘트: 일기 본문처럼 — 보통 텍스트 */
   #p-quotes .wq-bf .qcard-tag {
-    background: rgba(181,72,31,.1) !important;
-    border-color: rgba(181,72,31,.22) !important;
-    color: #8a3820 !important;
+    background: none !important;
+    border: none !important;
+    color: var(--tx2) !important;
+    font-family: var(--ff) !important;
+    font-size: .7rem !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    padding: 0 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
   }
 
   /* ── 갤러리 도넛: 웹 전용 업사이즈 ── */
@@ -372,7 +390,12 @@
     top: 5px !important;
     right: 5px !important;
   }
-  #p-books .gi-donut b { font-size: .55rem !important; font-weight: 800 !important; }
+  #p-books .gi-donut b {
+    font-family: var(--fs) !important;
+    font-size: .6rem !important;
+    font-weight: 400 !important;
+    color: #2e1f0e !important;
+  }
 
   /* ── 목록 뷰 에디토리얼 ── */
   #p-books .book-list { gap: .6rem !important; }
@@ -392,7 +415,12 @@
     width: 42px !important;
     height: 42px !important;
   }
-  #p-books .bli-donut b { font-size: .5rem !important; font-weight: 800 !important; }
+  #p-books .bli-donut b {
+    font-family: var(--fs) !important;
+    font-size: .52rem !important;
+    font-weight: 400 !important;
+    color: #2e1f0e !important;
+  }
   #p-books .book-list-item:hover {
     background: #f3ead8 !important;
     transform: translateY(-1px) !important;
