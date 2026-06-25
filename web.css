@@ -1348,8 +1348,9 @@
   }
   #p-record .card {
     background: #fbf6ec !important;
-    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border: 1.5px solid rgba(46,31,14,.45) !important;
     border-radius: 8px !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.08) !important;
   }
   #p-record .cal-nav {
     border-radius: 4px !important;
@@ -1475,8 +1476,9 @@
   }
   #p-graph .card {
     background: #fbf6ec !important;
-    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border: 1.5px solid rgba(46,31,14,.45) !important;
     border-radius: 8px !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.08) !important;
   }
   #p-graph .gtabs {
     border-bottom: 1.5px solid rgba(46,31,14,.15) !important;
@@ -1518,7 +1520,107 @@
   }
   #p-graph [style*="var(--card)"] {
     background: #fbf6ec !important;
-    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border: 1.5px solid rgba(46,31,14,.45) !important;
     border-radius: 8px !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.08) !important;
+  }
+
+  /* ══ v=21: 6-stat 그리드 (inline div, not .card) ══ */
+  #p-graph #stat-grid > div[style*="grid-template-columns"] {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.45) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.08) !important;
+  }
+  #p-graph #stat-grid > div[style*="grid-template-columns"] > div {
+    border-color: rgba(46,31,14,.1) !important;
+  }
+
+  /* ══ v=21: loot / quest 카드 에디토리얼 ══ */
+  #p-graph .loot-card,
+  #p-graph .quest-card {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.45) !important;
+    border-radius: 8px !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.08) !important;
+  }
+
+  /* ══ v=21: 독서 목표 progress bar 에디토리얼 ══ */
+  #p-graph #goal-display div[style*="height:3px"] {
+    height: 9px !important;
+    background: rgba(46,31,14,.08) !important;
+    border-radius: 2px !important;
+    border: 1px solid rgba(46,31,14,.15) !important;
+  }
+  #p-graph #goal-display div[style*="background:var(--rust)"],
+  #p-graph #goal-display div[style*="background:var(--sage)"],
+  #p-graph #goal-display div[style*="background:var(--slate)"],
+  #p-graph #goal-display div[style*="background:var(--mauve)"] {
+    background: repeating-linear-gradient(
+      -45deg,
+      #c4511f 0px, #c4511f 2px,
+      #1e0e04 2px, #1e0e04 4px
+    ) !important;
+    border-radius: 2px !important;
+  }
+  #p-graph #goal-display button {
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 4px !important;
+    background: none !important;
+    color: var(--tx2) !important;
+    font-family: var(--ff) !important;
+    font-size: .62rem !important;
+  }
+
+  /* ══ v=21: 타이머 버튼 에디토리얼 ══ */
+  #p-record .tbtn {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-radius: 4px !important;
+    font-family: var(--ff) !important;
+  }
+  #p-record .tbtn:hover { background: #b5481f !important; }
+  #p-record .tbtn-sec {
+    background: #f3ecdb !important;
+    color: var(--tx2) !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+  }
+  #p-record .tbtn-sec:hover { background: #ede4d0 !important; }
+  #p-record .tbtn-save {
+    background: #b5481f !important;
+    color: #fbf6ec !important;
+  }
+  #p-record .tbtn-save:hover { background: #2e1f0e !important; }
+
+  /* ══ v=21: 공유 버튼 에디토리얼 ══ */
+  #p-record .cal-hd button[style*="background:var(--acc)"] {
+    background: #2e1f0e !important;
+    border-radius: 4px !important;
+    color: #fbf6ec !important;
+    border: none !important;
+    font-size: .62rem !important;
+    padding: .22rem .6rem !important;
+    transition: background .13s !important;
+  }
+  #p-record .cal-hd button[style*="background:var(--acc)"]:hover {
+    background: #b5481f !important;
+  }
+
+  /* ══ v=21: yr-btn 텍스트 색상 통일 ══ */
+  #p-graph .yr-btn { color: var(--tx2) !important; }
+  #p-graph .yr-btn.on { color: #fbf6ec !important; }
+
+  /* ══ v=21: 타이머 현재 쪽 입력 ══ */
+  #p-record #timer-current-page {
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 4px !important;
+    background: #fffdf8 !important;
+  }
+
+  /* ══ v=21: 공지 게시물 구분색 ══ */
+  #p-board .board-item.post-notice {
+    background: #fdf5e8 !important;
+    border-color: rgba(181,72,31,.35) !important;
   }
 }
