@@ -4,9 +4,10 @@
    모든 규칙은 max-width:640px 안에서만 적용된다.
    ========================================================= */
 
-/* 하단 탭바 / 더보기 시트: 기본 숨김 (데스크톱) */
+/* 하단 탭바 / 더보기 시트 / 홈 히어로: 기본 숨김 (데스크톱) */
 .mnav { display: none; }
 .more-sheet-overlay { display: none; }
+#home-hero { display: none; }
 
 /* 로그인 전(앱 화면 아님)에는 책추가 FAB 숨김 */
 body:not(.app-on) #fab-add-book { display: none !important; }
@@ -95,6 +96,30 @@ body[class*="theme-"] .app-main { background: var(--bg) !important; }
     filter: drop-shadow(0 0 1px rgba(0,0,0,.4));
     pointer-events: none;
   }
+
+  /* ── 서재 홈 "이어 읽기" 히어로 카드 (테마색 연동, 1.5px 선) ── */
+  body.app-on #home-hero {
+    display: block; margin-bottom: 14px;
+    background: color-mix(in srgb, var(--acc) 12%, var(--card));
+    border: 1.5px solid color-mix(in srgb, var(--acc) 42%, var(--border));
+    border-radius: 16px; padding: 12px 13px;
+  }
+  .hh-label { font-size: .58rem; font-weight: 700; letter-spacing: .14em; color: var(--acc2); text-transform: uppercase; margin-bottom: 9px; }
+  .hh-body { display: flex; align-items: center; gap: 12px; }
+  .hh-cover { width: 56px; height: 82px; flex-shrink: 0; border-radius: 6px; overflow: hidden; cursor: pointer; background: linear-gradient(150deg,#a07a4e,#5a3a1a); border: 1.5px solid rgba(46,31,14,.35); display: flex; align-items: flex-end; }
+  .hh-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hh-cover span { font-size: .56rem; color: #f5ecdd; padding: 5px; line-height: 1.25; }
+  .hh-info { flex: 1; min-width: 0; }
+  .hh-title { font-family: var(--fs); font-size: 1.05rem; color: var(--tx1); line-height: 1.15; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hh-author { font-size: .72rem; color: var(--tx3); margin: 1px 0 8px; }
+  .hh-bar { height: 7px; border: 1.5px solid color-mix(in srgb, var(--acc) 40%, var(--border)); border-radius: 999px; overflow: hidden; background: var(--card); }
+  .hh-bar > i { display: block; height: 100%; background: var(--acc); border-radius: 999px; }
+  .hh-meta { font-size: .64rem; color: var(--tx3); margin-top: 4px; }
+  .hh-gauge { position: relative; width: 46px; height: 46px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .hh-gauge::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--acc) calc(var(--p) * 1%), color-mix(in srgb, var(--acc) 16%, #fff) 0); -webkit-mask: radial-gradient(transparent 58%, #000 59%); mask: radial-gradient(transparent 58%, #000 59%); }
+  .hh-gauge span { position: relative; font-family: var(--fs); font-size: .72rem; color: var(--tx1); }
+  .hh-gauge span::after { content: '%'; font-size: .5rem; }
+  .hh-btn { width: 100%; margin-top: 11px; background: var(--acc); color: #fff; border: none; border-radius: 9px; font-family: var(--ff); font-size: .8rem; font-weight: 600; padding: .55rem; cursor: pointer; }
 
   /* ── 헤더 아이콘 버튼: 박스 보더 제거 → 깔끔한 아이콘 ── */
   .header-btn {

@@ -87,6 +87,42 @@
     if (src && dst) dst.style.display = (src.style.display !== 'none') ? 'block' : 'none';
   }
 
+  // ── 서재 홈 "이어 읽기" 히어로 카드 (앱 전용)
+  function renderHomeHero() {
+    var panel = document.getElementById('p-books');
+    if (!panel) return;
+    var hero = document.getElementById('home-hero');
+    var books = (window.allBooks || []).filter(function (b) { return b.status === '읽는중'; });
+    books.sort(function (a, b) {
+      return new Date(b.last_read || b.date_start || b.created_at || 0) - new Date(a.last_read || a.date_start || a.created_at || 0);
+    });
+    var b = books[0];
+    if (!b) { if (hero) hero.remove(); return; }
+    var pct = (b.current_page && b.pages) ? Math.min(100, Math.round(b.current_page / b.pages * 100)) : 0;
+    if (!hero) { hero = document.createElement('div'); hero.id = 'home-hero'; panel.insertBefore(hero, panel.firstChild); }
+    var cover = b.cover ? '<img src="' + b.cover + '" alt="">' : '<span>' + (b.title || '') + '</span>';
+    hero.innerHTML =
+      '<div class="hh-label">이어 읽기</div>' +
+      '<div class="hh-body">' +
+        '<div class="hh-cover" data-go>' + cover + '</div>' +
+        '<div class="hh-info">' +
+          '<div class="hh-title" data-go>' + (b.title || '') + '</div>' +
+          '<div class="hh-author">' + ((b.author || '').split(/[,·]/)[0]) + '</div>' +
+          '<div class="hh-bar"><i style="width:' + pct + '%"></i></div>' +
+          '<div class="hh-meta">' + (b.current_page || 0) + ' / ' + (b.pages || '?') + 'p · ' + pct + '%</div>' +
+        '</div>' +
+        '<div class="hh-gauge" style="--p:' + pct + '"><span>' + pct + '</span></div>' +
+      '</div>' +
+      '<button class="hh-btn" type="button" data-go>이어서 기록 →</button>';
+    hero.querySelectorAll('[data-go]').forEach(function (el) {
+      el.onclick = function () { if (window.openDetail) openDetail(b.id); };
+    });
+  }
+  if (typeof window.buildBooks === 'function') {
+    var _origBuildBooks = window.buildBooks;
+    window.buildBooks = function () { _origBuildBooks.apply(this, arguments); try { renderHomeHero(); } catch (e) {} };
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     setActive('books');
     applyAppMode();
