@@ -86,7 +86,7 @@
   #web-hero .wh-by { font-size: .85rem; color: var(--tx2); margin-bottom: auto; }
   #web-hero .wh-prog { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
   #web-hero .wh-bar { flex: 1; height: 9px; border: 1.5px solid #2e1f0e; border-radius: 2px; background: rgba(46,31,14,.08); overflow: hidden; }
-  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #b5481f 0px, #b5481f 3px, rgba(255,255,255,.28) 3px, rgba(255,255,255,.28) 5px); }
+  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #b5481f 0px, #b5481f 2px, rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 3px); }
   #web-hero .wh-donut { position: relative; width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   #web-hero .wh-donut::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#b5481f calc(var(--p)*1%), #ece0c8 0); -webkit-mask: radial-gradient(transparent 60%, #000 61%); mask: radial-gradient(transparent 60%, #000 61%); }
   #web-hero .wh-donut b { position: relative; font-family: var(--ff); font-size: .85rem; color: #2e1f0e; font-weight: 700; }
@@ -653,8 +653,8 @@
   #modal-detail .dtl-prog-fill {
     background: repeating-linear-gradient(
       -45deg,
-      #b5481f 0px, #b5481f 3px,
-      rgba(255,255,255,.28) 3px, rgba(255,255,255,.28) 5px
+      #b5481f 0px, #b5481f 2px,
+      rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 3px
     ) !important;
     border-radius: 2px !important;
     height: 100% !important;
