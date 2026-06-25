@@ -1115,7 +1115,8 @@ async function bulkDelete() {
 function buildGallery(list) {
   const g = document.getElementById('gal-grid'); g.innerHTML = '';
   if (!list.length) { g.innerHTML='<div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>'; return; }
-  list.forEach(b => {
+  const DONUT_PALETTE = ['#c4511f','#7a9e7e','#5a7a8a','#c8a050','#9a7090','#5a8070','#b06040'];
+  list.forEach((b, idx) => {
     const el = document.createElement('div'); el.className='gi';
     if(selectMode) {
       const chk = selectedIds.has(b.id);
@@ -1156,7 +1157,8 @@ function buildGallery(list) {
     // 읽는 중 진행률 도넛
     const giPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
     const giCirc = 75.4;
-    const giDonut = giPct > 0 ? `<div class="gi-donut" title="${giPct}% 읽음"><svg viewBox="0 0 34 34" width="34" height="34" style="position:absolute;inset:0;filter:drop-shadow(0 1px 3px rgba(46,31,14,.32));"><circle cx="17" cy="17" r="12" fill="white" stroke="#d9c5a8" stroke-width="3"/><circle cx="17" cy="17" r="12" fill="none" stroke="#c4511f" stroke-width="3" stroke-dasharray="${(giCirc*giPct/100).toFixed(1)} ${giCirc}" stroke-linecap="round" transform="rotate(-90 17 17)"/></svg><b>${giPct}</b></div>` : '';
+    const donutColor = DONUT_PALETTE[idx % DONUT_PALETTE.length];
+    const giDonut = giPct > 0 ? `<div class="gi-donut" title="${giPct}% 읽음"><svg viewBox="0 0 34 34" width="34" height="34" style="position:absolute;inset:0;filter:drop-shadow(0 2px 6px rgba(46,31,14,.28));"><circle cx="17" cy="17" r="12" fill="white" stroke="#e0d5c0" stroke-width="2.2"/><circle cx="17" cy="17" r="12" fill="none" stroke="${donutColor}" stroke-width="2.2" stroke-dasharray="${(giCirc*giPct/100).toFixed(1)} ${giCirc}" stroke-linecap="round" transform="rotate(-90 17 17)"/></svg><b>${giPct}</b></div>` : '';
     el.innerHTML = `<div class="gi-thought">${thoughtCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${ttl}</div><div class="gi-thought-time">⏱ ${timeStr}</div><div class="gi-thought-status">${statusLabel}</div></div></div>
       <div class="gi-cover">${coverHtml}</div>
       ${giDonut}
@@ -1169,7 +1171,8 @@ function buildGallery(list) {
 function buildList(list) {
   const g = document.getElementById('book-list-items'); g.innerHTML = '';
   if (!list.length) { g.innerHTML='<div class="empty-state">아직 기록된 책이 없어요.</div>'; return; }
-  list.forEach(b => {
+  const DONUT_PALETTE = ['#c4511f','#7a9e7e','#5a7a8a','#c8a050','#9a7090','#5a8070','#b06040'];
+  list.forEach((b, idx) => {
     const el = document.createElement('div'); el.className='book-list-item';
     if(selectMode) {
       const chk = selectedIds.has(b.id);
@@ -1182,7 +1185,8 @@ function buildList(list) {
     const coverEl = b.cover ? `<img class="bli-cover" src="${b.cover}" alt="${b.title}">` : `<div class="bli-cover"></div>`;
     const bliPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
     const bliCirc = 50.3;
-    const bliDonut = bliPct > 0 ? `<div class="bli-donut" title="${bliPct}% 읽음"><svg viewBox="0 0 26 26" width="26" height="26" style="position:absolute;inset:0;filter:drop-shadow(0 1px 2px rgba(46,31,14,.28));"><circle cx="13" cy="13" r="8" fill="white" stroke="#d9c5a8" stroke-width="2.5"/><circle cx="13" cy="13" r="8" fill="none" stroke="#c4511f" stroke-width="2.5" stroke-dasharray="${(bliCirc*bliPct/100).toFixed(1)} ${bliCirc}" stroke-linecap="round" transform="rotate(-90 13 13)"/></svg><b>${bliPct}</b></div>` : '';
+    const donutColor = DONUT_PALETTE[idx % DONUT_PALETTE.length];
+    const bliDonut = bliPct > 0 ? `<div class="bli-donut" title="${bliPct}% 읽음"><svg viewBox="0 0 26 26" width="26" height="26" style="position:absolute;inset:0;filter:drop-shadow(0 2px 5px rgba(46,31,14,.26));"><circle cx="13" cy="13" r="8" fill="white" stroke="#e0d5c0" stroke-width="2"/><circle cx="13" cy="13" r="8" fill="none" stroke="${donutColor}" stroke-width="2" stroke-dasharray="${(bliCirc*bliPct/100).toFixed(1)} ${bliCirc}" stroke-linecap="round" transform="rotate(-90 13 13)"/></svg><b>${bliPct}</b></div>` : '';
     el.innerHTML = `<div class="bli-cover-wrap">${coverEl}${bliDonut}</div>
       <div class="bli-info">
         <div class="bli-title">${b.title}</div>
@@ -1778,11 +1782,12 @@ function renderQuotes() {
     return new Date(a.created_at) - new Date(b.created_at);
   });
 
-  // 페이지네이션
+  // 페이지네이션 (데스크톱은 전체 표시)
   const totalQ = list.length;
-  const totalQPages = Math.ceil(totalQ / QUOTES_PER_PAGE);
+  const isDesktopQ = window.innerWidth >= 880;
+  const totalQPages = isDesktopQ ? 1 : Math.ceil(totalQ / QUOTES_PER_PAGE);
   if(quotePage > totalQPages) quotePage = 1;
-  const pageList = list.slice((quotePage - 1) * QUOTES_PER_PAGE, quotePage * QUOTES_PER_PAGE);
+  const pageList = isDesktopQ ? list : list.slice((quotePage - 1) * QUOTES_PER_PAGE, quotePage * QUOTES_PER_PAGE);
 
   pageList.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
