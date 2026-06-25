@@ -150,6 +150,89 @@
     feed.appendChild(carousel);
 
     wqUpdateNav(cards.length);
+    try { restructureWebQuoteCards(); } catch(e) {}
+  }
+
+  // 문장 카드 DOM 재구성: 책표지+제목+저자 → 상단 / 텍스트 중간 / 페이지+태그 → 하단
+  function restructureWebQuoteCards() {
+    var track = document.getElementById('wq-track');
+    if (!track) return;
+    track.querySelectorAll('.qcard').forEach(function(card) {
+      if (card.dataset.wstyled) return;
+      card.dataset.wstyled = '1';
+      var inner = card.querySelector('.qcard-inner');
+      if (!inner) return;
+
+      // qcard-inner의 직접 자식 div들: [0] 인용문 섹션, [1] 출처 섹션
+      var innerDivs = Array.from(inner.querySelectorAll(':scope > div'));
+      var sourceDiv = innerDivs[1];
+      if (!sourceDiv) return;
+
+      // 출처 섹션에서 데이터 추출
+      var coverImg = sourceDiv.querySelector('img');
+      var titleEl = sourceDiv.querySelector('.qcard-book');
+      var authorEl = sourceDiv.querySelector('.qcard-author');
+      var pageChipEl = sourceDiv.querySelector('.qcard-chip:not(.qcard-tag)');
+      var tagChipEl = sourceDiv.querySelector('.qcard-tag');
+
+      var titleText = titleEl ? titleEl.textContent : '';
+      var authorText = (authorEl ? authorEl.textContent : '').replace(/^\s*[—\-]\s*/, '');
+      var pageText = pageChipEl ? pageChipEl.textContent : '';
+      var tagText = tagChipEl ? tagChipEl.textContent : '';
+
+      // 북 헤더 생성
+      var header = document.createElement('div');
+      header.className = 'wq-bh';
+
+      if (coverImg) {
+        var cw = document.createElement('div');
+        cw.className = 'wq-bc';
+        var ci = document.createElement('img');
+        ci.src = coverImg.src; ci.alt = '';
+        cw.appendChild(ci);
+        header.appendChild(cw);
+      }
+
+      var meta = document.createElement('div');
+      meta.className = 'wq-bm';
+      if (titleText) {
+        var bt = document.createElement('div');
+        bt.className = 'wq-bt';
+        bt.textContent = titleText;
+        meta.appendChild(bt);
+      }
+      if (authorText) {
+        var ba = document.createElement('div');
+        ba.className = 'wq-ba';
+        ba.textContent = authorText;
+        meta.appendChild(ba);
+      }
+      header.appendChild(meta);
+
+      // 출처 섹션 제거 후 헤더 삽입 (인용문 섹션 앞에)
+      inner.removeChild(sourceDiv);
+      var quoteSection = inner.querySelector(':scope > div');
+      inner.insertBefore(header, quoteSection);
+
+      // 푸터 생성 (페이지 + 태그)
+      if (pageText || tagText) {
+        var footer = document.createElement('div');
+        footer.className = 'wq-bf';
+        if (pageText) {
+          var pc = document.createElement('span');
+          pc.className = 'qcard-chip';
+          pc.textContent = pageText;
+          footer.appendChild(pc);
+        }
+        if (tagText) {
+          var tc = document.createElement('span');
+          tc.className = 'qcard-chip qcard-tag';
+          tc.textContent = tagText;
+          footer.appendChild(tc);
+        }
+        inner.appendChild(footer);
+      }
+    });
   }
 
   if (typeof window.renderQuotes === 'function') {

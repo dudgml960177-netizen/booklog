@@ -261,6 +261,147 @@
     border-color: #2e1f0e !important;
   }
 
+  /* ── 문장 카드: 텍스트 전체 표시 (더보기 없음) ── */
+  #p-quotes .wq-track .qcard-text.collapsed {
+    max-height: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    overflow: hidden !important;
+  }
+  #p-quotes .wq-track .qcard-expand { display: none !important; }
+  /* 공유 버튼 → 하단 오른쪽으로 재배치 */
+  #p-quotes .qcard-share-btn { opacity: 0 !important; top: auto !important; bottom: .45rem !important; right: .45rem !important; }
+  #p-quotes .qcard:hover .qcard-share-btn { opacity: .55 !important; }
+  /* 패널 하단 페이지 버튼 숨김 (캐러셀로 대체) */
+  #p-quotes #q-pagination { display: none !important; }
+
+  /* 카드 높이 고정: 모든 카드 균일 */
+  #p-quotes .qcard { height: 420px !important; min-height: 0 !important; }
+  /* qcard-inner가 카드를 꽉 채우도록 */
+  #p-quotes .qcard-inner { height: 100% !important; box-sizing: border-box !important; }
+
+  /* ── 문장 카드 웹 전용 북 헤더 (JS가 삽입) ── */
+  #p-quotes .wq-bh {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding-bottom: 12px;
+    margin-bottom: 10px;
+    border-bottom: 1.5px solid rgba(46,31,14,.12);
+    flex-shrink: 0;
+  }
+  #p-quotes .wq-bc {
+    width: 50px;
+    height: 74px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1.5px solid rgba(46,31,14,.22);
+    box-shadow: 3px 4px 0 rgba(46,31,14,.12);
+    background: linear-gradient(150deg,#a07040,#5c3010);
+  }
+  #p-quotes .wq-bc img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+  }
+  #p-quotes .wq-bm {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+  #p-quotes .wq-bt {
+    font-family: var(--fs);
+    font-size: .9rem;
+    font-weight: 700;
+    color: #2e1f0e;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  #p-quotes .wq-ba {
+    font-size: .7rem;
+    color: var(--tx2);
+    line-height: 1.2;
+  }
+
+  /* 인용문 섹션: 남은 공간 채우고 넘치면 클립 */
+  #p-quotes .wq-bh + div {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* ── 문장 카드 푸터 (p. 페이지 + 태그) ── */
+  #p-quotes .wq-bf {
+    margin-top: auto;
+    padding-top: 9px;
+    border-top: 1.5px solid rgba(46,31,14,.08);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* ── 갤러리 도넛: 웹 전용 업사이즈 ── */
+  #p-books .gi-donut {
+    width: 40px !important;
+    height: 40px !important;
+    top: 5px !important;
+    right: 5px !important;
+  }
+  #p-books .gi-donut b { font-size: .55rem !important; font-weight: 800 !important; }
+
+  /* ── 목록 뷰 에디토리얼 ── */
+  #p-books .book-list { gap: .6rem !important; }
+  #p-books .book-list-item {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 12px !important;
+    padding: .9rem 1.1rem !important;
+    transition: transform .12s, box-shadow .12s, border-color .12s !important;
+  }
+  #p-books .book-list-item:hover {
+    background: #f3ead8 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.09) !important;
+    border-color: rgba(46,31,14,.32) !important;
+  }
+  #p-books .bli-cover {
+    width: 48px !important;
+    height: 70px !important;
+    border-radius: 5px !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+  }
+  #p-books .bli-title {
+    font-family: var(--fs) !important;
+    font-size: .96rem !important;
+    font-weight: 700 !important;
+    color: #2e1f0e !important;
+  }
+  #p-books .bli-author {
+    font-size: .75rem !important;
+    color: var(--tx2) !important;
+    margin-top: 3px !important;
+  }
+  #p-books .book-list-item .pill {
+    background: #ede4d0 !important;
+    color: #6b5033 !important;
+    border: 1px solid rgba(46,31,14,.12) !important;
+    border-radius: 999px !important;
+    font-size: .62rem !important;
+    padding: 2px 8px !important;
+  }
+  #p-books .bli-right > div:first-child { font-size: .82rem !important; }
+  #p-books .bli-right > div:last-child { font-size: .65rem !important; color: var(--tx2) !important; }
+
   /* ── 서재 툴바: 에디토리얼 버튼 ── */
 
   /* 검색바: 박스 스타일 (인라인 border-bottom 오버라이드) */
