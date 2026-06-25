@@ -320,6 +320,8 @@ async function startApp(user) {
     // FAB 버튼 초기 표시 (기본 서재 탭)
     const fabInit = document.getElementById('fab-add-book');
     if(fabInit) fabInit.style.display = 'flex';
+    const fabSettings = document.getElementById('fab-settings');
+    if(fabSettings) fabSettings.style.display = 'flex';
 
     // 방문 횟수 카운트
     const _vtd=kstToday();
@@ -903,9 +905,11 @@ function sw(name, btn) {
   if(currentPanel === 'record' && name !== 'record' && timerSeconds >= 60) {
     showUnsavedTimerBanner();
   }
-  // FAB 버튼: 어느 탭에서든 책 추가 가능
+  // FAB 버튼: 어느 탭에서든 책 추가/설정 가능
   const fab=document.getElementById('fab-add-book');
   if(fab) fab.style.display='flex';
+  const fabSt=document.getElementById('fab-settings');
+  if(fabSt) fabSt.style.display='flex';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   btn.classList.add('on');
@@ -6730,17 +6734,8 @@ async function openProfile() {
   document.getElementById('profile-email').textContent=currentUser.email;
   openModal('modal-profile');
 
-  // role 로드
+  // role 로드 (관리자 뱃지 표시용)
   await loadUserRole();
-  // 관리자 버튼 동적 처리
-  const adminBtn = document.getElementById('profile-admin-btn');
-  if(adminBtn) {
-    adminBtn.style.display = '';  // 일단 보이게
-    adminBtn.style.display = curUserRole === 'admin' ? '' : 'none';
-    // 혹시 display가 안먹히면 visibility로도 처리
-    adminBtn.hidden = curUserRole !== 'admin';
-  }
-  // 관리자 뱃지
   const adminBadge = document.getElementById('profile-admin-badge');
   if(adminBadge) adminBadge.style.display = curUserRole === 'admin' ? '' : 'none';
 
@@ -6767,12 +6762,6 @@ async function openProfile() {
     const titleWrap = document.getElementById('profile-title-wrap');
     if(titleWrap) titleWrap.style.display = earned.length ? '' : 'none';
   }
-  // 폰트 크기
-  const savedSize = localStorage.getItem('bl_font_size') || '100';
-  const slider = document.getElementById('font-size-slider');
-  const label = document.getElementById('font-size-label');
-  if(slider) slider.value = savedSize;
-  if(label) label.textContent = savedSize + '%';
   // 공개 설정 현재값 반영
   if(profile) {
     const libSel = document.getElementById('library-public-sel');
@@ -6786,7 +6775,26 @@ async function openProfile() {
   // 초대코드 표시 (공통 함수 사용)
   if(document.getElementById('profile-invite-codes')) _refreshProfileCodes();
 }
+async function openSettings() {
+  openModal('modal-settings');
+  await loadUserRole();
+  const adminBtn = document.getElementById('settings-admin-btn');
+  if(adminBtn) {
+    adminBtn.style.display = curUserRole === 'admin' ? '' : 'none';
+    adminBtn.hidden = curUserRole !== 'admin';
+  }
+  const savedSize = localStorage.getItem('bl_font_size') || '100';
+  const slider = document.getElementById('font-size-slider');
+  const label = document.getElementById('font-size-label');
+  if(slider) slider.value = savedSize;
+  if(label) label.textContent = savedSize + '%';
+  const savedFont = localStorage.getItem('bl_system_font') || '';
+  const fontSel = document.getElementById('user-font-select');
+  if(fontSel) fontSel.value = savedFont;
+}
+
 function openContact() {
+  closeModal('modal-settings');
   closeModal('modal-profile');
   const subj = document.getElementById('contact-subject');
   const body = document.getElementById('contact-body');

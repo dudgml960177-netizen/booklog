@@ -584,6 +584,9 @@
 <!-- FAB: 책 추가 버튼 -->
 <button id="fab-add-book" onclick="openAddBook()" title="책 추가" style="position:fixed;right:1.6rem;bottom:2.2rem;z-index:100;width:52px;height:52px;border-radius:50%;background:var(--acc);color:#fff;font-size:1.6rem;font-weight:300;border:none;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">＋</button>
 
+<!-- FAB: 설정 버튼 -->
+<button id="fab-settings" onclick="openSettings()" title="설정" style="position:fixed;left:1.6rem;bottom:2.2rem;z-index:100;width:44px;height:44px;border-radius:50%;background:var(--bg2);color:var(--tx2);border:1.5px solid var(--border2);cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.13);display:none;align-items:center;justify-content:center;transition:transform .15s;" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+
 <!-- 책 추가/수정 모달 -->
 <div id="modal-book" class="modal-overlay" style="display:none;">
   <div class="modal" style="max-width:440px;">
@@ -785,6 +788,26 @@
         </div>
       </div>
 
+      <!-- 초대코드 -->
+      <div id="profile-invite-codes" style="margin-bottom:.58rem;"></div>
+
+      <!-- 저장 / 로그아웃 -->
+      <div class="modal-footer" style="padding:.75rem 0 0;border-top:1px solid var(--border);">
+        <button class="btn-cancel" onclick="doLogout()">로그아웃</button>
+        <button class="btn-save" onclick="saveProfile()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 모달 -->
+<div id="modal-settings" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">설정</div>
+      <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <div class="modal-body">
       <!-- 화면 설정 카드 -->
       <div class="profile-card">
         <div class="profile-card-title">화면 설정</div>
@@ -810,13 +833,9 @@
           <span>작게</span><span>기본(100%)</span><span>크게</span>
         </div>
       </div>
-
-      <!-- 초대코드 -->
-      <div id="profile-invite-codes" style="margin-bottom:.58rem;"></div>
-
       <!-- 관리자 패널 (admin only) -->
-      <div id="profile-admin-btn" style="display:none;margin-bottom:.42rem;">
-        <button class="profile-action-btn profile-action-admin" onclick="closeModal('modal-profile');openAdminPanel()">⚙️ 관리자 패널</button>
+      <div id="settings-admin-btn" style="display:none;margin-bottom:.42rem;">
+        <button class="profile-action-btn profile-action-admin" onclick="closeModal('modal-settings');openAdminPanel()">⚙️ 관리자 패널</button>
       </div>
       <!-- 문의하기 -->
       <div style="margin-bottom:.75rem;">
@@ -825,12 +844,8 @@
           문의하기
         </button>
       </div>
-      <!-- 저장 / 로그아웃 -->
-      <div class="modal-footer" style="padding:.75rem 0 0;border-top:1px solid var(--border);">
-        <button class="btn-cancel" onclick="doLogout()">로그아웃</button>
-        <button class="btn-save" onclick="saveProfile()">저장</button>
-      </div>
-      <div style="text-align:center;margin-top:.5rem;">
+      <!-- 탈퇴하기 -->
+      <div style="text-align:center;padding-top:.5rem;border-top:1px solid var(--border);">
         <button onclick="deleteMyAccount()" style="background:none;border:none;font-size:.63rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;padding:.2rem .4rem;opacity:.7;" onmouseenter="this.style.color='#c0392b';this.style.opacity='1'" onmouseleave="this.style.color='var(--tx3)';this.style.opacity='.7'">탈퇴하기</button>
       </div>
     </div>
