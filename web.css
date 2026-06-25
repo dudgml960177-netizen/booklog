@@ -67,7 +67,7 @@
   /* 이어 읽기 히어로 (web.js가 주입) */
   #web-hero {
     display: flex; gap: 22px; background: #fbf6ec; border: 1.5px solid #2e1f0e;
-    border-radius: 18px; padding: 20px; margin: 6px 0 26px;
+    border-radius: 8px; padding: 20px; margin: 6px 0 26px;
   }
   #web-hero .wh-cover { width: 116px; height: 174px; flex-shrink: 0; border-radius: 8px; border: 1.5px solid rgba(46,31,14,.4);
     overflow: hidden; background: linear-gradient(150deg,#3a5a8a,#1f3556); box-shadow: 5px 6px 0 rgba(46,31,14,.12); cursor: pointer; display:flex; align-items:flex-end; }
@@ -78,11 +78,11 @@
   #web-hero .wh-title { font-family: var(--fs); font-size: 1.7rem; color: #2e1f0e; margin: 12px 0 2px; cursor: pointer; }
   #web-hero .wh-by { font-size: .85rem; color: var(--tx2); margin-bottom: auto; }
   #web-hero .wh-prog { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
-  #web-hero .wh-bar { flex: 1; height: 9px; border: 1.5px solid #2e1f0e; border-radius: 999px; background: #fff; overflow: hidden; }
-  #web-hero .wh-bar > i { display: block; height: 100%; background: #b5481f; }
+  #web-hero .wh-bar { flex: 1; height: 9px; border: 1.5px solid #2e1f0e; border-radius: 2px; background: rgba(46,31,14,.08); overflow: hidden; }
+  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #b5481f 0px, #b5481f 5px, rgba(255,255,255,.22) 5px, rgba(255,255,255,.22) 8px); }
   #web-hero .wh-donut { position: relative; width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   #web-hero .wh-donut::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#b5481f calc(var(--p)*1%), #ece0c8 0); -webkit-mask: radial-gradient(transparent 60%, #000 61%); mask: radial-gradient(transparent 60%, #000 61%); }
-  #web-hero .wh-donut b { position: relative; font-family: var(--fs); font-size: .95rem; color: #2e1f0e; font-weight: 400; }
+  #web-hero .wh-donut b { position: relative; font-family: var(--ff); font-size: .85rem; color: #2e1f0e; font-weight: 700; }
   #web-hero .wh-btn { margin-top: 16px; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; background: #b5481f; color: #fff; border: 1.5px solid #2e1f0e; border-radius: 4px; padding: 10px 18px; font-family: var(--ff); font-size: .86rem; font-weight: 600; cursor: pointer; }
 
   /* 서재 갤러리: 에디토리얼 그리드 (큰 표지 + 입체 그림자) */
@@ -94,7 +94,7 @@
   #p-books .gi-author { font-size: .72rem !important; }
 
   /* 오늘의 문장 (web.js 주입) */
-  #web-quote { display: flex; gap: 22px; align-items: center; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 18px; padding: 24px 28px; margin-top: 30px; }
+  #web-quote { display: flex; gap: 22px; align-items: center; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 8px; padding: 24px 28px; margin-top: 30px; }
   #web-quote .wq-mark { font-family: var(--fs); font-size: 3.6rem; color: #b5481f; line-height: .7; }
   #web-quote .wq-text { font-family: var(--fs); font-size: 1.3rem; line-height: 1.5; color: #2e1f0e; }
   #web-quote .wq-src { font-size: .82rem; color: var(--tx2); margin-top: 10px; }
@@ -538,7 +538,7 @@
   /* ── 책 상세 모달: 에디토리얼 ── */
   #modal-detail .modal {
     border: 1.5px solid #2e1f0e !important;
-    border-radius: 18px !important;
+    border-radius: 8px !important;
     box-shadow: 8px 10px 0 rgba(46,31,14,.14) !important;
     max-width: 720px !important;
     overflow: hidden !important;
@@ -621,14 +621,14 @@
   }
   #modal-detail .dtl-chip {
     background: rgba(46,31,14,.06) !important;
-    border: 1px solid rgba(46,31,14,.14) !important;
-    border-radius: 7px !important;
+    border: 1px solid rgba(46,31,14,.18) !important;
+    border-radius: 3px !important;
     color: var(--tx2) !important;
     font-size: .65rem !important;
     padding: .22rem .55rem !important;
   }
   #modal-detail .dtl-status-chip {
-    border-radius: 7px !important;
+    border-radius: 3px !important;
     font-size: .65rem !important;
     padding: .22rem .65rem !important;
     font-weight: 600 !important;
@@ -637,21 +637,24 @@
   /* ── 읽는중 미니 진행바 (히어로 내부) ── */
   #modal-detail .dtl-prog-mini { margin-top: .2rem !important; }
   #modal-detail .dtl-prog-pct {
-    font-family: var(--fs) !important;
-    font-size: 1rem !important;
-    font-weight: 400 !important;
+    font-family: var(--ff) !important;
+    font-size: .88rem !important;
+    font-weight: 700 !important;
     color: #b5481f !important;
   }
   #modal-detail .dtl-prog-track {
-    height: 11px !important;
+    height: 9px !important;
     background: rgba(46,31,14,.1) !important;
-    border-radius: 999px !important;
+    border-radius: 2px !important;
     overflow: hidden !important;
-    box-shadow: inset 0 1px 3px rgba(46,31,14,.1) !important;
   }
   #modal-detail .dtl-prog-fill {
-    background: linear-gradient(90deg, #b5481f, #e8903a) !important;
-    border-radius: 999px !important;
+    background: repeating-linear-gradient(
+      -45deg,
+      #b5481f 0px, #b5481f 5px,
+      rgba(255,255,255,.22) 5px, rgba(255,255,255,.22) 8px
+    ) !important;
+    border-radius: 2px !important;
     height: 100% !important;
     transition: width .4s ease !important;
   }
@@ -675,18 +678,17 @@
   /* ── 독서 진행 (전체 진행바) ── */
   #modal-detail .dtl-reading-section { }
   #modal-detail .dtl-prog-full-pct {
-    font-family: var(--fs) !important;
-    font-size: 1.6rem !important;
-    font-weight: 400 !important;
+    font-family: var(--ff) !important;
+    font-size: 1.4rem !important;
+    font-weight: 700 !important;
     color: #b5481f !important;
     line-height: 1 !important;
   }
   #modal-detail .dtl-prog-track-lg {
-    height: 18px !important;
+    height: 14px !important;
     background: rgba(46,31,14,.1) !important;
-    border-radius: 999px !important;
+    border-radius: 2px !important;
     overflow: hidden !important;
-    box-shadow: inset 0 2px 5px rgba(46,31,14,.14) !important;
   }
   #modal-detail .dtl-reading-ctrl {
     gap: .55rem !important;
@@ -798,7 +800,7 @@
     max-width: 560px !important;
     background: #fbf6ec !important;
     border: 1.5px solid #2e1f0e !important;
-    border-radius: 18px !important;
+    border-radius: 8px !important;
     box-shadow: 8px 10px 0 rgba(46,31,14,.16) !important;
     overflow: hidden !important;
   }
@@ -892,7 +894,7 @@
   #modal-book .modal {
     background: #fbf6ec !important;
     border: 1.5px solid #2e1f0e !important;
-    border-radius: 18px !important;
+    border-radius: 8px !important;
     box-shadow: 8px 10px 0 rgba(46,31,14,.16) !important;
     max-width: 520px !important;
     overflow: hidden !important;
