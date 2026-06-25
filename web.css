@@ -99,4 +99,79 @@
   #web-quote .wq-text { font-family: var(--fs); font-size: 1.3rem; line-height: 1.5; color: #2e1f0e; }
   #web-quote .wq-src { font-size: .82rem; color: var(--tx2); margin-top: 10px; }
   #web-section-label { font-family: var(--fs); font-size: 1.35rem; color: #2e1f0e; margin: 30px 0 12px; }
+
+  /* ── 문장 수첩 패널 (에디토리얼) ── */
+  /* 마스트헤드 */
+  #p-quotes > div:first-child {
+    border-bottom: 1.5px solid #2e1f0e;
+    padding-bottom: 14px;
+    margin-bottom: 20px !important;
+  }
+  #p-quotes > div:first-child div[style*="1.75rem"] { font-size: 2.5rem !important; }
+
+  /* 검색바 */
+  #p-quotes .q-filter > div:first-child {
+    background: #fbf6ec;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 12px !important;
+    padding: 10px 16px !important;
+  }
+  #p-quotes #quote-search-input { font-size: .88rem !important; font-style: normal !important; }
+
+  /* 형광펜 버튼 */
+  #hl-btn-yellow, #hl-btn-mint, #hl-btn-peach { width: 22px !important; height: 22px !important; }
+
+  /* 피드 2컬럼 그리드 */
+  #p-quotes #q-feed {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 14px !important;
+    align-items: start;
+  }
+  #p-quotes #q-feed .empty-state { grid-column: 1 / -1; }
+
+  /* 카드 에디토리얼 */
+  #p-quotes .qcard {
+    background: #fbf6ec !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 16px !important;
+    padding: 18px 20px 14px !important;
+    margin-bottom: 0 !important;
+    box-shadow: none;
+  }
+  #p-quotes .qcard:hover {
+    box-shadow: 4px 5px 0 rgba(46,31,14,.1) !important;
+    transform: translateY(-2px) !important;
+  }
+  #p-quotes .qcard-bar { width: 5px; border-radius: 5px 0 0 5px; }
+  #p-quotes .qcard-inner { padding-left: .7rem; }
+  #p-quotes .qcard-quote-mark { font-size: 2.8rem !important; opacity: .15 !important; line-height: .9 !important; }
+  #p-quotes .qcard-text { font-size: .82rem !important; line-height: 1.82 !important; }
+  #p-quotes .qcard-book { font-size: .7rem !important; max-width: 220px !important; }
+  #p-quotes .qcard-author { font-size: .63rem !important; }
+  #p-quotes .qcard-chip {
+    font-size: .62rem !important;
+    border: 1px solid rgba(46,31,14,.15) !important;
+    background: #f3ecdb !important;
+  }
+  #p-quotes .qcard-share-btn { opacity: .35 !important; }
+  #p-quotes .qcard:hover .qcard-share-btn { opacity: .75 !important; }
+
+  /* 페이지네이션 에디토리얼 */
+  #p-quotes #q-pagination {
+    border-top: 1.5px solid #d8c8a8;
+    padding-top: 14px;
+    margin-top: 6px;
+  }
+  #p-quotes #q-pagination .yr-btn {
+    border: 1.5px solid #d8c8a8 !important;
+    border-radius: 9px !important;
+    background: #fbf6ec !important;
+  }
+  #p-quotes #q-pagination .yr-btn.on,
+  #p-quotes #q-pagination .yr-btn[style*="var(--acc)"] {
+    background: #b5481f !important;
+    color: #fff !important;
+    border-color: #2e1f0e !important;
+  }
 }
