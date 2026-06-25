@@ -1058,4 +1058,207 @@
     font-weight: 600 !important;
   }
   .ws-i.on svg { stroke: #b5481f !important; }
+
+  /* ══ v=19: 상세 모달 푸터 버튼 크기 통일 ══ */
+  #modal-detail .dtl-btn-delete,
+  #modal-detail .dtl-btn-close,
+  #modal-detail .dtl-btn-edit {
+    font-size: .78rem !important;
+    padding: .43rem 1.2rem !important;
+  }
+
+  /* ══ v=19: 상세 칩 선두께 얇게 ══ */
+  #modal-detail .dtl-chip {
+    border: 0.5px solid rgba(46,31,14,.45) !important;
+  }
+  #modal-detail .dtl-status-chip {
+    border: 0.75px solid rgba(46,31,14,.6) !important;
+  }
+
+  /* ══════════════════════════════════════════
+     기록 패널 (#p-record) 에디토리얼
+     ══════════════════════════════════════════ */
+  #p-record > div:first-child {
+    border-bottom: 1.5px solid #2e1f0e;
+    padding-bottom: 14px;
+    margin-bottom: 20px !important;
+  }
+  #p-record > div:first-child [style*="1.75rem"] {
+    font-size: 2.5rem !important;
+  }
+  #p-record .card {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 8px !important;
+  }
+  #p-record .cal-nav {
+    border-radius: 4px !important;
+    border: 1.5px solid rgba(46,31,14,.25) !important;
+    background: #fbf6ec !important;
+    color: var(--tx2) !important;
+  }
+  #p-record .cal-nav:hover {
+    background: #f0e6d2 !important;
+    border-color: rgba(46,31,14,.42) !important;
+  }
+  #p-record .tbtn {
+    border-radius: 4px !important;
+  }
+  #p-record .tracker-period-btn {
+    border-radius: 4px !important;
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    background: #fbf6ec !important;
+    color: var(--tx2) !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+  }
+  #p-record .tracker-period-btn.on {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+  }
+  #p-record .tracker-period-btn:hover:not(.on) {
+    background: #f0e6d2 !important;
+    border-color: rgba(46,31,14,.38) !important;
+  }
+  #p-record .form-input {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 4px !important;
+    color: #2e1f0e !important;
+  }
+
+  /* ══════════════════════════════════════════
+     산책로 패널 (#p-board) 에디토리얼
+     ══════════════════════════════════════════ */
+  #p-board > div:nth-child(2) {
+    border-bottom: 1.5px solid #2e1f0e;
+    padding-bottom: 14px;
+    margin-bottom: 18px !important;
+  }
+  #p-board > div:nth-child(2) [style*="1.75rem"] {
+    font-size: 2.5rem !important;
+  }
+  #p-board > div:nth-child(2) button {
+    background: #2e1f0e !important;
+    border: none !important;
+    border-radius: 4px !important;
+    color: #fbf6ec !important;
+    font-weight: 600 !important;
+    padding: .42rem 1rem !important;
+    cursor: pointer !important;
+    transition: background .13s !important;
+  }
+  #p-board > div:nth-child(2) button:hover {
+    background: #b5481f !important;
+  }
+  #p-board .filter-btn {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 4px !important;
+    padding: 6px 12px !important;
+    color: var(--tx2) !important;
+    font-size: .72rem !important;
+    font-weight: 500 !important;
+    font-family: var(--ff) !important;
+    transition: background .13s, color .13s, border-color .13s !important;
+  }
+  #p-board .filter-btn.on {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+    font-weight: 600 !important;
+  }
+  #p-board .filter-btn:hover:not(.on) {
+    background: #f0e6d2 !important;
+    border-color: rgba(46,31,14,.38) !important;
+  }
+  #p-board #board-search {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 4px !important;
+  }
+  #p-board .board-item {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.15) !important;
+    border-radius: 8px !important;
+    transition: transform .12s, border-color .12s, box-shadow .12s !important;
+  }
+  #p-board .board-item:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(46,31,14,.3) !important;
+    box-shadow: 2px 3px 0 rgba(46,31,14,.08) !important;
+  }
+  #p-board #board-pagination .yr-btn {
+    border-radius: 4px !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    background: #fbf6ec !important;
+    font-family: var(--ff) !important;
+  }
+  #p-board #board-pagination .yr-btn.on,
+  #p-board #board-pagination .yr-btn[style*="var(--acc)"] {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+  }
+
+  /* ══════════════════════════════════════════
+     통계 패널 (#p-graph) 에디토리얼
+     ══════════════════════════════════════════ */
+  #p-graph > div:first-child {
+    border-bottom: 1.5px solid #2e1f0e;
+    padding-bottom: 14px;
+    margin-bottom: 20px !important;
+  }
+  #p-graph > div:first-child [style*="1.75rem"] {
+    font-size: 2.5rem !important;
+  }
+  #p-graph .card {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 8px !important;
+  }
+  #p-graph .gtabs {
+    border-bottom: 1.5px solid rgba(46,31,14,.15) !important;
+    gap: 4px !important;
+    padding-bottom: 0 !important;
+  }
+  #p-graph .gst {
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-bottom: none !important;
+    border-radius: 4px 4px 0 0 !important;
+    background: #f3ecdb !important;
+    color: var(--tx2) !important;
+    font-size: .72rem !important;
+    font-family: var(--ff) !important;
+    padding: .32rem .9rem !important;
+    transition: background .13s, color .13s !important;
+  }
+  #p-graph .gst.on {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+    font-weight: 600 !important;
+    border-bottom: none !important;
+  }
+  #p-graph .gst:hover:not(.on) {
+    background: #ede4d0 !important;
+  }
+  #p-graph .yr-btn {
+    border-radius: 4px !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    background: #fbf6ec !important;
+    font-family: var(--ff) !important;
+  }
+  #p-graph .yr-btn.on,
+  #p-graph .yr-btn[style*="var(--acc)"] {
+    background: #b5481f !important;
+    color: #fff !important;
+    border-color: #2e1f0e !important;
+  }
+  #p-graph [style*="var(--card)"] {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 8px !important;
+  }
 }
