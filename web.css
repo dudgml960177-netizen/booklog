@@ -260,4 +260,115 @@
     color: #fff !important;
     border-color: #2e1f0e !important;
   }
+
+  /* ── 서재 툴바: 에디토리얼 버튼 ── */
+
+  /* 검색바: 박스 스타일 (인라인 border-bottom 오버라이드) */
+  #p-books .books-toolbar > div:nth-child(2) {
+    background: #fbf6ec !important;
+    border: 1.5px solid #d8c8a8 !important;
+    border-bottom: 1.5px solid #d8c8a8 !important;
+    border-radius: 10px !important;
+    padding: 10px 14px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 14px !important;
+  }
+  #p-books #books-search-input { font-size: .83rem !important; font-style: normal !important; }
+
+  /* lib-toolbar-row 간격 */
+  #p-books .lib-toolbar-row { padding-top: 4px; }
+  #p-books .filter-row { gap: 7px !important; }
+
+  /* 상태 필터 버튼 (인라인 스타일 전부 오버라이드) */
+  #p-books .filter-btn {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-bottom: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 999px !important;
+    padding: 6px 14px !important;
+    padding-bottom: 6px !important;
+    color: var(--tx2) !important;
+    font-size: .72rem !important;
+    font-weight: 500 !important;
+    font-family: var(--ff) !important;
+    transition: background .13s, color .13s, border-color .13s !important;
+    white-space: nowrap !important;
+  }
+  #p-books .filter-btn.on {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+    font-weight: 600 !important;
+  }
+  #p-books .filter-btn:hover:not(.on) {
+    background: #f0e6d2 !important;
+    border-color: rgba(46,31,14,.38) !important;
+  }
+
+  /* 뷰 토글 버튼 (갤러리/목록/정렬) */
+  #p-books .view-btn {
+    width: 34px !important;
+    height: 34px !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 9px !important;
+    background: #fbf6ec !important;
+    color: var(--tx2) !important;
+    font-size: .95rem !important;
+    transition: background .13s, color .13s !important;
+  }
+  #p-books .view-btn.on {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+  }
+  #p-books .view-btn:hover:not(.on) { background: #f0e6d2 !important; border-color: rgba(46,31,14,.38) !important; }
+
+  /* 카테고리 / 선택 모드 버튼 */
+  #p-books .cat-btn {
+    height: 34px !important;
+    padding: 0 14px !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 9px !important;
+    background: #fbf6ec !important;
+    color: var(--tx2) !important;
+    font-size: .72rem !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+  }
+  #p-books .cat-btn:hover { background: #f0e6d2 !important; }
+
+  /* 정렬 드롭다운 */
+  #p-books #sort-menu {
+    background: #fbf6ec !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 12px !important;
+    box-shadow: 4px 5px 0 rgba(46,31,14,.1) !important;
+    overflow: hidden !important;
+  }
+  #p-books .sort-mi { font-size: .78rem !important; padding: .5rem .85rem !important; color: var(--tx1) !important; }
+  #p-books .sort-mi:hover { background: #f0e6d2 !important; }
+  #p-books .sort-mi.on { color: #b5481f !important; font-weight: 700 !important; }
+
+  /* ── 갤러리: 에디토리얼 업그레이드 ── */
+  #p-books .gallery { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)) !important; gap: 24px !important; }
+  #p-books .gi-title { font-size: .9rem !important; font-weight: 700 !important; line-height: 1.3 !important; }
+  #p-books .gi-author { font-size: .73rem !important; color: var(--tx2) !important; margin-top: 2px !important; }
+
+  /* ── 책 상세 모달: 에디토리얼 ── */
+  #modal-detail .modal {
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 18px !important;
+    box-shadow: 8px 10px 0 rgba(46,31,14,.14) !important;
+    max-width: 700px !important;
+    overflow: hidden !important;
+  }
+  #modal-detail #detail-body {
+    background: #fbf6ec !important;
+    padding: 1.1rem 1.3rem !important;
+  }
+  #modal-detail .modal > div:last-child {
+    background: #f3ecdb !important;
+    border-top: 1.5px solid rgba(46,31,14,.18) !important;
+    padding: .65rem 1.1rem !important;
+  }
 }
