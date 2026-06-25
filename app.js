@@ -1153,8 +1153,13 @@ function buildGallery(list) {
     else { const h=Math.floor(totalMins/60),m=totalMins%60; timeStr=m>0?`${h}시간 ${m}분 독서`:`${h}시간 독서`; }
     const thoughtCover = b.cover ? `<img src="${b.cover}" class="gi-thought-cover" alt="">` : `<div class="gi-thought-cover"></div>`;
     const statusLabel = {'완독':'✅ 완독','읽는중':'📖 읽는 중','읽고싶음':'🔖 읽고싶음','중단':'⏸ 중단'}[b.status]||b.status||'';
+    // 읽는 중 진행률 도넛
+    const giPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
+    const giCirc = 75.4;
+    const giDonut = giPct > 0 ? `<div class="gi-donut" title="${giPct}% 읽음"><svg viewBox="0 0 34 34" width="34" height="34" style="position:absolute;inset:0;"><circle cx="17" cy="17" r="12" fill="rgba(251,246,236,.92)" stroke="rgba(46,31,14,.12)" stroke-width="2.5"/><circle cx="17" cy="17" r="12" fill="none" stroke="#b5481f" stroke-width="2.5" stroke-dasharray="${(giCirc*giPct/100).toFixed(1)} ${giCirc}" stroke-linecap="round" transform="rotate(-90 17 17)"/></svg><b>${giPct}</b></div>` : '';
     el.innerHTML = `<div class="gi-thought">${thoughtCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${ttl}</div><div class="gi-thought-time">⏱ ${timeStr}</div><div class="gi-thought-status">${statusLabel}</div></div></div>
       <div class="gi-cover">${coverHtml}</div>
+      ${giDonut}
       <div class="gi-title" title="${ttl}">${ttl}</div>
       <div class="gi-author">${auth}</div>
       ${ratingDisp}`;
@@ -1175,7 +1180,10 @@ function buildList(list) {
       el.onclick = ()=>openDetail(b.id);
     }
     const coverEl = b.cover ? `<img class="bli-cover" src="${b.cover}" alt="${b.title}">` : `<div class="bli-cover"></div>`;
-    el.innerHTML = `${coverEl}
+    const bliPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
+    const bliCirc = 50.3;
+    const bliDonut = bliPct > 0 ? `<div class="bli-donut" title="${bliPct}% 읽음"><svg viewBox="0 0 26 26" width="26" height="26" style="position:absolute;inset:0;"><circle cx="13" cy="13" r="8" fill="rgba(251,246,236,.92)" stroke="rgba(46,31,14,.12)" stroke-width="2"/><circle cx="13" cy="13" r="8" fill="none" stroke="#b5481f" stroke-width="2" stroke-dasharray="${(bliCirc*bliPct/100).toFixed(1)} ${bliCirc}" stroke-linecap="round" transform="rotate(-90 13 13)"/></svg><b>${bliPct}</b></div>` : '';
+    el.innerHTML = `<div class="bli-cover-wrap">${coverEl}${bliDonut}</div>
       <div class="bli-info">
         <div class="bli-title">${b.title}</div>
         <div class="bli-author">${b.author||''}</div>

@@ -100,7 +100,7 @@
   #web-quote .wq-src { font-size: .82rem; color: var(--tx2); margin-top: 10px; }
   #web-section-label { font-family: var(--fs); font-size: 1.35rem; color: #2e1f0e; margin: 30px 0 12px; }
 
-  /* ── 문장 수첩 패널 (에디토리얼) ── */
+  /* ── 문장 수첩 패널 (에디토리얼 캐러셀) ── */
 
   /* 마스트헤드 */
   #p-quotes > div:first-child {
@@ -110,7 +110,7 @@
   }
   #p-quotes > div:first-child div[style*="1.75rem"] { font-size: 2.5rem !important; }
 
-  /* 검색바: 테두리 박스 */
+  /* 검색바 */
   #p-quotes .q-filter > div:first-child {
     background: #fbf6ec;
     border: 1.5px solid #d8c8a8 !important;
@@ -118,77 +118,129 @@
     padding: 9px 14px !important;
   }
   #p-quotes #quote-search-input { font-size: .85rem !important; font-style: normal !important; }
-
-  /* 필터 행 하단 여백 */
-  #p-quotes .q-filter > div:nth-child(2) { margin-bottom: 18px !important; }
-
-  /* 형광펜 버튼 */
+  #p-quotes .q-filter > div:nth-child(2) { margin-bottom: 20px !important; }
   #hl-btn-yellow, #hl-btn-mint, #hl-btn-peach { width: 20px !important; height: 20px !important; }
 
-  /* 피드: 단컬럼, 독서 텍스트에 맞는 최대 폭 */
-  #p-quotes #q-feed {
+  /* 피드: 캐러셀 JS가 내부 DOM 재구성 — 컨테이너는 block */
+  #p-quotes #q-feed { display: block !important; max-width: none !important; overflow: visible !important; }
+
+  /* 캐러셀 구조 */
+  #p-quotes .wq-carousel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  #p-quotes .wq-track-wrap {
+    flex: 1;
+    overflow: hidden;
+    padding: 10px 0 18px; /* shadow 공간 */
+  }
+  #p-quotes .wq-track {
+    display: flex;
+    gap: 14px;
+    transition: transform .32s cubic-bezier(.4,0,.2,1);
+    will-change: transform;
+  }
+  #p-quotes .wq-nav {
+    width: 44px; height: 44px;
+    border: 1.5px solid #2e1f0e;
+    border-radius: 50%;
+    background: #fbf6ec;
+    color: #2e1f0e;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .13s;
+  }
+  #p-quotes .wq-nav:hover { background: #f0e6d2; }
+  #p-quotes .wq-nav:disabled { opacity: .28; cursor: default; }
+
+  /* 세로 직사각형 카드 */
+  #p-quotes .qcard {
+    width: 216px !important;
+    min-height: 360px !important;
+    flex-shrink: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 12px !important;
-    max-width: 720px;
-  }
-
-  /* 카드: overflow:hidden이 핵심 — 색깔바를 라운드 안으로 클리핑 */
-  #p-quotes .qcard {
     background: #fbf6ec !important;
     border: 1.5px solid #2e1f0e !important;
-    border-radius: 13px !important;
-    padding: 20px 24px 16px 0 !important;
+    border-radius: 14px !important;
+    padding: 0 !important;
     margin-bottom: 0 !important;
     overflow: hidden !important;
+    box-shadow: 3px 4px 0 rgba(46,31,14,.08);
     transition: box-shadow .15s, transform .12s !important;
+    cursor: pointer;
   }
   #p-quotes .qcard:hover {
-    box-shadow: 3px 4px 0 rgba(46,31,14,.13) !important;
-    transform: translateY(-1px) !important;
+    box-shadow: 5px 6px 0 rgba(46,31,14,.14) !important;
+    transform: translateY(-2px) !important;
   }
 
-  /* 색깔바: 더 두껍게, 라운드 제거 (overflow:hidden이 클리핑) */
-  #p-quotes .qcard-bar { width: 7px !important; border-radius: 0 !important; }
+  /* 색깔바: 상단 가로 바로 재배치 (세로카드에 맞게) */
+  #p-quotes .qcard-bar {
+    position: relative !important;
+    top: auto !important; left: auto !important; bottom: auto !important;
+    width: 100% !important; height: 5px !important;
+    border-radius: 0 !important;
+    flex-shrink: 0;
+  }
 
-  /* inner: 바 두께 고려한 들여쓰기 */
-  #p-quotes .qcard-inner { padding-left: 18px !important; }
+  /* 카드 내용 */
+  #p-quotes .qcard-inner {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 16px 16px 12px !important;
+  }
 
-  /* 인용부호: 에디토리얼 핵심 요소 — 크고, 책 색상 그대로, 적당한 투명도 */
+  /* 인용부호 */
   #p-quotes .qcard-quote-mark {
-    font-size: 3.2rem !important;
-    opacity: .4 !important;
-    line-height: .85 !important;
-    margin-bottom: .1rem !important;
-    margin-right: .15rem !important;
+    font-size: 2.6rem !important;
+    opacity: .45 !important;
+    line-height: .8 !important;
+    margin-bottom: .25rem !important;
   }
 
-  /* 텍스트: 독서 최적 */
-  #p-quotes .qcard-text { font-size: .85rem !important; line-height: 1.88 !important; }
+  /* 텍스트: 세로 카드에 맞게 */
+  #p-quotes .qcard-text {
+    font-size: .78rem !important;
+    line-height: 1.82 !important;
+    flex: 1 !important;
+  }
+  /* 긴 텍스트 줄임 — 카드 높이 유지 */
+  #p-quotes .qcard-text.collapsed {
+    max-height: 160px !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 60%, transparent) !important;
+  }
 
-  /* 출처 구분선 */
-  #p-quotes .qcard-inner [style*="border-top"] {
+  /* 출처 영역: 하단 고정 */
+  #p-quotes .qcard-inner > div[style*="border-top"] {
+    margin-top: auto !important;
     border-top-color: rgba(46,31,14,.1) !important;
     padding-top: .5rem !important;
   }
 
-  /* 책 썸네일 크게 */
-  #p-quotes .qcard-inner img { width: 18px !important; height: 26px !important; }
+  /* 책 썸네일 */
+  #p-quotes .qcard-inner img { width: 16px !important; height: 22px !important; }
 
   /* 책 제목·저자 */
-  #p-quotes .qcard-book { font-size: .71rem !important; max-width: 260px !important; font-weight: 700 !important; }
-  #p-quotes .qcard-author { font-size: .65rem !important; }
+  #p-quotes .qcard-book { font-size: .65rem !important; max-width: 150px !important; font-weight: 700 !important; }
+  #p-quotes .qcard-author { font-size: .6rem !important; }
 
-  /* 칩: 크림 베이스로 통일 */
+  /* 칩 */
   #p-quotes .qcard-chip {
-    font-size: .62rem !important;
+    font-size: .58rem !important;
     background: #ede4d0 !important;
     border: 1px solid rgba(46,31,14,.14) !important;
     color: #6b5033 !important;
   }
 
-  /* 공유 버튼: 호버 때만 */
-  #p-quotes .qcard-share-btn { opacity: .25 !important; }
+  /* 공유 버튼 */
+  #p-quotes .qcard-share-btn { opacity: .25 !important; top: .4rem !important; right: .4rem !important; }
   #p-quotes .qcard:hover .qcard-share-btn { opacity: .6 !important; }
 
   /* 페이지네이션 */
@@ -196,7 +248,6 @@
     border-top: 1.5px solid #d8c8a8;
     padding-top: 14px;
     margin-top: 10px;
-    max-width: 720px;
   }
   #p-quotes #q-pagination .yr-btn {
     border: 1.5px solid #d8c8a8 !important;

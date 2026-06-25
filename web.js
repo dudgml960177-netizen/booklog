@@ -85,5 +85,77 @@
     var _bb = window.buildBooks;
     window.buildBooks = function () { _bb.apply(this, arguments); try { renderWebHome(); } catch (e) {} };
   }
+
+  // ── 문장 수첩 캐러셀 (데스크톱 전용) ──
+  var wqPage = 0;
+  var WQ_CARD_W = 216; // px — web.css .qcard width와 동일하게
+  var WQ_GAP = 14;
+  var WQ_VISIBLE = 3;
+
+  function wqStep() { return WQ_VISIBLE * (WQ_CARD_W + WQ_GAP); }
+
+  function wqUpdateNav(total) {
+    var maxPage = Math.max(0, Math.ceil(total / WQ_VISIBLE) - 1);
+    var prev = document.getElementById('wq-prev');
+    var next = document.getElementById('wq-next');
+    if (prev) prev.disabled = wqPage <= 0;
+    if (next) next.disabled = wqPage >= maxPage;
+  }
+
+  function wqScroll(dir) {
+    var track = document.getElementById('wq-track');
+    if (!track) return;
+    var total = track.querySelectorAll('.qcard').length;
+    var maxPage = Math.max(0, Math.ceil(total / WQ_VISIBLE) - 1);
+    wqPage = Math.max(0, Math.min(wqPage + dir, maxPage));
+    track.style.transform = 'translateX(-' + (wqPage * wqStep()) + 'px)';
+    wqUpdateNav(total);
+  }
+
+  function applyQuoteCarousel() {
+    if (window.innerWidth < 880) return;
+    var feed = document.getElementById('q-feed');
+    if (!feed) return;
+    // 빈 상태(empty-state)면 캐러셀 적용 안 함
+    var cards = Array.from(feed.querySelectorAll(':scope > .qcard'));
+    if (!cards.length) return;
+
+    wqPage = 0;
+    feed.innerHTML = ''; // 기존 카드 보관 후 재삽입
+
+    var carousel = document.createElement('div');
+    carousel.className = 'wq-carousel';
+
+    var prev = document.createElement('button');
+    prev.className = 'wq-nav'; prev.id = 'wq-prev';
+    prev.innerHTML = '&#8249;'; prev.title = '이전';
+    prev.onclick = function () { wqScroll(-1); };
+
+    var trackWrap = document.createElement('div');
+    trackWrap.className = 'wq-track-wrap';
+
+    var track = document.createElement('div');
+    track.className = 'wq-track'; track.id = 'wq-track';
+    cards.forEach(function (c) { track.appendChild(c); });
+
+    var next = document.createElement('button');
+    next.className = 'wq-nav'; next.id = 'wq-next';
+    next.innerHTML = '&#8250;'; next.title = '다음';
+    next.onclick = function () { wqScroll(1); };
+
+    trackWrap.appendChild(track);
+    carousel.appendChild(prev);
+    carousel.appendChild(trackWrap);
+    carousel.appendChild(next);
+    feed.appendChild(carousel);
+
+    wqUpdateNav(cards.length);
+  }
+
+  if (typeof window.renderQuotes === 'function') {
+    var _rq = window.renderQuotes;
+    window.renderQuotes = function () { _rq.apply(this, arguments); try { applyQuoteCarousel(); } catch (e) {} };
+  }
+
   document.addEventListener('DOMContentLoaded', function () { setActive('books'); });
 })();
