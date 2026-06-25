@@ -1,0 +1,86 @@
+/* =========================================================
+   북로그 — 웹 리디자인 (에디토리얼/사이드바, 데스크톱 전용)
+   기존 구조 위에 얹는 레이어. 모바일/현재 동작엔 영향 없음.
+   ========================================================= */
+
+/* 사이드바·웹 전용 요소는 기본 숨김 (모바일/좁은 화면) */
+.web-side { display: none; }
+#web-hero, #web-quote { display: none; }
+
+@media (min-width: 880px) {
+
+  /* ── 레이아웃: 좌 사이드바 | 우 콘텐츠 ── */
+  #screen-app { flex-direction: row !important; }
+  .app-header, .tabs-wrap { display: none !important; }
+
+  .web-side {
+    display: flex; flex-direction: column;
+    width: 232px; flex-shrink: 0; height: 100vh;
+    background: #f3ecdb; border-right: 1.5px solid #2e1f0e;
+    padding: 24px 16px;
+  }
+  .ws-logo { font-family: var(--fs); font-size: 1.6rem; color: #2e1f0e; line-height: 1; }
+  .ws-tag { font-size: .6rem; letter-spacing: .18em; color: var(--tx3); text-transform: uppercase; margin: 4px 0 26px; }
+  .ws-nav { display: flex; flex-direction: column; gap: 3px; }
+  .ws-i {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 12px; border-radius: 11px; border: 1.5px solid transparent;
+    background: none; color: var(--tx2); font-family: var(--ff); font-size: .95rem; cursor: pointer; text-align: left;
+    transition: background .13s, color .13s;
+  }
+  .ws-i svg { width: 19px; height: 19px; stroke-width: 1.7; flex-shrink: 0; }
+  .ws-i:hover { background: rgba(181,72,31,.07); }
+  .ws-i.on { background: #b5481f; color: #fff; border-color: #2e1f0e; }
+  .ws-foot { margin-top: auto; border-top: 1.5px solid #d8c8a8; padding-top: 14px; }
+  .ws-stats { font-size: .75rem; color: var(--tx2); margin-bottom: 12px; }
+  .ws-stats > div { margin-bottom: 4px; }
+  .ws-stats b { font-family: var(--fs); font-size: 1.05rem; color: #b5481f; font-weight: 400; }
+  .ws-actions { display: flex; gap: 6px; }
+  .ws-actions button { width: 34px; height: 34px; border: 1.5px solid #d8c8a8; border-radius: 9px; background: #fbf6ec; color: var(--tx2); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
+  .ws-actions button:hover { background: #f0e6d2; }
+  .ws-actions svg { width: 17px; height: 17px; stroke-width: 1.7; }
+
+  /* ── 콘텐츠 영역 (에디토리얼) ── */
+  .app-main { flex: 1; padding: 28px 40px 56px !important; max-width: none !important; }
+  .main-inner { max-width: 1080px !important; margin: 0 auto; }
+
+  /* 서재 마스트헤드: 기존 타이틀 블록을 더 크게 + 밑줄 */
+  #p-books .books-toolbar > div:first-child { border-bottom: 1.5px solid #2e1f0e; padding-bottom: 14px; margin-bottom: 6px; }
+  #p-books .books-toolbar > div:first-child [style*="1.75rem"] { font-size: 2.5rem !important; }
+
+  /* 이어 읽기 히어로 (web.js가 주입) */
+  #web-hero {
+    display: flex; gap: 22px; background: #fbf6ec; border: 1.5px solid #2e1f0e;
+    border-radius: 18px; padding: 20px; margin: 6px 0 26px;
+  }
+  #web-hero .wh-cover { width: 116px; height: 174px; flex-shrink: 0; border-radius: 8px; border: 1.5px solid rgba(46,31,14,.4);
+    overflow: hidden; background: linear-gradient(150deg,#3a5a8a,#1f3556); box-shadow: 5px 6px 0 rgba(46,31,14,.12); cursor: pointer; display:flex; align-items:flex-end; }
+  #web-hero .wh-cover img { width: 100%; height: 100%; object-fit: cover; }
+  #web-hero .wh-cover span { color:#dfe7f2; font-family:var(--fs); font-size:1rem; padding:11px; }
+  #web-hero .wh-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  #web-hero .wh-pill { align-self: flex-start; font-size: .66rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; border: 1.5px solid #2e1f0e; background: #e8b73e; color: #5a4500; }
+  #web-hero .wh-title { font-family: var(--fs); font-size: 1.7rem; color: #2e1f0e; margin: 12px 0 2px; cursor: pointer; }
+  #web-hero .wh-by { font-size: .85rem; color: var(--tx2); margin-bottom: auto; }
+  #web-hero .wh-prog { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
+  #web-hero .wh-bar { flex: 1; height: 9px; border: 1.5px solid #2e1f0e; border-radius: 999px; background: #fff; overflow: hidden; }
+  #web-hero .wh-bar > i { display: block; height: 100%; background: #b5481f; }
+  #web-hero .wh-donut { position: relative; width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  #web-hero .wh-donut::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#b5481f calc(var(--p)*1%), #ece0c8 0); -webkit-mask: radial-gradient(transparent 60%, #000 61%); mask: radial-gradient(transparent 60%, #000 61%); }
+  #web-hero .wh-donut b { position: relative; font-family: var(--fs); font-size: .95rem; color: #2e1f0e; font-weight: 400; }
+  #web-hero .wh-btn { margin-top: 16px; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; background: #b5481f; color: #fff; border: 1.5px solid #2e1f0e; border-radius: 10px; padding: 10px 18px; font-family: var(--ff); font-size: .86rem; font-weight: 600; cursor: pointer; }
+
+  /* 서재 갤러리: 에디토리얼 그리드 (큰 표지 + 입체 그림자) */
+  #p-books .gallery { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)) !important; gap: 20px !important; }
+  #p-books .gi { background: none !important; border: none !important; padding: 0 !important; }
+  #p-books .gi:hover { transform: translateY(-3px); }
+  #p-books .gi-cover { border-radius: 7px !important; border: 1.5px solid rgba(46,31,14,.35) !important; box-shadow: 4px 5px 0 rgba(46,31,14,.1) !important; margin-bottom: 8px !important; }
+  #p-books .gi-title { font-size: .85rem !important; }
+  #p-books .gi-author { font-size: .72rem !important; }
+
+  /* 오늘의 문장 (web.js 주입) */
+  #web-quote { display: flex; gap: 22px; align-items: center; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 18px; padding: 24px 28px; margin-top: 30px; }
+  #web-quote .wq-mark { font-family: var(--fs); font-size: 3.6rem; color: #b5481f; line-height: .7; }
+  #web-quote .wq-text { font-family: var(--fs); font-size: 1.3rem; line-height: 1.5; color: #2e1f0e; }
+  #web-quote .wq-src { font-size: .82rem; color: var(--tx2); margin-top: 10px; }
+  #web-section-label { font-family: var(--fs); font-size: 1.35rem; color: #2e1f0e; margin: 30px 0 12px; }
+}
