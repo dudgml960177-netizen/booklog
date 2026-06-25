@@ -13,6 +13,14 @@
     setActive(p);
   };
 
+  // 설정 톱니바퀴 메뉴
+  window.toggleWebSettings = function (e) { if (e) e.stopPropagation(); var m = document.getElementById('ws-settings-menu'); if (m) m.classList.toggle('on'); };
+  window.closeWebSettings = function () { var m = document.getElementById('ws-settings-menu'); if (m) m.classList.remove('on'); };
+  document.addEventListener('click', function (e) {
+    var m = document.getElementById('ws-settings-menu'), g = document.getElementById('ws-gear');
+    if (m && m.classList.contains('on') && !m.contains(e.target) && g && !g.contains(e.target)) m.classList.remove('on');
+  });
+
   function webStreak() {
     var days = new Set();
     (window.allBooks || []).forEach(function (b) {

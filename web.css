@@ -40,6 +40,22 @@
   .ws-actions button:hover { background: #f0e6d2; }
   .ws-actions svg { width: 17px; height: 17px; stroke-width: 1.7; }
 
+  /* 로고 옆 프로필 동그라미 */
+  .ws-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+  .ws-top .ws-tag { margin: 4px 0 0; }
+  .ws-avatar { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid #2e1f0e; background: #e8b73e; color: #5a4500; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; overflow: hidden; padding: 0; }
+  .ws-avatar svg { width: 19px; height: 19px; stroke-width: 1.7; }
+  .ws-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* 설정 톱니바퀴 메뉴 */
+  .ws-foot { position: relative; }
+  .ws-settings-menu { display: none; position: absolute; bottom: 48px; left: 0; right: 0; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 12px; padding: 7px; box-shadow: 0 8px 24px rgba(46,31,14,.18); z-index: 50; }
+  .ws-settings-menu.on { display: block; }
+  .ws-sm-title { font-size: .58rem; letter-spacing: .12em; text-transform: uppercase; color: var(--tx3); padding: 4px 8px 6px; }
+  .ws-sm-i { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: none; text-align: left; padding: 9px; border-radius: 8px; font-family: var(--ff); font-size: .82rem; color: var(--tx1); cursor: pointer; }
+  .ws-sm-i:hover { background: rgba(181,72,31,.08); }
+  .ws-sm-i svg { width: 17px; height: 17px; stroke-width: 1.7; flex-shrink: 0; color: var(--tx2); }
+
   /* ── 콘텐츠 영역 (에디토리얼) ── */
   .app-main { flex: 1; padding: 28px 40px 56px !important; max-width: none !important; }
   .main-inner { max-width: 1080px !important; margin: 0 auto; }
