@@ -86,7 +86,7 @@
   #web-hero .wh-by { font-size: .85rem; color: var(--tx2); margin-bottom: auto; }
   #web-hero .wh-prog { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
   #web-hero .wh-bar { flex: 1; height: 9px; border: 1.5px solid #2e1f0e; border-radius: 2px; background: rgba(46,31,14,.08); overflow: hidden; }
-  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #b5481f 0px, #b5481f 2px, rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 3px); }
+  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #c4511f 0px, #c4511f 2px, #1e0e04 2px, #1e0e04 4px); }
   #web-hero .wh-donut { position: relative; width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   #web-hero .wh-donut::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#b5481f calc(var(--p)*1%), #ece0c8 0); -webkit-mask: radial-gradient(transparent 60%, #000 61%); mask: radial-gradient(transparent 60%, #000 61%); }
   #web-hero .wh-donut b { position: relative; font-family: var(--ff); font-size: .85rem; color: #2e1f0e; font-weight: 700; }
@@ -653,8 +653,8 @@
   #modal-detail .dtl-prog-fill {
     background: repeating-linear-gradient(
       -45deg,
-      #b5481f 0px, #b5481f 2px,
-      rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 3px
+      #c4511f 0px, #c4511f 2px,
+      #1e0e04 2px, #1e0e04 4px
     ) !important;
     border-radius: 2px !important;
     height: 100% !important;
@@ -1058,6 +1058,266 @@
     font-weight: 600 !important;
   }
   .ws-i.on svg { stroke: #b5481f !important; }
+
+  /* ══════════════════════════════════════════
+     v=20: 전역 모달 내부 에디토리얼 통일
+     ══════════════════════════════════════════ */
+
+  /* 모달 박스 배경 */
+  .modal { background: #fbf6ec !important; }
+
+  /* 헤더 */
+  .modal-header {
+    background: #f3ecdb !important;
+    border-bottom: 1.5px solid rgba(46,31,14,.18) !important;
+    padding: .95rem 1.2rem !important;
+  }
+  .modal-title {
+    font-family: var(--fs) !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    color: #2e1f0e !important;
+    letter-spacing: -.01em !important;
+    line-height: 1.35 !important;
+  }
+  .modal-close {
+    background: none !important;
+    border: none !important;
+    color: rgba(46,31,14,.4) !important;
+    cursor: pointer !important;
+    font-size: 1rem !important;
+    transition: color .13s !important;
+    padding: .2rem .3rem !important;
+  }
+  .modal-close:hover { color: #2e1f0e !important; }
+
+  /* 바디 / 푸터 */
+  .modal-body { background: #fbf6ec !important; }
+  .modal-footer {
+    background: #f3ecdb !important;
+    border-top: 1.5px solid rgba(46,31,14,.14) !important;
+  }
+
+  /* 글로벌 버튼 스타일 */
+  .btn-save {
+    background: #2e1f0e !important;
+    border: none !important;
+    border-radius: 4px !important;
+    font-weight: 700 !important;
+    color: #fbf6ec !important;
+    cursor: pointer !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+    letter-spacing: .02em !important;
+  }
+  .btn-save:hover { background: #b5481f !important; }
+  .btn-cancel {
+    background: none !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 4px !important;
+    color: var(--tx2) !important;
+    cursor: pointer !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+  }
+  .btn-cancel:hover { background: rgba(46,31,14,.05) !important; }
+
+  /* 모달 내 공통 form-input / textarea */
+  .modal .form-input,
+  .modal .form-textarea,
+  .modal select.form-input {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 4px !important;
+    color: #2e1f0e !important;
+  }
+  .modal .form-input:focus,
+  .modal .form-textarea:focus {
+    border-color: #b5481f !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 모달 내 form-label */
+  .modal .form-label {
+    font-size: .62rem !important;
+    letter-spacing: .1em !important;
+    text-transform: uppercase !important;
+    color: var(--tx3) !important;
+    font-weight: 600 !important;
+    font-family: var(--ff) !important;
+  }
+
+  /* ── 프로필 모달 ── */
+  #modal-profile .profile-card {
+    background: #f3ecdb !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 8px !important;
+  }
+  #modal-profile .profile-divider {
+    border-color: rgba(46,31,14,.12) !important;
+  }
+  #modal-profile .profile-expand-btn {
+    border-radius: 4px !important;
+    border: 1.5px solid rgba(46,31,14,.12) !important;
+    background: rgba(46,31,14,.03) !important;
+    transition: background .13s !important;
+  }
+  #modal-profile .profile-expand-btn:hover { background: rgba(46,31,14,.07) !important; }
+  #modal-profile .profile-action-btn {
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 4px !important;
+    background: none !important;
+    color: var(--tx2) !important;
+    transition: background .13s !important;
+  }
+  #modal-profile .profile-action-btn:hover { background: rgba(46,31,14,.05) !important; }
+  #modal-profile .profile-action-admin {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+  }
+  #modal-profile .profile-action-admin:hover { background: #b5481f !important; }
+  #modal-profile .profile-select {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 4px !important;
+    color: #2e1f0e !important;
+    font-size: .74rem !important;
+    padding: .3rem .5rem !important;
+  }
+  #modal-profile .modal-body {
+    border-top: none !important;
+    padding-top: .2rem !important;
+  }
+
+  /* ── 글쓰기 모달 (#modal-post) ── */
+  #modal-post .editor-toolbar {
+    background: #f3ecdb !important;
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-bottom: none !important;
+    border-radius: 4px 4px 0 0 !important;
+  }
+  #modal-post .editor-btn {
+    border-radius: 3px !important;
+    color: var(--tx2) !important;
+    font-family: var(--ff) !important;
+  }
+  #modal-post .editor-btn:hover {
+    background: rgba(46,31,14,.1) !important;
+    border-color: rgba(46,31,14,.2) !important;
+  }
+  #modal-post .post-editor {
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 0 0 4px 4px !important;
+    background: #fffdf8 !important;
+    color: #2e1f0e !important;
+    font-family: var(--ff) !important;
+    font-size: .84rem !important;
+    line-height: 1.9 !important;
+    min-height: 180px !important;
+  }
+  #modal-post .post-editor:focus {
+    border-color: #b5481f !important;
+    outline: none !important;
+  }
+  #modal-post #post-title {
+    border-radius: 4px !important;
+    font-family: var(--fs) !important;
+    font-size: .92rem !important;
+  }
+
+  /* ── 게시글 상세 모달 (#modal-post-detail) ── */
+  #modal-post-detail .modal {
+    max-width: 680px !important;
+  }
+  #modal-post-detail .modal-body {
+    font-size: .85rem !important;
+    line-height: 1.9 !important;
+    color: #2e1f0e !important;
+    font-family: var(--ff) !important;
+  }
+
+  /* ── 소셜/친구 모달 (#modal-social) ── */
+  #modal-social .modal {
+    background: #fbf6ec !important;
+  }
+  #modal-social [style*="border-bottom:1px solid"],
+  #modal-social [style*="border-bottom: 1px solid"] {
+    border-bottom: 1.5px solid rgba(46,31,14,.14) !important;
+  }
+  #modal-social [style*="font-family:var(--fs)"] {
+    color: #2e1f0e !important;
+  }
+  #modal-social [style*="border-radius:20px"][onclick] {
+    border-radius: 4px !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    background: #f3ecdb !important;
+    color: var(--tx2) !important;
+  }
+
+  /* ── 서재 구경 모달 (#modal-library) ── */
+  #modal-library > div {
+    background: #fbf6ec !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 8px !important;
+    box-shadow: 6px 8px 0 rgba(46,31,14,.12) !important;
+  }
+
+  /* ── 도서관 입장 팝업 (#modal-library-entry) ── */
+  #modal-library-entry [style*="var(--bg)"][onclick] {
+    background: #f3ecdb !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 4px !important;
+  }
+  #modal-library-entry select {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 4px !important;
+    color: #2e1f0e !important;
+    font-size: .74rem !important;
+  }
+
+  /* ── 카테고리 모달 (#modal-cat) ── */
+  #modal-cat .search-btn {
+    background: #2e1f0e !important;
+    border: none !important;
+    border-radius: 4px !important;
+    color: #fbf6ec !important;
+    font-size: .78rem !important;
+    padding: .42rem .9rem !important;
+    cursor: pointer !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+  }
+  #modal-cat .search-btn:hover { background: #b5481f !important; }
+
+  /* ── 커스텀 Confirm 모달 ── */
+  #modal-confirm .modal { max-width: 320px !important; }
+  #modal-confirm #confirm-message {
+    font-family: var(--ff) !important;
+    font-size: .85rem !important;
+    color: #2e1f0e !important;
+    line-height: 1.75 !important;
+  }
+
+  /* ── FAB (책 추가 플로팅 버튼) ── */
+  #fab-add-book {
+    border-radius: 4px !important;
+    width: 48px !important;
+    height: 48px !important;
+    background: #2e1f0e !important;
+    border: 1.5px solid rgba(46,31,14,.5) !important;
+    box-shadow: 4px 5px 0 rgba(46,31,14,.22) !important;
+    font-size: 1.35rem !important;
+    font-weight: 400 !important;
+    transition: background .13s, transform .13s, box-shadow .13s !important;
+  }
+  #fab-add-book:hover {
+    background: #b5481f !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 5px 7px 0 rgba(46,31,14,.25) !important;
+  }
 
   /* ══ v=19: 상세 모달 푸터 버튼 크기 통일 ══ */
   #modal-detail .dtl-btn-delete,
