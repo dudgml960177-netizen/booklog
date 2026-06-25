@@ -11,12 +11,14 @@
 /* 로그인 전(앱 화면 아님)에는 책추가 FAB 숨김 */
 body:not(.app-on) #fab-add-book { display: none !important; }
 
-/* ── 앱 테마색 (크림브라운 베이스 유지 + 액센트 교체). mobile.js가 body에 클래스 부여 ── */
-body.theme-sage  { --acc: #6b8f6b; --acc2: #4e7256; }
-body.theme-slate { --acc: #5a7a8a; --acc2: #3f5a68; }
-body.theme-mauve { --acc: #8b6b8b; --acc2: #6a4d6a; }
-body.theme-clay  { --acc: #c4714a; --acc2: #9a5232; }
-/* theme-default = :root 기본값 그대로 */
+/* ── 앱 테마색: 액센트 + 숫자(rust/gold) + 배경 톤까지 함께 변경 (다채롭게). mobile.js가 body 클래스 부여 ── */
+body.theme-sage  { --acc:#5f8a63; --acc2:#44663f; --rust:#6f8f56; --gold:#9fae5e; --bg:#edf1ea; --card:#f7faf3; --paper:#f7faf3; --cream:#eef2e8; }
+body.theme-slate { --acc:#56788a; --acc2:#3c5666; --rust:#6889a0; --gold:#7fa0b0; --bg:#ebeff2; --card:#f5f8fb; --paper:#f5f8fb; --cream:#e9eef2; }
+body.theme-mauve { --acc:#8a6890; --acc2:#654a6b; --rust:#9d6a90; --gold:#b08bb0; --bg:#f0ecf1; --card:#faf6fb; --paper:#faf6fb; --cream:#efe9f1; }
+body.theme-clay  { --acc:#c4704a; --acc2:#95502f; --rust:#c4714a; --gold:#d99a5e; --bg:#f5ece5; --card:#fdf6f0; --paper:#fdf6f0; --cream:#f4ebe2; }
+/* theme-default = :root 기본값(크림브라운) 그대로 */
+/* 배경 변수 적용이 확실히 먹도록 앱 메인/헤더/탭바도 var 기반으로 */
+body[class*="theme-"] .app-main { background: var(--bg) !important; }
 
 @media (max-width: 640px) {
 
