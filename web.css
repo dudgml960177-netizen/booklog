@@ -537,4 +537,251 @@
     border-top: 1.5px solid rgba(46,31,14,.18) !important;
     padding: .65rem 1.1rem !important;
   }
+
+  /* ── 문장 에디터 모달 (qedit-modal): 에디토리얼 ── */
+  .qedit-modal {
+    max-width: 560px !important;
+    background: #fbf6ec !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 18px !important;
+    box-shadow: 8px 10px 0 rgba(46,31,14,.16) !important;
+    overflow: hidden !important;
+  }
+  .qedit-header {
+    background: #f3ecdb !important;
+    border-bottom: 1.5px solid rgba(46,31,14,.2) !important;
+    padding: 1rem 1.3rem !important;
+  }
+  .qedit-header > div:first-child > div:first-child {
+    font-family: var(--fs) !important;
+    font-size: 1.05rem !important;
+    font-weight: 400 !important;
+    color: #2e1f0e !important;
+    letter-spacing: -.01em !important;
+  }
+  .qedit-book-ref {
+    font-size: .65rem !important;
+    color: var(--tx3) !important;
+    margin-top: 3px !important;
+    font-family: var(--ff) !important;
+  }
+  .qedit-modal > div:last-child {
+    background: #fbf6ec !important;
+    padding: 1rem 1.3rem !important;
+  }
+  .qedit-modal .qeditor-toolbar {
+    background: #f3ecdb !important;
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-bottom: none !important;
+    border-radius: 10px 10px 0 0 !important;
+    padding: .42rem .65rem !important;
+    gap: .28rem !important;
+  }
+  .qedit-modal .qeditor-toolbar button {
+    font-size: .76rem !important;
+    padding: .18rem .45rem !important;
+    border-radius: 6px !important;
+    color: var(--tx2) !important;
+    min-width: 26px !important;
+  }
+  .qedit-modal .qeditor-toolbar button:hover {
+    background: rgba(46,31,14,.1) !important;
+    border-color: rgba(46,31,14,.2) !important;
+  }
+  .qedit-modal .qeditor-sep { background: rgba(46,31,14,.15) !important; }
+  .qedit-modal .qeditor-body {
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 0 0 10px 10px !important;
+    background: #fffdf8 !important;
+    font-size: .84rem !important;
+    line-height: 1.95 !important;
+    min-height: 130px !important;
+    height: 180px !important;
+    padding: .7rem .85rem !important;
+    color: #2e1f0e !important;
+  }
+  .qedit-modal .qeditor-body:focus {
+    border-color: #b5481f !important;
+  }
+  .qedit-modal .form-input {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 10px !important;
+    font-size: .82rem !important;
+    color: #2e1f0e !important;
+    padding: .5rem .7rem !important;
+  }
+  .qedit-modal .form-input:focus {
+    border-color: #b5481f !important;
+    outline: none !important;
+  }
+  .qedit-modal .btn-save {
+    background: #b5481f !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 10px !important;
+    font-size: .82rem !important;
+    font-weight: 600 !important;
+    letter-spacing: .02em !important;
+    padding: .5rem 1rem !important;
+  }
+  .qedit-modal .btn-delete {
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 10px !important;
+    font-size: .82rem !important;
+    background: none !important;
+    color: var(--tx2) !important;
+    padding: .5rem .9rem !important;
+  }
+
+  /* ── 책 추가/수정 모달: 에디토리얼 ── */
+  #modal-book .modal {
+    background: #fbf6ec !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 18px !important;
+    box-shadow: 8px 10px 0 rgba(46,31,14,.16) !important;
+    max-width: 520px !important;
+    overflow: hidden !important;
+  }
+  #modal-book .modal-header {
+    background: #f3ecdb !important;
+    border-bottom: 1.5px solid rgba(46,31,14,.2) !important;
+    padding: 1rem 1.3rem !important;
+  }
+  #modal-book #modal-book-title {
+    font-family: var(--fs) !important;
+    font-size: 1.05rem !important;
+    font-weight: 400 !important;
+    color: #2e1f0e !important;
+  }
+  #modal-book .modal-close {
+    background: none !important;
+    border: none !important;
+    color: var(--tx3) !important;
+    font-size: 1rem !important;
+    cursor: pointer !important;
+  }
+  #modal-book .modal-body {
+    background: #fbf6ec !important;
+  }
+  #modal-book .form-input,
+  #modal-book .form-textarea,
+  #modal-book select.form-input {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 10px !important;
+    color: #2e1f0e !important;
+    font-size: .8rem !important;
+  }
+  #modal-book .form-input:focus,
+  #modal-book .form-textarea:focus {
+    border-color: #b5481f !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  #modal-book .status-btn {
+    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border-radius: 999px !important;
+    background: #f3ecdb !important;
+    color: var(--tx2) !important;
+    font-family: var(--ff) !important;
+    font-size: .76rem !important;
+    padding: 5px 16px !important;
+    transition: all .13s !important;
+    cursor: pointer !important;
+  }
+  #modal-book .status-btn.on {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+  }
+  #modal-book .status-btn:hover:not(.on) {
+    background: #e8dfc8 !important;
+    border-color: rgba(46,31,14,.35) !important;
+  }
+  #modal-book .star { color: #d9c5a8 !important; font-size: 1.4rem !important; }
+  #modal-book .star.on { color: #c4511f !important; }
+  #modal-book .btn-save {
+    background: #b5481f !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: .82rem !important;
+    padding: .5rem 1.4rem !important;
+  }
+  #modal-book .btn-cancel {
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 10px !important;
+    background: none !important;
+    color: var(--tx2) !important;
+    font-size: .82rem !important;
+    padding: .5rem 1rem !important;
+  }
+  #modal-book .add-quote-btn {
+    border: 1.5px dashed rgba(46,31,14,.3) !important;
+    border-radius: 9px !important;
+    background: none !important;
+    color: var(--tx3) !important;
+    padding: .35rem .8rem !important;
+    font-size: .74rem !important;
+    width: 100% !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    transition: background .13s !important;
+  }
+  #modal-book .add-quote-btn:hover {
+    background: rgba(46,31,14,.05) !important;
+    color: var(--tx2) !important;
+  }
+  #modal-book .modal-footer {
+    background: #f3ecdb !important;
+    border-top: 1.5px solid rgba(46,31,14,.18) !important;
+    padding: .75rem 1.2rem !important;
+  }
+  #modal-book .selected-book {
+    background: #f3ecdb !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 12px !important;
+    padding: .75rem !important;
+  }
+  #modal-book #book-search-input {
+    background: #fffdf8 !important;
+    border: 1.5px solid rgba(46,31,14,.18) !important;
+    border-radius: 999px !important;
+  }
+
+  /* ── 책 상세 모달: UNDERLINES 섹션 강화 ── */
+  #modal-detail #detail-body [style*="border-left:3px solid"],
+  #modal-detail #detail-body [style*="border-left: 3px solid"] {
+    background: rgba(46,31,14,.025) !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: .48rem .75rem .55rem .7rem !important;
+    margin-bottom: .42rem !important;
+    transition: background .13s !important;
+  }
+  #modal-detail #detail-body [style*="border-left:3px solid"]:hover,
+  #modal-detail #detail-body [style*="border-left: 3px solid"]:hover {
+    background: rgba(46,31,14,.06) !important;
+  }
+
+  /* ── 사이드바 폴더 탭 효과 ── */
+  .ws-i {
+    border-left: 3px solid transparent !important;
+    border-radius: 0 10px 10px 0 !important;
+    margin-left: -16px !important;
+    padding-left: 19px !important;
+    border: none !important;
+  }
+  .ws-i:hover {
+    background: rgba(181,72,31,.09) !important;
+    border-left: 3px solid rgba(181,72,31,.3) !important;
+    color: var(--tx2) !important;
+  }
+  .ws-i.on {
+    background: #fbf6ec !important;
+    color: #b5481f !important;
+    border-left: 3px solid #b5481f !important;
+    box-shadow: 2px 2px 0 rgba(46,31,14,.1), inset 0 0 0 1px rgba(46,31,14,.12) !important;
+    font-weight: 600 !important;
+  }
+  .ws-i.on svg { stroke: #b5481f !important; }
 }
