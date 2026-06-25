@@ -1133,8 +1133,12 @@ function buildGallery(list) {
     else { const h=Math.floor(totalMins/60),m=totalMins%60; timeStr=m>0?`${h}시간 ${m}분 독서`:`${h}시간 독서`; }
     const thoughtCover = b.cover ? `<img src="${b.cover}" class="gi-thought-cover" alt="">` : `<div class="gi-thought-cover"></div>`;
     const statusLabel = {'완독':'✅ 완독','읽는중':'📖 읽는 중','읽고싶음':'🔖 읽고싶음','중단':'⏸ 중단'}[b.status]||b.status||'';
+    // 진도율 도넛 게이지 (표지 우상단) — 완독=꽉참, 읽는중/중단=현재쪽/총쪽
+    const _pct = b.status==='완독' ? 100 : ((b.current_page && b.pages) ? Math.min(100, Math.round(b.current_page/b.pages*100)) : 0);
+    const _showGauge = (b.status==='완독') || ((b.status==='읽는중'||b.status==='중단') && _pct>0);
+    const gaugeHtml = _showGauge ? `<div class="gi-gauge" style="--p:${_pct};--gc:${stColor};"></div>` : '';
     el.innerHTML = `<div class="gi-thought">${thoughtCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${ttl}</div><div class="gi-thought-time">⏱ ${timeStr}</div><div class="gi-thought-status">${statusLabel}</div></div></div>
-      <div class="gi-cover">${coverHtml}</div>
+      <div class="gi-cover" style="position:relative;">${coverHtml}${gaugeHtml}</div>
       <div class="gi-title" title="${ttl}">${ttl}</div>
       <div class="gi-author">${auth}</div>
       ${ratingDisp}`;

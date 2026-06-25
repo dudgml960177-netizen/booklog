@@ -84,6 +84,15 @@ body.theme-clay  { --acc: #c4714a; --acc2: #9a5232; }
   .gi:hover { transform: none !important; box-shadow: none !important; }
   /* 터치엔 호버 말풍선이 안 뜨므로 비활성화 (탭하면 상세 모달) */
   .gi-thought { display: none !important; }
+  /* 진도율 도넛 게이지 (표지 우상단, 얇고 단정하게) */
+  .gi-gauge {
+    position: absolute; top: 4px; right: 4px; width: 21px; height: 21px; border-radius: 50%;
+    background: conic-gradient(var(--gc) calc(var(--p) * 1%), rgba(255,255,255,.5) 0);
+    -webkit-mask: radial-gradient(transparent 54%, #000 55%);
+    mask: radial-gradient(transparent 54%, #000 55%);
+    filter: drop-shadow(0 0 1px rgba(0,0,0,.4));
+    pointer-events: none;
+  }
 
   /* ── 헤더 아이콘 버튼: 박스 보더 제거 → 깔끔한 아이콘 ── */
   .header-btn {
