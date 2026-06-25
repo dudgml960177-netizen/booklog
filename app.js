@@ -8675,19 +8675,15 @@ async function openPostDetail(postId) {
       return `<div style="margin-left:1.2rem;padding:.35rem 0 .35rem .7rem;border-left:2px solid var(--border2);margin-top:.3rem;">
         <div style="font-size:.65rem;color:var(--tx3);margin-bottom:.1rem;">${getCommentAuthor(r.user_id)} · ${toKSTDate(r.created_at)}</div>
         <div style="font-size:.75rem;color:var(--tx1);line-height:1.6;word-break:break-word;">${r.content}</div>
-        ${rCanDelete?`<button onclick="deleteComment('${r.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;margin-top:.1rem;">삭제</button>`:''}
+        ${rCanDelete?`<div style="display:flex;justify-content:flex-end;margin-top:.15rem;"><button onclick="deleteComment('${r.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:1px solid var(--border2);border-radius:5px;padding:.1rem .45rem;background:none;cursor:pointer;">삭제</button></div>`:''}
       </div>`;
     }).join('');
     return `<div style="padding:.5rem 0;border-bottom:1px solid #ede4d0;">
-      <div style="display:flex;align-items:flex-start;gap:.5rem;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${toKSTDate(c.created_at)}</div>
-          <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;word-break:break-word;">${c.content}</div>
-        </div>
-        <div style="display:flex;gap:.3rem;flex-shrink:0;">
-          <button onclick="showReplyInput('${c.id}')" style="font-size:.6rem;color:var(--acc);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;background:none;cursor:pointer;">답글</button>
-          ${canDelete?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.6rem;color:var(--tx3);border:none;background:none;cursor:pointer;">삭제</button>`:''}
-        </div>
+      <div style="font-size:.68rem;margin-bottom:.18rem;">${getCommentAuthor(c.user_id)} · ${toKSTDate(c.created_at)}</div>
+      <div style="font-size:.78rem;color:var(--tx1);line-height:1.7;white-space:pre-wrap;word-break:break-word;">${c.content}</div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:.4rem;margin-top:.35rem;">
+        <button onclick="showReplyInput('${c.id}')" style="font-size:.62rem;color:var(--acc);border:1px solid var(--border2);border-radius:5px;padding:.12rem .5rem;background:none;cursor:pointer;">답글</button>
+        ${canDelete?`<button onclick="deleteComment('${c.id}','${postId}')" style="font-size:.62rem;color:var(--tx3);border:1px solid var(--border2);border-radius:5px;padding:.12rem .5rem;background:none;cursor:pointer;">삭제</button>`:''}
       </div>
       ${replyHtml}
       <div id="reply-box-${c.id}" style="display:none;margin-top:.5rem;margin-left:1.2rem;">
