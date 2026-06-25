@@ -390,13 +390,6 @@
     top: 5px !important;
     right: 5px !important;
   }
-  #p-books .gi-donut b {
-    font-family: var(--fs) !important;
-    font-size: .6rem !important;
-    font-weight: 400 !important;
-    color: #2e1f0e !important;
-  }
-
   /* ── 목록 뷰 에디토리얼 ── */
   #p-books .book-list { gap: .6rem !important; }
   #p-books .book-list-item {
@@ -414,12 +407,6 @@
     right: 12px !important;
     width: 42px !important;
     height: 42px !important;
-  }
-  #p-books .bli-donut b {
-    font-family: var(--fs) !important;
-    font-size: .52rem !important;
-    font-weight: 400 !important;
-    color: #2e1f0e !important;
   }
   #p-books .book-list-item:hover {
     background: #f3ead8 !important;

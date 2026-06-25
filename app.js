@@ -1156,9 +1156,9 @@ function buildGallery(list) {
     const statusLabel = {'완독':'✅ 완독','읽는중':'📖 읽는 중','읽고싶음':'🔖 읽고싶음','중단':'⏸ 중단'}[b.status]||b.status||'';
     // 읽는 중 진행률 도넛
     const giPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
-    const giCirc = 75.4;
     const donutColor = DONUT_PALETTE[idx % DONUT_PALETTE.length];
-    const giDonut = giPct > 0 ? `<div class="gi-donut" title="${giPct}% 읽음"><svg viewBox="0 0 34 34" width="34" height="34" style="position:absolute;inset:0;filter:drop-shadow(0 2px 8px rgba(46,31,14,.3));"><circle cx="17" cy="17" r="11.5" fill="white" stroke="#ddd0be" stroke-width="3"/><circle cx="17" cy="17" r="11.5" fill="none" stroke="${donutColor}" stroke-width="3" stroke-dasharray="${((2*Math.PI*11.5)*giPct/100).toFixed(1)} ${(2*Math.PI*11.5).toFixed(1)}" stroke-linecap="round" transform="rotate(-90 17 17)"/></svg><b>${giPct}</b></div>` : '';
+    const giR=11.2, giCirc=+(2*Math.PI*giR).toFixed(2);
+    const giDonut = giPct > 0 ? `<div class="gi-donut" title="${giPct}% 읽음"><svg viewBox="0 0 34 34" style="position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 2px 10px rgba(46,31,14,.28));"><circle cx="17" cy="17" r="${giR}" fill="white" stroke="#e2d9cd" stroke-width="2.2"/><circle cx="17" cy="17" r="${giR}" fill="none" stroke="${donutColor}" stroke-width="2.2" stroke-dasharray="${(giCirc*giPct/100).toFixed(2)} ${giCirc}" stroke-linecap="round" transform="rotate(-90 17 17)"/><text x="17" y="17" text-anchor="middle" dominant-baseline="central" font-size="7" font-family="'DM Serif Display',serif" fill="#2e1f0e">${giPct}</text></svg></div>` : '';
     el.innerHTML = `<div class="gi-thought">${thoughtCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${ttl}</div><div class="gi-thought-time">⏱ ${timeStr}</div><div class="gi-thought-status">${statusLabel}</div></div></div>
       <div class="gi-cover">${coverHtml}</div>
       ${giDonut}
@@ -1184,10 +1184,9 @@ function buildList(list) {
     }
     const coverEl = b.cover ? `<img class="bli-cover" src="${b.cover}" alt="${b.title}">` : `<div class="bli-cover"></div>`;
     const bliPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
-    const bliCirc = 50.3;
     const donutColor = DONUT_PALETTE[idx % DONUT_PALETTE.length];
-    const bliR = 8.5; const bliC = +(2*Math.PI*bliR).toFixed(1);
-    const bliDonut = bliPct > 0 ? `<div class="bli-donut" title="${bliPct}% 읽음"><svg viewBox="0 0 26 26" width="26" height="26" style="position:absolute;inset:0;filter:drop-shadow(0 2px 6px rgba(46,31,14,.3));"><circle cx="13" cy="13" r="${bliR}" fill="white" stroke="#ddd0be" stroke-width="2.8"/><circle cx="13" cy="13" r="${bliR}" fill="none" stroke="${donutColor}" stroke-width="2.8" stroke-dasharray="${(bliC*bliPct/100).toFixed(1)} ${bliC}" stroke-linecap="round" transform="rotate(-90 13 13)"/></svg><b>${bliPct}</b></div>` : '';
+    const bliR = 8.5; const bliC = +(2*Math.PI*bliR).toFixed(2);
+    const bliDonut = bliPct > 0 ? `<div class="bli-donut" title="${bliPct}% 읽음"><svg viewBox="0 0 26 26" style="position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 2px 8px rgba(46,31,14,.26));"><circle cx="13" cy="13" r="${bliR}" fill="white" stroke="#e2d9cd" stroke-width="2.2"/><circle cx="13" cy="13" r="${bliR}" fill="none" stroke="${donutColor}" stroke-width="2.2" stroke-dasharray="${(bliC*bliPct/100).toFixed(2)} ${bliC}" stroke-linecap="round" transform="rotate(-90 13 13)"/><text x="13" y="13" text-anchor="middle" dominant-baseline="central" font-size="5.5" font-family="'DM Serif Display',serif" fill="#2e1f0e">${bliPct}</text></svg></div>` : '';
     el.innerHTML = `<div class="bli-cover-wrap">${coverEl}${bliDonut}</div>
       <div class="bli-info">
         <div class="bli-title">${b.title}</div>
