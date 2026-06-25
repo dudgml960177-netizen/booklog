@@ -643,10 +643,11 @@
     color: #b5481f !important;
   }
   #modal-detail .dtl-prog-track {
-    height: 6px !important;
+    height: 11px !important;
     background: rgba(46,31,14,.1) !important;
     border-radius: 999px !important;
     overflow: hidden !important;
+    box-shadow: inset 0 1px 3px rgba(46,31,14,.1) !important;
   }
   #modal-detail .dtl-prog-fill {
     background: linear-gradient(90deg, #b5481f, #e8903a) !important;
@@ -681,9 +682,11 @@
     line-height: 1 !important;
   }
   #modal-detail .dtl-prog-track-lg {
-    height: 10px !important;
+    height: 18px !important;
     background: rgba(46,31,14,.1) !important;
     border-radius: 999px !important;
+    overflow: hidden !important;
+    box-shadow: inset 0 2px 5px rgba(46,31,14,.14) !important;
   }
   #modal-detail .dtl-reading-ctrl {
     gap: .55rem !important;
@@ -698,12 +701,68 @@
     text-align: center !important;
   }
   #modal-detail .dtl-prog-save-btn {
+    background: #2e1f0e !important;
+    border: none !important;
+    border-radius: 999px !important;
+    font-size: .78rem !important;
+    padding: .42rem 1.1rem !important;
+    font-weight: 700 !important;
+    color: #fbf6ec !important;
+    transition: background .13s !important;
+  }
+  #modal-detail .dtl-prog-save-btn:hover {
     background: #b5481f !important;
-    border: 1.5px solid #2e1f0e !important;
-    border-radius: 9px !important;
+  }
+
+  /* ── 책 상세 모달 푸터 버튼 ── */
+  #modal-detail .dtl-footer {
+    background: #f3ecdb !important;
+    border-top: 1.5px solid rgba(46,31,14,.14) !important;
+    padding: .75rem 1.1rem !important;
+  }
+  #modal-detail .dtl-btn-delete {
     font-size: .75rem !important;
-    padding: .35rem .9rem !important;
-    font-weight: 600 !important;
+    border: 1.5px solid rgba(192,57,43,.32) !important;
+    border-radius: 999px !important;
+    padding: .4rem 1.05rem !important;
+    color: #c0392b !important;
+    background: none !important;
+    cursor: pointer !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+  }
+  #modal-detail .dtl-btn-delete:hover {
+    background: rgba(192,57,43,.07) !important;
+  }
+  #modal-detail .dtl-btn-close {
+    font-size: .78rem !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 999px !important;
+    padding: .42rem 1.1rem !important;
+    color: var(--tx2) !important;
+    background: none !important;
+    cursor: pointer !important;
+    font-family: var(--ff) !important;
+    transition: background .13s !important;
+  }
+  #modal-detail .dtl-btn-close:hover {
+    background: rgba(46,31,14,.05) !important;
+  }
+  #modal-detail .dtl-btn-edit {
+    font-size: .82rem !important;
+    font-weight: 700 !important;
+    background: #2e1f0e !important;
+    border: none !important;
+    border-radius: 999px !important;
+    padding: .44rem 1.5rem !important;
+    color: #fbf6ec !important;
+    cursor: pointer !important;
+    font-family: var(--ff) !important;
+    letter-spacing: .02em !important;
+    transition: background .13s !important;
+  }
+  #modal-detail .dtl-btn-edit:hover {
+    background: #b5481f !important;
   }
 
   /* ── 밑줄 섹션 ── */
@@ -875,42 +934,57 @@
     box-shadow: none !important;
   }
   #modal-book .status-btn {
-    border: 1.5px solid rgba(46,31,14,.2) !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
     border-radius: 999px !important;
     background: #f3ecdb !important;
     color: var(--tx2) !important;
     font-family: var(--ff) !important;
-    font-size: .76rem !important;
-    padding: 5px 16px !important;
+    font-size: .82rem !important;
+    font-weight: 500 !important;
+    padding: .45rem 1.15rem !important;
     transition: all .13s !important;
     cursor: pointer !important;
+    letter-spacing: .02em !important;
   }
   #modal-book .status-btn.on {
     background: #2e1f0e !important;
     color: #fbf6ec !important;
     border-color: #2e1f0e !important;
+    box-shadow: 2px 3px 0 rgba(46,31,14,.22) !important;
+    font-weight: 700 !important;
   }
   #modal-book .status-btn:hover:not(.on) {
     background: #e8dfc8 !important;
-    border-color: rgba(46,31,14,.35) !important;
+    border-color: rgba(46,31,14,.4) !important;
   }
-  #modal-book .star { color: #d9c5a8 !important; font-size: 1.4rem !important; }
+  #modal-book .star { color: #d9c5a8 !important; font-size: 1.5rem !important; }
   #modal-book .star.on { color: #c4511f !important; }
   #modal-book .btn-save {
+    background: #2e1f0e !important;
+    border: none !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
+    font-size: .88rem !important;
+    padding: .62rem 1.8rem !important;
+    letter-spacing: .03em !important;
+    flex: 2 !important;
+    transition: background .13s !important;
+  }
+  #modal-book .btn-save:hover {
     background: #b5481f !important;
-    border: 1.5px solid #2e1f0e !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    font-size: .82rem !important;
-    padding: .5rem 1.4rem !important;
   }
   #modal-book .btn-cancel {
-    border: 1.5px solid rgba(46,31,14,.22) !important;
-    border-radius: 10px !important;
+    border: 1.5px solid rgba(46,31,14,.28) !important;
+    border-radius: 999px !important;
     background: none !important;
     color: var(--tx2) !important;
-    font-size: .82rem !important;
-    padding: .5rem 1rem !important;
+    font-size: .88rem !important;
+    padding: .62rem 1.2rem !important;
+    flex: 1 !important;
+    transition: background .13s !important;
+  }
+  #modal-book .btn-cancel:hover {
+    background: rgba(46,31,14,.05) !important;
   }
   #modal-book .add-quote-btn {
     border: 1.5px dashed rgba(46,31,14,.3) !important;
