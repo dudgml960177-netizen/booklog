@@ -9,6 +9,13 @@
 
 @media (min-width: 880px) {
 
+  /* ── 전역: 모든 모달 검은 테두리 통일 ── */
+  .modal {
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 8px !important;
+    box-shadow: 6px 8px 0 rgba(46,31,14,.12) !important;
+  }
+
   /* ── 레이아웃: 좌 사이드바 | 우 콘텐츠 ── */
   #screen-app { flex-direction: row !important; }
   .app-header, .tabs-wrap { display: none !important; }
@@ -636,14 +643,7 @@
     font-weight: 700 !important;
   }
 
-  /* ── 읽는중 미니 진행바 (히어로 내부) ── */
-  #modal-detail .dtl-prog-mini { margin-top: .2rem !important; }
-  #modal-detail .dtl-prog-pct {
-    font-family: var(--ff) !important;
-    font-size: .88rem !important;
-    font-weight: 700 !important;
-    color: #b5481f !important;
-  }
+  /* ── 진행바 (히어로 내 미니 제거 — 독서 진행 섹션만 사용) ── */
   #modal-detail .dtl-prog-track {
     height: 9px !important;
     background: rgba(46,31,14,.1) !important;

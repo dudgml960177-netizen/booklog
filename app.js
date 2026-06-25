@@ -6413,16 +6413,6 @@ function openDetail(bookId) {
         ${b.source?infoChip(b.source):''}
         ${b.reread?infoChip('🔁 재독'):''}
       </div>
-      ${b.status==='읽는중'&&pct?`
-      <div class="dtl-prog-mini">
-        <div class="dtl-prog-header" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.32rem;">
-          <span style="font-size:.52rem;color:var(--tx3);">${b.current_page}p / ${b.pages}p</span>
-          <span class="dtl-prog-pct" style="font-size:.72rem;font-weight:700;color:var(--acc);">${pct}%</span>
-        </div>
-        <div class="dtl-prog-track" style="height:5px;background:var(--border);border-radius:999px;overflow:hidden;">
-          <div class="dtl-prog-fill" style="width:${pct}%;height:100%;background:var(--acc);border-radius:999px;"></div>
-        </div>
-      </div>`:''}
     </div>
   </div>`;
 
