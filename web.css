@@ -86,7 +86,7 @@
   #web-hero .wh-by { font-size: .85rem; color: var(--tx2); margin-bottom: auto; }
   #web-hero .wh-prog { display: flex; align-items: center; gap: 18px; margin-top: 16px; }
   #web-hero .wh-bar { flex: 1; height: 9px; border: 1.5px solid #2e1f0e; border-radius: 2px; background: rgba(46,31,14,.08); overflow: hidden; }
-  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #c4511f 0px, #c4511f 2px, #1e0e04 2px, #1e0e04 4px); }
+  #web-hero .wh-bar > i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #c4511f 0px, #c4511f 4px, transparent 4px, transparent 14px); }
   #web-hero .wh-donut { position: relative; width: 54px; height: 54px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   #web-hero .wh-donut::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#b5481f calc(var(--p)*1%), #ece0c8 0); -webkit-mask: radial-gradient(transparent 60%, #000 61%); mask: radial-gradient(transparent 60%, #000 61%); }
   #web-hero .wh-donut b { position: relative; font-family: var(--ff); font-size: .85rem; color: #2e1f0e; font-weight: 700; }
@@ -653,8 +653,8 @@
   #modal-detail .dtl-prog-fill {
     background: repeating-linear-gradient(
       -45deg,
-      #c4511f 0px, #c4511f 2px,
-      #1e0e04 2px, #1e0e04 4px
+      #c4511f 0px, #c4511f 4px,
+      transparent 4px, transparent 14px
     ) !important;
     border-radius: 2px !important;
     height: 100% !important;
@@ -1559,8 +1559,8 @@
   #p-graph #goal-display div[style*="background:var(--mauve)"] {
     background: repeating-linear-gradient(
       -45deg,
-      #c4511f 0px, #c4511f 2px,
-      #1e0e04 2px, #1e0e04 4px
+      #c4511f 0px, #c4511f 4px,
+      transparent 4px, transparent 14px
     ) !important;
     border-radius: 2px !important;
   }
@@ -1622,5 +1622,149 @@
   #p-board .board-item.post-notice {
     background: #fdf5e8 !important;
     border-color: rgba(181,72,31,.35) !important;
+  }
+
+  /* ══════════════════════════════════════════
+     v=22: 빗금 간격·독서 연표·레이아웃 강화
+     ══════════════════════════════════════════ */
+
+  /* A. 독서 연표 중복 게이지 제거 — 보조 목표 바 숨기고 텍스트만 */
+  #p-graph #goal-display [style*="flex:1;height:3px"] {
+    display: none !important;
+  }
+  #p-graph #goal-display [style*="gap:.55rem"][style*="padding-top:.35rem"] {
+    background: rgba(46,31,14,.04) !important;
+    border-radius: 5px !important;
+    padding: .28rem .55rem !important;
+    margin-top: .22rem !important;
+    border-top: none !important;
+    gap: .55rem !important;
+  }
+  #p-graph #goal-display [style*="gap:.55rem"][style*="padding-top:.35rem"] > div:first-child {
+    font-weight: 700 !important;
+    color: var(--tx2) !important;
+    letter-spacing: .02em !important;
+    font-size: .65rem !important;
+  }
+  #p-graph #goal-display [style*="gap:.55rem"][style*="padding-top:.35rem"] > div:last-child {
+    color: #b5481f !important;
+    font-family: var(--fs) !important;
+    font-style: italic !important;
+    font-size: .7rem !important;
+    min-width: auto !important;
+    text-align: right !important;
+  }
+
+  /* B. 기록 패널 — 달력 에디토리얼 */
+  #p-record #cal-grid { gap: 3px !important; }
+  #p-record #cal-grid .day {
+    border-radius: 5px !important;
+    border: 1px solid rgba(46,31,14,.07) !important;
+    background: rgba(46,31,14,.025) !important;
+    font-size: .65rem !important;
+    font-family: var(--ff) !important;
+    transition: background .1s, border-color .1s !important;
+  }
+  #p-record #cal-grid .day:hover:not(.hbook):not(.other) {
+    background: rgba(46,31,14,.07) !important;
+    border-color: rgba(46,31,14,.22) !important;
+  }
+  #p-record #cal-grid .day.other {
+    background: transparent !important;
+    border-color: transparent !important;
+    opacity: .3 !important;
+  }
+  #p-record #cal-grid .day.today {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+    font-weight: 700 !important;
+    box-shadow: 2px 3px 0 rgba(46,31,14,.2) !important;
+  }
+  #p-record #cal-grid .day.hbook {
+    border: 1.5px solid rgba(46,31,14,.32) !important;
+    box-shadow: 2px 2px 0 rgba(46,31,14,.1) !important;
+  }
+  #p-record #cal-grid .dow {
+    font-size: .58rem !important;
+    letter-spacing: .05em !important;
+    color: var(--tx3) !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    padding: .1rem 0 .2rem !important;
+  }
+
+  /* C. 기록 패널 — 타이머 디스플레이 */
+  #p-record #timer-display {
+    font-family: var(--fs) !important;
+    font-size: 2.6rem !important;
+    font-style: italic !important;
+    color: #2e1f0e !important;
+    letter-spacing: -.03em !important;
+    line-height: 1.05 !important;
+  }
+
+  /* D. 기록 패널 — 트래커 주간/월간 셀 + 연간 뷰 월 카드 */
+  #p-record #timer-tracker-grid > div[style*="border:1px solid var(--border)"] {
+    background: #f5f0e8 !important;
+    border: 1px solid rgba(46,31,14,.2) !important;
+    border-radius: 8px !important;
+    box-shadow: 2px 3px 0 rgba(46,31,14,.07) !important;
+  }
+
+  /* E. 통계 — 월별 히트맵 연도별 로우 */
+  #p-graph #monthly-viz > div[style*="align-items:center"][style*="margin-bottom"] {
+    padding: .18rem .3rem !important;
+    border-radius: 5px !important;
+    transition: background .1s !important;
+  }
+  #p-graph #monthly-viz > div[style*="align-items:center"][style*="margin-bottom"]:hover {
+    background: rgba(46,31,14,.04) !important;
+  }
+  #p-graph #monthly-viz [style*="height:16px"] {
+    height: 18px !important;
+    border-radius: 3px !important;
+  }
+
+  /* F. 6-stat 그리드 수치 강조 */
+  #p-graph #stat-grid > div[style*="grid-template-columns"] [style*="font-family:var(--fs)"] {
+    font-size: 1.3rem !important;
+    color: #2e1f0e !important;
+    letter-spacing: -.02em !important;
+  }
+  #p-graph #stat-grid > div[style*="grid-template-columns"] [style*="letter-spacing:.08em"] {
+    letter-spacing: .12em !important;
+    color: rgba(46,31,14,.5) !important;
+    font-size: .58rem !important;
+  }
+
+  /* G. 문장 수첩 — 캐러셀 버튼 에디토리얼 강화 */
+  #p-quotes .wq-nav {
+    width: 36px !important;
+    height: 36px !important;
+    border: 1.5px solid #2e1f0e !important;
+    border-radius: 4px !important;
+    background: #fbf6ec !important;
+    color: #2e1f0e !important;
+    font-size: 1.4rem !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background .13s, color .13s !important;
+    box-shadow: 2px 3px 0 rgba(46,31,14,.14) !important;
+    font-weight: 700 !important;
+  }
+  #p-quotes .wq-nav:hover:not(:disabled) {
+    background: #2e1f0e !important;
+    color: #fbf6ec !important;
+    border-color: #2e1f0e !important;
+  }
+  #p-quotes .wq-nav:disabled {
+    opacity: .2 !important;
+    cursor: default !important;
+    box-shadow: none !important;
   }
 }
