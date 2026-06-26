@@ -1798,20 +1798,46 @@
   #web-stats .wst-cn span { font-size: .85rem; color: var(--tx3); margin-left: 2px; }
   #web-stats .wst-cl { font-size: .76rem; color: var(--tx2); margin-top: 9px; font-weight: 600; }
 
-  /* ════════ 기록: 이번 주 독서 그래프 (둥근 막대 + 계단형 색 tier) (web.js #web-week 주입) ════════ */
-  #web-week { display: block; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 18px; padding: 18px 24px 14px; margin-bottom: 24px; }
-  #web-week .ww-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
-  #web-week .ww-title { font-family: var(--fs); font-size: 1.3rem; color: #2e1f0e; }
-  #web-week .ww-sum { font-size: .8rem; color: var(--tx2); }
-  #web-week .ww-chart { position: relative; display: flex; align-items: flex-end; gap: 12px; height: 150px; }
-  #web-week .ww-avg { position: absolute; left: 0; right: 0; border-top: 1.5px dashed rgba(181, 72, 31, .5); z-index: 1; }
+  /* ════════ 기록: 이번 주 독서 그래프 — 타이머 하단 배치 (web.js #web-week 주입) ════════ */
+  /* 기존 '이 주의 통계' 미니바는 데스크톱에서 숨김 (이 그래프로 대체) */
+  #p-record #timer-weekly { display: none !important; }
+
+  #web-week { display: block; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 14px; padding: 14px 16px 10px; }
+  #web-week .ww-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  #web-week .ww-title { font-family: var(--fs); font-size: 1.05rem; color: #2e1f0e; }
+  #web-week .ww-sum { font-size: .68rem; color: var(--tx2); }
+  #web-week .ww-chart { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 116px; }
+  #web-week .ww-avg { position: absolute; left: 0; right: 0; border-top: 1.5px dashed rgba(181, 72, 31, .45); z-index: 1; }
   #web-week .ww-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
-  #web-week .ww-val { font-size: .64rem; color: var(--tx3); margin-bottom: 5px; min-height: .85em; }
+  #web-week .ww-val { font-size: .58rem; color: var(--tx3); margin-bottom: 4px; min-height: .85em; white-space: nowrap; }
   #web-week .ww-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
-  #web-week .ww-bar { width: 60%; border-radius: 999px 999px 5px 5px; border: 1.5px solid #2e1f0e; background: #ece0c8; transition: height .35s ease; }
-  #web-week .ww-bar.t1 { background: #d9e7c9; }
-  #web-week .ww-bar.t2 { background: #e8b73e; }
-  #web-week .ww-bar.t3 { background: #b5481f; }
+  #web-week .ww-bar { width: 56%; min-height: 3px; border-radius: 7px 7px 2px 2px; border: 1.5px solid rgba(46, 31, 14, .55); transition: height .35s ease; }
+  #web-week .ww-bar.ww-empty { height: 3px; background: #e3d8c2; border-color: rgba(46, 31, 14, .25); }
   #web-week .ww-col.ww-today .ww-dow { background: #2e1f0e; color: #fbf6ec; }
-  #web-week .ww-dow { font-size: .72rem; color: var(--tx2); margin-top: 8px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  #web-week .ww-dow { font-size: .66rem; color: var(--tx2); margin-top: 7px; font-weight: 600; padding: 2px 7px; border-radius: 999px; }
+
+  /* 트래커 '자세히 보기' 버튼 */
+  #p-record .wt-more { width: 100%; margin-top: 10px; padding: 9px; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 9px; font-family: var(--ff); font-size: .74rem; font-weight: 600; color: #2e1f0e; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background .13s, color .13s; }
+  #p-record .wt-more:hover { background: #2e1f0e; color: #fbf6ec; }
+  #p-record .wt-more span { transition: transform .15s; }
+  #p-record .wt-more:hover span { transform: translateX(3px); }
 }
+
+/* ════════ 트래커 자세히 보기 — 책 타임라인 모달 (전역, 데스크톱에서만 트리거됨) ════════ */
+.wt-overlay { display: none; position: fixed; inset: 0; z-index: 400; background: rgba(40, 25, 10, .42); align-items: center; justify-content: center; padding: 24px; }
+.wt-overlay.on { display: flex; }
+.wt-modal { width: 100%; max-width: 720px; max-height: 84vh; display: flex; flex-direction: column; background: #f5ecd9; border: 1.5px solid #2e1f0e; border-radius: 18px; box-shadow: 0 18px 50px rgba(46, 31, 14, .3); overflow: hidden; }
+.wt-mhead { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 14px; border-bottom: 1.5px solid #2e1f0e; }
+.wt-mtitle { font-family: var(--fs); font-size: 1.5rem; color: #2e1f0e; line-height: 1; }
+.wt-msub { font-size: .74rem; color: var(--tx2); margin-top: 6px; }
+.wt-close { width: 34px; height: 34px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 9px; background: #fbf6ec; color: #2e1f0e; font-size: 1rem; cursor: pointer; line-height: 1; }
+.wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
+.wt-axis { display: flex; justify-content: space-between; padding: 10px 24px 0; font-size: .64rem; letter-spacing: .04em; color: var(--tx3); }
+.wt-body { padding: 12px 24px 22px; overflow-y: auto; }
+.wt-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; }
+.wt-label { width: 150px; flex-shrink: 0; font-size: .8rem; color: #2e1f0e; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt-track { position: relative; flex: 1; height: 18px; background: rgba(46, 31, 14, .06); border-radius: 999px; }
+.wt-bar { position: absolute; top: 0; height: 100%; min-width: 8px; border-radius: 999px; border: 1.5px solid rgba(46, 31, 14, .45); display: flex; align-items: center; }
+.wt-bar .wt-live { font-size: .54rem; color: #fff; font-weight: 700; padding-left: 7px; white-space: nowrap; }
+.wt-meta { width: 70px; flex-shrink: 0; font-size: .68rem; color: var(--tx2); text-align: right; white-space: nowrap; }
+.wt-empty { padding: 40px 10px; text-align: center; font-size: .9rem; color: var(--tx2); line-height: 1.7; }

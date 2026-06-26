@@ -335,11 +335,13 @@
     host.innerHTML = html;
   }
 
+  // 요일별 뚜렷한 색 (일~토) — 가시성 확보
+  var WEEK_COLORS = ['#c4704a', '#56788a', '#6f8f56', '#c79a3e', '#8a6890', '#4f9e93', '#b5481f'];
+
   function renderWebRecord() {
     var panel = document.getElementById('p-record');
     if (!panel) return;
-    var host = document.getElementById('web-week');
-    if (!isWeb()) { if (host) host.remove(); return; }
+    if (!isWeb()) { var h0 = document.getElementById('web-week'); if (h0) h0.remove(); return; }
 
     var books = B();
     var DOW = ['일', '월', '화', '수', '목', '금', '토'];
@@ -348,7 +350,7 @@
     for (var i = 6; i >= 0; i--) {
       var dt = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
       var key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
-      days.push({ key: key, dow: DOW[dt.getDay()], mins: 0, today: i === 0 });
+      days.push({ key: key, dow: DOW[dt.getDay()], gd: dt.getDay(), mins: 0, today: i === 0 });
     }
     books.forEach(function (b) {
       var log = b.reading_time_log;
@@ -358,26 +360,112 @@
     var max = Math.max.apply(null, [1].concat(days.map(function (d) { return d.mins; })));
     var avg = total / 7;
 
-    function tier(m) { if (m <= 0) return 0; var r = m / max; return r < 0.34 ? 1 : (r < 0.67 ? 2 : 3); }
     var bars = days.map(function (d) {
-      var h = d.mins > 0 ? Math.max(7, Math.round(d.mins / max * 100)) : 2;
+      var h = d.mins > 0 ? Math.max(6, Math.round(d.mins / max * 100)) : 0;
       var lbl = d.mins > 0 ? (d.mins >= 60 ? Math.floor(d.mins / 60) + 'h' + (d.mins % 60 || '') : d.mins + '분') : '';
+      var bar = d.mins > 0
+        ? '<div class="ww-bar" style="height:' + h + '%;background:' + WEEK_COLORS[d.gd] + '"></div>'
+        : '<div class="ww-bar ww-empty"></div>';
       return '<div class="ww-col' + (d.today ? ' ww-today' : '') + '"><div class="ww-val">' + lbl + '</div>' +
-        '<div class="ww-bar-wrap"><div class="ww-bar t' + tier(d.mins) + '" style="height:' + h + '%"></div></div>' +
+        '<div class="ww-bar-wrap">' + bar + '</div>' +
         '<div class="ww-dow">' + d.dow + '</div></div>';
     }).join('');
-    var avgPct = Math.min(94, Math.round(avg / max * 100));
+    var avgPct = Math.min(92, Math.round(avg / max * 100));
+    var sum = total >= 60 ? Math.floor(total / 60) + '시간 ' + (total % 60) + '분' : total + '분';
 
     var html = '<div class="ww-head"><span class="ww-title">이번 주 독서</span>' +
-      '<span class="ww-sum">' + (total >= 60 ? Math.floor(total / 60) + '시간 ' + (total % 60) + '분' : total + '분') + ' · 일평균 ' + Math.round(avg) + '분</span></div>' +
+      '<span class="ww-sum">' + sum + ' · 일평균 ' + Math.round(avg) + '분</span></div>' +
       '<div class="ww-chart">' + (total > 0 ? '<div class="ww-avg" style="bottom:' + avgPct + '%"></div>' : '') + bars + '</div>';
 
+    // 타이머 카드 바로 아래로 배치 (기존 '이 주의 통계' 자리 대체)
+    var host = document.getElementById('web-week');
     if (!host) {
       host = document.createElement('div'); host.id = 'web-week';
-      var rt = panel.querySelector('.record-top');
-      if (rt) panel.insertBefore(host, rt); else panel.appendChild(host);
+      var timer = panel.querySelector('.record-timer-card');
+      if (timer && timer.parentNode) {
+        if (timer.nextSibling) timer.parentNode.insertBefore(host, timer.nextSibling);
+        else timer.parentNode.appendChild(host);
+      } else {
+        var rt = panel.querySelector('.record-top'); if (rt) panel.insertBefore(host, rt); else panel.appendChild(host);
+      }
     }
     host.innerHTML = html;
+
+    // 트래커 카드에 '자세히 보기' 버튼 주입 (1회)
+    var grid = document.getElementById('timer-tracker-grid');
+    if (grid) {
+      var card = grid.closest('.card');
+      if (card && !card.querySelector('.wt-more')) {
+        var btn = document.createElement('button');
+        btn.className = 'wt-more';
+        btn.innerHTML = '자세히 보기 — 책 타임라인 <span>→</span>';
+        btn.onclick = openWebTrackerModal;
+        card.appendChild(btn);
+      }
+    }
+  }
+
+  /* 트래커 '자세히 보기' — 책이 쌓인 타임라인 모달 (레퍼런스: Best streaks) */
+  function openWebTrackerModal() {
+    var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    function todayKey() { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }
+    function span(b) {
+      var ds = [];
+      if (DATE_RE.test(b.date_start || '')) ds.push(b.date_start);
+      if (DATE_RE.test(b.date_finish || '')) ds.push(b.date_finish);
+      var log = b.reading_time_log;
+      if (log && typeof log === 'object') Object.keys(log).forEach(function (d) { if (DATE_RE.test(d) && (log[d] || 0) > 0) ds.push(d); });
+      ds = ds.sort();
+      if (!ds.length) return null;
+      var start = ds[0], end = ds[ds.length - 1];
+      if (b.status === '읽는중') { var tk = todayKey(); if (tk > end) end = tk; }
+      return { start: start, end: end };
+    }
+    var rows = [];
+    B().forEach(function (b) {
+      var sp = span(b); if (!sp) return;
+      rows.push({ title: b.title || '(제목 없음)', start: sp.start, end: sp.end, status: b.status, mins: (function () { var l = b.reading_time_log, s = 0; if (l && typeof l === 'object') Object.keys(l).forEach(function (d) { s += (l[d] || 0); }); return s; })() });
+    });
+    rows.sort(function (a, b) { return a.start < b.start ? -1 : (a.start > b.start ? 1 : 0); });
+
+    var PALETTE = ['#b5481f', '#6f8f56', '#56788a', '#c79a3e', '#8a6890', '#4f9e93', '#c4704a'];
+    var all = []; rows.forEach(function (r) { all.push(r.start, r.end); }); all.sort();
+    var minD = all[0], maxD = all[all.length - 1];
+    var minT = minD ? new Date(minD + 'T00:00:00').getTime() : 0;
+    var maxT = maxD ? new Date(maxD + 'T00:00:00').getTime() : 1;
+    var range = Math.max(86400000, maxT - minT);
+    function pos(d) { return (new Date(d + 'T00:00:00').getTime() - minT) / range * 100; }
+
+    var body;
+    if (!rows.length) {
+      body = '<div class="wt-empty">아직 기록된 독서 기간이 없어요.<br>타이머를 쓰거나 완독일을 입력하면 책별 기간이 쌓여요.</div>';
+    } else {
+      body = rows.map(function (r, i) {
+        var left = pos(r.start), w = Math.max(2.5, pos(r.end) - left);
+        var dd = Math.round((new Date(r.end + 'T00:00:00') - new Date(r.start + 'T00:00:00')) / 86400000) + 1;
+        var col = PALETTE[i % PALETTE.length];
+        return '<div class="wt-row">' +
+          '<div class="wt-label" title="' + esc(r.title) + '">' + esc(r.title) + '</div>' +
+          '<div class="wt-track"><div class="wt-bar" style="left:' + left + '%;width:' + w + '%;background:' + col + '" title="' + r.start + ' ~ ' + r.end + '"></div></div>' +
+          '<div class="wt-meta">' + dd + '일' + (r.status === '읽는중' ? ' · 읽는중' : '') + '</div>' +
+          '</div>';
+      }).join('');
+    }
+    var axis = (minD && maxD) ? '<div class="wt-axis"><span>' + minD.slice(0, 7).replace('-', '.') + '</span><span>' + maxD.slice(0, 7).replace('-', '.') + '</span></div>' : '';
+
+    var ov = document.getElementById('web-tracker-modal');
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'web-tracker-modal'; ov.className = 'wt-overlay';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('on'); });
+    }
+    ov.innerHTML = '<div class="wt-modal">' +
+      '<div class="wt-mhead"><div><div class="wt-mtitle">독서 타임라인</div>' +
+      '<div class="wt-msub">' + (rows.length ? rows.length + '권 · 책별 독서 기간' : '기록 없음') + '</div></div>' +
+      '<button class="wt-close" aria-label="닫기">✕</button></div>' +
+      axis + '<div class="wt-body">' + body + '</div></div>';
+    ov.querySelector('.wt-close').onclick = function () { ov.classList.remove('on'); };
+    ov.classList.add('on');
   }
 
   if (typeof window.buildStats === 'function') {
