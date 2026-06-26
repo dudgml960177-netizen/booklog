@@ -322,7 +322,6 @@
       '</div></div>' +
       '<div class="wst-cards">' + cards.map(function (c) {
         return '<div class="wst-card ' + c.cls + '">' +
-          '<div class="wst-mini" style="--p:' + (c.p || 0) + '"></div>' +
           '<div class="wst-cn">' + c.n + (c.suf ? '<span>' + c.suf + '</span>' : '') + '</div>' +
           '<div class="wst-cl">' + c.l + '</div></div>';
       }).join('') + '</div>';
@@ -391,67 +390,83 @@
     }
     host.innerHTML = html;
 
-    // 트래커 카드에 '자세히 보기' 버튼 주입 (1회)
+    // 트래커 헤더 오른쪽에 '자세히' 버튼 주입 (1회) — 누르면 책등 스택 모달
     var grid = document.getElementById('timer-tracker-grid');
     if (grid) {
       var card = grid.closest('.card');
-      if (card && !card.querySelector('.wt-more')) {
+      var seg = card && card.querySelector('.tracker-period-btn');
+      var segRow = seg && seg.parentNode;
+      if (segRow && !segRow.querySelector('.wt-more')) {
         var btn = document.createElement('button');
         btn.className = 'wt-more';
-        btn.innerHTML = '자세히 보기 — 책 타임라인 <span>→</span>';
+        btn.innerHTML = '📚 자세히';
         btn.onclick = openWebTrackerModal;
-        card.appendChild(btn);
+        segRow.appendChild(btn);
       }
     }
   }
 
-  /* 트래커 '자세히 보기' — 책이 쌓인 타임라인 모달 (레퍼런스: Best streaks) */
+  /* 트래커 '자세히' — 해당 기간(주/월/연)에 읽은 책을 '책등(spine) 스택'으로 */
   function openWebTrackerModal() {
-    var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-    function todayKey() { var t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }
-    function span(b) {
-      var ds = [];
-      if (DATE_RE.test(b.date_start || '')) ds.push(b.date_start);
-      if (DATE_RE.test(b.date_finish || '')) ds.push(b.date_finish);
-      var log = b.reading_time_log;
-      if (log && typeof log === 'object') Object.keys(log).forEach(function (d) { if (DATE_RE.test(d) && (log[d] || 0) > 0) ds.push(d); });
-      ds = ds.sort();
-      if (!ds.length) return null;
-      var start = ds[0], end = ds[ds.length - 1];
-      if (b.status === '읽는중') { var tk = todayKey(); if (tk > end) end = tk; }
-      return { start: start, end: end };
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+    var P = (typeof timerPeriod !== 'undefined' && timerPeriod) || 'month';
+    var TY = (typeof timerTrackY !== 'undefined') ? timerTrackY : new Date().getFullYear();
+    var TM = (typeof timerTrackM !== 'undefined') ? timerTrackM : new Date().getMonth();
+    var today = new Date();
+
+    var from, to, label;
+    if (P === 'week') {
+      var off = window._timerWeekOffset || 0;
+      var sun = new Date(today); sun.setDate(today.getDate() - today.getDay() + off * 7);
+      var sat = new Date(sun); sat.setDate(sun.getDate() + 6);
+      from = keyOf(sun); to = keyOf(sat);
+      label = (sun.getMonth() + 1) + '월 ' + Math.ceil(sun.getDate() / 7) + '주 · 이번 주';
+    } else if (P === 'year') {
+      from = TY + '-01-01'; to = TY + '-12-31'; label = TY + '년';
+    } else {
+      var last = new Date(TY, TM + 1, 0).getDate();
+      from = TY + '-' + pad(TM + 1) + '-01'; to = TY + '-' + pad(TM + 1) + '-' + pad(last);
+      label = TY + '년 ' + (TM + 1) + '월';
+    }
+
+    function minsInRange(b) {
+      var l = b.reading_time_log, s = 0;
+      if (l && typeof l === 'object') Object.keys(l).forEach(function (d) { if (d >= from && d <= to && (l[d] || 0) > 0) s += l[d]; });
+      return s;
     }
     var rows = [];
     B().forEach(function (b) {
-      var sp = span(b); if (!sp) return;
-      rows.push({ title: b.title || '(제목 없음)', start: sp.start, end: sp.end, status: b.status, mins: (function () { var l = b.reading_time_log, s = 0; if (l && typeof l === 'object') Object.keys(l).forEach(function (d) { s += (l[d] || 0); }); return s; })() });
+      var m = minsInRange(b);
+      var finishedIn = (b.date_finish || '') >= from && (b.date_finish || '') <= to && (b.date_finish || '') !== '';
+      if (m <= 0 && !finishedIn) return;
+      rows.push({ title: b.title || '(제목 없음)', author: (b.author || '').split(/[,·]/)[0], pages: b.pages || 0, status: b.status, mins: m, finished: finishedIn });
     });
-    rows.sort(function (a, b) { return a.start < b.start ? -1 : (a.start > b.start ? 1 : 0); });
+    // 많이 읽은 책이 위로
+    rows.sort(function (a, b) { return (b.mins - a.mins) || (b.pages - a.pages); });
 
-    var PALETTE = ['#b5481f', '#6f8f56', '#56788a', '#c79a3e', '#8a6890', '#4f9e93', '#c4704a'];
-    var all = []; rows.forEach(function (r) { all.push(r.start, r.end); }); all.sort();
-    var minD = all[0], maxD = all[all.length - 1];
-    var minT = minD ? new Date(minD + 'T00:00:00').getTime() : 0;
-    var maxT = maxD ? new Date(maxD + 'T00:00:00').getTime() : 1;
-    var range = Math.max(86400000, maxT - minT);
-    function pos(d) { return (new Date(d + 'T00:00:00').getTime() - minT) / range * 100; }
+    var PALETTE = ['#b5481f', '#6f8f56', '#56788a', '#c79a3e', '#8a6890', '#4f9e93', '#a85a86', '#7a8b3a'];
+    function spineH(pg) { return Math.max(30, Math.min(60, 30 + (pg || 0) / 26)); }
 
+    var totalMins = rows.reduce(function (a, r) { return a + r.mins; }, 0);
     var body;
     if (!rows.length) {
-      body = '<div class="wt-empty">아직 기록된 독서 기간이 없어요.<br>타이머를 쓰거나 완독일을 입력하면 책별 기간이 쌓여요.</div>';
+      body = '<div class="wt-empty">이 기간에 읽은 책이 없어요.<br>타이머로 기록하거나 완독하면 책등이 쌓여요.</div>';
     } else {
-      body = rows.map(function (r, i) {
-        var left = pos(r.start), w = Math.max(2.5, pos(r.end) - left);
-        var dd = Math.round((new Date(r.end + 'T00:00:00') - new Date(r.start + 'T00:00:00')) / 86400000) + 1;
+      var stack = rows.map(function (r, i) {
         var col = PALETTE[i % PALETTE.length];
-        return '<div class="wt-row">' +
-          '<div class="wt-label" title="' + esc(r.title) + '">' + esc(r.title) + '</div>' +
-          '<div class="wt-track"><div class="wt-bar" style="left:' + left + '%;width:' + w + '%;background:' + col + '" title="' + r.start + ' ~ ' + r.end + '"></div></div>' +
-          '<div class="wt-meta">' + dd + '일' + (r.status === '읽는중' ? ' · 읽는중' : '') + '</div>' +
-          '</div>';
+        var meta = r.mins > 0 ? (r.mins >= 60 ? Math.floor(r.mins / 60) + 'h ' + (r.mins % 60) + 'm' : r.mins + 'm') : (r.finished ? '완독' : '');
+        return '<div class="bs-spine" style="height:' + spineH(r.pages) + 'px;background:' + col + '" title="' + esc(r.title) + (r.author ? ' · ' + esc(r.author) : '') + '">' +
+          '<span class="bs-cap"></span>' +
+          '<span class="bs-title">' + esc(r.title) + '</span>' +
+          '<span class="bs-meta">' + meta + '</span></div>';
       }).join('');
+      body = '<div class="bs-stack">' + stack + '</div>';
     }
-    var axis = (minD && maxD) ? '<div class="wt-axis"><span>' + minD.slice(0, 7).replace('-', '.') + '</span><span>' + maxD.slice(0, 7).replace('-', '.') + '</span></div>' : '';
+
+    var sub = rows.length
+      ? (rows.length + '권 · ' + (totalMins >= 60 ? Math.floor(totalMins / 60) + '시간 ' + (totalMins % 60) + '분' : totalMins + '분'))
+      : '읽은 책 없음';
 
     var ov = document.getElementById('web-tracker-modal');
     if (!ov) {
@@ -460,10 +475,10 @@
       ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('on'); });
     }
     ov.innerHTML = '<div class="wt-modal">' +
-      '<div class="wt-mhead"><div><div class="wt-mtitle">독서 타임라인</div>' +
-      '<div class="wt-msub">' + (rows.length ? rows.length + '권 · 책별 독서 기간' : '기록 없음') + '</div></div>' +
+      '<div class="wt-mhead"><div><div class="wt-mtitle">' + label + '에 읽은 책</div>' +
+      '<div class="wt-msub">' + sub + '</div></div>' +
       '<button class="wt-close" aria-label="닫기">✕</button></div>' +
-      axis + '<div class="wt-body">' + body + '</div></div>';
+      '<div class="wt-body">' + body + '</div></div>';
     ov.querySelector('.wt-close').onclick = function () { ov.classList.remove('on'); };
     ov.classList.add('on');
   }

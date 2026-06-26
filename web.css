@@ -1793,8 +1793,7 @@
   #web-stats .wst-card.c-clay { background: #f7e7dd; }
   #web-stats .wst-card.c-gold { background: #f7edd2; }
   #web-stats .wst-card.c-mauve { background: #efe5f1; }
-  #web-stats .wst-mini { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(#2e1f0e calc(var(--p) * 1%), rgba(46, 31, 14, .13) 0); -webkit-mask: radial-gradient(transparent 57%, #000 58%); mask: radial-gradient(transparent 57%, #000 58%); }
-  #web-stats .wst-cn { font-family: var(--fs); font-size: 2rem; color: #2e1f0e; line-height: 1; margin-top: 6px; }
+  #web-stats .wst-cn { font-family: var(--fs); font-size: 2rem; color: #2e1f0e; line-height: 1; }
   #web-stats .wst-cn span { font-size: .85rem; color: var(--tx3); margin-left: 2px; }
   #web-stats .wst-cl { font-size: .76rem; color: var(--tx2); margin-top: 9px; font-weight: 600; }
 
@@ -1816,28 +1815,27 @@
   #web-week .ww-col.ww-today .ww-dow { background: #2e1f0e; color: #fbf6ec; }
   #web-week .ww-dow { font-size: .66rem; color: var(--tx2); margin-top: 7px; font-weight: 600; padding: 2px 7px; border-radius: 999px; }
 
-  /* 트래커 '자세히 보기' 버튼 */
-  #p-record .wt-more { width: 100%; margin-top: 10px; padding: 9px; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 9px; font-family: var(--ff); font-size: .74rem; font-weight: 600; color: #2e1f0e; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background .13s, color .13s; }
-  #p-record .wt-more:hover { background: #2e1f0e; color: #fbf6ec; }
-  #p-record .wt-more span { transition: transform .15s; }
-  #p-record .wt-more:hover span { transform: translateX(3px); }
+  /* 트래커 헤더 오른쪽 '자세히' 버튼 (컴팩트) */
+  #p-record .wt-more { margin-left: 4px; padding: 3px 9px; background: #2e1f0e; border: 1.5px solid #2e1f0e; border-radius: 7px; font-family: var(--ff); font-size: .62rem; font-weight: 600; color: #fbf6ec; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: opacity .13s; }
+  #p-record .wt-more:hover { opacity: .82; }
 }
 
-/* ════════ 트래커 자세히 보기 — 책 타임라인 모달 (전역, 데스크톱에서만 트리거됨) ════════ */
+/* ════════ 트래커 '자세히' — 책등(spine) 스택 모달 (전역, 데스크톱에서만 트리거됨) ════════ */
 .wt-overlay { display: none; position: fixed; inset: 0; z-index: 400; background: rgba(40, 25, 10, .42); align-items: center; justify-content: center; padding: 24px; }
 .wt-overlay.on { display: flex; }
-.wt-modal { width: 100%; max-width: 720px; max-height: 84vh; display: flex; flex-direction: column; background: #f5ecd9; border: 1.5px solid #2e1f0e; border-radius: 18px; box-shadow: 0 18px 50px rgba(46, 31, 14, .3); overflow: hidden; }
+.wt-modal { width: 100%; max-width: 560px; max-height: 84vh; display: flex; flex-direction: column; background: #f5ecd9; border: 1.5px solid #2e1f0e; border-radius: 18px; box-shadow: 0 18px 50px rgba(46, 31, 14, .3); overflow: hidden; }
 .wt-mhead { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 24px 14px; border-bottom: 1.5px solid #2e1f0e; }
-.wt-mtitle { font-family: var(--fs); font-size: 1.5rem; color: #2e1f0e; line-height: 1; }
+.wt-mtitle { font-family: var(--fs); font-size: 1.5rem; color: #2e1f0e; line-height: 1.05; }
 .wt-msub { font-size: .74rem; color: var(--tx2); margin-top: 6px; }
 .wt-close { width: 34px; height: 34px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 9px; background: #fbf6ec; color: #2e1f0e; font-size: 1rem; cursor: pointer; line-height: 1; }
 .wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
-.wt-axis { display: flex; justify-content: space-between; padding: 10px 24px 0; font-size: .64rem; letter-spacing: .04em; color: var(--tx3); }
-.wt-body { padding: 12px 24px 22px; overflow-y: auto; }
-.wt-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; }
-.wt-label { width: 150px; flex-shrink: 0; font-size: .8rem; color: #2e1f0e; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wt-track { position: relative; flex: 1; height: 18px; background: rgba(46, 31, 14, .06); border-radius: 999px; }
-.wt-bar { position: absolute; top: 0; height: 100%; min-width: 8px; border-radius: 999px; border: 1.5px solid rgba(46, 31, 14, .45); display: flex; align-items: center; }
-.wt-bar .wt-live { font-size: .54rem; color: #fff; font-weight: 700; padding-left: 7px; white-space: nowrap; }
-.wt-meta { width: 70px; flex-shrink: 0; font-size: .68rem; color: var(--tx2); text-align: right; white-space: nowrap; }
-.wt-empty { padding: 40px 10px; text-align: center; font-size: .9rem; color: var(--tx2); line-height: 1.7; }
+.wt-body { padding: 20px 24px 24px; overflow-y: auto; }
+
+/* 책등 스택: 책을 옆으로 쌓아올린 더미처럼 */
+.bs-stack { display: flex; flex-direction: column; gap: 3px; perspective: 900px; }
+.bs-spine { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 16px; border: 1.5px solid rgba(46, 31, 14, .65); border-radius: 4px; box-shadow: 0 2px 0 rgba(46, 31, 14, .22), inset 0 1px 0 rgba(255, 255, 255, .25); cursor: default; transition: transform .14s; }
+.bs-spine:hover { transform: translateX(5px); }
+.bs-cap { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.55), rgba(255,255,255,.55) 1px, rgba(255,255,255,.15) 1px, rgba(255,255,255,.15) 2px); border-left: 1px solid rgba(46, 31, 14, .35); border-radius: 0 3px 3px 0; }
+.bs-title { flex: 1; min-width: 0; font-family: var(--fs); font-size: .95rem; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1px rgba(0, 0, 0, .2); }
+.bs-meta { flex-shrink: 0; margin-right: 12px; font-size: .68rem; color: rgba(255, 255, 255, .92); font-weight: 600; white-space: nowrap; }
+.wt-empty { padding: 44px 10px; text-align: center; font-size: .9rem; color: var(--tx2); line-height: 1.7; }
