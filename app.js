@@ -598,12 +598,14 @@ async function loadData() {
     const { data: pf } = await sb.from('profiles').select('categories').eq('id',currentUser.id).single();
     allCategories = pf?.categories || JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]');
   } catch(e) { try { allCategories = JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]'); } catch(e2){ allCategories=[]; } }
-  // '소장 중' 폴더가 없으면 기본으로 추가 (기존 사용자 포함)
-  if(!allCategories.includes('소장 중')) {
+  // '소장 중' 기본 폴더는 '최초 1회'만 추가 (이름 변경/삭제 후 재생성 방지)
+  const _catInit = 'bl_cats_init_'+currentUser.id;
+  if(!allCategories.includes('소장 중') && !localStorage.getItem(_catInit)) {
     allCategories = ['소장 중', ...allCategories];
     sb.from('profiles').update({categories: allCategories}).eq('id', currentUser.id).then(null, ()=>{});
     try { localStorage.setItem('bl_cats_'+currentUser.id, JSON.stringify(allCategories)); } catch(_) {}
   }
+  try { localStorage.setItem(_catInit, '1'); } catch(_) {}
 }
 
 // ── 인증

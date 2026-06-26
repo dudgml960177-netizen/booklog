@@ -1868,6 +1868,11 @@
 @media (min-width: 880px) {
   #p-record .card:has(#timer-tracker-grid) { overflow: hidden; }
   #p-record .tracker-period-btn { padding: 3px 7px !important; font-size: .6rem !important; }
+  /* 트래커 히트맵: 간격 없이 붙이고 얇은 검정 그리드선 (레퍼런스 밀집형) */
+  #p-record #timer-tracker-grid { gap: 1px !important; background: #2e1f0e !important; border: 1.5px solid #2e1f0e !important; border-radius: 7px !important; overflow: hidden !important; padding: 0 !important; }
+  #p-record #timer-tracker-grid > div { border-radius: 0 !important; border: none !important; }
+  /* 요일 헤더(셀 아님)는 종이색 배경 */
+  #p-record #timer-tracker-grid > div:not([style*="aspect-ratio"]) { background: #fbf6ec !important; }
 }
 /* 히트맵을 가리지 않고 아래로 슬라이드 다운 (토글) */
 .wt-detail { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .35s ease, opacity .22s ease, margin-top .35s ease; }

@@ -609,7 +609,9 @@
       // 기존 활동 밑줄바 숨김
       cell.querySelectorAll('div').forEach(function (d) { if (/height:\s*5px/.test(d.getAttribute('style') || '')) d.style.display = 'none'; });
       var m = dayMins[prefix + '-' + pad(dnum)] || 0;
-      if (m > 0) cell.style.background = fill(m);
+      // web.css .day{background !important} 보다 우선하도록 inline !important
+      if (m > 0) cell.style.setProperty('background', fill(m), 'important');
+      else cell.style.removeProperty('background');
     });
   }
 
