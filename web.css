@@ -651,12 +651,8 @@
     overflow: hidden !important;
   }
   #modal-detail .dtl-prog-fill {
-    background: repeating-linear-gradient(
-      -45deg,
-      #c4511f 0px, #c4511f 4px,
-      transparent 4px, transparent 14px
-    ) !important;
-    border-radius: 2px !important;
+    background: linear-gradient(90deg, #b5481f, #e8903a) !important;
+    border-radius: 999px !important;
     height: 100% !important;
     transition: width .4s ease !important;
   }
@@ -687,9 +683,9 @@
     line-height: 1 !important;
   }
   #modal-detail .dtl-prog-track-lg {
-    height: 14px !important;
+    height: 12px !important;
     background: rgba(46,31,14,.1) !important;
-    border-radius: 2px !important;
+    border-radius: 999px !important;
     overflow: hidden !important;
   }
   #modal-detail .dtl-reading-ctrl {
@@ -937,18 +933,22 @@
     outline: none !important;
     box-shadow: none !important;
   }
+  #modal-book .status-btns { display: flex !important; gap: 6px !important; }
   #modal-book .status-btn {
+    flex: 1 1 0 !important;
     border: 1.5px solid rgba(46,31,14,.22) !important;
     border-radius: 4px !important;
     background: #f3ecdb !important;
     color: var(--tx2) !important;
     font-family: var(--ff) !important;
-    font-size: .82rem !important;
+    font-size: .8rem !important;
     font-weight: 500 !important;
-    padding: .45rem 1.15rem !important;
-    transition: all .13s !important;
+    padding: .5rem .4rem !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    transition: background .13s, color .13s !important;
     cursor: pointer !important;
-    letter-spacing: .02em !important;
+    letter-spacing: .01em !important;
   }
   #modal-book .status-btn.on {
     background: #2e1f0e !important;
@@ -1838,20 +1838,20 @@
   #p-record .wt-more:hover { opacity: .82; }
 }
 
-/* ════════ 트래커 '자세히' — 카드 안에서 슬라이드 인 + 책등(spine) 스택 ════════ */
-/* 트래커 카드: 패널 슬라이드 컨테이너 + 가로 스크롤 제거 */
+/* ════════ 트래커 '자세히' — 히트맵 아래로 펼침(같이 보기) + 책등(spine) 스택 ════════ */
 @media (min-width: 880px) {
-  #p-record .card:has(#timer-tracker-grid) { position: relative; overflow: hidden; }
+  #p-record .card:has(#timer-tracker-grid) { overflow: hidden; }
   #p-record .tracker-period-btn { padding: 3px 7px !important; font-size: .6rem !important; }
 }
-.wt-inpanel { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #f5ecd9; transform: translateX(102%); transition: transform .3s cubic-bezier(.4, 0, .2, 1); }
-.wt-inpanel.on { transform: translateX(0); }
-.wt-inpanel .wt-mhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 12px 14px 9px; border-bottom: 1.5px solid #2e1f0e; }
-.wt-inpanel .wt-mtitle { font-family: var(--fs); font-size: 1.05rem; color: #2e1f0e; line-height: 1.1; }
-.wt-inpanel .wt-msub { font-size: .64rem; color: var(--tx2); margin-top: 3px; }
-.wt-inpanel .wt-close { width: 26px; height: 26px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 6px; background: #fbf6ec; color: #2e1f0e; font-size: .8rem; cursor: pointer; line-height: 1; }
-.wt-inpanel .wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
-.wt-inpanel .wt-body { flex: 1; padding: 12px 14px 14px; overflow-y: auto; }
+/* 히트맵을 가리지 않고 아래로 슬라이드 다운 (토글) */
+.wt-detail { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .35s ease, opacity .22s ease, margin-top .35s ease; }
+.wt-detail.on { max-height: 1600px; opacity: 1; margin-top: 12px; }
+.wt-detail .wt-dhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1.5px solid rgba(46, 31, 14, .25); padding-top: 11px; }
+.wt-detail .wt-dtitle { font-family: var(--fs); font-size: 1rem; color: #2e1f0e; line-height: 1.1; }
+.wt-detail .wt-dsub { font-size: .62rem; color: var(--tx2); margin: 2px 0 10px; }
+.wt-detail .wt-close { width: 24px; height: 24px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 6px; background: #fbf6ec; color: #2e1f0e; font-size: .75rem; cursor: pointer; line-height: 1; }
+.wt-detail .wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
+.wt-detail .wt-dbody { }
 
 /* 책등 스택: 책을 옆으로 쌓아올린 더미처럼 (두께·길이 = 읽은 시간) */
 .bs-stack { display: flex; flex-direction: column; align-items: center; gap: 3px; }

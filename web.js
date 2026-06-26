@@ -435,12 +435,14 @@
       if (l && typeof l === 'object') Object.keys(l).forEach(function (d) { if (d >= from && d <= to && (l[d] || 0) > 0) s += l[d]; });
       return s;
     }
-    // '그날(기간) 실제로 읽은 책' = 그 기간 reading_time_log에 시간이 잡힌 책 우선
+    // '그날(기간) 실제로 읽은 책' = 그 기간 reading_time_log 시간 또는 그 기간 완독한 책
+    // (읽고싶음 등 안 읽은 책 제외)
     var rows = [];
     B().forEach(function (b) {
+      if (b.status === '읽고싶음') return;            // 안 읽은 책 제외
       var m = minsInRange(b);
-      var finishedIn = (b.date_finish || '') >= from && (b.date_finish || '') <= to && (b.date_finish || '') !== '';
-      if (m <= 0 && !finishedIn) return;
+      var finishedIn = b.status === '완독' && (b.date_finish || '') >= from && (b.date_finish || '') <= to && (b.date_finish || '') !== '';
+      if (m <= 0 && !finishedIn) return;             // 그 기간 읽은 시간도 완독도 없으면 제외
       rows.push({ title: b.title || '(제목 없음)', author: (b.author || '').split(/[,·]/)[0], pages: b.pages || 0, status: b.status, mins: m, finished: finishedIn });
     });
     // 많이 읽은(시간) 책이 위로
@@ -472,18 +474,19 @@
       ? (rows.length + '권 · ' + (totalMins >= 60 ? Math.floor(totalMins / 60) + '시간 ' + (totalMins % 60) + '분' : totalMins + '분'))
       : '읽은 책 없음';
 
-    // 트래커 카드 '안에서' 오른쪽→왼쪽 슬라이드 인 (전체화면 아님)
+    // 트래커 '아래로' 펼치기 — 히트맵 가리지 않고 같이 보이게 (토글)
     var grid = document.getElementById('timer-tracker-grid');
     var card = grid && grid.closest('.card');
     if (!card) return;
-    var panel = card.querySelector('.wt-inpanel');
-    if (!panel) { panel = document.createElement('div'); panel.className = 'wt-inpanel'; card.appendChild(panel); }
-    panel.innerHTML = '<div class="wt-mhead"><div><div class="wt-mtitle">' + label + '</div>' +
-      '<div class="wt-msub">' + sub + '</div></div>' +
+    var det = card.querySelector('.wt-detail');
+    if (det && det.classList.contains('on')) { det.classList.remove('on'); return; } // 다시 누르면 접기
+    if (!det) { det = document.createElement('div'); det.className = 'wt-detail'; card.appendChild(det); }
+    det.innerHTML = '<div class="wt-dhead"><div class="wt-dtitle">' + label + '</div>' +
       '<button class="wt-close" aria-label="닫기">✕</button></div>' +
-      '<div class="wt-body">' + body + '</div>';
-    panel.querySelector('.wt-close').onclick = function () { panel.classList.remove('on'); };
-    requestAnimationFrame(function () { requestAnimationFrame(function () { panel.classList.add('on'); }); });
+      '<div class="wt-dsub">' + sub + '</div>' +
+      '<div class="wt-dbody">' + body + '</div>';
+    det.querySelector('.wt-close').onclick = function () { det.classList.remove('on'); };
+    requestAnimationFrame(function () { requestAnimationFrame(function () { det.classList.add('on'); }); });
   }
 
   /* 월별 그래프 → 둥근 막대 (값 라벨 + 일평균 점선), 데스크톱 전용 */
