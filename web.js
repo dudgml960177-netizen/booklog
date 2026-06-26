@@ -472,20 +472,18 @@
       ? (rows.length + '권 · ' + (totalMins >= 60 ? Math.floor(totalMins / 60) + '시간 ' + (totalMins % 60) + '분' : totalMins + '분'))
       : '읽은 책 없음';
 
-    var ov = document.getElementById('web-tracker-modal');
-    if (!ov) {
-      ov = document.createElement('div'); ov.id = 'web-tracker-modal'; ov.className = 'wt-overlay';
-      document.body.appendChild(ov);
-      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('on'); });
-    }
-    ov.innerHTML = '<div class="wt-drawer">' +
-      '<div class="wt-mhead"><div><div class="wt-mtitle">' + label + '에 읽은 책</div>' +
+    // 트래커 카드 '안에서' 오른쪽→왼쪽 슬라이드 인 (전체화면 아님)
+    var grid = document.getElementById('timer-tracker-grid');
+    var card = grid && grid.closest('.card');
+    if (!card) return;
+    var panel = card.querySelector('.wt-inpanel');
+    if (!panel) { panel = document.createElement('div'); panel.className = 'wt-inpanel'; card.appendChild(panel); }
+    panel.innerHTML = '<div class="wt-mhead"><div><div class="wt-mtitle">' + label + '</div>' +
       '<div class="wt-msub">' + sub + '</div></div>' +
       '<button class="wt-close" aria-label="닫기">✕</button></div>' +
-      '<div class="wt-body">' + body + '</div></div>';
-    ov.querySelector('.wt-close').onclick = function () { ov.classList.remove('on'); };
-    // 다음 프레임에 .on 부여 → 오른쪽에서 스르륵 슬라이드 인
-    requestAnimationFrame(function () { requestAnimationFrame(function () { ov.classList.add('on'); }); });
+      '<div class="wt-body">' + body + '</div>';
+    panel.querySelector('.wt-close').onclick = function () { panel.classList.remove('on'); };
+    requestAnimationFrame(function () { requestAnimationFrame(function () { panel.classList.add('on'); }); });
   }
 
   if (typeof window.buildStats === 'function') {

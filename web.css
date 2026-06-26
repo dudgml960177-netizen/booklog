@@ -1827,23 +1827,27 @@
   #p-record .wt-more:hover { opacity: .82; }
 }
 
-/* ════════ 트래커 '자세히' — 오른쪽 슬라이드 드로어 + 책등(spine) 스택 ════════ */
-.wt-overlay { position: fixed; inset: 0; z-index: 400; background: rgba(40, 25, 10, .42); opacity: 0; visibility: hidden; transition: opacity .25s ease; }
-.wt-overlay.on { opacity: 1; visibility: visible; }
-.wt-drawer { position: absolute; top: 0; right: 0; height: 100%; width: min(440px, 92vw); display: flex; flex-direction: column; background: #f5ecd9; border-left: 1.5px solid #2e1f0e; box-shadow: -14px 0 44px rgba(46, 31, 14, .28); transform: translateX(100%); transition: transform .32s cubic-bezier(.4, 0, .2, 1); }
-.wt-overlay.on .wt-drawer { transform: translateX(0); }
-.wt-mhead { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 24px 16px; border-bottom: 1.5px solid #2e1f0e; }
-.wt-mtitle { font-family: var(--fs); font-size: 1.45rem; color: #2e1f0e; line-height: 1.1; }
-.wt-msub { font-size: .74rem; color: var(--tx2); margin-top: 6px; }
-.wt-close { width: 34px; height: 34px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 9px; background: #fbf6ec; color: #2e1f0e; font-size: 1rem; cursor: pointer; line-height: 1; }
-.wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
-.wt-body { flex: 1; padding: 20px 24px 28px; overflow-y: auto; }
+/* ════════ 트래커 '자세히' — 카드 안에서 슬라이드 인 + 책등(spine) 스택 ════════ */
+/* 트래커 카드: 패널 슬라이드 컨테이너 + 가로 스크롤 제거 */
+@media (min-width: 880px) {
+  #p-record .card:has(#timer-tracker-grid) { position: relative; overflow: hidden; }
+  #p-record .tracker-period-btn { padding: 3px 7px !important; font-size: .6rem !important; }
+}
+.wt-inpanel { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #f5ecd9; transform: translateX(102%); transition: transform .3s cubic-bezier(.4, 0, .2, 1); }
+.wt-inpanel.on { transform: translateX(0); }
+.wt-inpanel .wt-mhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 12px 14px 9px; border-bottom: 1.5px solid #2e1f0e; }
+.wt-inpanel .wt-mtitle { font-family: var(--fs); font-size: 1.05rem; color: #2e1f0e; line-height: 1.1; }
+.wt-inpanel .wt-msub { font-size: .64rem; color: var(--tx2); margin-top: 3px; }
+.wt-inpanel .wt-close { width: 26px; height: 26px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 6px; background: #fbf6ec; color: #2e1f0e; font-size: .8rem; cursor: pointer; line-height: 1; }
+.wt-inpanel .wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
+.wt-inpanel .wt-body { flex: 1; padding: 12px 14px 14px; overflow-y: auto; }
 
 /* 책등 스택: 책을 옆으로 쌓아올린 더미처럼 (두께·길이 = 읽은 시간) */
 .bs-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .bs-spine { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 16px; border: 1.5px solid rgba(46, 31, 14, .65); border-radius: 4px; box-shadow: 0 2px 0 rgba(46, 31, 14, .22), inset 0 1px 0 rgba(255, 255, 255, .25); cursor: default; transition: transform .14s; }
 .bs-spine:hover { transform: translateX(5px); }
 .bs-cap { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.55), rgba(255,255,255,.55) 1px, rgba(255,255,255,.15) 1px, rgba(255,255,255,.15) 2px); border-left: 1px solid rgba(46, 31, 14, .35); border-radius: 0 3px 3px 0; }
-.bs-title { flex: 1; min-width: 0; font-family: var(--fs); font-size: .95rem; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1px rgba(0, 0, 0, .2); }
-.bs-meta { flex-shrink: 0; margin-right: 12px; font-size: .68rem; color: rgba(255, 255, 255, .92); font-weight: 600; white-space: nowrap; }
-.wt-empty { padding: 44px 10px; text-align: center; font-size: .9rem; color: var(--tx2); line-height: 1.7; }
+.bs-title { flex: 1; min-width: 0; font-family: var(--fs); font-size: .82rem; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1px rgba(0, 0, 0, .2); }
+.bs-meta { flex-shrink: 0; margin-right: 11px; font-size: .6rem; color: rgba(255, 255, 255, .92); font-weight: 600; white-space: nowrap; }
+.bs-spine { padding: 0 12px; }
+.wt-empty { padding: 36px 10px; text-align: center; font-size: .82rem; color: var(--tx2); line-height: 1.7; }
