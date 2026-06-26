@@ -1682,9 +1682,16 @@
     box-shadow: 2px 3px 0 rgba(46,31,14,.2) !important;
   }
   #p-record #cal-grid .day.hbook {
-    border: 1.5px solid rgba(46,31,14,.32) !important;
-    box-shadow: 2px 2px 0 rgba(46,31,14,.1) !important;
+    border: 1.5px solid rgba(46,31,14,.5) !important;
+    box-shadow: 2px 3px 0 rgba(46,31,14,.16) !important;
+    transition: transform .14s, box-shadow .14s !important;
   }
+  #p-record #cal-grid .day.hbook:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 3px 5px 0 rgba(46,31,14,.22) !important;
+    z-index: 2 !important;
+  }
+  #p-record #cal-grid .day.hbook img { border-radius: 4px !important; }
   #p-record #cal-grid .dow {
     font-size: .58rem !important;
     letter-spacing: .05em !important;
