@@ -1831,9 +1831,21 @@
   #p-graph #ms-grid .wl-l { font-size: .68rem; color: #5c4633; font-weight: 600; margin: 5px 0 2px; }
   #p-graph #ms-grid .wl-t { font-size: .56rem; color: var(--tx3); }
 
-  /* ── 장르·평점 탭: 막대를 둥글게/또렷하게 통일 (다른 통계와 어울리게) ── */
-  #p-graph #donut-layout div[style*="height:10px"] { height: 13px !important; border-radius: 999px !important; background: rgba(46, 31, 14, .07) !important; border: 1px solid rgba(46, 31, 14, .1) !important; }
-  #p-graph #donut-layout div[style*="height:10px"] > div { border-radius: 999px !important; }
+  /* ── 장르 분포 → 도넛 + 범례 (web.js renderWebGenre) ── */
+  #p-graph #donut-layout .gd-wrap { display: flex; gap: 24px; align-items: center; }
+  #p-graph #donut-layout .gd-donut { position: relative; width: 134px; height: 134px; flex-shrink: 0; }
+  #p-graph #donut-layout .gd-ring { position: absolute; inset: 0; border-radius: 50%; -webkit-mask: radial-gradient(transparent 56%, #000 57%); mask: radial-gradient(transparent 56%, #000 57%); }
+  #p-graph #donut-layout .gd-outer { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid #2e1f0e; pointer-events: none; }
+  #p-graph #donut-layout .gd-hole { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 56%; height: 56%; border-radius: 50%; border: 1.5px solid #2e1f0e; background: #fbf6ec; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #p-graph #donut-layout .gd-total { font-family: var(--fs); font-size: 1.5rem; color: #2e1f0e; line-height: 1; }
+  #p-graph #donut-layout .gd-sub { font-size: .54rem; letter-spacing: .1em; color: var(--tx3); margin-top: 2px; }
+  #p-graph #donut-layout .gd-legend { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; min-width: 0; }
+  #p-graph #donut-layout .gd-leg { display: flex; align-items: center; gap: 8px; font-size: .76rem; color: var(--tx1); }
+  #p-graph #donut-layout .gd-sw { width: 11px; height: 11px; border-radius: 3px; border: 1px solid rgba(46, 31, 14, .3); flex-shrink: 0; }
+  #p-graph #donut-layout .gd-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #p-graph #donut-layout .gd-leg b { font-family: var(--fs); font-weight: 400; }
+
+  /* ── 평점 탭: 막대 둥글게 (다른 통계와 어울리게) ── */
   #p-graph .rbar-outer { border-radius: 999px !important; background: rgba(46, 31, 14, .07) !important; }
   #p-graph .rbar-fill { border-radius: 999px !important; }
   #p-graph .rs-mini { border-radius: 999px !important; }

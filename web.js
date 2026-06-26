@@ -615,9 +615,34 @@
     });
   }
 
+  /* 장르 분포 → 도넛 + 범례 (얇은 검정 테두리), 데스크톱 전용 */
+  function renderWebGenre() {
+    if (!isWeb()) return;
+    var dl = document.getElementById('donut-layout');
+    if (!dl) return;
+    var done = B().filter(function (b) { return b.status === '완독'; });
+    var gm = {};
+    done.forEach(function (b) { var g = Array.isArray(b.genre) ? (b.genre[0] || '') : (b.genre || ''); if (g) gm[g] = (gm[g] || 0) + 1; });
+    var sorted = Object.keys(gm).map(function (k) { return [k, gm[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+    if (!sorted.length) return;
+    var total = sorted.reduce(function (a, e) { return a + e[1]; }, 0) || 1;
+    var PAL = ['#c4704a', '#6f8f56', '#56788a', '#c79a3e', '#8a3a2a', '#8a6890', '#3f7a6a', '#d99a5e', '#b07030', '#5a8a8a'];
+    var acc = 0;
+    var stops = sorted.map(function (e, i) { var s = acc / total * 100; acc += e[1]; return PAL[i % PAL.length] + ' ' + s.toFixed(2) + '% ' + (acc / total * 100).toFixed(2) + '%'; }).join(',');
+    var legend = sorted.map(function (e, i) { return '<div class="gd-leg"><span class="gd-sw" style="background:' + PAL[i % PAL.length] + '"></span><span class="gd-name">' + esc(e[0]) + '</span><b>' + e[1] + '</b></div>'; }).join('');
+    dl.innerHTML = '<div class="gd-wrap">' +
+      '<div class="gd-donut"><div class="gd-ring" style="background:conic-gradient(' + stops + ')"></div><div class="gd-outer"></div>' +
+      '<div class="gd-hole"><div class="gd-total">' + total + '</div><div class="gd-sub">' + sorted.length + '장르</div></div></div>' +
+      '<div class="gd-legend">' + legend + '</div></div>';
+  }
+
   if (typeof window.buildMonthly === 'function') {
     var _bm = window.buildMonthly;
     window.buildMonthly = function () { var r = _bm.apply(this, arguments); try { renderWebMonthly(); } catch (e) {} return r; };
+  }
+  if (typeof window.buildGenre === 'function') {
+    var _bg = window.buildGenre;
+    window.buildGenre = function () { var r = _bg.apply(this, arguments); try { renderWebGenre(); } catch (e) {} return r; };
   }
   if (typeof window.buildMilestone === 'function') {
     var _bms = window.buildMilestone;
