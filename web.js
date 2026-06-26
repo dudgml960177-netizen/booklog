@@ -240,5 +240,154 @@
     window.renderQuotes = function () { _rq.apply(this, arguments); try { applyQuoteCarousel(); } catch (e) {} };
   }
 
+  /* ════════ 통계·기록 에디토리얼 (도넛 게이지 + 컬러 카드 + 둥근 막대) ════════ */
+  // allBooks/allQuotes/goals는 let 전역 → window.가 아니라 bare로 접근
+  function isWeb() { return window.innerWidth >= 880; }
+  function B() { try { return (typeof allBooks !== 'undefined' && allBooks) || []; } catch (e) { return []; } }
+  function Q() { try { return (typeof allQuotes !== 'undefined' && allQuotes) || []; } catch (e) { return []; } }
+  function G() { try { return (typeof goals !== 'undefined' && goals) || {}; } catch (e) { return {}; } }
+  function streakFromBooks() {
+    var days = new Set();
+    B().forEach(function (b) {
+      var log = b.reading_time_log;
+      if (log && typeof log === 'object') Object.keys(log).forEach(function (d) { if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (log[d] || 0) > 0) days.add(d); });
+      if (b.status === '완독' && /^\d{4}-\d{2}-\d{2}$/.test(b.date_finish || '')) days.add(b.date_finish);
+    });
+    if (!days.size) return 0;
+    var arr = [...days].sort(); var max = 1, cur = 1;
+    for (var i = 1; i < arr.length; i++) { var diff = Math.round((new Date(arr[i] + 'T00:00:00') - new Date(arr[i - 1] + 'T00:00:00')) / 86400000); cur = diff === 1 ? cur + 1 : 1; if (cur > max) max = cur; }
+    return max;
+  }
+
+  function renderWebStats() {
+    var panel = document.getElementById('p-graph');
+    if (!panel) return;
+    var host = document.getElementById('web-stats');
+    if (!isWeb()) { if (host) host.remove(); return; }
+
+    var books = B(), quotes = Q(), g = G();
+    var cy = new Date().getFullYear(), cyS = String(cy);
+    var done = books.filter(function (b) { return b.status === '완독'; });
+    var doneY = done.filter(function (b) { return (b.date_finish || '').startsWith(cyS); });
+
+    var minsY = books.reduce(function (s, b) {
+      var log = b.reading_time_log;
+      if (log && typeof log === 'object') {
+        var ls = Object.keys(log).filter(function (d) { return d.indexOf(cyS) === 0; }).reduce(function (a, d) { return a + (log[d] || 0); }, 0);
+        if (ls > 0) return s + ls;
+      }
+      var yv = b.reading_time_year && (b.reading_time_year[cyS] || b.reading_time_year[cy]);
+      if (yv > 0) return s + yv;
+      return s;
+    }, 0);
+    var pagesY = books.reduce(function (a, b) {
+      if (b.status === '완독' && (b.date_finish || '').startsWith(cyS)) return a + (b.pages || 0);
+      if (b.status === '읽는중') return a + (b.current_page || 0);
+      return a;
+    }, 0);
+    var quotesY = quotes.filter(function (q) { return (q.created_at || '').startsWith(cyS); }).length;
+    var avg = done.length ? done.reduce(function (a, b) { return a + (b.rating || 0); }, 0) / done.length : 0;
+    var streak = streakFromBooks();
+
+    var goalBooks = g.books || 0, goalMin = g.minutes || 0;
+    var ringPct;
+    if (goalBooks > 0) {
+      ringPct = Math.min(100, Math.round(doneY.length / goalBooks * 100));
+    } else {
+      var byYear = {}; done.forEach(function (b) { var y = (b.date_finish || '').slice(0, 4); if (y) byYear[y] = (byYear[y] || 0) + 1; });
+      var mx = Math.max.apply(null, [1].concat(Object.keys(byYear).map(function (k) { return byYear[k]; })));
+      ringPct = Math.min(100, Math.round(doneY.length / mx * 100));
+    }
+
+    var minVal = minsY >= 60 ? Math.floor(minsY / 60) : minsY;
+    var minSuf = minsY >= 60 ? '시간' : (minsY > 0 ? '분' : '');
+    var cards = [
+      { cls: 'c-sage', n: doneY.length, suf: '권', l: '올해 완독', p: ringPct },
+      { cls: 'c-clay', n: minVal, suf: minSuf, l: '올해 독서시간', p: goalMin ? Math.min(100, Math.round(minsY / goalMin * 100)) : Math.min(100, Math.round(minsY / 3000 * 100)) },
+      { cls: 'c-gold', n: avg ? avg.toFixed(1) : '—', suf: '', l: '평점 평균', p: Math.round(avg / 5 * 100) },
+      { cls: 'c-mauve', n: streak || '—', suf: streak ? '일' : '', l: '최장 연속', p: Math.min(100, Math.round((streak || 0) / 30 * 100)) }
+    ];
+
+    var subText = goalBooks
+      ? ('올해 목표 ' + goalBooks + '권 중 ' + ringPct + '% 달성 · 누적 ' + done.length + '권')
+      : ('누적 ' + done.length + '권 · 올해 ' + pagesY.toLocaleString() + 'p · 문장 ' + quotesY + '개');
+
+    var html = '<div class="wst-hero">' +
+      '<div class="wst-ring" style="--p:' + ringPct + '"><b>' + doneY.length + '</b><i>완독</i></div>' +
+      '<div class="wst-hbody">' +
+        '<div class="wst-eyebrow">' + cy + ' 독서 현황</div>' +
+        '<div class="wst-headline">올해 <b>' + doneY.length + '</b>권을 읽었어요</div>' +
+        '<div class="wst-sub">' + subText + '</div>' +
+        '<button class="wst-goal-btn" onclick="window.openGoalModal&&openGoalModal()">목표 ' + (goalBooks ? '편집' : '설정') + '</button>' +
+      '</div></div>' +
+      '<div class="wst-cards">' + cards.map(function (c) {
+        return '<div class="wst-card ' + c.cls + '">' +
+          '<div class="wst-mini" style="--p:' + (c.p || 0) + '"></div>' +
+          '<div class="wst-cn">' + c.n + (c.suf ? '<span>' + c.suf + '</span>' : '') + '</div>' +
+          '<div class="wst-cl">' + c.l + '</div></div>';
+      }).join('') + '</div>';
+
+    if (!host) {
+      host = document.createElement('div'); host.id = 'web-stats';
+      var hdr = panel.firstElementChild;
+      if (hdr && hdr.nextSibling) panel.insertBefore(host, hdr.nextSibling); else panel.insertBefore(host, panel.firstChild);
+    }
+    host.innerHTML = html;
+  }
+
+  function renderWebRecord() {
+    var panel = document.getElementById('p-record');
+    if (!panel) return;
+    var host = document.getElementById('web-week');
+    if (!isWeb()) { if (host) host.remove(); return; }
+
+    var books = B();
+    var DOW = ['일', '월', '화', '수', '목', '금', '토'];
+    var today = new Date();
+    var days = [];
+    for (var i = 6; i >= 0; i--) {
+      var dt = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      var key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+      days.push({ key: key, dow: DOW[dt.getDay()], mins: 0, today: i === 0 });
+    }
+    books.forEach(function (b) {
+      var log = b.reading_time_log;
+      if (log && typeof log === 'object') days.forEach(function (d) { d.mins += (log[d.key] || 0); });
+    });
+    var total = days.reduce(function (a, d) { return a + d.mins; }, 0);
+    var max = Math.max.apply(null, [1].concat(days.map(function (d) { return d.mins; })));
+    var avg = total / 7;
+
+    function tier(m) { if (m <= 0) return 0; var r = m / max; return r < 0.34 ? 1 : (r < 0.67 ? 2 : 3); }
+    var bars = days.map(function (d) {
+      var h = d.mins > 0 ? Math.max(7, Math.round(d.mins / max * 100)) : 2;
+      var lbl = d.mins > 0 ? (d.mins >= 60 ? Math.floor(d.mins / 60) + 'h' + (d.mins % 60 || '') : d.mins + '분') : '';
+      return '<div class="ww-col' + (d.today ? ' ww-today' : '') + '"><div class="ww-val">' + lbl + '</div>' +
+        '<div class="ww-bar-wrap"><div class="ww-bar t' + tier(d.mins) + '" style="height:' + h + '%"></div></div>' +
+        '<div class="ww-dow">' + d.dow + '</div></div>';
+    }).join('');
+    var avgPct = Math.min(94, Math.round(avg / max * 100));
+
+    var html = '<div class="ww-head"><span class="ww-title">이번 주 독서</span>' +
+      '<span class="ww-sum">' + (total >= 60 ? Math.floor(total / 60) + '시간 ' + (total % 60) + '분' : total + '분') + ' · 일평균 ' + Math.round(avg) + '분</span></div>' +
+      '<div class="ww-chart">' + (total > 0 ? '<div class="ww-avg" style="bottom:' + avgPct + '%"></div>' : '') + bars + '</div>';
+
+    if (!host) {
+      host = document.createElement('div'); host.id = 'web-week';
+      var rt = panel.querySelector('.record-top');
+      if (rt) panel.insertBefore(host, rt); else panel.appendChild(host);
+    }
+    host.innerHTML = html;
+  }
+
+  if (typeof window.buildStats === 'function') {
+    var _bs = window.buildStats;
+    window.buildStats = function () { var r = _bs.apply(this, arguments); try { renderWebStats(); } catch (e) {} return r; };
+  }
+  if (typeof window.renderCal === 'function') {
+    var _rc = window.renderCal;
+    window.renderCal = function () { var r = _rc.apply(this, arguments); try { renderWebRecord(); } catch (e) {} return r; };
+  }
+
   document.addEventListener('DOMContentLoaded', function () { setActive('books'); });
 })();
