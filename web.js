@@ -546,18 +546,79 @@
       (hasPg ? '<div class="wm-legend"><span class="wm-lg-bar"></span>완독 권수<span class="wm-lg-line"></span>읽은 페이지</div>' : '');
   }
 
+  /* 평생 독서기록 → 목표 링 게이지 카드 (web.js가 #ms-grid 교체), 데스크톱 전용 */
+  function renderWebLifetime() {
+    if (!isWeb()) return;
+    var g = document.getElementById('ms-grid');
+    if (!g) return;
+    var done = B().filter(function (b) { return b.status === '완독'; });
+    var total = done.length;
+    var years = {}; done.forEach(function (b) { var y = (b.date_finish || '').slice(0, 4); if (y) years[y] = 1; });
+    var yrs = Object.keys(years).length || 1;
+    var totalMins = B().reduce(function (a, b) { return a + (b.reading_time || 0); }, 0);
+    var totalPages = done.reduce(function (a, b) { return a + (b.pages || 0); }, 0);
+    var masters = done.filter(function (b) { return b.rating >= 5; }).length;
+    var items = [
+      { n: total, l: '총 완독', c: '#b5481f', bg: '#f7e7dd', prog: Math.min(total / 200, 1), t: '200권' },
+      { n: yrs + '년', l: '독서 기간', c: '#6f8f56', bg: '#e8f0e0', prog: Math.min(yrs / 10, 1), t: '10년' },
+      { n: Math.round(total / yrs * 10) / 10 + '권', l: '연평균', c: '#56788a', bg: '#e4edf2', prog: Math.min(total / yrs / 20, 1), t: '20권/년' },
+      { n: Math.floor(totalMins / 60) + 'h', l: '독서 시간', c: '#8a6890', bg: '#efe5f1', prog: Math.min(totalMins / 60 / 500, 1), t: '500h' },
+      { n: totalPages ? totalPages.toLocaleString() : '0', l: '누적 페이지', c: '#7a634a', bg: '#f3ece0', prog: Math.min(totalPages / 50000, 1), t: '50,000p' },
+      { n: masters + '권', l: '명작 수집', c: '#c79a3e', bg: '#f7edd2', prog: Math.min(masters / 100, 1), t: '100권' }
+    ];
+    g.innerHTML = items.map(function (it) {
+      var pct = Math.round(it.prog * 100);
+      return '<div class="wl-card" style="background:' + it.bg + '">' +
+        '<div class="wl-ring" style="--p:' + pct + ';--c:' + it.c + '"><span style="color:' + it.c + '">' + pct + '%</span></div>' +
+        '<div class="wl-body"><div class="wl-n" style="color:' + it.c + '">' + it.n + '</div><div class="wl-l">' + it.l + '</div><div class="wl-t">목표 ' + it.t + '</div></div></div>';
+    }).join('');
+  }
+
+  /* 달력: 읽은 날을 시간만큼 진한 색 칸으로 (밑줄바 대체), 데스크톱 전용 */
+  function renderWebCalendar() {
+    if (!isWeb()) return;
+    var grid = document.getElementById('cal-grid');
+    if (!grid) return;
+    function pad(x) { return String(x).padStart(2, '0'); }
+    var cy = (typeof calY !== 'undefined') ? calY : new Date().getFullYear();
+    var cm = (typeof calM !== 'undefined') ? calM : new Date().getMonth();
+    var prefix = cy + '-' + pad(cm + 1);
+    var dayMins = {};
+    B().forEach(function (b) {
+      var log = b.reading_time_log;
+      if (log && typeof log === 'object') Object.keys(log).forEach(function (d) {
+        if (d.indexOf(prefix) === 0 && (log[d] || 0) > 0) dayMins[d] = (dayMins[d] || 0) + log[d];
+      });
+    });
+    var max = Math.max.apply(null, [1].concat(Object.keys(dayMins).map(function (k) { return dayMins[k]; })));
+    function fill(m) { var r = m / max; return r < 0.34 ? '#f0e2cc' : (r < 0.67 ? '#e8c9a0' : '#d9a86a'); }
+    grid.querySelectorAll('.day').forEach(function (cell) {
+      if (cell.classList.contains('hbook') || cell.classList.contains('other') || cell.classList.contains('today')) return;
+      var numEl = cell.querySelector('div');
+      var dnum = parseInt((numEl && numEl.textContent || '').trim(), 10);
+      if (!dnum) return;
+      // 기존 활동 밑줄바 숨김
+      cell.querySelectorAll('div').forEach(function (d) { if (/height:\s*5px/.test(d.getAttribute('style') || '')) d.style.display = 'none'; });
+      var m = dayMins[prefix + '-' + pad(dnum)] || 0;
+      if (m > 0) cell.style.background = fill(m);
+    });
+  }
+
   if (typeof window.buildMonthly === 'function') {
     var _bm = window.buildMonthly;
     window.buildMonthly = function () { var r = _bm.apply(this, arguments); try { renderWebMonthly(); } catch (e) {} return r; };
   }
-
+  if (typeof window.buildMilestone === 'function') {
+    var _bms = window.buildMilestone;
+    window.buildMilestone = function () { var r = _bms.apply(this, arguments); try { renderWebLifetime(); } catch (e) {} return r; };
+  }
   if (typeof window.buildStats === 'function') {
     var _bs = window.buildStats;
     window.buildStats = function () { var r = _bs.apply(this, arguments); try { renderWebStats(); } catch (e) {} return r; };
   }
   if (typeof window.renderCal === 'function') {
     var _rc = window.renderCal;
-    window.renderCal = function () { var r = _rc.apply(this, arguments); try { renderWebRecord(); } catch (e) {} return r; };
+    window.renderCal = function () { var r = _rc.apply(this, arguments); try { renderWebRecord(); } catch (e) {} try { renderWebCalendar(); } catch (e) {} return r; };
   }
 
   document.addEventListener('DOMContentLoaded', function () { setActive('books'); });

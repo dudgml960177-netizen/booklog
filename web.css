@@ -1820,6 +1820,16 @@
   #p-graph #monthly-viz .wm-lg-bar { width: 9px; height: 9px; border-radius: 2px; background: #8a6890; }
   #p-graph #monthly-viz .wm-lg-line { width: 15px; height: 0; border-top: 1.4px solid #a08c72; margin-left: 9px; }
 
+  /* 평생 독서기록 → 목표 링 게이지 카드 (web.js renderWebLifetime가 #ms-grid 교체) */
+  #p-graph #ms-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 11px !important; }
+  #p-graph #ms-grid .wl-card { display: flex !important; align-items: center; gap: 13px; border: 1.5px solid #2e1f0e !important; border-radius: 13px !important; padding: 13px 15px !important; text-align: left !important; overflow: visible !important; }
+  #p-graph #ms-grid .wl-ring { position: relative; width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  #p-graph #ms-grid .wl-ring::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(46, 31, 14, .12) 0); -webkit-mask: radial-gradient(transparent 62%, #000 63%); mask: radial-gradient(transparent 62%, #000 63%); }
+  #p-graph #ms-grid .wl-ring span { position: relative; font-family: var(--fs); font-size: .68rem; }
+  #p-graph #ms-grid .wl-n { font-family: var(--fs); font-size: 1.2rem; line-height: 1; }
+  #p-graph #ms-grid .wl-l { font-size: .68rem; color: #5c4633; font-weight: 600; margin: 5px 0 2px; }
+  #p-graph #ms-grid .wl-t { font-size: .56rem; color: var(--tx3); }
+
   /* ════════ 기록: 이번 주 독서 그래프 — 타이머 하단 배치 (web.js #web-week 주입) ════════ */
   /* 기존 '이 주의 통계' 미니바는 데스크톱에서 숨김 (이 그래프로 대체) */
   #p-record #timer-weekly { display: none !important; }
