@@ -1845,8 +1845,26 @@
   #p-graph #donut-layout .gd-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #p-graph #donut-layout .gd-leg b { font-family: var(--fs); font-weight: 400; }
 
-  /* ── 평점 탭: 막대 둥글게 (다른 통계와 어울리게) ── */
-  #p-graph .rbar-outer { border-radius: 999px !important; background: rgba(46, 31, 14, .07) !important; }
+  /* ── 평점·작가 탭 재구성 (web.js renderWebRatingAuthor) ── */
+  #p-graph #rating-layout .ra-lbl { font-size: .55rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--tx3); margin: 18px 0 10px; }
+  #p-graph #rating-layout .ra-lbl:first-child { margin-top: 4px; }
+  #p-graph #rating-layout .ra-rating { display: flex; flex-direction: column; gap: 7px; }
+  #p-graph #rating-layout .ra-rbar { display: flex; align-items: center; gap: 10px; }
+  #p-graph #rating-layout .ra-rstar { font-size: .66rem; color: #c79a3e; min-width: 62px; letter-spacing: 1px; }
+  #p-graph #rating-layout .ra-rtrack { flex: 1; height: 11px; background: rgba(46, 31, 14, .07); border-radius: 999px; overflow: hidden; }
+  #p-graph #rating-layout .ra-rfill { height: 100%; border-radius: 999px; transition: width .5s; }
+  #p-graph #rating-layout .ra-rpct { font-size: .62rem; color: var(--tx3); min-width: 26px; text-align: right; }
+  #p-graph #rating-layout .ra-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  #p-graph #rating-layout .ra-card { position: relative; border: 1.5px solid #2e1f0e; border-radius: 13px; padding: 14px 14px 11px; background: #fbf6ec; }
+  #p-graph #rating-layout .ra-rank { position: absolute; top: -9px; left: -9px; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #2e1f0e; color: #fff; font-family: var(--fs); font-size: .74rem; display: flex; align-items: center; justify-content: center; }
+  #p-graph #rating-layout .ra-name { font-family: var(--fs); font-size: 1rem; color: #2e1f0e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #p-graph #rating-layout .ra-stars { font-size: .66rem; margin-top: 3px; letter-spacing: 1px; }
+  #p-graph #rating-layout .ra-mut { color: var(--tx3); letter-spacing: 0; }
+  #p-graph #rating-layout .ra-foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 9px; border-top: 1px solid rgba(46, 31, 14, .1); padding-top: 8px; }
+  #p-graph #rating-layout .ra-sub { font-size: .6rem; color: var(--tx3); }
+  #p-graph #rating-layout .ra-cnt { font-family: var(--fs); font-size: 1.05rem; color: #2e1f0e; }
+  #p-graph #rating-layout .ra-cnt i { font-size: .6rem; color: var(--tx3); font-style: normal; margin-left: 1px; }
+  #p-graph #rating-layout .ra-more { border: 1.5px dashed rgba(46, 31, 14, .35); border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: .72rem; color: var(--tx3); min-height: 64px; }
   #p-graph .rbar-fill { border-radius: 999px !important; }
   #p-graph .rs-mini { border-radius: 999px !important; }
   #p-graph .rs-mini-fill { border-radius: 999px !important; }

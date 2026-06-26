@@ -644,6 +644,60 @@
     var _bg = window.buildGenre;
     window.buildGenre = function () { var r = _bg.apply(this, arguments); try { renderWebGenre(); } catch (e) {} return r; };
   }
+
+  /* 평점·작가 탭 → 평점 둥근막대 + 작가/출판사 카드형(번호 모서리), 데스크톱 전용 */
+  function renderWebRatingAuthor() {
+    if (!isWeb()) return;
+    var layout = document.getElementById('rating-layout');
+    if (!layout) return;
+    var done = B().filter(function (b) { return b.status === '완독'; });
+    var yr = (typeof curYR !== 'undefined') ? curYR : 'all';
+    var filtered = yr === 'all' ? done : done.filter(function (b) { return parseInt((b.date_finish || '').slice(0, 4), 10) === yr; });
+    if (!filtered.length) return;
+
+    var dist = [5, 4, 3, 2, 1].map(function (s) { return filtered.filter(function (b) { return b.rating === s; }).length; });
+    var maxD = Math.max.apply(null, [1].concat(dist));
+    var rated = dist.reduce(function (a, v) { return a + v; }, 0);
+    var avg = rated > 0 ? (dist.reduce(function (a, v, i) { return a + v * (5 - i); }, 0) / rated).toFixed(1) : '—';
+    var RCOL = ['#6f8f56', '#c79a3e', '#c4704a', '#b0703a', '#8a3a2a'];
+
+    var aMap = {}, aRat = {}, aRC = {}, pMap = {};
+    filtered.forEach(function (b) {
+      if (b.author) b.author.split(/[,·;]/).map(function (n) { return n.replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').trim(); }).filter(function (n) { return n.length > 1; }).forEach(function (name) {
+        aMap[name] = (aMap[name] || 0) + 1;
+        if (b.rating >= 1 && b.rating <= 5) { aRat[name] = (aRat[name] || 0) + b.rating; aRC[name] = (aRC[name] || 0) + 1; }
+      });
+      if (b.publisher) pMap[b.publisher] = (pMap[b.publisher] || 0) + 1;
+    });
+    var aSort = Object.keys(aMap).map(function (k) { return { name: k, n: aMap[k], avg: aRC[k] ? aRat[k] / aRC[k] : 0 }; }).sort(function (x, y) { return y.n - x.n || y.avg - x.avg || x.name.localeCompare(y.name, 'ko'); });
+    var pSort = Object.keys(pMap).map(function (k) { return { name: k, n: pMap[k] }; }).sort(function (x, y) { return y.n - x.n || x.name.localeCompare(y.name, 'ko'); });
+    var PAL = ['#c4704a', '#6f8f56', '#56788a', '#c79a3e', '#8a6890', '#3f7a6a'];
+    function starStr(v) { var r = Math.round(v); return '★'.repeat(r) + '☆'.repeat(5 - r); }
+    function card(it, i, isA) {
+      return '<div class="ra-card"><span class="ra-rank" style="background:' + PAL[i % PAL.length] + '">' + (i + 1) + '</span>' +
+        '<div class="ra-name">' + esc(it.name) + '</div>' +
+        (isA ? '<div class="ra-stars" style="color:' + PAL[i % PAL.length] + '">' + starStr(it.avg) + '</div>' : '<div class="ra-stars ra-mut">출판사</div>') +
+        '<div class="ra-foot"><span class="ra-sub">' + (isA ? (it.avg ? '평균 ' + it.avg.toFixed(1) : '평점 없음') : '') + '</span><span class="ra-cnt">' + it.n + '<i>권</i></span></div></div>';
+    }
+    var TOPN = 6;
+    var aCards = aSort.slice(0, TOPN).map(function (it, i) { return card(it, i, true); }).join('') +
+      (aSort.length > TOPN ? '<div class="ra-more">+' + (aSort.length - TOPN) + '명 더</div>' : '');
+    var pCards = pSort.slice(0, TOPN).map(function (it, i) { return card(it, i, false); }).join('') +
+      (pSort.length > TOPN ? '<div class="ra-more">+' + (pSort.length - TOPN) + '곳 더</div>' : '');
+    var rbars = [5, 4, 3, 2, 1].map(function (s, i) {
+      var w = Math.round(dist[i] / maxD * 100), pct = rated > 0 ? Math.round(dist[i] / rated * 100) : 0;
+      return '<div class="ra-rbar"><span class="ra-rstar">' + '★'.repeat(s) + '</span><div class="ra-rtrack"><div class="ra-rfill" style="width:' + w + '%;background:' + RCOL[i] + '"></div></div><span class="ra-rpct">' + pct + '%</span></div>';
+    }).join('');
+
+    layout.style.cssText = 'display:block;';
+    layout.innerHTML = '<div class="ra-lbl">평점 분포 · 평균 ' + avg + '</div><div class="ra-rating">' + rbars + '</div>' +
+      '<div class="ra-lbl">최애 작가</div><div class="ra-grid">' + aCards + '</div>' +
+      '<div class="ra-lbl">최애 출판사</div><div class="ra-grid">' + pCards + '</div>';
+  }
+  if (typeof window.buildRatingAuthor === 'function') {
+    var _bra = window.buildRatingAuthor;
+    window.buildRatingAuthor = function () { var r = _bra.apply(this, arguments); try { renderWebRatingAuthor(); } catch (e) {} return r; };
+  }
   if (typeof window.buildMilestone === 'function') {
     var _bms = window.buildMilestone;
     window.buildMilestone = function () { var r = _bms.apply(this, arguments); try { renderWebLifetime(); } catch (e) {} return r; };
