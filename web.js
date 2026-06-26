@@ -489,7 +489,7 @@
     requestAnimationFrame(function () { requestAnimationFrame(function () { det.classList.add('on'); }); });
   }
 
-  /* 월별 그래프 → 둥근 막대 (값 라벨 + 일평균 점선), 데스크톱 전용 */
+  /* 월별 그래프 → 둥근 막대(완독 권수) + 도트·라인(읽은 페이지), 데스크톱 전용 */
   function renderWebMonthly() {
     if (!isWeb()) return;
     var viz = document.getElementById('monthly-viz');
@@ -497,21 +497,29 @@
     var done = B().filter(function (b) { return b.status === '완독' && b.date_finish; });
     var ym = (typeof curYM !== 'undefined') ? curYM : 'all';
     var PALETTE = ['#c4704a', '#56788a', '#6f8f56', '#c79a3e', '#8a6890', '#4f9e93', '#b5481f', '#a85a86', '#7a8b3a', '#5a8a8a', '#b07030', '#9d6a90'];
-    var labels = [], vals = [];
+    var labels = [], vals = [], pages = [];
     if (ym === 'all') {
-      var byYear = {};
-      done.forEach(function (b) { var y = b.date_finish.slice(0, 4); byYear[y] = (byYear[y] || 0) + 1; });
+      var byYear = {}, pgYear = {};
+      done.forEach(function (b) { var y = b.date_finish.slice(0, 4); byYear[y] = (byYear[y] || 0) + 1; pgYear[y] = (pgYear[y] || 0) + (b.pages || 0); });
       var ys = Object.keys(byYear).sort();
       vals = ys.map(function (y) { return byYear[y]; });
+      pages = ys.map(function (y) { return pgYear[y]; });
       labels = ys.map(function (y) { return "'" + y.slice(2); });
     } else {
       var Y = parseInt(ym, 10);
-      vals = Array(12).fill(0);
-      done.forEach(function (b) { if (parseInt(b.date_finish.slice(0, 4), 10) === Y) vals[parseInt(b.date_finish.slice(5, 7), 10) - 1]++; });
+      vals = Array(12).fill(0); pages = Array(12).fill(0);
+      done.forEach(function (b) {
+        if (parseInt(b.date_finish.slice(0, 4), 10) === Y) {
+          var mi = parseInt(b.date_finish.slice(5, 7), 10) - 1;
+          vals[mi]++; pages[mi] += (b.pages || 0);
+        }
+      });
       labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
     }
     if (!vals.length) return;
+    var n = vals.length;
     var max = Math.max.apply(null, [1].concat(vals));
+    var maxPg = Math.max.apply(null, [1].concat(pages));
     var nz = vals.filter(function (v) { return v > 0; });
     var avg = nz.length ? nz.reduce(function (a, v) { return a + v; }, 0) / nz.length : 0;
     var avgPct = max ? Math.min(90, Math.round(avg / max * 100)) : 0;
@@ -520,7 +528,22 @@
       var bar = v > 0 ? '<div class="wm-bar" style="height:' + h + '%;background:' + PALETTE[i % PALETTE.length] + '"></div>' : '<div class="wm-bar wm-empty"></div>';
       return '<div class="wm-col"><div class="wm-val">' + (v > 0 ? v : '') + '</div><div class="wm-bw">' + bar + '</div><div class="wm-lbl">' + labels[i] + '</div></div>';
     }).join('');
-    viz.innerHTML = '<div class="wm-chart">' + (avg > 0 ? '<div class="wm-avg" style="bottom:' + avgPct + '%"></div>' : '') + bars + '</div>';
+
+    // 읽은 페이지 — 도트+라인 오버레이 (0인 달은 끊어서 세그먼트)
+    var hasPg = pages.some(function (p) { return p > 0; });
+    var svg = '';
+    if (hasPg) {
+      var pts = pages.map(function (p, i) { return { x: (i + 0.5) / n * 100, y: p > 0 ? (94 - p / maxPg * 86) : null, p: p }; });
+      var segs = [], cur = [];
+      pts.forEach(function (pt) { if (pt.y === null) { if (cur.length) { segs.push(cur); cur = []; } } else cur.push(pt); });
+      if (cur.length) segs.push(cur);
+      var poly = segs.map(function (s) { return '<polyline points="' + s.map(function (p) { return p.x.toFixed(2) + ',' + p.y.toFixed(2); }).join(' ') + '" fill="none" stroke="#a08c72" stroke-width="1.4" vector-effect="non-scaling-stroke"/>'; }).join('');
+      var dots = pts.filter(function (p) { return p.y !== null; }).map(function (p) { return '<circle cx="' + p.x.toFixed(2) + '" cy="' + p.y.toFixed(2) + '" r="2" fill="#fbf6ec" stroke="#7a634a" stroke-width="1.4" vector-effect="non-scaling-stroke"/>'; }).join('');
+      svg = '<svg class="wm-line" viewBox="0 0 100 100" preserveAspectRatio="none">' + poly + dots + '</svg>';
+    }
+
+    viz.innerHTML = '<div class="wm-chart">' + (avg > 0 ? '<div class="wm-avg" style="bottom:' + avgPct + '%"></div>' : '') + svg + bars + '</div>' +
+      (hasPg ? '<div class="wm-legend"><span class="wm-lg-bar"></span>완독 권수<span class="wm-lg-line"></span>읽은 페이지</div>' : '');
   }
 
   if (typeof window.buildMonthly === 'function') {

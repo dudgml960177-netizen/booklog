@@ -3926,7 +3926,8 @@ const QUESTS = [
     desc: '고독을 유지하셨군요.',
     condition: (books, profile, extra) => {
       const done = books.filter(b=>b.status==='완독'&&b.source!=='import').length;
-      return done >= 50 && extra.friendCount === 0;
+      // 친구 수를 확실히 셀 수 있을 때만 판정 (쿼리 실패 시 false-positive 방지)
+      return done >= 50 && extra.friendCount === 0 && extra.friendCountKnown === true;
     },
     reward: {
       title: '🦋 백년의 고독자', item: '🦋',
@@ -4244,7 +4245,7 @@ async function checkAndGrantQuests() {
   }
 
   // 서버에서 extra 데이터 로드 (게시글 수, 댓글 수, 친구 수)
-  let extra = { postCount: 0, commentCount: 0, friendCount: 0 };
+  let extra = { postCount: 0, commentCount: 0, friendCount: 0, friendCountKnown: false };
   try {
     const [postsR, commentsR, friendsR] = await Promise.all([
       sb.from('posts').select('id', {count:'exact',head:true}).eq('user_id', currentUser.id),
@@ -4254,6 +4255,7 @@ async function checkAndGrantQuests() {
     extra.postCount = postsR.count || 0;
     extra.commentCount = commentsR.count || 0;
     extra.friendCount = friendsR.count || 0;
+    extra.friendCountKnown = true;
     try {
       const { data: myPosts } = await sb.from('posts').select('id,likes').eq('user_id',currentUser.id).order('likes',{ascending:false}).limit(1);
       extra.maxPostLikes = myPosts?.[0]?.likes || 0;

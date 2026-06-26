@@ -1814,6 +1814,11 @@
   #p-graph #monthly-viz .wm-bar { width: 58%; min-height: 4px; border: 1.5px solid rgba(46, 31, 14, .5); border-radius: 6px 6px 2px 2px; transition: height .3s ease; }
   #p-graph #monthly-viz .wm-bar.wm-empty { height: 4px; background: #e3d8c2; border-color: rgba(46, 31, 14, .2); }
   #p-graph #monthly-viz .wm-lbl { font-size: .56rem; color: var(--tx3); margin-top: 5px; }
+  /* 읽은 페이지 도트+라인 오버레이 */
+  #p-graph #monthly-viz .wm-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+  #p-graph #monthly-viz .wm-legend { display: flex; align-items: center; gap: 5px; font-size: .56rem; color: var(--tx3); margin-top: 9px; }
+  #p-graph #monthly-viz .wm-lg-bar { width: 9px; height: 9px; border-radius: 2px; background: #8a6890; }
+  #p-graph #monthly-viz .wm-lg-line { width: 15px; height: 0; border-top: 1.4px solid #a08c72; margin-left: 9px; }
 
   /* ════════ 기록: 이번 주 독서 그래프 — 타이머 하단 배치 (web.js #web-week 주입) ════════ */
   /* 기존 '이 주의 통계' 미니바는 데스크톱에서 숨김 (이 그래프로 대체) */
