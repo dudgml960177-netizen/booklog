@@ -301,11 +301,11 @@
 
     var minVal = minsY >= 60 ? Math.floor(minsY / 60) : minsY;
     var minSuf = minsY >= 60 ? '시간' : (minsY > 0 ? '분' : '');
+    // 완독은 위 링에 있으니 카드는 3개 (독서시간/평점/최장연속)
     var cards = [
-      { cls: 'c-sage', n: doneY.length, suf: '권', l: '올해 완독', p: ringPct },
-      { cls: 'c-clay', n: minVal, suf: minSuf, l: '올해 독서시간', p: goalMin ? Math.min(100, Math.round(minsY / goalMin * 100)) : Math.min(100, Math.round(minsY / 3000 * 100)) },
-      { cls: 'c-gold', n: avg ? avg.toFixed(1) : '—', suf: '', l: '평점 평균', p: Math.round(avg / 5 * 100) },
-      { cls: 'c-mauve', n: streak || '—', suf: streak ? '일' : '', l: '최장 연속', p: Math.min(100, Math.round((streak || 0) / 30 * 100)) }
+      { cls: 'c-clay', n: minVal, suf: minSuf, l: '올해 독서시간' },
+      { cls: 'c-gold', n: avg ? avg.toFixed(1) : '—', suf: '', l: '평점 평균' },
+      { cls: 'c-mauve', n: streak || '—', suf: streak ? '일' : '', l: '최장 연속' }
     ];
 
     var subText = goalBooks
@@ -484,6 +484,45 @@
       '<div class="wt-body">' + body + '</div>';
     panel.querySelector('.wt-close').onclick = function () { panel.classList.remove('on'); };
     requestAnimationFrame(function () { requestAnimationFrame(function () { panel.classList.add('on'); }); });
+  }
+
+  /* 월별 그래프 → 둥근 막대 (값 라벨 + 일평균 점선), 데스크톱 전용 */
+  function renderWebMonthly() {
+    if (!isWeb()) return;
+    var viz = document.getElementById('monthly-viz');
+    if (!viz) return;
+    var done = B().filter(function (b) { return b.status === '완독' && b.date_finish; });
+    var ym = (typeof curYM !== 'undefined') ? curYM : 'all';
+    var PALETTE = ['#c4704a', '#56788a', '#6f8f56', '#c79a3e', '#8a6890', '#4f9e93', '#b5481f', '#a85a86', '#7a8b3a', '#5a8a8a', '#b07030', '#9d6a90'];
+    var labels = [], vals = [];
+    if (ym === 'all') {
+      var byYear = {};
+      done.forEach(function (b) { var y = b.date_finish.slice(0, 4); byYear[y] = (byYear[y] || 0) + 1; });
+      var ys = Object.keys(byYear).sort();
+      vals = ys.map(function (y) { return byYear[y]; });
+      labels = ys.map(function (y) { return "'" + y.slice(2); });
+    } else {
+      var Y = parseInt(ym, 10);
+      vals = Array(12).fill(0);
+      done.forEach(function (b) { if (parseInt(b.date_finish.slice(0, 4), 10) === Y) vals[parseInt(b.date_finish.slice(5, 7), 10) - 1]++; });
+      labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+    }
+    if (!vals.length) return;
+    var max = Math.max.apply(null, [1].concat(vals));
+    var nz = vals.filter(function (v) { return v > 0; });
+    var avg = nz.length ? nz.reduce(function (a, v) { return a + v; }, 0) / nz.length : 0;
+    var avgPct = max ? Math.min(90, Math.round(avg / max * 100)) : 0;
+    var bars = vals.map(function (v, i) {
+      var h = v > 0 ? Math.max(8, Math.round(v / max * 100)) : 0;
+      var bar = v > 0 ? '<div class="wm-bar" style="height:' + h + '%;background:' + PALETTE[i % PALETTE.length] + '"></div>' : '<div class="wm-bar wm-empty"></div>';
+      return '<div class="wm-col"><div class="wm-val">' + (v > 0 ? v : '') + '</div><div class="wm-bw">' + bar + '</div><div class="wm-lbl">' + labels[i] + '</div></div>';
+    }).join('');
+    viz.innerHTML = '<div class="wm-chart">' + (avg > 0 ? '<div class="wm-avg" style="bottom:' + avgPct + '%"></div>' : '') + bars + '</div>';
+  }
+
+  if (typeof window.buildMonthly === 'function') {
+    var _bm = window.buildMonthly;
+    window.buildMonthly = function () { var r = _bm.apply(this, arguments); try { renderWebMonthly(); } catch (e) {} return r; };
   }
 
   if (typeof window.buildStats === 'function') {

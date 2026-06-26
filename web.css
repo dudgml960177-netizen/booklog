@@ -1780,29 +1780,40 @@
   #p-graph #stat-grid > div[style*="grid-template-columns"] { display: none !important; }
   #p-graph .card:has(#goal-display) { display: none !important; }
 
-  #web-stats { display: block; margin-bottom: 26px; }
-  #web-stats .wst-hero { display: flex; align-items: center; gap: 28px; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 18px; padding: 24px 28px; margin-bottom: 16px; }
-  #web-stats .wst-ring { position: relative; width: 124px; height: 124px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  /* 컴팩트하게 (너무 큼직하지 않게) */
+  #web-stats { display: block; margin-bottom: 22px; }
+  #web-stats .wst-hero { display: flex; align-items: center; gap: 20px; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 14px; padding: 16px 20px; margin-bottom: 11px; }
+  #web-stats .wst-ring { position: relative; width: 92px; height: 92px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   #web-stats .wst-ring::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#b5481f calc(var(--p) * 1%), #ece0c8 0); -webkit-mask: radial-gradient(transparent 63%, #000 64%); mask: radial-gradient(transparent 63%, #000 64%); }
-  #web-stats .wst-ring b { position: relative; font-family: var(--fs); font-size: 2.7rem; font-weight: 400; color: #2e1f0e; line-height: 1; }
-  #web-stats .wst-ring i { position: relative; font-style: normal; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--tx3); margin-top: 5px; }
+  #web-stats .wst-ring b { position: relative; font-family: var(--fs); font-size: 2rem; font-weight: 400; color: #2e1f0e; line-height: 1; }
+  #web-stats .wst-ring i { position: relative; font-style: normal; font-size: .56rem; letter-spacing: .16em; text-transform: uppercase; color: var(--tx3); margin-top: 4px; }
   #web-stats .wst-hbody { flex: 1; min-width: 0; }
-  #web-stats .wst-eyebrow { font-size: .62rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #b5481f; margin-bottom: 9px; }
-  #web-stats .wst-headline { font-family: var(--fs); font-size: 2.05rem; color: #2e1f0e; line-height: 1.1; }
+  #web-stats .wst-eyebrow { font-size: .58rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #b5481f; margin-bottom: 6px; }
+  #web-stats .wst-headline { font-family: var(--fs); font-size: 1.5rem; color: #2e1f0e; line-height: 1.12; }
   #web-stats .wst-headline b { color: #b5481f; font-weight: 400; }
-  #web-stats .wst-sub { font-size: .86rem; color: var(--tx2); margin-top: 9px; }
-  #web-stats .wst-goal-btn { margin-top: 15px; background: none; border: 1.5px solid #2e1f0e; border-radius: 9px; padding: 7px 17px; font-family: var(--ff); font-size: .78rem; font-weight: 600; color: #2e1f0e; cursor: pointer; transition: background .13s; }
+  #web-stats .wst-sub { font-size: .76rem; color: var(--tx2); margin-top: 6px; }
+  #web-stats .wst-goal-btn { margin-top: 11px; background: none; border: 1.5px solid #2e1f0e; border-radius: 7px; padding: 5px 13px; font-family: var(--ff); font-size: .72rem; font-weight: 600; color: #2e1f0e; cursor: pointer; transition: background .13s; }
   #web-stats .wst-goal-btn:hover { background: #e8b73e; }
 
-  #web-stats .wst-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-  #web-stats .wst-card { position: relative; border: 1.5px solid #2e1f0e; border-radius: 16px; padding: 18px 16px 15px; overflow: hidden; }
+  #web-stats .wst-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+  #web-stats .wst-card { position: relative; border: 1.5px solid #2e1f0e; border-radius: 12px; padding: 13px 14px 12px; overflow: hidden; }
   #web-stats .wst-card.c-sage { background: #e8f0e0; }
   #web-stats .wst-card.c-clay { background: #f7e7dd; }
   #web-stats .wst-card.c-gold { background: #f7edd2; }
   #web-stats .wst-card.c-mauve { background: #efe5f1; }
-  #web-stats .wst-cn { font-family: var(--fs); font-size: 2rem; color: #2e1f0e; line-height: 1; }
-  #web-stats .wst-cn span { font-size: .85rem; color: var(--tx3); margin-left: 2px; }
-  #web-stats .wst-cl { font-size: .76rem; color: var(--tx2); margin-top: 9px; font-weight: 600; }
+  #web-stats .wst-cn { font-family: var(--fs); font-size: 1.6rem; color: #2e1f0e; line-height: 1; }
+  #web-stats .wst-cn span { font-size: .8rem; color: var(--tx3); margin-left: 2px; }
+  #web-stats .wst-cl { font-size: .72rem; color: var(--tx2); margin-top: 6px; font-weight: 600; }
+
+  /* 월별 그래프 → 둥근 막대 (web.js renderWebMonthly가 #monthly-viz 교체) */
+  #p-graph #monthly-viz .wm-chart { position: relative; display: flex; align-items: flex-end; gap: 7px; height: 116px; margin-top: 4px; }
+  #p-graph #monthly-viz .wm-avg { position: absolute; left: 0; right: 0; border-top: 1.5px dashed rgba(181, 72, 31, .42); }
+  #p-graph #monthly-viz .wm-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+  #p-graph #monthly-viz .wm-val { font-size: .58rem; color: var(--tx3); margin-bottom: 3px; min-height: .8em; }
+  #p-graph #monthly-viz .wm-bw { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  #p-graph #monthly-viz .wm-bar { width: 58%; min-height: 4px; border: 1.5px solid rgba(46, 31, 14, .5); border-radius: 6px 6px 2px 2px; transition: height .3s ease; }
+  #p-graph #monthly-viz .wm-bar.wm-empty { height: 4px; background: #e3d8c2; border-color: rgba(46, 31, 14, .2); }
+  #p-graph #monthly-viz .wm-lbl { font-size: .56rem; color: var(--tx3); margin-top: 5px; }
 
   /* ════════ 기록: 이번 주 독서 그래프 — 타이머 하단 배치 (web.js #web-week 주입) ════════ */
   /* 기존 '이 주의 통계' 미니바는 데스크톱에서 숨김 (이 그래프로 대체) */
@@ -1843,7 +1854,7 @@
 .wt-inpanel .wt-body { flex: 1; padding: 12px 14px 14px; overflow-y: auto; }
 
 /* 책등 스택: 책을 옆으로 쌓아올린 더미처럼 (두께·길이 = 읽은 시간) */
-.bs-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.bs-stack { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .bs-spine { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 16px; border: 1.5px solid rgba(46, 31, 14, .65); border-radius: 4px; box-shadow: 0 2px 0 rgba(46, 31, 14, .22), inset 0 1px 0 rgba(255, 255, 255, .25); cursor: default; transition: transform .14s; }
 .bs-spine:hover { transform: translateX(5px); }
 .bs-cap { position: absolute; right: 0; top: 0; bottom: 0; width: 8px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.55), rgba(255,255,255,.55) 1px, rgba(255,255,255,.15) 1px, rgba(255,255,255,.15) 2px); border-left: 1px solid rgba(46, 31, 14, .35); border-radius: 0 3px 3px 0; }
