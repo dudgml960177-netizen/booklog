@@ -435,6 +435,7 @@
       if (l && typeof l === 'object') Object.keys(l).forEach(function (d) { if (d >= from && d <= to && (l[d] || 0) > 0) s += l[d]; });
       return s;
     }
+    // '그날(기간) 실제로 읽은 책' = 그 기간 reading_time_log에 시간이 잡힌 책 우선
     var rows = [];
     B().forEach(function (b) {
       var m = minsInRange(b);
@@ -442,21 +443,24 @@
       if (m <= 0 && !finishedIn) return;
       rows.push({ title: b.title || '(제목 없음)', author: (b.author || '').split(/[,·]/)[0], pages: b.pages || 0, status: b.status, mins: m, finished: finishedIn });
     });
-    // 많이 읽은 책이 위로
+    // 많이 읽은(시간) 책이 위로
     rows.sort(function (a, b) { return (b.mins - a.mins) || (b.pages - a.pages); });
 
     var PALETTE = ['#b5481f', '#6f8f56', '#56788a', '#c79a3e', '#8a6890', '#4f9e93', '#a85a86', '#7a8b3a'];
-    function spineH(pg) { return Math.max(30, Math.min(60, 30 + (pg || 0) / 26)); }
+    var maxMins = Math.max.apply(null, [1].concat(rows.map(function (r) { return r.mins; })));
+    // 두께(높이)·길이(너비) 모두 '읽은 시간'에 비례
+    function spineH(mins) { return Math.round(28 + (mins / maxMins) * 32); }      // 28~60px
+    function spineW(mins) { return Math.round(70 + (mins / maxMins) * 30); }      // 70~100%
 
     var totalMins = rows.reduce(function (a, r) { return a + r.mins; }, 0);
     var body;
     if (!rows.length) {
-      body = '<div class="wt-empty">이 기간에 읽은 책이 없어요.<br>타이머로 기록하거나 완독하면 책등이 쌓여요.</div>';
+      body = '<div class="wt-empty">이 기간에 읽은 책이 없어요.<br>타이머로 기록하면 읽은 만큼 책등이 두꺼워져요.</div>';
     } else {
       var stack = rows.map(function (r, i) {
         var col = PALETTE[i % PALETTE.length];
         var meta = r.mins > 0 ? (r.mins >= 60 ? Math.floor(r.mins / 60) + 'h ' + (r.mins % 60) + 'm' : r.mins + 'm') : (r.finished ? '완독' : '');
-        return '<div class="bs-spine" style="height:' + spineH(r.pages) + 'px;background:' + col + '" title="' + esc(r.title) + (r.author ? ' · ' + esc(r.author) : '') + '">' +
+        return '<div class="bs-spine" style="height:' + spineH(r.mins) + 'px;width:' + spineW(r.mins) + '%;background:' + col + '" title="' + esc(r.title) + (r.author ? ' · ' + esc(r.author) : '') + '">' +
           '<span class="bs-cap"></span>' +
           '<span class="bs-title">' + esc(r.title) + '</span>' +
           '<span class="bs-meta">' + meta + '</span></div>';
@@ -474,13 +478,14 @@
       document.body.appendChild(ov);
       ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('on'); });
     }
-    ov.innerHTML = '<div class="wt-modal">' +
+    ov.innerHTML = '<div class="wt-drawer">' +
       '<div class="wt-mhead"><div><div class="wt-mtitle">' + label + '에 읽은 책</div>' +
       '<div class="wt-msub">' + sub + '</div></div>' +
       '<button class="wt-close" aria-label="닫기">✕</button></div>' +
       '<div class="wt-body">' + body + '</div></div>';
     ov.querySelector('.wt-close').onclick = function () { ov.classList.remove('on'); };
-    ov.classList.add('on');
+    // 다음 프레임에 .on 부여 → 오른쪽에서 스르륵 슬라이드 인
+    requestAnimationFrame(function () { requestAnimationFrame(function () { ov.classList.add('on'); }); });
   }
 
   if (typeof window.buildStats === 'function') {
