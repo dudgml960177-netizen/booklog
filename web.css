@@ -1816,6 +1816,7 @@
   #p-graph #monthly-viz .wm-lbl { font-size: .56rem; color: var(--tx3); margin-top: 5px; }
   /* 읽은 페이지 도트+라인 오버레이 */
   #p-graph #monthly-viz .wm-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+  #p-graph #monthly-viz .wm-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #fbf6ec; border: 1.5px solid #8a7058; transform: translate(-50%, -50%); z-index: 3; pointer-events: none; }
   #p-graph #monthly-viz .wm-legend { display: flex; align-items: center; gap: 5px; font-size: .56rem; color: var(--tx3); margin-top: 9px; }
   #p-graph #monthly-viz .wm-lg-bar { width: 9px; height: 9px; border-radius: 2px; background: #8a6890; }
   #p-graph #monthly-viz .wm-lg-line { width: 15px; height: 0; border-top: 1.4px solid #a08c72; margin-left: 9px; }

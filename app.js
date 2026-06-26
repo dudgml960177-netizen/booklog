@@ -5742,7 +5742,7 @@ function buildCatList() {
   allCategories.forEach((cat,i)=>{
     const cnt=allBooks.filter(b=>b.category===cat).length;
     const el=document.createElement('div');el.className='cat-item';
-    el.innerHTML=`<span class="cat-item-name">${cat}</span><span class="cat-item-count">${cnt}권</span><button class="cat-item-del" onclick="deleteCategory(${i})">✕</button>`;
+    el.innerHTML=`<span class="cat-item-name">${cat}</span><span class="cat-item-count">${cnt}권</span><button class="cat-item-edit" onclick="renameCategory(${i})" title="이름 수정">✏️</button><button class="cat-item-del" onclick="deleteCategory(${i})" title="삭제">✕</button>`;
     wrap.appendChild(el);
   });
 }
@@ -5772,6 +5772,21 @@ function addCategory() {
   sb.from('profiles').update({categories:allCategories}).eq('id',currentUser.id).then().catch(e=>console.warn('cats save:',e));
   input.value='';buildCatList();buildCatFilterList();
   updateBookCategorySelect();
+}
+async function renameCategory(idx) {
+  const oldName = allCategories[idx];
+  const newName = (prompt('카테고리 새 이름', oldName) || '').trim();
+  if(!newName || newName === oldName) return;
+  if(allCategories.includes(newName)){ alert('이미 있는 카테고리예요.'); return; }
+  allCategories[idx] = newName;
+  allBooks.forEach(b=>{ if(b.category===oldName) b.category=newName; });
+  localStorage.setItem('bl_cats_'+currentUser.id, JSON.stringify(allCategories));
+  try {
+    await sb.from('profiles').update({categories:allCategories}).eq('id',currentUser.id);
+    await sb.from('books').update({category:newName}).eq('user_id',currentUser.id).eq('category',oldName);
+  } catch(e){ console.warn('renameCategory save:', e); }
+  buildCatList(); buildCatFilterList(); updateBookCategorySelect();
+  if(typeof buildBooks==='function') buildBooks();
 }
 async function deleteCategory(idx) {
   if(!await showConfirm(`'${allCategories[idx]}' 카테고리를 삭제할까요?`))return;

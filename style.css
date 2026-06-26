@@ -401,6 +401,8 @@ html,body{height:100%;background:#f2ece0;font-family:'Pretendard','Apple SD Goth
 .cat-item-count{font-size:.65rem;color:var(--tx3);}
 .cat-item-del{width:22px;height:22px;border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.8rem;border-radius:50%;display:flex;align-items:center;justify-content:center;}
 .cat-item-del:hover{background:#fdf0ee;color:#c0392b;}
+.cat-item-edit{width:22px;height:22px;border:none;background:none;color:var(--tx3);cursor:pointer;font-size:.72rem;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.cat-item-edit:hover{background:#f0e6d2;}
 .cat-filter-btn{display:block;width:100%;text-align:left;padding:.4rem .6rem;border:1px solid var(--border2);border-radius:var(--rs);margin-bottom:.35rem;font-size:.78rem;background:none;cursor:pointer;font-family:var(--ff);color:var(--tx2);transition:all .13s;}
 .cat-filter-btn:hover{background:#ede4d0;}
 .cat-filter-btn.on{background:var(--acc);color:#fff;border-color:var(--acc);}

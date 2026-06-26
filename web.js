@@ -538,8 +538,9 @@
       pts.forEach(function (pt) { if (pt.y === null) { if (cur.length) { segs.push(cur); cur = []; } } else cur.push(pt); });
       if (cur.length) segs.push(cur);
       var poly = segs.map(function (s) { return '<polyline points="' + s.map(function (p) { return p.x.toFixed(2) + ',' + p.y.toFixed(2); }).join(' ') + '" fill="none" stroke="#a08c72" stroke-width="1.4" vector-effect="non-scaling-stroke"/>'; }).join('');
-      var dots = pts.filter(function (p) { return p.y !== null; }).map(function (p) { return '<circle cx="' + p.x.toFixed(2) + '" cy="' + p.y.toFixed(2) + '" r="2" fill="#fbf6ec" stroke="#7a634a" stroke-width="1.4" vector-effect="non-scaling-stroke"/>'; }).join('');
-      svg = '<svg class="wm-line" viewBox="0 0 100 100" preserveAspectRatio="none">' + poly + dots + '</svg>';
+      // 점은 HTML(원형 유지) — SVG circle은 가로로 늘어나 타원 됨
+      var dots = pts.filter(function (p) { return p.y !== null; }).map(function (p) { return '<div class="wm-dot" style="left:' + p.x.toFixed(2) + '%;top:' + p.y.toFixed(2) + '%"></div>'; }).join('');
+      svg = '<svg class="wm-line" viewBox="0 0 100 100" preserveAspectRatio="none">' + poly + '</svg>' + dots;
     }
 
     viz.innerHTML = '<div class="wm-chart">' + (avg > 0 ? '<div class="wm-avg" style="bottom:' + avgPct + '%"></div>' : '') + svg + bars + '</div>' +
