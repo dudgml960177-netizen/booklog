@@ -435,18 +435,14 @@
       if (l && typeof l === 'object') Object.keys(l).forEach(function (d) { if (d >= from && d <= to && (l[d] || 0) > 0) s += l[d]; });
       return s;
     }
-    // '그날(기간) 실제로 읽은 책' = 그 기간 reading_time_log 시간 또는 그 기간 완독한 책
-    // (읽고싶음 등 안 읽은 책 제외)
+    // 그 기간 '읽은 기록(시간)'이 있는 책만 (완독만 되고 읽은 시간 없는 책은 제외)
     var rows = [];
     B().forEach(function (b) {
-      if (b.status === '읽고싶음') return;            // 안 읽은 책 제외
       var m = minsInRange(b);
-      var finishedIn = b.status === '완독' && (b.date_finish || '') >= from && (b.date_finish || '') <= to && (b.date_finish || '') !== '';
-      if (m <= 0 && !finishedIn) return;             // 그 기간 읽은 시간도 완독도 없으면 제외
-      rows.push({ title: b.title || '(제목 없음)', author: (b.author || '').split(/[,·]/)[0], pages: b.pages || 0, status: b.status, mins: m, finished: finishedIn });
+      if (m <= 0) return;
+      rows.push({ title: b.title || '(제목 없음)', author: (b.author || '').split(/[,·]/)[0], pages: b.pages || 0, status: b.status, mins: m });
     });
-    // 많이 읽은(시간) 책이 위로
-    rows.sort(function (a, b) { return (b.mins - a.mins) || (b.pages - a.pages); });
+    // 정렬 안 함 — 크기순 줄 세우지 않고 자연스럽게 뒤죽박죽 (책더미 느낌)
 
     var PALETTE = ['#b5481f', '#6f8f56', '#56788a', '#c79a3e', '#8a6890', '#4f9e93', '#a85a86', '#7a8b3a'];
     var maxMins = Math.max.apply(null, [1].concat(rows.map(function (r) { return r.mins; })));

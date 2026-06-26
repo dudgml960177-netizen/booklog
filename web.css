@@ -1831,6 +1831,16 @@
   #p-graph #ms-grid .wl-l { font-size: .68rem; color: #5c4633; font-weight: 600; margin: 5px 0 2px; }
   #p-graph #ms-grid .wl-t { font-size: .56rem; color: var(--tx3); }
 
+  /* ── 장르·평점 탭: 막대를 둥글게/또렷하게 통일 (다른 통계와 어울리게) ── */
+  #p-graph #donut-layout div[style*="height:10px"] { height: 13px !important; border-radius: 999px !important; background: rgba(46, 31, 14, .07) !important; border: 1px solid rgba(46, 31, 14, .1) !important; }
+  #p-graph #donut-layout div[style*="height:10px"] > div { border-radius: 999px !important; }
+  #p-graph .rbar-outer { border-radius: 999px !important; background: rgba(46, 31, 14, .07) !important; }
+  #p-graph .rbar-fill { border-radius: 999px !important; }
+  #p-graph .rs-mini { border-radius: 999px !important; }
+  #p-graph .rs-mini-fill { border-radius: 999px !important; }
+  /* 작가·출판사 순위 막대(밑줄형)도 살짝 둥글게 */
+  #p-graph #rating-layout .rk-bar, #p-graph #rating-layout div[style*="height:2px"], #p-graph #rating-layout div[style*="height:3px"] { border-radius: 999px !important; }
+
   /* ════════ 기록: 이번 주 독서 그래프 — 타이머 하단 배치 (web.js #web-week 주입) ════════ */
   /* 기존 '이 주의 통계' 미니바는 데스크톱에서 숨김 (이 그래프로 대체) */
   #p-record #timer-weekly { display: none !important; }
