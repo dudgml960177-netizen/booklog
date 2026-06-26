@@ -537,7 +537,19 @@
       var segs = [], cur = [];
       pts.forEach(function (pt) { if (pt.y === null) { if (cur.length) { segs.push(cur); cur = []; } } else cur.push(pt); });
       if (cur.length) segs.push(cur);
-      var poly = segs.map(function (s) { return '<polyline points="' + s.map(function (p) { return p.x.toFixed(2) + ',' + p.y.toFixed(2); }).join(' ') + '" fill="none" stroke="#a08c72" stroke-width="1.4" vector-effect="non-scaling-stroke"/>'; }).join('');
+      // 은은한 곡선 (Catmull-Rom, 낮은 텐션 — 흐물거리지 않게)
+      function smoothD(s) {
+        if (s.length < 2) return s.length ? 'M' + s[0].x.toFixed(2) + ',' + s[0].y.toFixed(2) : '';
+        var t = 0.16, d = 'M' + s[0].x.toFixed(2) + ',' + s[0].y.toFixed(2);
+        for (var i = 0; i < s.length - 1; i++) {
+          var p0 = s[i - 1] || s[i], p1 = s[i], p2 = s[i + 1], p3 = s[i + 2] || p2;
+          var c1x = p1.x + (p2.x - p0.x) * t, c1y = p1.y + (p2.y - p0.y) * t;
+          var c2x = p2.x - (p3.x - p1.x) * t, c2y = p2.y - (p3.y - p1.y) * t;
+          d += ' C' + c1x.toFixed(2) + ',' + c1y.toFixed(2) + ' ' + c2x.toFixed(2) + ',' + c2y.toFixed(2) + ' ' + p2.x.toFixed(2) + ',' + p2.y.toFixed(2);
+        }
+        return d;
+      }
+      var poly = segs.map(function (s) { return '<path d="' + smoothD(s) + '" fill="none" stroke="#a08c72" stroke-width="1.4" vector-effect="non-scaling-stroke"/>'; }).join('');
       // 점은 HTML(원형 유지) — SVG circle은 가로로 늘어나 타원 됨
       var dots = pts.filter(function (p) { return p.y !== null; }).map(function (p) { return '<div class="wm-dot" style="left:' + p.x.toFixed(2) + '%;top:' + p.y.toFixed(2) + '%"></div>'; }).join('');
       svg = '<svg class="wm-line" viewBox="0 0 100 100" preserveAspectRatio="none">' + poly + '</svg>' + dots;

@@ -134,6 +134,32 @@ function showConfirm(msg) {
     if(cancel) cancel.onclick = () => { closeModal('modal-confirm'); resolve(false); _confirmResolveFunc = null; };
   });
 }
+// 텍스트 입력 다이얼로그 (브라우저 기본 prompt 대체 — 도메인 노출 방지)
+function showPrompt(msg, defValue) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(40,25,10,.45);display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML =
+      '<div style="background:var(--card,#fbf6ec);border:1px solid var(--border2,#cfc3ac);border-radius:14px;padding:20px 22px;width:100%;max-width:340px;box-shadow:0 18px 50px rgba(46,31,14,.3);">'+
+        '<div style="font-size:.9rem;color:var(--tx1,#2e1f0e);margin-bottom:12px;font-family:var(--ff);"></div>'+
+        '<input type="text" class="_pp-in" style="width:100%;box-sizing:border-box;padding:.5rem .6rem;border:1.5px solid var(--border2,#cfc3ac);border-radius:7px;font-size:.85rem;font-family:var(--ff);background:#fffdf8;color:var(--tx1,#2e1f0e);margin-bottom:14px;">'+
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">'+
+          '<button class="_pp-cancel" style="padding:.45rem 1rem;border:1px solid var(--border2,#cfc3ac);border-radius:8px;background:none;color:var(--tx2,#5c3d1e);font-family:var(--ff);cursor:pointer;">취소</button>'+
+          '<button class="_pp-ok" style="padding:.45rem 1.1rem;border:none;border-radius:8px;background:#2e1f0e;color:#fbf6ec;font-family:var(--ff);font-weight:600;cursor:pointer;">확인</button>'+
+        '</div>'+
+      '</div>';
+    ov.querySelector('div > div').textContent = msg;
+    document.body.appendChild(ov);
+    const input = ov.querySelector('._pp-in');
+    input.value = defValue || '';
+    const done = (val) => { ov.remove(); resolve(val); };
+    ov.querySelector('._pp-ok').onclick = () => done(input.value.trim());
+    ov.querySelector('._pp-cancel').onclick = () => done(null);
+    ov.addEventListener('click', (e) => { if(e.target === ov) done(null); });
+    input.addEventListener('keydown', (e) => { if(e.key === 'Enter') done(input.value.trim()); if(e.key === 'Escape') done(null); });
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  });
+}
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
@@ -5775,7 +5801,9 @@ function addCategory() {
 }
 async function renameCategory(idx) {
   const oldName = allCategories[idx];
-  const newName = (prompt('카테고리 새 이름', oldName) || '').trim();
+  const raw = await showPrompt('카테고리 새 이름', oldName);
+  if(raw === null) return;
+  const newName = raw.trim();
   if(!newName || newName === oldName) return;
   if(allCategories.includes(newName)){ alert('이미 있는 카테고리예요.'); return; }
   allCategories[idx] = newName;
