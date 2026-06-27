@@ -968,10 +968,14 @@ function setView(v) {
   document.getElementById('view-list').style.display = v==='list'?'':'none';
   buildBooks();
 }
+function _hideWant(){ try { return !!(currentUser && localStorage.getItem('bl_hide_want_'+currentUser.id)==='1'); } catch(e){ return false; } }
+function toggleHideWant(){ if(!currentUser) return; const k='bl_hide_want_'+currentUser.id; if(localStorage.getItem(k)==='1') localStorage.removeItem(k); else localStorage.setItem(k,'1'); buildBooks(); }
 function getFilteredBooks() {
   let list = [...allBooks];
   if (curFilter === '다시읽기') list = list.filter(b=>b.reread);
   else if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
+  // '읽고싶음 숨김' 켜져 있으면 전체 보기에서 읽고싶음 제외 (읽고싶음 탭에선 그대로)
+  else if (_hideWant()) list = list.filter(b=>b.status!=='읽고싶음');
   if (curCatFilter.size) list = list.filter(b=>curCatFilter.has(b.category||''));
   // 검색 필터
   if (booksSearchQ) {
@@ -1081,6 +1085,24 @@ function buildBooks() {
     btn.style.borderBottomColor = on ? 'var(--tx1)' : 'transparent';
   });
   renderCategoryChips();
+  renderWantToggle();
+}
+
+// '읽고싶음 숨김' 토글 — 상태 필터 줄 끝에
+function renderWantToggle() {
+  const row = document.getElementById('status-filter-row');
+  if(!row) return;
+  let btn = document.getElementById('want-hide-toggle');
+  const on = _hideWant();
+  if(!btn){
+    btn = document.createElement('button');
+    btn.id = 'want-hide-toggle';
+    btn.onclick = toggleHideWant;
+    row.appendChild(btn);
+  } else { row.appendChild(btn); }
+  btn.style.cssText = `flex-shrink:0;white-space:nowrap;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'none'};color:${on?'#fff':'var(--tx3)'};border-radius:999px;padding:.16rem .6rem;font-size:.62rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;`;
+  btn.textContent = on ? '🙈 읽고싶음 숨김' : '👁 읽고싶음';
+  btn.title = on ? '전체 보기에서 읽고싶음 숨기는 중 (눌러서 해제)' : '전체 보기에서 읽고싶음 책 숨기기';
 }
 
 // 카테고리 칩 — 기존 필터 줄에 인라인으로(새 줄/버튼 군더더기 없이). 책 있는 카테고리만.
