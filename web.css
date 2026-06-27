@@ -1896,7 +1896,7 @@
 
 /* ════════ 트래커 '자세히' — 히트맵 아래로 펼침(같이 보기) + 책등(spine) 스택 ════════ */
 @media (min-width: 880px) {
-  #p-record .card:has(#timer-tracker-grid) { overflow: hidden; }
+  #p-record .card:has(#timer-tracker-grid) { position: relative; overflow: hidden; transition: min-height .34s ease; }
   #p-record .tracker-period-btn { padding: 3px 7px !important; font-size: .6rem !important; }
   /* 트래커 히트맵: 컴팩트(작게) + 간격없이 + 연한 그리드선 (달력과 차별화) */
   /* box-sizing: border 포함 → 가로 스크롤 깜빡임 방지 */
@@ -1905,15 +1905,15 @@
   /* 요일 헤더(셀 아님)는 종이색 배경 */
   #p-record #timer-tracker-grid > div:not([style*="aspect-ratio"]) { background: #fbf6ec !important; }
 }
-/* 히트맵을 가리지 않고 아래로 슬라이드 다운 (토글) */
-.wt-detail { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .35s ease, opacity .22s ease, margin-top .35s ease; }
-.wt-detail.on { max-height: 1600px; opacity: 1; margin-top: 12px; }
-.wt-detail .wt-dhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1.5px solid rgba(46, 31, 14, .25); padding-top: 11px; }
+/* 히트맵 오른쪽 빈 공간으로 슬라이드 인 (둘 다 동시에 보이게) */
+.wt-detail { position: absolute; display: flex; flex-direction: column; background: #f5ecd9; border: 1.5px solid #2e1f0e; border-radius: 11px; padding: 11px 13px; transform: translateX(118%); opacity: 0; transition: transform .32s cubic-bezier(.4, 0, .2, 1), opacity .2s ease; box-shadow: -6px 0 18px rgba(46, 31, 14, .1); }
+.wt-detail.on { transform: translateX(0); opacity: 1; }
+.wt-detail .wt-dhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
 .wt-detail .wt-dtitle { font-family: var(--fs); font-size: 1rem; color: #2e1f0e; line-height: 1.1; }
-.wt-detail .wt-dsub { font-size: .62rem; color: var(--tx2); margin: 2px 0 10px; }
+.wt-detail .wt-dsub { font-size: .62rem; color: var(--tx2); margin-top: 2px; }
 .wt-detail .wt-close { width: 24px; height: 24px; flex-shrink: 0; border: 1.5px solid #2e1f0e; border-radius: 6px; background: #fbf6ec; color: #2e1f0e; font-size: .75rem; cursor: pointer; line-height: 1; }
 .wt-detail .wt-close:hover { background: #2e1f0e; color: #fbf6ec; }
-.wt-detail .wt-dbody { }
+.wt-detail .wt-dbody { flex: 1; overflow-y: auto; }
 
 /* 책등 스택: 책을 옆으로 쌓아올린 더미처럼 (두께·길이 = 읽은 시간) */
 .bs-stack { display: flex; flex-direction: column; align-items: center; gap: 3px; }

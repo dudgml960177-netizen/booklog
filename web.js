@@ -470,18 +470,24 @@
       ? (rows.length + '권 · ' + (totalMins >= 60 ? Math.floor(totalMins / 60) + '시간 ' + (totalMins % 60) + '분' : totalMins + '분'))
       : '읽은 책 없음';
 
-    // 트래커 '아래로' 펼치기 — 히트맵 가리지 않고 같이 보이게 (토글)
+    // 트래커 히트맵 '오른쪽 빈 공간'으로 슬라이드 (둘 다 동시에 보이게, 토글)
     var grid = document.getElementById('timer-tracker-grid');
     var card = grid && grid.closest('.card');
     if (!card) return;
+    function resetH() { if (card._mhTimer) clearTimeout(card._mhTimer); card._mhTimer = setTimeout(function () { card.style.minHeight = ''; }, 340); }
     var det = card.querySelector('.wt-detail');
-    if (det && det.classList.contains('on')) { det.classList.remove('on'); return; } // 다시 누르면 접기
+    if (det && det.classList.contains('on')) { det.classList.remove('on'); resetH(); return; } // 다시 누르면 닫기
     if (!det) { det = document.createElement('div'); det.className = 'wt-detail'; card.appendChild(det); }
-    det.innerHTML = '<div class="wt-dhead"><div class="wt-dtitle">' + label + '</div>' +
+    det.innerHTML = '<div class="wt-dhead"><div><div class="wt-dtitle">' + label + '</div><div class="wt-dsub">' + sub + '</div></div>' +
       '<button class="wt-close" aria-label="닫기">✕</button></div>' +
-      '<div class="wt-dsub">' + sub + '</div>' +
       '<div class="wt-dbody">' + body + '</div>';
-    det.querySelector('.wt-close').onclick = function () { det.classList.remove('on'); };
+    det.querySelector('.wt-close').onclick = function () { det.classList.remove('on'); resetH(); };
+    // 히트맵 오른쪽에 배치 + 카드 높이 확보
+    det.style.top = grid.offsetTop + 'px';
+    det.style.left = (grid.offsetLeft + grid.offsetWidth + 16) + 'px';
+    det.style.right = '14px';
+    det.style.bottom = '14px';
+    card.style.minHeight = Math.max(card.offsetHeight, 244) + 'px';
     requestAnimationFrame(function () { requestAnimationFrame(function () { det.classList.add('on'); }); });
   }
 
@@ -583,36 +589,16 @@
     }).join('');
   }
 
-  /* 달력: 읽은 날을 시간만큼 진한 색 칸으로 (밑줄바 대체), 데스크톱 전용 */
+  /* 달력: 읽은 시간(형광펜 바) 숨김 → 완독 표지 + 전리품 뱃지만, 데스크톱 전용 */
   function renderWebCalendar() {
     if (!isWeb()) return;
     var grid = document.getElementById('cal-grid');
     if (!grid) return;
-    function pad(x) { return String(x).padStart(2, '0'); }
-    var cy = (typeof calY !== 'undefined') ? calY : new Date().getFullYear();
-    var cm = (typeof calM !== 'undefined') ? calM : new Date().getMonth();
-    var prefix = cy + '-' + pad(cm + 1);
-    var dayMins = {};
-    B().forEach(function (b) {
-      var log = b.reading_time_log;
-      if (log && typeof log === 'object') Object.keys(log).forEach(function (d) {
-        if (d.indexOf(prefix) === 0 && (log[d] || 0) > 0) dayMins[d] = (dayMins[d] || 0) + log[d];
-      });
-    });
-    var max = Math.max.apply(null, [1].concat(Object.keys(dayMins).map(function (k) { return dayMins[k]; })));
-    // 세이지 그린 램프 (갈색 대신 — 글자는 어둡게 유지)
-    function fill(m) { var r = m / max; return r < 0.34 ? '#e4efd8' : (r < 0.67 ? '#bcd79e' : '#8bb562'); }
     grid.querySelectorAll('.day').forEach(function (cell) {
-      if (cell.classList.contains('hbook') || cell.classList.contains('other') || cell.classList.contains('today')) return;
-      var numEl = cell.querySelector('div');
-      var dnum = parseInt((numEl && numEl.textContent || '').trim(), 10);
-      if (!dnum) return;
-      // 기존 활동 밑줄바 숨김
+      if (cell.classList.contains('hbook') || cell.classList.contains('other')) return;
+      // 독서시간 형광펜 바(height:5px)만 숨김 — 전리품 뱃지(🦋 등)는 유지
       cell.querySelectorAll('div').forEach(function (d) { if (/height:\s*5px/.test(d.getAttribute('style') || '')) d.style.display = 'none'; });
-      var m = dayMins[prefix + '-' + pad(dnum)] || 0;
-      // web.css .day{background !important} 보다 우선하도록 inline !important
-      if (m > 0) cell.style.setProperty('background', fill(m), 'important');
-      else cell.style.removeProperty('background');
+      cell.style.removeProperty('background');
     });
   }
 
