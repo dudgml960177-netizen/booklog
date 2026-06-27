@@ -8698,6 +8698,7 @@ async function showMyPosts() {
   const wrap = document.getElementById('board-list');
   if(!wrap) return;
   document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
+  const _bcs=document.getElementById('board-cat-filter'); if(_bcs) _bcs.value='all';
   const myBtn = document.getElementById('board-mine-btn');
   if(myBtn) myBtn.classList.add('on');
   boardFilter = 'mine'; boardPage = 1;
@@ -8732,6 +8733,14 @@ function filterBoard(f, btn) {
   boardFilter=f; boardPage=1;
   document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
+  const catSel=document.getElementById('board-cat-filter'); if(catSel) catSel.value='all';
+  renderBoardList();
+}
+// 게시판별 모아보기 드롭다운
+function filterBoardCat(cat) {
+  boardFilter = cat || 'all'; boardPage = 1;
+  document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
+  if(boardFilter==='all'){ const a=document.getElementById('board-all-btn'); if(a) a.classList.add('on'); }
   renderBoardList();
 }
 
