@@ -591,8 +591,19 @@ async function loadData() {
   ]);
   if(!bR.error && bR.data) allBooks = bR.data;
   else if(!bR.error) allBooks = [];
+  else {
+    console.warn('books load error, retrying:', bR.error);
+    const bR2 = await sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(10000);
+    if(!bR2.error && bR2.data) allBooks = bR2.data; else { allBooks = []; console.warn('books retry failed:', bR2.error); }
+  }
   if(!qR.error && qR.data) allQuotes = qR.data;
   else if(!qR.error) allQuotes = [];
+  else {
+    // 일시적 쿼리 오류로 문장이 통째로 비는 것 방지 — 1회 재시도
+    console.warn('quotes load error, retrying:', qR.error);
+    const qR2 = await sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(10000);
+    if(!qR2.error && qR2.data) allQuotes = qR2.data; else { allQuotes = []; console.warn('quotes retry failed:', qR2.error); }
+  }
   // 카테고리 로드 + DB에 카테고리가 한 번이라도 저장된 유저인지 확인
   let _hadCats = false;
   try {
@@ -977,6 +988,7 @@ function getFilteredBooks() {
   let list = [...allBooks];
   if (curFilter === '다시읽기') list = list.filter(b=>b.reread);
   else if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
+  // '읽고싶음 숨김' 켜져 있으면 전체 보기에서 읽고싶음 제외 (읽고싶음 탭에선 그대로)
   else if (_hideWant()) list = list.filter(b=>b.status!=='읽고싶음');
   if (curCatFilter.size) list = list.filter(b=>bookCats(b).some(c=>curCatFilter.has(c)));
   // 검색 필터
@@ -1101,6 +1113,7 @@ function renderWantToggle() {
   btn.style.cssText = `flex-shrink:0;white-space:nowrap;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'none'};color:${on?'#fff':'var(--tx3)'};border-radius:999px;padding:.16rem .6rem;font-size:.62rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;`;
   btn.textContent = on ? '🙈 읽고싶음 숨김' : '👁 읽고싶음';
   btn.title = on ? '전체 보기에서 읽고싶음 숨기는 중 (눌러서 해제)' : '전체 보기에서 읽고싶음 책 숨기기';
+  // 연도별 보기 버튼
   let yb = document.getElementById('year-list-btn');
   if(!yb){ yb = document.createElement('button'); yb.id='year-list-btn'; yb.onclick=openYearList; row.appendChild(yb); }
   else { row.appendChild(yb); }
@@ -1211,7 +1224,8 @@ async function bulkDelete() {
 function buildGallery(list) {
   const g = document.getElementById('gal-grid'); g.innerHTML = '';
   if (!list.length) { g.innerHTML='<div class="empty-state">아직 기록된 책이 없어요.<br>+ 버튼으로 첫 책을 추가해보세요!</div>'; return; }
-  list.forEach(b => {
+  const DONUT_PALETTE = ['#c4511f','#7a9e7e','#5a7a8a','#c8a050','#9a7090','#5a8070','#b06040'];
+  list.forEach((b, idx) => {
     const el = document.createElement('div'); el.className='gi';
     if(selectMode) {
       const chk = selectedIds.has(b.id);
@@ -1249,8 +1263,14 @@ function buildGallery(list) {
     else { const h=Math.floor(totalMins/60),m=totalMins%60; timeStr=m>0?`${h}시간 ${m}분 독서`:`${h}시간 독서`; }
     const thoughtCover = b.cover ? `<img src="${b.cover}" class="gi-thought-cover" alt="">` : `<div class="gi-thought-cover"></div>`;
     const statusLabel = {'완독':'✅ 완독','읽는중':'📖 읽는 중','읽고싶음':'🔖 읽고싶음','중단':'⏸ 중단'}[b.status]||b.status||'';
+    // 읽는 중 진행률 도넛
+    const giPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
+    const donutColor = DONUT_PALETTE[idx % DONUT_PALETTE.length];
+    const giR=11.2, giCirc=+(2*Math.PI*giR).toFixed(2);
+    const giDonut = giPct > 0 ? `<div class="gi-donut" title="${giPct}% 읽음"><svg viewBox="0 0 34 34" style="position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 2px 10px rgba(46,31,14,.28));"><circle cx="17" cy="17" r="${giR}" fill="white" stroke="#e2d9cd" stroke-width="2.2"/><circle cx="17" cy="17" r="${giR}" fill="none" stroke="${donutColor}" stroke-width="2.2" stroke-dasharray="${(giCirc*giPct/100).toFixed(2)} ${giCirc}" stroke-linecap="round" transform="rotate(-90 17 17)"/><text x="17" y="17" text-anchor="middle" dominant-baseline="central" font-size="7.5" font-weight="600" font-family="Pretendard,sans-serif" fill="#2e1f0e">${giPct}</text></svg></div>` : '';
     el.innerHTML = `<div class="gi-thought">${thoughtCover}<div class="gi-thought-info"><div class="gi-thought-ttl">${ttl}</div><div class="gi-thought-time">⏱ ${timeStr}</div><div class="gi-thought-status">${statusLabel}</div></div></div>
       <div class="gi-cover">${coverHtml}</div>
+      ${giDonut}
       <div class="gi-title" title="${ttl}">${ttl}</div>
       <div class="gi-author">${auth}</div>
       ${ratingDisp}`;
@@ -1260,7 +1280,8 @@ function buildGallery(list) {
 function buildList(list) {
   const g = document.getElementById('book-list-items'); g.innerHTML = '';
   if (!list.length) { g.innerHTML='<div class="empty-state">아직 기록된 책이 없어요.</div>'; return; }
-  list.forEach(b => {
+  const DONUT_PALETTE = ['#c4511f','#7a9e7e','#5a7a8a','#c8a050','#9a7090','#5a8070','#b06040'];
+  list.forEach((b, idx) => {
     const el = document.createElement('div'); el.className='book-list-item';
     if(selectMode) {
       const chk = selectedIds.has(b.id);
@@ -1271,7 +1292,11 @@ function buildList(list) {
       el.onclick = ()=>openDetail(b.id);
     }
     const coverEl = b.cover ? `<img class="bli-cover" src="${b.cover}" alt="${b.title}">` : `<div class="bli-cover"></div>`;
-    el.innerHTML = `${coverEl}
+    const bliPct = b.status==='읽는중' && b.current_page && b.pages ? Math.min(100,Math.round(b.current_page/b.pages*100)) : 0;
+    const donutColor = DONUT_PALETTE[idx % DONUT_PALETTE.length];
+    const bliR = 8.5; const bliC = +(2*Math.PI*bliR).toFixed(2);
+    const bliDonut = bliPct > 0 ? `<div class="bli-donut" title="${bliPct}% 읽음"><svg viewBox="0 0 26 26" style="position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 2px 8px rgba(46,31,14,.26));"><circle cx="13" cy="13" r="${bliR}" fill="white" stroke="#e2d9cd" stroke-width="2.2"/><circle cx="13" cy="13" r="${bliR}" fill="none" stroke="${donutColor}" stroke-width="2.2" stroke-dasharray="${(bliC*bliPct/100).toFixed(2)} ${bliC}" stroke-linecap="round" transform="rotate(-90 13 13)"/><text x="13" y="13" text-anchor="middle" dominant-baseline="central" font-size="5.5" font-weight="600" font-family="Pretendard,sans-serif" fill="#2e1f0e">${bliPct}</text></svg></div>` : '';
+    el.innerHTML = `<div class="bli-cover-wrap">${coverEl}${bliDonut}</div>
       <div class="bli-info">
         <div class="bli-title">${b.title}</div>
         <div class="bli-author">${b.author||''}</div>
@@ -1866,11 +1891,12 @@ function renderQuotes() {
     return new Date(a.created_at) - new Date(b.created_at);
   });
 
-  // 페이지네이션
+  // 페이지네이션 (데스크톱은 전체 표시)
   const totalQ = list.length;
-  const totalQPages = Math.ceil(totalQ / QUOTES_PER_PAGE);
+  const isDesktopQ = window.innerWidth >= 880;
+  const totalQPages = isDesktopQ ? 1 : Math.ceil(totalQ / QUOTES_PER_PAGE);
   if(quotePage > totalQPages) quotePage = 1;
-  const pageList = list.slice((quotePage - 1) * QUOTES_PER_PAGE, quotePage * QUOTES_PER_PAGE);
+  const pageList = isDesktopQ ? list : list.slice((quotePage - 1) * QUOTES_PER_PAGE, quotePage * QUOTES_PER_PAGE);
 
   pageList.forEach(qt => {
     const book = allBooks.find(b=>b.id===qt.book_id);
@@ -1903,11 +1929,13 @@ function renderQuotes() {
       // 태그 없는 경우도 처리
       if(!text.includes('<')) text = text.replace(re,'<mark style="background:#f5d87a;border-radius:2px;padding:0 1px;">$1</mark>');
     }
-    // 저장된 흰색/색상 글자가 안 보이는 문제 방지: 글자색 지정 제거 (형광펜 background는 유지)
+    // 저장된 흰색/색상 글자가 안 보이는 문제 방지: 글자색 지정 제거 (형광펜 background-color는 유지)
     text = text
-      .replace(/color\s*:\s*[^;"']+;?/gi, '')          // style="color:..."
-      .replace(/\scolor\s*=\s*["'][^"']*["']/gi, '')     // <font color="...">
-      .replace(/<\/?font[^>]*>/gi, '');                  // <font> 태그 자체 제거
+      .replace(/background-color\s*:/gi, '___BGCOL___:')  // background-color 보호
+      .replace(/color\s*:\s*[^;"']+;?/gi, '')              // text color 제거
+      .replace(/___BGCOL___:/gi, 'background-color:')      // background-color 복원
+      .replace(/\scolor\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/<\/?font[^>]*>/gi, '');
     const plainLen = (qt.text||'').replace(/<[^>]+>/g,'').length;
     const isLong = plainLen > 150;
 
@@ -1994,13 +2022,15 @@ function openEditQuote(qt) {
   overlay.className = 'modal-overlay';
   overlay.style.display = 'flex';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="background:var(--card);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <div style="font-size:.82rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">문장 수정</div>
+    <div class="modal qedit-modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="qedit-header" style="background:var(--card);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">문장 수정</div>
+          ${book ? `<div class="qedit-book-ref">${book.title}</div>` : ''}
+        </div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;border-radius:50%;width:26px;height:26px;color:var(--tx3);cursor:pointer;font-size:.8rem;">✕</button>
       </div>
       <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
-        ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
         <!-- 에디터 툴바 -->
         <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;" onmousedown="event.preventDefault()">
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('bold')"><b>B</b></button>
@@ -2060,13 +2090,15 @@ function openAddQuoteFromDetail(bookId) {
   overlay.className = 'modal-overlay';
   overlay.style.display = 'flex';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
-      <div style="padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
-        <div style="font-size:.9rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">문장 추가</div>
+    <div class="modal qedit-modal" style="max-width:400px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="qedit-header" style="background:var(--card);padding:.85rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div>
+          <div style="font-size:.9rem;font-weight:700;color:var(--tx1);font-family:var(--fs);">문장 추가</div>
+          ${book ? `<div class="qedit-book-ref">${book.title}</div>` : ''}
+        </div>
         <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;border-radius:50%;width:26px;height:26px;color:var(--tx3);cursor:pointer;font-size:.8rem;">✕</button>
       </div>
       <div style="padding:.85rem .95rem;overflow-y:auto;flex:1;">
-        ${book ? `<div style="font-size:.65rem;color:var(--tx3);margin-bottom:.5rem;">📖 ${book.title}</div>` : ''}
         <div class="qeditor-toolbar" style="margin-bottom:0;border-radius:6px 6px 0 0;" onmousedown="event.preventDefault()">
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('bold')"><b>B</b></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="qfmt('italic')"><i>I</i></button>
@@ -4344,6 +4376,8 @@ async function checkAndGrantQuests() {
 
   for(const quest of QUESTS) {
     if(completed.includes(quest.id)) continue;
+    // 이미 한 번 획득한 적 있으면(localStorage) 스킵 — DB completed_quests 저장 실패 시 반복 획득 방지
+    try { if(localStorage.getItem('bl_quest_ach_'+quest.id)) continue; } catch(e) {}
     if(quest.condition(allBooks, profile, extra)) {
       newlyCompleted.push(quest);
     }
@@ -5858,6 +5892,7 @@ async function renameCategory(idx) {
   if(!newName || newName === oldName) return;
   if(allCategories.includes(newName)){ alert('이미 있는 카테고리예요.'); return; }
   allCategories[idx] = newName;
+  // 복수 카테고리 문자열에서 해당 토큰만 교체 (책별 개별 갱신)
   const affected = allBooks.filter(b=>bookCats(b).includes(oldName));
   affected.forEach(b=>{ b.category = bookCats(b).map(c=>c===oldName?newName:c).join(', '); });
   if(selectedBookCats.has(oldName)){ selectedBookCats.delete(oldName); selectedBookCats.add(newName); }
@@ -6500,33 +6535,35 @@ function openDetail(bookId) {
   const sortedAll=[...allBooks].sort((a,c)=>new Date(a.created_at||0)-new Date(c.created_at||0));
   const bookNo=String(sortedAll.findIndex(x=>x.id===bookId)+1).padStart(3,'0');
 
+  const infoChip = (txt) => `<span class="dtl-chip" style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${txt}</span>`;
   let html=`
-  <div style="font-size:.48rem;letter-spacing:.22em;text-transform:uppercase;color:var(--tx3);margin-bottom:.35rem;">BOOK NO. ${bookNo}</div>
-  <div style="font-family:var(--ff-disp);font-size:1.3rem;font-style:italic;color:var(--tx1);line-height:1.2;margin-bottom:.2rem;letter-spacing:-.01em;">${b.title||''}</div>
-  ${b.author?`<div style="font-size:.6rem;color:var(--tx3);letter-spacing:.04em;margin-bottom:.65rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:'<div style="margin-bottom:.65rem;"></div>'}
-  <div style="display:flex;gap:.8rem;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
-    ${b.cover?`<img src="${b.cover}" alt="" style="width:68px;height:102px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,.14);">`:`<div style="width:68px;height:102px;background:var(--bg);border:1px solid var(--border);border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--tx3);">표지</div>`}
-    <div style="flex:1;min-width:0;">
-      ${b.rating?`<div style="display:flex;align-items:baseline;gap:.28rem;margin-bottom:.45rem;"><span style="font-size:.82rem;color:#c8a050;letter-spacing:.02em;">${starStr(b.rating)}</span><span style="font-family:var(--ff-disp);font-style:italic;font-size:.78rem;color:var(--tx2);">${b.rating}</span></div>`:''}
-      <div style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;">
-        ${b.status?`<span style="font-size:.57rem;font-weight:600;padding:.18rem .48rem;border-radius:9px;background:${statusBg};color:${statusColor};display:inline-flex;align-items:center;line-height:1;">${b.status}</span>`:''}
-        ${genre?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${genre}</span>`:''}
-        ${b.pages?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.pages}p</span>`:''}
-        ${b.date_start?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.date_start}</span>`:''}
-        ${b.date_finish?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.date_finish}</span>`:''}
-        ${b.reading_time?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">⏱ ${Math.floor(b.reading_time/60)}h ${b.reading_time%60}m</span>`:''}
-        ${b.source?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">${b.source}</span>`:''}
-        ${b.reread?`<span style="font-size:.57rem;padding:.18rem .42rem;border-radius:9px;background:var(--bg);color:var(--tx2);border:1px solid var(--border);display:inline-flex;align-items:center;line-height:1;">🔁 재독</span>`:''}
+  <div class="dtl-no" style="font-size:.48rem;letter-spacing:.22em;text-transform:uppercase;color:var(--tx3);margin-bottom:.35rem;">BOOK NO. ${bookNo}</div>
+  <div class="dtl-hero" style="display:flex;gap:.8rem;margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid var(--border);">
+    <div class="dtl-cover-wrap" style="flex-shrink:0;">
+      ${b.cover?`<img class="dtl-cover" src="${b.cover}" alt="" style="width:68px;height:102px;object-fit:cover;border-radius:3px;box-shadow:0 3px 10px rgba(0,0,0,.14);">`:`<div class="dtl-cover" style="width:68px;height:102px;background:var(--bg);border:1px solid var(--border);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:var(--tx3);">표지</div>`}
+    </div>
+    <div class="dtl-meta" style="flex:1;min-width:0;">
+      <div class="dtl-title" style="font-family:var(--ff-disp);font-size:1.1rem;font-style:italic;color:var(--tx1);line-height:1.2;margin-bottom:.18rem;letter-spacing:-.01em;">${b.title||''}</div>
+      ${b.author?`<div class="dtl-author" style="font-size:.6rem;color:var(--tx3);letter-spacing:.04em;margin-bottom:.45rem;">${b.author}${b.publisher?' · '+b.publisher:''}</div>`:''}
+      ${b.rating?`<div class="dtl-rating" style="display:flex;align-items:baseline;gap:.28rem;margin-bottom:.45rem;"><span style="font-size:.82rem;color:#c8a050;letter-spacing:.02em;">${starStr(b.rating)}</span><span style="font-family:var(--ff-disp);font-style:italic;font-size:.78rem;color:var(--tx2);">${b.rating}</span></div>`:''}
+      <div class="dtl-chips" style="display:flex;flex-wrap:wrap;gap:.22rem;align-items:center;margin-bottom:.45rem;">
+        ${b.status?`<span class="dtl-status-chip" style="font-size:.57rem;font-weight:600;padding:.18rem .48rem;border-radius:9px;background:${statusBg};color:${statusColor};display:inline-flex;align-items:center;line-height:1;">${b.status}</span>`:''}
+        ${genre?infoChip(genre):''}
+        ${b.pages?infoChip(b.pages+'p'):''}
+        ${b.date_start?infoChip(b.date_start):''}
+        ${b.date_finish?infoChip(b.date_finish):''}
+        ${b.reading_time?infoChip('⏱ '+Math.floor(b.reading_time/60)+'h '+b.reading_time%60+'m'):''}
+        ${b.source?infoChip(b.source):''}
+        ${b.reread?infoChip('🔁 재독'):''}
       </div>
-      ${b.status==='읽는중'&&pct?`<div style="margin-top:.55rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--acc);border-radius:2px;"></div></div><div style="font-size:.52rem;color:var(--tx3);margin-top:.12rem;">${b.current_page}p / ${b.pages}p · ${pct}%</div></div>`:''}
     </div>
   </div>`;
 
   // 줄거리
   const MAX_DESC=150;
   if(b.description){
-    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">줄거리</div>
+    html+=`<div class="dtl-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.32rem;">줄거리</div>
       <div style="font-size:.7rem;color:var(--tx2);line-height:1.72;">
         ${b.description.length>MAX_DESC?`<span class="desc-short">${b.description.slice(0,MAX_DESC)}...</span><span class="desc-full" style="display:none;">${b.description}</span><span class="desc-toggle" onclick="toggleDesc(this)" style="cursor:pointer;color:var(--acc);font-size:.62rem;margin-left:.22rem;">더 보기</span>`:b.description}
       </div>
@@ -6535,8 +6572,8 @@ function openDetail(bookId) {
 
   // 감상 (내 감상 + 다른 산책자 통합)
   if(b.review || b.isbn){
-    html+=`<div id="reviews-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.5rem;">감상</div>`;
+    html+=`<div id="reviews-section" class="dtl-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.5rem;">감상</div>`;
     if(b.review){
       const rv=b.review.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
       const MAX_REVIEW=120;
@@ -6554,23 +6591,31 @@ function openDetail(bookId) {
   if(b.status==='읽는중'){
     const cp=b.current_page||0,tp=b.pages||0;
     const pct2=tp&&cp?Math.min(100,Math.round(cp/tp*100)):0;
-    html+=`<div style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
-      <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
+    html+=`<div class="dtl-section dtl-reading-section" style="margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);margin-bottom:.38rem;">독서 진행</div>
+      ${tp&&cp?`<div class="dtl-prog-full">
+        <div class="dtl-prog-full-header" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.45rem;">
+          <span style="font-size:.62rem;color:var(--tx3);">${cp}p · ${tp-cp}p 남음</span>
+          <span class="dtl-prog-full-pct" style="font-family:var(--fs);font-size:1.1rem;font-weight:400;color:var(--acc);">${pct2}%</span>
+        </div>
+        <div class="dtl-prog-track dtl-prog-track-lg" style="height:7px;background:var(--border);border-radius:999px;overflow:hidden;margin-bottom:.55rem;">
+          <div class="dtl-prog-fill" style="width:${pct2}%;height:100%;background:linear-gradient(90deg,#b5481f,#e8903a);border-radius:999px;transition:width .4s ease;"></div>
+        </div>
+      </div>`:''}
+      <div class="dtl-reading-ctrl" style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
         <input type="number" id="current-page-input" value="${b.current_page||''}" min="1" max="${b.pages||9999}" placeholder="현재 쪽" style="width:68px;padding:.28rem .4rem;border:1px solid var(--border2);border-radius:5px;font-size:.76rem;font-family:var(--ff);text-align:center;">
         ${tp?`<span style="font-size:.62rem;color:var(--tx3);">/ ${tp}p</span>`:''}
-        <button onclick="saveReadingProgress('${b.id}')" style="background:var(--acc);color:#fff;border:none;border-radius:7px;padding:.26rem .6rem;font-size:.68rem;line-height:1.2;cursor:pointer;font-family:var(--ff);">저장</button>
+        <button onclick="saveReadingProgress('${b.id}')" class="dtl-prog-save-btn" style="background:var(--acc);color:#fff;border:none;border-radius:7px;padding:.26rem .6rem;font-size:.68rem;line-height:1.2;cursor:pointer;font-family:var(--ff);">저장</button>
       </div>
-      ${tp&&cp?`<div style="margin-top:.4rem;"><div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct2}%;height:100%;background:var(--acc);border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.51rem;color:var(--tx3);margin-top:.1rem;">${cp}p · ${pct2}% · ${tp-cp}p 남음</div></div>`:''}
     </div>`;
   }
 
   // 밑줄 · UNDERLINES
   const QCOLORS=['#c4714a','#7a9e7e','#5a8a8a','#c8a87a','#9a7090','#8a8aaa','#b06040'];
-  html+=`<div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-      <div style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
-      <button onclick="openAddQuoteFromDetail('${b.id}')" style="font-size:.68rem;padding:.2rem .5rem;border:1px solid var(--acc);border-radius:7px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);line-height:1.2;">＋ 추가</button>
+  html+=`<div class="dtl-underlines">
+    <div class="dtl-ul-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <div class="dtl-section-lbl" style="font-size:.46rem;letter-spacing:.18em;text-transform:uppercase;color:var(--tx3);">밑줄 · UNDERLINES</div>
+      <button onclick="openAddQuoteFromDetail('${b.id}')" class="dtl-ul-add" style="font-size:.68rem;padding:.2rem .5rem;border:1px solid var(--acc);border-radius:7px;background:none;color:var(--acc);cursor:pointer;font-family:var(--ff);line-height:1.2;">＋ 추가</button>
     </div>`;
   quotes.forEach((q,i)=>{
     const color=QCOLORS[i%QCOLORS.length];
@@ -6815,6 +6860,7 @@ async function doSaveAvatar(blob) {
   const { error } = await sb.from('profiles').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
   if(error) throw new Error('DB 저장 실패: ' + error.message);
   try { localStorage.setItem(`bl_avatar_${currentUser.id}`, avatarUrl); } catch(e) {}
+  try { if(window.refreshSidebarAvatar) window.refreshSidebarAvatar(); } catch(e) {}
 }
 
 function loadAvatarForProfile(profile) {
@@ -6912,6 +6958,30 @@ async function openProfile() {
   }
   // 초대코드 표시 (공통 함수 사용)
   if(document.getElementById('profile-invite-codes')) _refreshProfileCodes();
+}
+// 설정 모달 (공개·화면·관리자) — 톱니바퀴
+async function openSettings() {
+  openModal('modal-settings');
+  await loadUserRole();
+  const adminBtn = document.getElementById('profile-admin-btn');
+  if(adminBtn) { adminBtn.style.display = curUserRole === 'admin' ? '' : 'none'; adminBtn.hidden = curUserRole !== 'admin'; }
+  try {
+    const { data: profile } = await sb.from('profiles').select('library_public,library_visibility,category_visibility').eq('id',currentUser.id).single();
+    if(profile) {
+      const libSel = document.getElementById('library-public-sel');
+      const catSel = document.getElementById('category-vis-sel');
+      if(libSel) libSel.value = profile.library_visibility || (profile.library_public === false ? 'private' : 'public');
+      if(catSel) catSel.value = profile.category_visibility || 'public';
+    }
+  } catch(e) { console.warn('openSettings profile load:', e); }
+  const savedSize = localStorage.getItem('bl_font_size') || '100';
+  const slider = document.getElementById('font-size-slider');
+  const label = document.getElementById('font-size-label');
+  if(slider) slider.value = savedSize;
+  if(label) label.textContent = savedSize + '%';
+  const savedFont = localStorage.getItem('bl_system_font');
+  const fontSel = document.getElementById('user-font-select');
+  if(fontSel && savedFont) fontSel.value = savedFont;
 }
 function openContact() {
   closeModal('modal-profile');
@@ -8662,6 +8732,7 @@ async function showMyPosts() {
   const wrap = document.getElementById('board-list');
   if(!wrap) return;
   document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
+  const _bcs=document.getElementById('board-cat-filter'); if(_bcs) _bcs.value='all';
   const myBtn = document.getElementById('board-mine-btn');
   if(myBtn) myBtn.classList.add('on');
   boardFilter = 'mine'; boardPage = 1;
@@ -8696,6 +8767,14 @@ function filterBoard(f, btn) {
   boardFilter=f; boardPage=1;
   document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
+  const catSel=document.getElementById('board-cat-filter'); if(catSel) catSel.value='all';
+  renderBoardList();
+}
+// 게시판별 모아보기 드롭다운
+function filterBoardCat(cat) {
+  boardFilter = cat || 'all'; boardPage = 1;
+  document.querySelectorAll('#board-all-btn,#board-notice-btn,#board-mine-btn').forEach(b=>b.classList.remove('on'));
+  if(boardFilter==='all'){ const a=document.getElementById('board-all-btn'); if(a) a.classList.add('on'); }
   renderBoardList();
 }
 
