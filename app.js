@@ -591,8 +591,19 @@ async function loadData() {
   ]);
   if(!bR.error && bR.data) allBooks = bR.data;
   else if(!bR.error) allBooks = [];
+  else {
+    console.warn('books load error, retrying:', bR.error);
+    const bR2 = await sb.from('books').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(10000);
+    if(!bR2.error && bR2.data) allBooks = bR2.data; else { allBooks = []; console.warn('books retry failed:', bR2.error); }
+  }
   if(!qR.error && qR.data) allQuotes = qR.data;
   else if(!qR.error) allQuotes = [];
+  else {
+    // 일시적 쿼리 오류로 문장이 통째로 비는 것 방지 — 1회 재시도
+    console.warn('quotes load error, retrying:', qR.error);
+    const qR2 = await sb.from('quotes').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false}).limit(10000);
+    if(!qR2.error && qR2.data) allQuotes = qR2.data; else { allQuotes = []; console.warn('quotes retry failed:', qR2.error); }
+  }
   // 카테고리 로드 + DB에 카테고리가 한 번이라도 저장된 유저인지 확인
   let _hadCats = false;
   try {
@@ -4369,6 +4380,8 @@ async function checkAndGrantQuests() {
 
   for(const quest of QUESTS) {
     if(completed.includes(quest.id)) continue;
+    // 이미 한 번 획득한 적 있으면(localStorage) 스킵 — DB completed_quests 저장 실패 시 반복 획득 방지
+    try { if(localStorage.getItem('bl_quest_ach_'+quest.id)) continue; } catch(e) {}
     if(quest.condition(allBooks, profile, extra)) {
       newlyCompleted.push(quest);
     }
