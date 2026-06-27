@@ -698,6 +698,22 @@
     var _bra = window.buildRatingAuthor;
     window.buildRatingAuthor = function () { var r = _bra.apply(this, arguments); try { renderWebRatingAuthor(); } catch (e) {} return r; };
   }
+  /* 트래커 히트맵 색 → 클레이/러스트 웜 램프로 리맵(브라운 대체), 데스크톱 전용 */
+  var TRK_MAP = { '#ede8df': '#efe7d8', '#e8d4b0': '#e9d3b3', '#d4a870': '#ddb079', '#c08840': '#cd8a4f', '#a06820': '#bf6a38', '#7a4a10': '#b5481f', '#4a2808': '#8a3414' };
+  function renderWebTracker() {
+    if (!isWeb()) return;
+    var grid = document.getElementById('timer-tracker-grid');
+    if (!grid) return;
+    grid.querySelectorAll('div').forEach(function (cell) {
+      var m = (cell.getAttribute('style') || '').match(/background:\s*(#[0-9a-fA-F]{6})/);
+      if (m && TRK_MAP[m[1].toLowerCase()]) cell.style.setProperty('background', TRK_MAP[m[1].toLowerCase()], 'important');
+    });
+  }
+  if (typeof window.buildTrackerGrid === 'function') {
+    var _btg = window.buildTrackerGrid;
+    window.buildTrackerGrid = function () { var r = _btg.apply(this, arguments); try { renderWebTracker(); } catch (e) {} return r; };
+  }
+
   if (typeof window.buildMilestone === 'function') {
     var _bms = window.buildMilestone;
     window.buildMilestone = function () { var r = _bms.apply(this, arguments); try { renderWebLifetime(); } catch (e) {} return r; };
