@@ -101,10 +101,11 @@
   #p-books .gi-author { font-size: .72rem !important; }
 
   /* 오늘의 문장 (web.js 주입) */
-  #web-quote { display: flex; gap: 22px; align-items: center; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 8px; padding: 24px 28px; margin-top: 30px; }
-  #web-quote .wq-mark { font-family: var(--fs); font-size: 3.6rem; color: #b5481f; line-height: .7; }
-  #web-quote .wq-text { font-family: var(--fs); font-size: 1.3rem; line-height: 1.5; color: #2e1f0e; }
-  #web-quote .wq-src { font-size: .82rem; color: var(--tx2); margin-top: 10px; }
+  /* 오늘의 문장 — 컴팩트하게(갤러리 위에 배치) */
+  #web-quote { display: flex; gap: 14px; align-items: center; background: #fbf6ec; border: 1.5px solid #2e1f0e; border-radius: 12px; padding: 12px 18px; margin: 0 0 18px; }
+  #web-quote .wq-mark { font-family: var(--fs); font-size: 2.2rem; color: #b5481f; line-height: .7; flex-shrink: 0; }
+  #web-quote .wq-text { font-family: var(--fs); font-size: 1.02rem; line-height: 1.4; color: #2e1f0e; }
+  #web-quote .wq-src { font-size: .72rem; color: var(--tx2); margin-top: 5px; }
   #web-section-label { font-family: var(--fs); font-size: 1.35rem; color: #2e1f0e; margin: 30px 0 12px; }
 
   /* ── 문장 수첩 패널 (에디토리얼 캐러셀) ── */
