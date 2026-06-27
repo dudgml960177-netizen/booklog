@@ -59,15 +59,15 @@
     .hd-clock{font-size:.68rem;font-weight:600;color:var(--tx2);font-variant-numeric:tabular-nums;letter-spacing:.04em;}
     .hd-elapsed{font-size:.56rem;color:var(--acc);font-weight:600;font-variant-numeric:tabular-nums;}
     .btn-leave,.btn-rest{
-      font-size:.66rem;padding:.26rem .64rem;
-      background:none;color:var(--tx2);
-      border:1px solid var(--border2);border-radius:4px;
+      font-size:.66rem;padding:.28rem .7rem;
+      background:#fdf8f2;color:var(--tx2);
+      border:1.5px solid rgba(42,28,12,.35);border-radius:999px;
       cursor:pointer;font-family:var(--ff);white-space:nowrap;
       transition:background .15s,color .15s,border-color .15s;
     }
-    .btn-leave:hover{background:var(--border);color:var(--tx1);border-color:var(--border2);}
-    .btn-rest:hover{background:var(--border);}
-    .btn-rest.on{background:#ede4d0;color:var(--acc2);border-color:var(--acc);}
+    .btn-leave:hover{background:#2a1c0c;color:#fdf8f2;border-color:#2a1c0c;}
+    .btn-rest:hover{background:#f0e6d2;border-color:rgba(42,28,12,.5);}
+    .btn-rest.on{background:#c47028;color:#fff;border-color:#2a1c0c;}
 
     /* ── 메인 ── */
     .main{flex:1;padding:1.1rem .8rem 2.5rem;display:flex;flex-direction:column;align-items:center;}
@@ -94,15 +94,12 @@
     .tbl-grid{
       display:grid;
       grid-template-columns:repeat(4,1fr);
-      gap:1px;
-      background:var(--tbl);
-      border:1px solid var(--tbl);
-      border-radius:16px;
+      gap:1.5px;
+      background:rgba(42,28,12,.4);   /* 얇은 검은 격자선 */
+      border:1.5px solid #2a1c0c;     /* 얇은 검은 테두리 */
+      border-radius:14px;
       overflow:visible; /* 생각 말풍선이 셀 위로 튀어나올 수 있도록 */
-      box-shadow:
-        0 10px 36px rgba(30,15,0,.18),
-        0 3px 10px rgba(30,15,0,.09),
-        inset 0 1px 0 rgba(255,240,200,.18);
+      box-shadow:3px 4px 0 rgba(42,28,12,.12);
     }
     /* overflow:visible 대응 — 모서리 셀에 직접 라운딩 */
     .tbl-grid>*:first-child     {border-radius:15px 0 0 0;}
