@@ -567,17 +567,22 @@ async function loadData() {
   else if(!bR.error) allBooks = [];
   if(!qR.error && qR.data) allQuotes = qR.data;
   else if(!qR.error) allQuotes = [];
-  // 카테고리 로컬 스토리지에서 로드
+  // 카테고리 로드 + DB에 카테고리가 한 번이라도 저장된 유저인지 확인
+  let _hadCats = false;
   try {
     const { data: pf } = await sb.from('profiles').select('categories').eq('id',currentUser.id).single();
-    allCategories = pf?.categories || JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]');
+    if(pf && Array.isArray(pf.categories)) { allCategories = pf.categories; _hadCats = true; }
+    else allCategories = JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]');
   } catch(e) { try { allCategories = JSON.parse(localStorage.getItem('bl_cats_'+currentUser.id)||'[]'); } catch(e2){ allCategories=[]; } }
-  // '소장 중' 폴더가 없으면 기본으로 추가 (기존 사용자 포함)
-  if(!allCategories.includes('소장 중')) {
+  // '소장 중' 기본 폴더: DB에 카테고리가 한 번도 설정 안 된 '신규 유저'에게만 추가
+  // (이미 카테고리를 관리한 적 있으면 삭제/이름변경이 그대로 유지됨)
+  const _catInit = 'bl_cats_init_'+currentUser.id;
+  if(!_hadCats && !allCategories.includes('소장 중') && !localStorage.getItem(_catInit)) {
     allCategories = ['소장 중', ...allCategories];
     sb.from('profiles').update({categories: allCategories}).eq('id', currentUser.id).then(null, ()=>{});
     try { localStorage.setItem('bl_cats_'+currentUser.id, JSON.stringify(allCategories)); } catch(_) {}
   }
+  try { localStorage.setItem(_catInit, '1'); } catch(_) {}
 }
 
 // ── 인증
@@ -3907,7 +3912,8 @@ const QUESTS = [
     desc: '고독을 유지하셨군요.',
     condition: (books, profile, extra) => {
       const done = books.filter(b=>b.status==='완독'&&b.source!=='import').length;
-      return done >= 50 && extra.friendCount === 0;
+      // 친구 수를 확실히 셀 수 있을 때만 판정 (쿼리 실패 시 false-positive 방지)
+      return done >= 50 && extra.friendCount === 0 && extra.friendCountKnown === true;
     },
     reward: {
       title: '🦋 백년의 고독자', item: '🦋',
@@ -4225,7 +4231,7 @@ async function checkAndGrantQuests() {
   }
 
   // 서버에서 extra 데이터 로드 (게시글 수, 댓글 수, 친구 수)
-  let extra = { postCount: 0, commentCount: 0, friendCount: 0 };
+  let extra = { postCount: 0, commentCount: 0, friendCount: 0, friendCountKnown: false };
   try {
     const [postsR, commentsR, friendsR] = await Promise.all([
       sb.from('posts').select('id', {count:'exact',head:true}).eq('user_id', currentUser.id),
@@ -4235,6 +4241,7 @@ async function checkAndGrantQuests() {
     extra.postCount = postsR.count || 0;
     extra.commentCount = commentsR.count || 0;
     extra.friendCount = friendsR.count || 0;
+    extra.friendCountKnown = true;
     try {
       const { data: myPosts } = await sb.from('posts').select('id,likes').eq('user_id',currentUser.id).order('likes',{ascending:false}).limit(1);
       extra.maxPostLikes = myPosts?.[0]?.likes || 0;
