@@ -23,7 +23,7 @@
 
   function webStreak() {
     var days = new Set();
-    (window.allBooks || []).forEach(function (b) {
+    B().forEach(function (b) {
       var log = b.reading_time_log;
       if (log && typeof log === 'object') Object.keys(log).forEach(function (d) { if (/^\d{4}-\d{2}-\d{2}$/.test(d) && (log[d] || 0) > 0) days.add(d); });
       if (b.status === '완독' && /^\d{4}-\d{2}-\d{2}$/.test(b.date_finish || '')) days.add(b.date_finish);
@@ -42,7 +42,7 @@
     if (window.innerWidth < 880) { if (hero) hero.remove(); if (quote) quote.remove(); return; }
 
     // 이어 읽기 히어로
-    var reading = (window.allBooks || []).filter(function (b) { return b.status === '읽는중'; });
+    var reading = B().filter(function (b) { return b.status === '읽는중'; });
     reading.sort(function (a, b) { return new Date(b.last_read || b.date_start || b.created_at || 0) - new Date(a.last_read || a.date_start || a.created_at || 0); });
     var b = reading[0];
     if (b) {
@@ -62,10 +62,10 @@
     } else if (hero) { hero.remove(); }
 
     // 오늘의 문장 (내가 저장한 문장 중 랜덤)
-    var qs = (window.allQuotes || []);
+    var qs = Q();
     if (qs.length) {
       var qt = qs[Math.floor(Math.random() * qs.length)];
-      var bk = (window.allBooks || []).find(function (x) { return x.id === qt.book_id; });
+      var bk = B().find(function (x) { return x.id === qt.book_id; });
       var txt = (qt.text || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
       if (txt.length > 160) txt = txt.slice(0, 160) + '…';
       if (!quote) { quote = document.createElement('div'); quote.id = 'web-quote'; panel.appendChild(quote); }
@@ -76,14 +76,33 @@
 
     // 사이드바 통계
     var cy = String(new Date().getFullYear());
-    var doneY = (window.allBooks || []).filter(function (b) { return b.status === '완독' && (b.date_finish || '').startsWith(cy); }).length;
+    var doneY = B().filter(function (b) { return b.status === '완독' && (b.date_finish || '').startsWith(cy); }).length;
     var d = document.getElementById('ws-stat-done'); if (d) d.textContent = doneY;
     var st = document.getElementById('ws-stat-streak'); if (st) st.textContent = webStreak();
   }
 
+  // 사이드바 프로필 동그라미에 실제 아바타(사진/이니셜) 반영
+  var _avLoaded = false;
+  function renderSidebarAvatar() {
+    try {
+      if (_avLoaded) return;
+      var av = document.getElementById('ws-avatar'); if (!av) return;
+      if (typeof currentUser === 'undefined' || !currentUser || typeof sb === 'undefined') return;
+      _avLoaded = true;
+      sb.from('profiles').select('avatar_url,display_name,username').eq('id', currentUser.id).single().then(function (res) {
+        var p = res && res.data;
+        var name = (p && (p.display_name || p.username)) || ((currentUser.email || '').split('@')[0]) || '?';
+        var url = p && p.avatar_url;
+        if (url) av.innerHTML = '<img src="' + String(url).replace(/"/g, '%22') + '" alt="">';
+        else av.innerHTML = '<span style="font-family:var(--fs);font-size:1rem;color:#5a4500;">' + esc(name.slice(0, 1).toUpperCase()) + '</span>';
+      }).catch(function () { _avLoaded = false; });
+    } catch (e) { _avLoaded = false; }
+  }
+  window.refreshSidebarAvatar = function () { _avLoaded = false; renderSidebarAvatar(); };
+
   if (typeof window.buildBooks === 'function') {
     var _bb = window.buildBooks;
-    window.buildBooks = function () { _bb.apply(this, arguments); try { renderWebHome(); } catch (e) {} };
+    window.buildBooks = function () { _bb.apply(this, arguments); try { renderWebHome(); } catch (e) {} try { renderSidebarAvatar(); } catch (e) {} };
   }
 
   // ── 문장 수첩 캐러셀 (데스크톱 전용) ──

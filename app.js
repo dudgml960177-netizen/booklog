@@ -6851,6 +6851,7 @@ async function doSaveAvatar(blob) {
   const { error } = await sb.from('profiles').update({ avatar_url: avatarUrl }).eq('id', currentUser.id);
   if(error) throw new Error('DB 저장 실패: ' + error.message);
   try { localStorage.setItem(`bl_avatar_${currentUser.id}`, avatarUrl); } catch(e) {}
+  try { if(window.refreshSidebarAvatar) window.refreshSidebarAvatar(); } catch(e) {}
 }
 
 function loadAvatarForProfile(profile) {
