@@ -740,17 +740,24 @@
   }
   /* 트래커 히트맵 색 → 슬레이트 블루 램프(브라운·연두 대신), 데스크톱 전용 */
   var SLATE7 = ['#e6edf0', '#c8d8e0', '#8fb1c2', '#6593a8', '#4a7589', '#385a6b', '#28414e'];
-  var TRK_MAP = { '#ede8df': SLATE7[0], '#e8d4b0': SLATE7[1], '#d4a870': SLATE7[2], '#c08840': SLATE7[3], '#a06820': SLATE7[4], '#7a4a10': SLATE7[5], '#4a2808': SLATE7[6] };
+  var TRK_BROWN = ['#ede8df', '#e8d4b0', '#d4a870', '#c08840', '#a06820', '#7a4a10', '#4a2808'];
+  // 셀은 cssText로 들어가 rgb()로 직렬화됨 → hex와 rgb 둘 다 매칭
+  var TRK_MAP = {};
+  TRK_BROWN.forEach(function (h, i) {
+    var n = parseInt(h.slice(1), 16);
+    TRK_MAP[h] = SLATE7[i];
+    TRK_MAP['rgb(' + ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ')'] = SLATE7[i];
+  });
   function renderWebTracker() {
     if (!isWeb()) return;
     var grid = document.getElementById('timer-tracker-grid');
     if (!grid) return;
     var card = grid.closest('.card') || grid;
     card.querySelectorAll('div').forEach(function (cell) {
-      var m = (cell.getAttribute('style') || '').match(/background:\s*(#[0-9a-fA-F]{6})/);
-      if (m && TRK_MAP[m[1].toLowerCase()]) cell.style.setProperty('background', TRK_MAP[m[1].toLowerCase()], 'important');
+      var bg = (cell.style.backgroundColor || '').toLowerCase();
+      if (TRK_MAP[bg]) cell.style.setProperty('background', TRK_MAP[bg], 'important');
     });
-    // 범례 스와치(7개)를 셀 색과 정확히 일치시킴
+    // 범례 스와치(7개)를 셀 색과 정확히 일치
     card.querySelectorAll('div[style*="width:7px"]').forEach(function (s, i) { if (SLATE7[i]) s.style.setProperty('background', SLATE7[i], 'important'); });
   }
   if (typeof window.buildTrackerGrid === 'function') {
