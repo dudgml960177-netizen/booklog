@@ -134,6 +134,32 @@ function showConfirm(msg) {
     if(cancel) cancel.onclick = () => { closeModal('modal-confirm'); resolve(false); _confirmResolveFunc = null; };
   });
 }
+// 텍스트 입력 다이얼로그 (브라우저 기본 prompt 대체 — 도메인 노출 방지)
+function showPrompt(msg, defValue) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(40,25,10,.45);display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML =
+      '<div style="background:var(--card,#fbf6ec);border:1px solid var(--border2,#cfc3ac);border-radius:14px;padding:20px 22px;width:100%;max-width:340px;box-shadow:0 18px 50px rgba(46,31,14,.3);">'+
+        '<div class="_pp-msg" style="font-size:.9rem;color:var(--tx1,#2e1f0e);margin-bottom:12px;font-family:var(--ff);"></div>'+
+        '<input type="text" class="_pp-in" style="width:100%;box-sizing:border-box;padding:.5rem .6rem;border:1.5px solid var(--border2,#cfc3ac);border-radius:7px;font-size:.85rem;font-family:var(--ff);background:#fffdf8;color:var(--tx1,#2e1f0e);margin-bottom:14px;">'+
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">'+
+          '<button class="_pp-cancel" style="padding:.45rem 1rem;border:1px solid var(--border2,#cfc3ac);border-radius:8px;background:none;color:var(--tx2,#5c3d1e);font-family:var(--ff);cursor:pointer;">취소</button>'+
+          '<button class="_pp-ok" style="padding:.45rem 1.1rem;border:none;border-radius:8px;background:#2e1f0e;color:#fbf6ec;font-family:var(--ff);font-weight:600;cursor:pointer;">확인</button>'+
+        '</div>'+
+      '</div>';
+    ov.querySelector('._pp-msg').textContent = msg;
+    document.body.appendChild(ov);
+    const input = ov.querySelector('._pp-in');
+    input.value = defValue || '';
+    const done = (val) => { ov.remove(); resolve(val); };
+    ov.querySelector('._pp-ok').onclick = () => done(input.value.trim());
+    ov.querySelector('._pp-cancel').onclick = () => done(null);
+    ov.addEventListener('click', (e) => { if(e.target === ov) done(null); });
+    input.addEventListener('keydown', (e) => { if(e.key === 'Enter') done(input.value.trim()); if(e.key === 'Escape') done(null); });
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  });
+}
 
 // ── 상태
 let currentUser = null, allBooks = [], allQuotes = [], allCategories = [];
@@ -942,11 +968,17 @@ function setView(v) {
   document.getElementById('view-list').style.display = v==='list'?'':'none';
   buildBooks();
 }
+function _hideWant(){ try { return !!(currentUser && localStorage.getItem('bl_hide_want_'+currentUser.id)==='1'); } catch(e){ return false; } }
+function toggleHideWant(){ if(!currentUser) return; const k='bl_hide_want_'+currentUser.id; if(localStorage.getItem(k)==='1') localStorage.removeItem(k); else localStorage.setItem(k,'1'); buildBooks(); }
+// 책의 카테고리들(복수, 콤마구분 하위호환) → 배열
+function bookCats(b){ return String((b&&b.category)||'').split(',').map(s=>s.trim()).filter(Boolean); }
+let selectedBookCats = new Set();  // 책 폼에서 선택된 카테고리들
 function getFilteredBooks() {
   let list = [...allBooks];
   if (curFilter === '다시읽기') list = list.filter(b=>b.reread);
   else if (curFilter !== '전체') list = list.filter(b=>b.status===curFilter);
-  if (curCatFilter.size) list = list.filter(b=>curCatFilter.has(b.category||''));
+  else if (_hideWant()) list = list.filter(b=>b.status!=='읽고싶음');
+  if (curCatFilter.size) list = list.filter(b=>bookCats(b).some(c=>curCatFilter.has(c)));
   // 검색 필터
   if (booksSearchQ) {
     list = list.filter(b =>
@@ -1055,6 +1087,65 @@ function buildBooks() {
     btn.style.borderBottomColor = on ? 'var(--tx1)' : 'transparent';
   });
   renderCategoryChips();
+  renderWantToggle();
+}
+
+// '읽고싶음 숨김' 토글 + '연도별' 버튼 — 상태 필터 줄 끝에
+function renderWantToggle() {
+  const row = document.getElementById('status-filter-row');
+  if(!row) return;
+  let btn = document.getElementById('want-hide-toggle');
+  const on = _hideWant();
+  if(!btn){ btn = document.createElement('button'); btn.id='want-hide-toggle'; btn.onclick=toggleHideWant; row.appendChild(btn); }
+  else { row.appendChild(btn); }
+  btn.style.cssText = `flex-shrink:0;white-space:nowrap;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'none'};color:${on?'#fff':'var(--tx3)'};border-radius:999px;padding:.16rem .6rem;font-size:.62rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;`;
+  btn.textContent = on ? '🙈 읽고싶음 숨김' : '👁 읽고싶음';
+  btn.title = on ? '전체 보기에서 읽고싶음 숨기는 중 (눌러서 해제)' : '전체 보기에서 읽고싶음 책 숨기기';
+  let yb = document.getElementById('year-list-btn');
+  if(!yb){ yb = document.createElement('button'); yb.id='year-list-btn'; yb.onclick=openYearList; row.appendChild(yb); }
+  else { row.appendChild(yb); }
+  yb.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid var(--border2);background:none;color:var(--tx3);border-radius:999px;padding:.16rem .6rem;font-size:.62rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;';
+  yb.textContent = '📅 연도별';
+  yb.title = '연도별 읽은 책 목록';
+}
+
+// 연도별 읽은 책 리스트 모달
+function openYearList() {
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const done = allBooks.filter(b=>b.status==='완독' && /^\d{4}-\d{2}-\d{2}$/.test(b.date_finish||''));
+  const byYear = {};
+  done.forEach(b=>{ const y=b.date_finish.slice(0,4); (byYear[y]=byYear[y]||[]).push(b); });
+  const years = Object.keys(byYear).sort((a,b)=>b.localeCompare(a));
+  let body;
+  if(!years.length){
+    body = '<div style="padding:44px 10px;text-align:center;color:var(--tx3);font-size:.85rem;">완독한 책이 없어요.</div>';
+  } else {
+    body = years.map(y=>{
+      const books = byYear[y].slice().sort((a,b)=>b.date_finish.localeCompare(a.date_finish));
+      const pages = books.reduce((a,b)=>a+(b.pages||0),0);
+      const items = books.map(b=>`<div data-bid="${b.id}" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <span style="font-size:.58rem;color:var(--tx3);min-width:26px;">${b.date_finish.slice(5,7)}월</span>
+        <span style="flex:1;font-size:.85rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(b.title)}</span>
+        <span style="font-size:.7rem;color:var(--rust);white-space:nowrap;">${b.rating?'★'+b.rating:''}</span>
+      </div>`).join('');
+      return `<div style="display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 4px;border-bottom:1.5px solid #2e1f0e;padding-bottom:5px;">
+        <span style="font-family:var(--fs);font-size:1.25rem;color:#b5481f;">${y}</span>
+        <span style="font-size:.64rem;color:var(--tx3);">${books.length}권 · ${pages.toLocaleString()}p</span></div>${items}`;
+    }).join('');
+  }
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(40,25,10,.45);display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `<div style="background:var(--card,#fbf6ec);border:1.5px solid #2e1f0e;border-radius:16px;width:100%;max-width:440px;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 50px rgba(46,31,14,.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1.5px solid #2e1f0e;">
+      <div style="font-family:var(--fs);font-size:1.3rem;color:#2e1f0e;">연도별 읽은 책</div>
+      <button class="yl-x" style="width:30px;height:30px;border:1.5px solid #2e1f0e;border-radius:8px;background:#fbf6ec;cursor:pointer;font-size:.9rem;line-height:1;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:0 18px 18px;">${body}</div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('.yl-x').onclick = () => ov.remove();
+  ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
+  ov.querySelectorAll('[data-bid]').forEach(el => { el.onclick = () => { const id=el.dataset.bid; ov.remove(); if(window.openDetail) openDetail(isNaN(+id)?id:+id); }; });
 }
 
 // 카테고리 칩 — 기존 필터 줄에 인라인으로(새 줄/버튼 군더더기 없이). 책 있는 카테고리만.
@@ -1067,7 +1158,7 @@ function renderCategoryChips() {
   let added = 0;
   const frag = document.createDocumentFragment();
   cats.forEach(cat => {
-    const cnt = allBooks.filter(b => (b.category||'') === cat).length;
+    const cnt = allBooks.filter(b => bookCats(b).includes(cat)).length;
     if(!cnt) return;
     const on = curCatFilter.has(cat);
     const b = document.createElement('button');
@@ -2787,7 +2878,7 @@ function buildTrackerGrid() {
       cell.style.cssText = `aspect-ratio:1;border-radius:8px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.06)'};`;
       cell.title = `${d.getMonth()+1}/${d.getDate()}: ${mins?mins+'분':'없음'}`;
       cell.innerHTML = `<span style="font-size:.7rem;font-weight:600;color:${intensity>=2?'#fff':'var(--tx2)'};">${d.getDate()}</span>
-        ${mins?`<span style="font-size:.55rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins}m</span>`:''}`;
+        ${mins?`<span style="font-size:.52rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins>=60?Math.floor(mins/60)+'h'+(mins%60?(mins%60)+'m':''):mins+'m'}</span>`:''}`;
       wrap.appendChild(cell);
     });
     const total = days.reduce((a,d)=>a+(dayMap[fmtKey(d)]||0),0);
@@ -2822,7 +2913,7 @@ function buildTrackerGrid() {
       cell.style.cssText=`aspect-ratio:1;border-radius:5px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.05)'};cursor:default;transition:transform .12s;`;
       cell.title=`${m+1}월 ${d}일: ${mins?mins+'분':'없음'}`;
       cell.innerHTML=`<span style="font-size:.58rem;font-weight:${isToday?700:500};color:${intensity>=2?'#fff':'var(--tx2)'};">${d}</span>
-        ${mins?`<span style="font-size:.48rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins<60?mins+'m':Math.floor(mins/60)+'h'}</span>`:''}`;
+        ${mins?`<span style="font-size:.46rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins>=60?Math.floor(mins/60)+'h'+(mins%60?(mins%60)+'m':''):mins+'m'}</span>`:''}`;
       cell.onmouseenter=()=>cell.style.transform='scale(1.08)';
       cell.onmouseleave=()=>cell.style.transform='scale(1)';
       wrap.appendChild(cell);
@@ -5726,9 +5817,9 @@ function buildCatList() {
   const wrap=document.getElementById('cat-list'); wrap.innerHTML='';
   if(!allCategories.length){wrap.innerHTML='<div style="font-size:.75rem;color:var(--tx3);padding:.3rem 0;">카테고리가 없어요.</div>';return;}
   allCategories.forEach((cat,i)=>{
-    const cnt=allBooks.filter(b=>b.category===cat).length;
+    const cnt=allBooks.filter(b=>bookCats(b).includes(cat)).length;
     const el=document.createElement('div');el.className='cat-item';
-    el.innerHTML=`<span class="cat-item-name">${cat}</span><span class="cat-item-count">${cnt}권</span><button class="cat-item-del" onclick="deleteCategory(${i})">✕</button>`;
+    el.innerHTML=`<span class="cat-item-name">${cat}</span><span class="cat-item-count">${cnt}권</span><button class="cat-item-edit" onclick="renameCategory(${i})" title="이름 수정">✏️</button><button class="cat-item-del" onclick="deleteCategory(${i})" title="삭제">✕</button>`;
     wrap.appendChild(el);
   });
 }
@@ -5759,6 +5850,25 @@ function addCategory() {
   input.value='';buildCatList();buildCatFilterList();
   updateBookCategorySelect();
 }
+async function renameCategory(idx) {
+  const oldName = allCategories[idx];
+  const raw = await showPrompt('카테고리 새 이름', oldName);
+  if(raw === null) return;
+  const newName = raw.trim();
+  if(!newName || newName === oldName) return;
+  if(allCategories.includes(newName)){ alert('이미 있는 카테고리예요.'); return; }
+  allCategories[idx] = newName;
+  const affected = allBooks.filter(b=>bookCats(b).includes(oldName));
+  affected.forEach(b=>{ b.category = bookCats(b).map(c=>c===oldName?newName:c).join(', '); });
+  if(selectedBookCats.has(oldName)){ selectedBookCats.delete(oldName); selectedBookCats.add(newName); }
+  localStorage.setItem('bl_cats_'+currentUser.id, JSON.stringify(allCategories));
+  try {
+    await sb.from('profiles').update({categories:allCategories}).eq('id',currentUser.id);
+    await Promise.all(affected.map(b=> sb.from('books').update({category:b.category||null}).eq('id',b.id)));
+  } catch(e){ console.warn('renameCategory save:', e); }
+  buildCatList(); buildCatFilterList(); updateBookCategorySelect();
+  if(typeof buildBooks==='function') buildBooks();
+}
 async function deleteCategory(idx) {
   if(!await showConfirm(`'${allCategories[idx]}' 카테고리를 삭제할까요?`))return;
   allCategories.splice(idx,1);
@@ -5767,10 +5877,19 @@ async function deleteCategory(idx) {
   buildCatList();buildCatFilterList();updateBookCategorySelect();
 }
 function updateBookCategorySelect() {
-  const sel=document.getElementById('book-category');if(!sel)return;
-  const cur=sel.value;sel.innerHTML='<option value="">선택 안함</option>';
-  allCategories.forEach(cat=>{const o=document.createElement('option');o.value=cat;o.textContent=cat;sel.appendChild(o);});
-  sel.value=cur;
+  const wrap=document.getElementById('book-category-chips'); if(!wrap) return;
+  wrap.innerHTML='';
+  if(!allCategories.length){ wrap.innerHTML='<span style="font-size:.7rem;color:var(--tx3);">카테고리 관리에서 추가해주세요</span>'; return; }
+  allCategories.forEach(cat=>{
+    const on=selectedBookCats.has(cat);
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='book-cat-chip'+(on?' on':'');
+    b.textContent=cat;
+    b.style.cssText=`border:1.5px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'none'};color:${on?'#fff':'var(--tx2)'};border-radius:999px;padding:.22rem .7rem;font-size:.72rem;font-family:var(--ff);cursor:pointer;line-height:1;transition:all .12s;`;
+    b.onclick=()=>{ if(selectedBookCats.has(cat)) selectedBookCats.delete(cat); else selectedBookCats.add(cat); updateBookCategorySelect(); };
+    wrap.appendChild(b);
+  });
 }
 
 // ── 책 추가/수정
@@ -5794,6 +5913,7 @@ function openAddBook() {
   document.getElementById('quotes-list').innerHTML='';
   updateStars(0);
   document.querySelectorAll('.status-btn').forEach(b=>b.classList.toggle('on',b.textContent==='완독'));
+  selectedBookCats=new Set();
   updateBookCategorySelect();
   openModal('modal-book');
   setTimeout(()=>document.getElementById('book-search-input')?.focus(),150);
@@ -6333,7 +6453,7 @@ async function saveBook() {
   const genre=document.getElementById('book-genre').value,review=document.getElementById('book-review').value.trim();
   const dateStart=document.getElementById('book-start').value,dateFinish=document.getElementById('book-finish').value;
   const reread=document.getElementById('book-reread').checked,pages=parseInt(document.getElementById('book-pages').value)||null;
-  const source=document.getElementById('book-source').value,category=document.getElementById('book-category').value;
+  const source=document.getElementById('book-source').value,category=[...selectedBookCats].join(', ');
   const qf=document.getElementById('quotes-list')?.querySelectorAll('.quote-field')||[];
   const newQuotes=[...qf].map(f=>{
     const ed = f.querySelector('[data-qtext]');
@@ -6584,8 +6704,8 @@ function editBook() {
     document.getElementById('book-reread').checked=b.reread||false;
     document.getElementById('book-pages').value=b.pages||'';
     document.getElementById('book-source').value=b.source||'';
+    selectedBookCats=new Set(bookCats(b));
     updateBookCategorySelect();
-    document.getElementById('book-category').value=b.category||'';
     const list=document.getElementById('quotes-list'); list.innerHTML='';
     allQuotes.filter(q=>q.book_id===b.id).forEach(q=>addQuoteField(q.text,q.page,q.tag));
     openModal('modal-book');
@@ -8259,7 +8379,7 @@ function renderLibGallery() {
   if(!g) return;
   let list = [..._libBooks];
   if(_libFilter !== '전체') list = list.filter(b=>b.status===_libFilter);
-  if(_libCatFilter.size) list = list.filter(b=>_libCatFilter.has(b.category||''));
+  if(_libCatFilter.size) list = list.filter(b=>bookCats(b).some(c=>_libCatFilter.has(c)));
   // 내 서재에서 고른 정렬(curSort)을 파도타기에도 동일 적용
   (function(k){
     if(k==='oldest') list.sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
