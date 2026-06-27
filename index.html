@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="북로그">
   <link rel="stylesheet" href="style.css?v=4">
-  <link rel="stylesheet" href="web.css?v=46">
+  <link rel="stylesheet" href="web.css?v=47">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -548,10 +548,9 @@
         <!-- 필터 + 검색 -->
         <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.8rem;">
           <div style="display:flex;gap:.3rem;align-items:center;flex:1;flex-wrap:wrap;">
-            <button class="filter-btn on" id="board-all-btn" onclick="filterBoard('all',this)">전체</button>
             <button class="filter-btn" id="board-notice-btn" onclick="filterBoard('notice',this)">📌 공지</button>
             <button class="filter-btn" id="board-mine-btn" onclick="showMyPosts()">✏️ 내 글</button>
-            <select id="board-cat-filter" onchange="filterBoardCat(this.value)" style="font-size:.7rem;padding:.2rem .45rem;border:1px solid var(--border2);border-radius:var(--rs);background:var(--card);color:var(--tx2);font-family:var(--ff);cursor:pointer;flex-shrink:0;">
+            <select id="board-cat-filter" onchange="filterBoardCat(this.value)" style="font-size:.7rem;padding:.26rem .5rem;border:1px solid var(--border2);border-radius:var(--rs);background:var(--card);color:var(--tx2);font-family:var(--ff);cursor:pointer;flex-shrink:0;">
               <option value="all">📋 게시판 전체</option>
               <option value="free">💭 자유</option>
               <option value="book">📖 책 이야기</option>

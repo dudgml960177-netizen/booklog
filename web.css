@@ -1439,6 +1439,17 @@
     border: 1.5px solid rgba(46,31,14,.22) !important;
     border-radius: 4px !important;
   }
+  /* 게시판 드롭다운 — 옆 필터 버튼과 같은 높이/모양 */
+  #p-board #board-cat-filter {
+    background: #fbf6ec !important;
+    border: 1.5px solid rgba(46,31,14,.22) !important;
+    border-radius: 4px !important;
+    padding: 6px 10px !important;
+    color: var(--tx2) !important;
+    font-size: .72rem !important;
+    font-family: var(--ff) !important;
+    align-self: center !important;
+  }
   #p-board .board-item {
     background: #fbf6ec !important;
     border: 1.5px solid rgba(46,31,14,.4) !important;
