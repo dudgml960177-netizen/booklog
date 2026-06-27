@@ -447,14 +447,29 @@
     var segRow = card.querySelector('.tracker-period-btn'); segRow = segRow && segRow.parentNode;
     hide(segRow);
     if (det) hide(det.querySelector('.wt-close'));
+    // 책등이 많아도 전체가 담기게 — 스크롤 영역을 임시로 펼침
+    var saved = [];
+    function setS(el, prop, val) { if (!el) return; saved.push([el, prop, el.style[prop]]); el.style[prop] = val; }
+    var dbody = det && det.querySelector('.wt-dbody');
+    if (mode === 'spines' || mode === 'both') {
+      setS(dbody, 'maxHeight', 'none'); setS(dbody, 'overflow', 'visible');
+      setS(det, 'bottom', 'auto'); setS(det, 'height', 'auto');
+    }
     var target, detHidden = false;
     if (mode === 'tracker') { if (det) { det.style.visibility = 'hidden'; detHidden = true; } target = card; }
     else if (mode === 'spines') { target = det; }
     else { target = card; }
+    if (mode === 'both' && det) {
+      // 카드가 펼친 책등 전체를 담도록 높이 확보 (overflow:hidden 해제)
+      setS(card, 'overflow', 'visible');
+      var needH = det.offsetTop + det.offsetHeight + 14; // 펼친 뒤 reflow된 높이
+      setS(card, 'minHeight', needH + 'px'); setS(card, 'height', needH + 'px');
+    }
     try {
-      var canvas = await window.html2canvas(target, { scale: 3, backgroundColor: mode === 'spines' ? null : '#f2ece0', useCORS: true, allowTaint: true, logging: false });
+      var canvas = await window.html2canvas(target, { scale: 3, backgroundColor: mode === 'spines' ? null : '#f2ece0', useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: -window.scrollY });
       var a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'Booklog_tracker_' + mode + '.png'; a.click();
     } catch (err) { alert('캡처 실패: ' + (err && err.message || err)); }
+    saved.forEach(function (p) { p[0].style[p[1]] = p[2]; });
     hidden.forEach(function (p) { p[0].style.visibility = p[1]; });
     if (detHidden && det) det.style.visibility = '';
   }
@@ -776,6 +791,30 @@
   if (typeof window.renderCal === 'function') {
     var _rc = window.renderCal;
     window.renderCal = function () { var r = _rc.apply(this, arguments); try { renderWebRecord(); } catch (e) {} try { renderWebCalendar(); } catch (e) {} return r; };
+  }
+
+  /* 산책로 게시판 카테고리 칩에 또렷한 색 (자유=슬레이트·책이야기=세이지·감상공유=클레이) */
+  function colorBoardCats() {
+    if (!isWeb()) return;
+    document.querySelectorAll('.board-cat').forEach(function (chip) {
+      var t = chip.textContent || '', col = null;
+      if (t.indexOf('자유') >= 0) col = '#56788a';
+      else if (t.indexOf('책') >= 0) col = '#6f8f56';
+      else if (t.indexOf('감상') >= 0) col = '#c4704a';
+      if (col) {
+        chip.style.setProperty('background', 'color-mix(in srgb, ' + col + ' 15%, #fff)', 'important');
+        chip.style.setProperty('border', '1.5px solid ' + col, 'important');
+        chip.style.setProperty('color', col, 'important');
+      }
+    });
+  }
+  if (typeof window.renderPostItems === 'function') {
+    var _rpi = window.renderPostItems;
+    window.renderPostItems = function () { var r = _rpi.apply(this, arguments); try { colorBoardCats(); } catch (e) {} return r; };
+  }
+  if (typeof window.openPostDetail === 'function') {
+    var _opd = window.openPostDetail;
+    window.openPostDetail = function () { var r = _opd.apply(this, arguments); setTimeout(function () { try { colorBoardCats(); } catch (e) {} }, 60); return r; };
   }
 
   document.addEventListener('DOMContentLoaded', function () { setActive('books'); });
