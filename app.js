@@ -6949,6 +6949,30 @@ async function openProfile() {
   // 초대코드 표시 (공통 함수 사용)
   if(document.getElementById('profile-invite-codes')) _refreshProfileCodes();
 }
+// 설정 모달 (공개·화면·관리자) — 톱니바퀴
+async function openSettings() {
+  openModal('modal-settings');
+  await loadUserRole();
+  const adminBtn = document.getElementById('profile-admin-btn');
+  if(adminBtn) { adminBtn.style.display = curUserRole === 'admin' ? '' : 'none'; adminBtn.hidden = curUserRole !== 'admin'; }
+  try {
+    const { data: profile } = await sb.from('profiles').select('library_public,library_visibility,category_visibility').eq('id',currentUser.id).single();
+    if(profile) {
+      const libSel = document.getElementById('library-public-sel');
+      const catSel = document.getElementById('category-vis-sel');
+      if(libSel) libSel.value = profile.library_visibility || (profile.library_public === false ? 'private' : 'public');
+      if(catSel) catSel.value = profile.category_visibility || 'public';
+    }
+  } catch(e) { console.warn('openSettings profile load:', e); }
+  const savedSize = localStorage.getItem('bl_font_size') || '100';
+  const slider = document.getElementById('font-size-slider');
+  const label = document.getElementById('font-size-label');
+  if(slider) slider.value = savedSize;
+  if(label) label.textContent = savedSize + '%';
+  const savedFont = localStorage.getItem('bl_system_font');
+  const fontSel = document.getElementById('user-font-select');
+  if(fontSel && savedFont) fontSel.value = savedFont;
+}
 function openContact() {
   closeModal('modal-profile');
   const subj = document.getElementById('contact-subject');

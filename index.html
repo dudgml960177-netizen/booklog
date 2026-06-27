@@ -248,9 +248,9 @@
       </div>
       <div class="ws-settings-menu" id="ws-settings-menu">
         <div class="ws-sm-title">설정</div>
-        <button class="ws-sm-i" onclick="closeWebSettings();openModal('modal-backup')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> 책 불러오기 · 백업 · 덮어쓰기</button>
-        <button class="ws-sm-i" onclick="closeWebSettings();openCategories()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> 카테고리 관리</button>
-        <button class="ws-sm-i" onclick="closeWebSettings();openProfile()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg> 프로필 · 화면 설정</button>
+        <button class="ws-sm-i" onclick="closeWebSettings();openSettings()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 공개 · 화면 · 관리자 설정</button>
+        <button class="ws-sm-i" onclick="closeWebSettings();openCategories()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> 서재 카테고리</button>
+        <button class="ws-sm-i" onclick="closeWebSettings();openModal('modal-backup')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> 불러오기 · 백업 · 덮어쓰기</button>
       </div>
     </div>
   </aside>
@@ -804,6 +804,43 @@
         </div>
       </div>
 
+      <!-- 초대코드 -->
+      <div id="profile-invite-codes" style="margin-bottom:.58rem;"></div>
+
+      <!-- 설정 (공개·화면·관리자) — 좁은 화면에서도 접근 가능하게 -->
+      <div style="margin-bottom:.5rem;">
+        <button onclick="closeModal('modal-profile');openSettings()" class="profile-action-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          공개 · 화면 · 관리자 설정
+        </button>
+      </div>
+      <!-- 문의하기 -->
+      <div style="margin-bottom:.75rem;">
+        <button onclick="openContact()" class="profile-action-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          문의하기
+        </button>
+      </div>
+      <!-- 저장 / 로그아웃 -->
+      <div class="modal-footer" style="padding:.75rem 0 0;border-top:1px solid var(--border);">
+        <button class="btn-cancel" onclick="doLogout()">로그아웃</button>
+        <button class="btn-save" onclick="saveProfile()">저장</button>
+      </div>
+      <div style="text-align:center;margin-top:.5rem;">
+        <button onclick="deleteMyAccount()" style="background:none;border:none;font-size:.63rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;padding:.2rem .4rem;opacity:.7;" onmouseenter="this.style.color='#c0392b';this.style.opacity='1'" onmouseleave="this.style.color='var(--tx3)';this.style.opacity='.7'">탈퇴하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 모달 (공개·화면·관리자) -->
+<div id="modal-settings" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">설정</div>
+      <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <div class="modal-body">
       <!-- 공개 설정 카드 -->
       <div class="profile-card">
         <div class="profile-card-title">공개 설정</div>
@@ -851,27 +888,9 @@
         </div>
       </div>
 
-      <!-- 초대코드 -->
-      <div id="profile-invite-codes" style="margin-bottom:.58rem;"></div>
-
       <!-- 관리자 패널 (admin only) -->
       <div id="profile-admin-btn" style="display:none;margin-bottom:.42rem;">
-        <button class="profile-action-btn profile-action-admin" onclick="closeModal('modal-profile');openAdminPanel()">⚙️ 관리자 패널</button>
-      </div>
-      <!-- 문의하기 -->
-      <div style="margin-bottom:.75rem;">
-        <button onclick="openContact()" class="profile-action-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          문의하기
-        </button>
-      </div>
-      <!-- 저장 / 로그아웃 -->
-      <div class="modal-footer" style="padding:.75rem 0 0;border-top:1px solid var(--border);">
-        <button class="btn-cancel" onclick="doLogout()">로그아웃</button>
-        <button class="btn-save" onclick="saveProfile()">저장</button>
-      </div>
-      <div style="text-align:center;margin-top:.5rem;">
-        <button onclick="deleteMyAccount()" style="background:none;border:none;font-size:.63rem;color:var(--tx3);cursor:pointer;font-family:var(--ff);text-decoration:underline;padding:.2rem .4rem;opacity:.7;" onmouseenter="this.style.color='#c0392b';this.style.opacity='1'" onmouseleave="this.style.color='var(--tx3)';this.style.opacity='.7'">탈퇴하기</button>
+        <button class="profile-action-btn profile-action-admin" onclick="closeModal('modal-settings');openAdminPanel()">⚙️ 관리자 패널</button>
       </div>
     </div>
   </div>
