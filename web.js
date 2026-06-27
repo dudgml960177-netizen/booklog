@@ -6,6 +6,7 @@
   function topTab(name) { return document.querySelector('.tab[onclick*="\'' + name + '\'"]'); }
   function setActive(p) { document.querySelectorAll('.ws-i').forEach(function (b) { b.classList.toggle('on', b.dataset.p === p); }); }
   function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  var _todayQuote = null; // 오늘의 문장 캐시 (세션 동안 고정)
 
   window.webNav = function (p) {
     var t = topTab(p);
@@ -61,10 +62,11 @@
       hero.querySelectorAll('[data-go]').forEach(function (el) { el.onclick = function () { if (window.openDetail) openDetail(b.id); }; });
     } else if (hero) { hero.remove(); }
 
-    // 오늘의 문장 (내가 저장한 문장 중 랜덤)
+    // 오늘의 문장 — 한 번만 뽑아 고정(매 렌더 랜덤 → 깜빡임 방지). 빈 값이어도 캐시 유지
     var qs = Q();
-    if (qs.length) {
-      var qt = qs[Math.floor(Math.random() * qs.length)];
+    if (qs.length && !_todayQuote) _todayQuote = qs[Math.floor(Math.random() * qs.length)];
+    if (_todayQuote) {
+      var qt = _todayQuote;
       var bk = B().find(function (x) { return x.id === qt.book_id; });
       var txt = (qt.text || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
       if (txt.length > 160) txt = txt.slice(0, 160) + '…';
