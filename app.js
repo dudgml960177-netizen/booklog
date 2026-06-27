@@ -1103,6 +1103,52 @@ function renderWantToggle() {
   btn.style.cssText = `flex-shrink:0;white-space:nowrap;border:1px solid ${on?'var(--acc)':'var(--border2)'};background:${on?'var(--acc)':'none'};color:${on?'#fff':'var(--tx3)'};border-radius:999px;padding:.16rem .6rem;font-size:.62rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;`;
   btn.textContent = on ? '🙈 읽고싶음 숨김' : '👁 읽고싶음';
   btn.title = on ? '전체 보기에서 읽고싶음 숨기는 중 (눌러서 해제)' : '전체 보기에서 읽고싶음 책 숨기기';
+  // 연도별 보기 버튼
+  let yb = document.getElementById('year-list-btn');
+  if(!yb){ yb = document.createElement('button'); yb.id='year-list-btn'; yb.onclick=openYearList; row.appendChild(yb); }
+  else { row.appendChild(yb); }
+  yb.style.cssText = 'flex-shrink:0;white-space:nowrap;border:1px solid var(--border2);background:none;color:var(--tx3);border-radius:999px;padding:.16rem .6rem;font-size:.62rem;font-family:var(--ff);cursor:pointer;line-height:1;align-self:center;';
+  yb.textContent = '📅 연도별';
+  yb.title = '연도별 읽은 책 목록';
+}
+
+// 연도별 읽은 책 리스트 모달
+function openYearList() {
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const done = allBooks.filter(b=>b.status==='완독' && /^\d{4}-\d{2}-\d{2}$/.test(b.date_finish||''));
+  const byYear = {};
+  done.forEach(b=>{ const y=b.date_finish.slice(0,4); (byYear[y]=byYear[y]||[]).push(b); });
+  const years = Object.keys(byYear).sort((a,b)=>b.localeCompare(a));
+  let body;
+  if(!years.length){
+    body = '<div style="padding:44px 10px;text-align:center;color:var(--tx3);font-size:.85rem;">완독한 책이 없어요.</div>';
+  } else {
+    body = years.map(y=>{
+      const books = byYear[y].slice().sort((a,b)=>b.date_finish.localeCompare(a.date_finish));
+      const pages = books.reduce((a,b)=>a+(b.pages||0),0);
+      const items = books.map(b=>`<div data-bid="${b.id}" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <span style="font-size:.58rem;color:var(--tx3);min-width:26px;">${b.date_finish.slice(5,7)}월</span>
+        <span style="flex:1;font-size:.85rem;color:var(--tx1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(b.title)}</span>
+        <span style="font-size:.7rem;color:var(--rust);white-space:nowrap;">${b.rating?'★'+b.rating:''}</span>
+      </div>`).join('');
+      return `<div style="display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 4px;border-bottom:1.5px solid #2e1f0e;padding-bottom:5px;">
+        <span style="font-family:var(--fs);font-size:1.25rem;color:#b5481f;">${y}</span>
+        <span style="font-size:.64rem;color:var(--tx3);">${books.length}권 · ${pages.toLocaleString()}p</span></div>${items}`;
+    }).join('');
+  }
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(40,25,10,.45);display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `<div style="background:var(--card,#fbf6ec);border:1.5px solid #2e1f0e;border-radius:16px;width:100%;max-width:440px;max-height:82vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 50px rgba(46,31,14,.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1.5px solid #2e1f0e;">
+      <div style="font-family:var(--fs);font-size:1.3rem;color:#2e1f0e;">연도별 읽은 책</div>
+      <button class="yl-x" style="width:30px;height:30px;border:1.5px solid #2e1f0e;border-radius:8px;background:#fbf6ec;cursor:pointer;font-size:.9rem;line-height:1;">✕</button>
+    </div>
+    <div style="overflow-y:auto;padding:0 18px 18px;">${body}</div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('.yl-x').onclick = () => ov.remove();
+  ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
+  ov.querySelectorAll('[data-bid]').forEach(el => { el.onclick = () => { const id=el.dataset.bid; ov.remove(); if(window.openDetail) openDetail(isNaN(+id)?id:+id); }; });
 }
 
 // 카테고리 칩 — 기존 필터 줄에 인라인으로(새 줄/버튼 군더더기 없이). 책 있는 카테고리만.
