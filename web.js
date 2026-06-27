@@ -600,7 +600,8 @@
       });
     });
     var max = Math.max.apply(null, [1].concat(Object.keys(dayMins).map(function (k) { return dayMins[k]; })));
-    function fill(m) { var r = m / max; return r < 0.34 ? '#f0e2cc' : (r < 0.67 ? '#e8c9a0' : '#d9a86a'); }
+    // 세이지 그린 램프 (갈색 대신 — 글자는 어둡게 유지)
+    function fill(m) { var r = m / max; return r < 0.34 ? '#e4efd8' : (r < 0.67 ? '#bcd79e' : '#8bb562'); }
     grid.querySelectorAll('.day').forEach(function (cell) {
       if (cell.classList.contains('hbook') || cell.classList.contains('other') || cell.classList.contains('today')) return;
       var numEl = cell.querySelector('div');
@@ -699,12 +700,13 @@
     window.buildRatingAuthor = function () { var r = _bra.apply(this, arguments); try { renderWebRatingAuthor(); } catch (e) {} return r; };
   }
   /* 트래커 히트맵 색 → 클레이/러스트 웜 램프로 리맵(브라운 대체), 데스크톱 전용 */
-  var TRK_MAP = { '#ede8df': '#efe7d8', '#e8d4b0': '#e9d3b3', '#d4a870': '#ddb079', '#c08840': '#cd8a4f', '#a06820': '#bf6a38', '#7a4a10': '#b5481f', '#4a2808': '#8a3414' };
+  var TRK_MAP = { '#ede8df': '#e8eee0', '#e8d4b0': '#cfe0bd', '#d4a870': '#93b86c', '#c08840': '#6f9e52', '#a06820': '#557f3c', '#7a4a10': '#3f6630', '#4a2808': '#2e4d22' };
   function renderWebTracker() {
     if (!isWeb()) return;
     var grid = document.getElementById('timer-tracker-grid');
     if (!grid) return;
-    grid.querySelectorAll('div').forEach(function (cell) {
+    var card = grid.closest('.card') || grid; // 범례 색도 같이 리맵
+    card.querySelectorAll('div').forEach(function (cell) {
       var m = (cell.getAttribute('style') || '').match(/background:\s*(#[0-9a-fA-F]{6})/);
       if (m && TRK_MAP[m[1].toLowerCase()]) cell.style.setProperty('background', TRK_MAP[m[1].toLowerCase()], 'important');
     });

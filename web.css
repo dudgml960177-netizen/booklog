@@ -1854,7 +1854,7 @@
   #p-graph #rating-layout .ra-rtrack { flex: 1; height: 11px; background: rgba(46, 31, 14, .07); border-radius: 999px; overflow: hidden; }
   #p-graph #rating-layout .ra-rfill { height: 100%; border-radius: 999px; transition: width .5s; }
   #p-graph #rating-layout .ra-rpct { font-size: .62rem; color: var(--tx3); min-width: 26px; text-align: right; }
-  #p-graph #rating-layout .ra-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  #p-graph #rating-layout .ra-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 11px 1px 1px 11px; }
   #p-graph #rating-layout .ra-card { position: relative; border: 1.5px solid #2e1f0e; border-radius: 13px; padding: 14px 14px 11px; background: #fbf6ec; }
   #p-graph #rating-layout .ra-rank { position: absolute; top: -9px; left: -9px; width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #2e1f0e; color: #fff; font-family: var(--fs); font-size: .74rem; display: flex; align-items: center; justify-content: center; }
   #p-graph #rating-layout .ra-name { font-family: var(--fs); font-size: 1rem; color: #2e1f0e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1898,9 +1898,9 @@
 @media (min-width: 880px) {
   #p-record .card:has(#timer-tracker-grid) { overflow: hidden; }
   #p-record .tracker-period-btn { padding: 3px 7px !important; font-size: .6rem !important; }
-  /* 트래커 히트맵: 간격 없이 붙이고 얇은 검정 그리드선 (레퍼런스 밀집형) */
+  /* 트래커 히트맵: 컴팩트(작게) + 간격없이 + 연한 그리드선 (달력과 차별화) */
   /* box-sizing: border 포함 → 가로 스크롤 깜빡임 방지 */
-  #p-record #timer-tracker-grid { gap: 1px !important; background: #2e1f0e !important; border: 1px solid #2e1f0e !important; border-radius: 7px !important; overflow: hidden !important; padding: 0 !important; box-sizing: border-box !important; max-width: 100% !important; }
+  #p-record #timer-tracker-grid { gap: 1px !important; background: rgba(46,31,14,.16) !important; border: 1px solid rgba(46,31,14,.26) !important; border-radius: 6px !important; overflow: hidden !important; padding: 0 !important; box-sizing: border-box !important; max-width: 250px !important; }
   #p-record #timer-tracker-grid > div { border-radius: 0 !important; border: none !important; }
   /* 요일 헤더(셀 아님)는 종이색 배경 */
   #p-record #timer-tracker-grid > div:not([style*="aspect-ratio"]) { background: #fbf6ec !important; }
