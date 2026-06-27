@@ -403,7 +403,60 @@
         btn.onclick = openWebTrackerModal;
         segRow.appendChild(btn);
       }
+      if (segRow && !segRow.querySelector('.wt-cap')) {
+        var cap = document.createElement('button');
+        cap.className = 'wt-cap';
+        cap.innerHTML = '📸';
+        cap.title = '트래커/책등 캡처';
+        cap.onclick = openCaptureMenu;
+        segRow.appendChild(cap);
+      }
     }
+  }
+
+  /* 찰칵(캡처) — 선택 메뉴 + html2canvas 저장 */
+  function openCaptureMenu(e) {
+    if (e) e.stopPropagation();
+    var old = document.getElementById('wt-cap-menu');
+    if (old) { old.remove(); return; }
+    var menu = document.createElement('div'); menu.id = 'wt-cap-menu'; menu.className = 'wt-cap-menu';
+    menu.innerHTML = '<button data-m="both">📸 트래커+책등 같이</button><button data-m="tracker">📊 트래커만</button><button data-m="spines">📚 책등만</button>';
+    document.body.appendChild(menu);
+    var r = e.currentTarget.getBoundingClientRect();
+    menu.style.top = (r.bottom + window.scrollY + 6) + 'px';
+    menu.style.left = Math.max(8, r.right + window.scrollX - 168) + 'px';
+    menu.querySelectorAll('button').forEach(function (b) { b.onclick = function () { var m = b.dataset.m; menu.remove(); captureTracker(m); }; });
+    setTimeout(function () {
+      document.addEventListener('click', function close(ev) { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('click', close); } });
+    }, 0);
+  }
+  async function captureTracker(mode) {
+    var grid = document.getElementById('timer-tracker-grid');
+    var card = grid && grid.closest('.card');
+    if (!card) return;
+    var det = card.querySelector('.wt-detail');
+    if ((mode === 'spines' || mode === 'both') && !(det && det.classList.contains('on'))) {
+      alert('먼저 "자세히"를 눌러 책등을 펼쳐주세요.'); return;
+    }
+    if (!window.html2canvas) {
+      try { await new Promise(function (res, rej) { var sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); }); }
+      catch (e) { alert('캡처 도구 로드 실패'); return; }
+    }
+    var hidden = [];
+    function hide(el) { if (el) { hidden.push([el, el.style.visibility]); el.style.visibility = 'hidden'; } }
+    var segRow = card.querySelector('.tracker-period-btn'); segRow = segRow && segRow.parentNode;
+    hide(segRow);
+    if (det) hide(det.querySelector('.wt-close'));
+    var target, detHidden = false;
+    if (mode === 'tracker') { if (det) { det.style.visibility = 'hidden'; detHidden = true; } target = card; }
+    else if (mode === 'spines') { target = det; }
+    else { target = card; }
+    try {
+      var canvas = await window.html2canvas(target, { scale: 3, backgroundColor: mode === 'spines' ? null : '#f2ece0', useCORS: true, allowTaint: true, logging: false });
+      var a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'Booklog_tracker_' + mode + '.png'; a.click();
+    } catch (err) { alert('캡처 실패: ' + (err && err.message || err)); }
+    hidden.forEach(function (p) { p[0].style.visibility = p[1]; });
+    if (detHidden && det) det.style.visibility = '';
   }
 
   /* 트래커 '자세히' — 해당 기간(주/월/연)에 읽은 책을 '책등(spine) 스택'으로 */
