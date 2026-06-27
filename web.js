@@ -72,10 +72,13 @@
       var src = bk ? ('— ' + esc((bk.author || '').split(/[,·]/)[0]) + (bk.title ? ', 『' + esc(bk.title) + '』' : '')) : '';
       if (qt.page && String(qt.page) !== 'null') src += ' · p.' + esc(qt.page);
       quote.innerHTML = '<div class="wq-mark">&ldquo;</div><div><div class="wq-text">' + esc(txt) + '</div><div class="wq-src">' + src + '</div></div>';
-      // 갤러리 위(이어읽기 다음)에 배치 — 하단에 있으면 안 보임
-      var gallery = panel.querySelector('.gallery');
-      if (gallery) { if (quote.nextElementSibling !== gallery) panel.insertBefore(quote, gallery); }
-      else if (quote.parentNode !== panel) panel.appendChild(quote);
+      // 갤러리 위(이어읽기 다음)에 배치 — 갤러리는 #view-gallery 안에 있어 그 앞에 삽입
+      var galWrap = document.getElementById('view-gallery');
+      if (galWrap && galWrap.parentNode === panel) {
+        if (quote.nextElementSibling !== galWrap) panel.insertBefore(quote, galWrap);
+      } else if (quote.parentNode !== panel) {
+        panel.appendChild(quote);
+      }
     } else if (quote) { quote.remove(); }
 
     // 사이드바 통계
