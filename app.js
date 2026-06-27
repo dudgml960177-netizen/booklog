@@ -141,14 +141,14 @@ function showPrompt(msg, defValue) {
     ov.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(40,25,10,.45);display:flex;align-items:center;justify-content:center;padding:20px;';
     ov.innerHTML =
       '<div style="background:var(--card,#fbf6ec);border:1px solid var(--border2,#cfc3ac);border-radius:14px;padding:20px 22px;width:100%;max-width:340px;box-shadow:0 18px 50px rgba(46,31,14,.3);">'+
-        '<div style="font-size:.9rem;color:var(--tx1,#2e1f0e);margin-bottom:12px;font-family:var(--ff);"></div>'+
+        '<div class="_pp-msg" style="font-size:.9rem;color:var(--tx1,#2e1f0e);margin-bottom:12px;font-family:var(--ff);"></div>'+
         '<input type="text" class="_pp-in" style="width:100%;box-sizing:border-box;padding:.5rem .6rem;border:1.5px solid var(--border2,#cfc3ac);border-radius:7px;font-size:.85rem;font-family:var(--ff);background:#fffdf8;color:var(--tx1,#2e1f0e);margin-bottom:14px;">'+
         '<div style="display:flex;gap:8px;justify-content:flex-end;">'+
           '<button class="_pp-cancel" style="padding:.45rem 1rem;border:1px solid var(--border2,#cfc3ac);border-radius:8px;background:none;color:var(--tx2,#5c3d1e);font-family:var(--ff);cursor:pointer;">취소</button>'+
           '<button class="_pp-ok" style="padding:.45rem 1.1rem;border:none;border-radius:8px;background:#2e1f0e;color:#fbf6ec;font-family:var(--ff);font-weight:600;cursor:pointer;">확인</button>'+
         '</div>'+
       '</div>';
-    ov.querySelector('div > div').textContent = msg;
+    ov.querySelector('._pp-msg').textContent = msg;
     document.body.appendChild(ov);
     const input = ov.querySelector('._pp-in');
     input.value = defValue || '';
@@ -2900,7 +2900,7 @@ function buildTrackerGrid() {
       cell.style.cssText = `aspect-ratio:1;border-radius:8px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.06)'};`;
       cell.title = `${d.getMonth()+1}/${d.getDate()}: ${mins?mins+'분':'없음'}`;
       cell.innerHTML = `<span style="font-size:.7rem;font-weight:600;color:${intensity>=2?'#fff':'var(--tx2)'};">${d.getDate()}</span>
-        ${mins?`<span style="font-size:.55rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins}m</span>`:''}`;
+        ${mins?`<span style="font-size:.52rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins>=60?Math.floor(mins/60)+'h'+(mins%60?(mins%60)+'m':''):mins+'m'}</span>`:''}`;
       wrap.appendChild(cell);
     });
     const total = days.reduce((a,d)=>a+(dayMap[fmtKey(d)]||0),0);
@@ -2935,7 +2935,7 @@ function buildTrackerGrid() {
       cell.style.cssText=`aspect-ratio:1;border-radius:5px;background:${TRACKER_COLORS[intensity]};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:${isToday?'2px solid var(--acc)':'1px solid rgba(0,0,0,.05)'};cursor:default;transition:transform .12s;`;
       cell.title=`${m+1}월 ${d}일: ${mins?mins+'분':'없음'}`;
       cell.innerHTML=`<span style="font-size:.58rem;font-weight:${isToday?700:500};color:${intensity>=2?'#fff':'var(--tx2)'};">${d}</span>
-        ${mins?`<span style="font-size:.48rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins<60?mins+'m':Math.floor(mins/60)+'h'}</span>`:''}`;
+        ${mins?`<span style="font-size:.46rem;color:${intensity>=2?'rgba(255,255,255,.85)':'var(--acc)'};">${mins>=60?Math.floor(mins/60)+'h'+(mins%60?(mins%60)+'m':''):mins+'m'}</span>`:''}`;
       cell.onmouseenter=()=>cell.style.transform='scale(1.08)';
       cell.onmouseleave=()=>cell.style.transform='scale(1)';
       wrap.appendChild(cell);
