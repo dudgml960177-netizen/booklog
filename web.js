@@ -12,7 +12,14 @@
     var t = topTab(p);
     if (t && typeof sw === 'function') sw(p, t);
     setActive(p);
+    closeWebSide(); // 모바일 드로어면 닫기
   };
+
+  // 모바일 사이드바 드로어 토글
+  function openWebSide() { var s = document.querySelector('.web-side'), b = document.getElementById('ws-backdrop'); if (s) s.classList.add('open'); if (b) b.classList.add('on'); }
+  function closeWebSide() { var s = document.querySelector('.web-side'), b = document.getElementById('ws-backdrop'); if (s) s.classList.remove('open'); if (b) b.classList.remove('on'); }
+  window.toggleWebSide = function () { var s = document.querySelector('.web-side'); if (s && s.classList.contains('open')) closeWebSide(); else openWebSide(); };
+  window.closeWebSide = closeWebSide;
 
   // 설정 톱니바퀴 메뉴
   window.toggleWebSettings = function (e) { if (e) e.stopPropagation(); var m = document.getElementById('ws-settings-menu'); if (m) m.classList.toggle('on'); };
@@ -40,7 +47,6 @@
     if (!panel) return;
     var hero = document.getElementById('web-hero');
     var quote = document.getElementById('web-quote');
-    if (window.innerWidth < 880) { if (hero) hero.remove(); if (quote) quote.remove(); return; }
 
     // 이어 읽기 히어로
     var reading = B().filter(function (b) { return b.status === '읽는중'; });
@@ -120,10 +126,16 @@
   var WQ_GAP = 14;
   var WQ_VISIBLE = 3;
 
-  function wqStep() { return WQ_VISIBLE * (WQ_CARD_W + WQ_GAP); }
+  function wqVisible() { return window.innerWidth < 880 ? 1 : WQ_VISIBLE; } // 모바일은 1장씩
+  function wqStep() {
+    var track = document.getElementById('wq-track');
+    var first = track && track.querySelector('.qcard');
+    var cw = first ? first.offsetWidth : WQ_CARD_W;
+    return wqVisible() * (cw + WQ_GAP);
+  }
 
   function wqUpdateNav(total) {
-    var maxPage = Math.max(0, Math.ceil(total / WQ_VISIBLE) - 1);
+    var maxPage = Math.max(0, Math.ceil(total / wqVisible()) - 1);
     var prev = document.getElementById('wq-prev');
     var next = document.getElementById('wq-next');
     if (prev) prev.disabled = wqPage <= 0;
@@ -134,14 +146,13 @@
     var track = document.getElementById('wq-track');
     if (!track) return;
     var total = track.querySelectorAll('.qcard').length;
-    var maxPage = Math.max(0, Math.ceil(total / WQ_VISIBLE) - 1);
+    var maxPage = Math.max(0, Math.ceil(total / wqVisible()) - 1);
     wqPage = Math.max(0, Math.min(wqPage + dir, maxPage));
     track.style.transform = 'translateX(-' + (wqPage * wqStep()) + 'px)';
     wqUpdateNav(total);
   }
 
   function applyQuoteCarousel() {
-    if (window.innerWidth < 880) return;
     var feed = document.getElementById('q-feed');
     if (!feed) return;
     // 빈 상태(empty-state)면 캐러셀 적용 안 함
@@ -270,7 +281,7 @@
 
   /* ════════ 통계·기록 에디토리얼 (도넛 게이지 + 컬러 카드 + 둥근 막대) ════════ */
   // allBooks/allQuotes/goals는 let 전역 → window.가 아니라 bare로 접근
-  function isWeb() { return window.innerWidth >= 880; }
+  function isWeb() { return true; } // 에디토리얼을 모바일에도 적용(브레이크포인트 해제)
   function B() { try { return (typeof allBooks !== 'undefined' && allBooks) || []; } catch (e) { return []; } }
   function Q() { try { return (typeof allQuotes !== 'undefined' && allQuotes) || []; } catch (e) { return []; } }
   function G() { try { return (typeof goals !== 'undefined' && goals) || {}; } catch (e) { return {}; } }

@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="북로그">
   <link rel="stylesheet" href="style.css?v=4">
-  <link rel="stylesheet" href="web.css?v=51">
+  <link rel="stylesheet" href="web.css?v=53">
 
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
@@ -221,7 +221,10 @@
 <!-- 메인 앱 -->
 <div id="screen-app" style="display:none;flex-direction:column;height:100vh;overflow:hidden;">
 
-  <!-- 웹 리디자인: 좌측 사이드바 (데스크톱 전용, web.css/web.js) -->
+  <!-- 모바일 사이드바 토글(햄버거) + 백드롭 -->
+  <button id="ws-hamburger" onclick="toggleWebSide()" aria-label="메뉴"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+  <div id="ws-backdrop" onclick="closeWebSide()"></div>
+  <!-- 웹 리디자인: 좌측 사이드바 (web.css/web.js) -->
   <aside class="web-side" aria-label="사이드바">
     <div class="ws-top">
       <div><div class="ws-logo">북로그</div><div class="ws-tag">Booklog</div></div>
@@ -1383,7 +1386,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
 <script src="app.js?v=525"></script>
-<script src="web.js?v=50"></script>
+<script src="web.js?v=54"></script>
 <script>
   // PWA 서비스 워커 등록
   if ('serviceWorker' in navigator) {

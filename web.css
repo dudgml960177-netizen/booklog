@@ -7,7 +7,7 @@
 .web-side { display: none; }
 #web-hero, #web-quote { display: none; }
 
-@media (min-width: 880px) {
+@media (min-width: 1px) {
 
   /* ── 전역: 모든 모달 검은 테두리 통일 ── */
   .modal {
@@ -1929,7 +1929,7 @@
 .wt-cap-menu button:hover { background: rgba(46, 31, 14, .08); }
 
 /* ════════ 트래커 '자세히' — 히트맵 아래로 펼침(같이 보기) + 책등(spine) 스택 ════════ */
-@media (min-width: 880px) {
+@media (min-width: 1px) {
   #p-record .card:has(#timer-tracker-grid) { position: relative; overflow: hidden; transition: min-height .34s ease; }
   #p-record .tracker-period-btn { padding: 3px 7px !important; font-size: .6rem !important; }
   /* 트래커 히트맵: 컴팩트(작게) + 간격없이 + 연한 그리드선 (달력과 차별화) */
@@ -1959,3 +1959,56 @@
 .bs-meta { flex-shrink: 0; margin-right: 11px; font-size: .6rem; color: rgba(255, 255, 255, .92); font-weight: 600; white-space: nowrap; }
 .bs-spine { padding: 0 12px; }
 .wt-empty { padding: 36px 10px; text-align: center; font-size: .82rem; color: var(--tx2); line-height: 1.7; }
+
+/* ════════════════════════════════════════════════════════════
+   모바일(<880): 사이드바 드로어 + 반응형 (에디토리얼을 좁은 화면에도)
+   ════════════════════════════════════════════════════════════ */
+#ws-hamburger { display: none; }
+#ws-backdrop { display: none; }
+@media (max-width: 879px) {
+  /* 사이드바 → 좌측 슬라이드 드로어 */
+  .web-side {
+    position: fixed !important; left: 0; top: 0; bottom: 0; height: 100vh !important;
+    width: min(250px, 82vw) !important; z-index: 1000 !important;
+    transform: translateX(-100%); transition: transform .3s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: 4px 0 26px rgba(46, 31, 14, .28); overflow-y: auto;
+  }
+  .web-side.open { transform: translateX(0); }
+  /* 백드롭 */
+  #ws-backdrop { position: fixed; inset: 0; background: rgba(40, 25, 10, .42); z-index: 999; }
+  #ws-backdrop.on { display: block; }
+  /* 햄버거 토글(좌상단 고정) */
+  #ws-hamburger { display: flex; position: fixed; top: 10px; left: 10px; z-index: 998;
+    width: 40px; height: 40px; align-items: center; justify-content: center;
+    background: #f3ecdb; border: 1.5px solid #2e1f0e; border-radius: 9px; cursor: pointer;
+    box-shadow: 2px 3px 0 rgba(46, 31, 14, .14); color: #2e1f0e; }
+  #ws-hamburger svg { width: 21px; height: 21px; }
+
+  /* 콘텐츠: 전체 폭 + 햄버거 자리 확보 */
+  .app-main { padding: 54px 13px 40px !important; max-width: 100% !important; }
+  .main-inner { max-width: 100% !important; }
+
+  /* 카드 그리드 반응형 */
+  #web-stats .wst-cards { grid-template-columns: 1fr 1fr !important; }
+  #p-graph #ms-grid { grid-template-columns: 1fr 1fr !important; }
+  #p-graph #rating-layout .ra-grid { grid-template-columns: 1fr 1fr !important; }
+  #p-books .gallery { grid-template-columns: repeat(3, 1fr) !important; }
+
+  /* 가로 배치 → 세로 스택 */
+  #web-stats .wst-hero { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+  #p-graph #donut-layout .gd-wrap { flex-direction: column !important; align-items: center !important; gap: 14px !important; }
+  #p-graph #donut-layout .gd-legend { width: 100%; }
+  #p-record .record-top { flex-direction: column !important; }
+  #web-hero { flex-direction: column !important; }
+  #web-hero .wh-cover { width: 84px !important; height: 126px !important; }
+
+  /* 트래커: 컴팩트 제한 해제(좁으니 꽉 차게) + 자세히는 아래로 펼침 */
+  #p-record #timer-tracker-grid { max-width: 100% !important; }
+  .wt-detail { position: static !important; transform: none !important; opacity: 1 !important;
+    margin-top: 12px !important; border-top: 1.5px solid rgba(46,31,14,.25); padding-top: 12px !important; }
+  .wt-detail:not(.on) { display: none !important; }
+
+  /* 문장 캐러셀: 모바일은 1장씩 가로 (트랙폭에 맞춰 카드 폭) */
+  #p-quotes .qcard { width: calc(100vw - 118px) !important; min-height: 300px !important; }
+  #p-quotes .wq-track-wrap { padding: 6px 0 12px !important; }
+}
