@@ -2008,82 +2008,14 @@
     margin-top: 12px !important; border-top: 1.5px solid rgba(46,31,14,.25); padding-top: 12px !important; }
   .wt-detail:not(.on) { display: none !important; }
 
-  /* ── 문장 폴더 스택: 가로 카드가 폴더처럼 겹쳐 쌓이고, 탭하면 뾰로롱 펼쳐짐 ── */
-  #p-quotes #q-feed { display: block !important; padding-top: 6px !important; }
-  #p-quotes .wq-fold { display: flex; flex-direction: column; width: 100%; max-width: 460px; margin: 0 auto; }
-
-  #p-quotes .wq-fold-card {
-    position: relative !important;
-    width: 100% !important; height: auto !important; min-height: 0 !important;
-    margin: -13px 0 0 0 !important;            /* 폴더처럼 위 카드와 겹침 */
-    border: 1.5px solid var(--wqf-bd, #cdbb93) !important;
-    border-radius: 13px !important;
-    background: var(--wqf-bg, #f4ead4) !important;
-    box-shadow: 2px 4px 0 rgba(46,31,14,.10) !important;
-    overflow: hidden !important;
-    transition: margin .3s cubic-bezier(.2,.7,.3,1), box-shadow .3s !important;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  /* 문장 캐러셀: 모바일도 데스크톱처럼 가로 1장씩 + 화살표로 넘김(누적 전체) */
+  #p-quotes #q-feed { display: block !important; }
+  #p-quotes .qcard { width: calc(100vw - 104px) !important; min-height: 300px !important; }
+  #p-quotes .wq-track-wrap { padding: 6px 0 12px !important; }
+  /* 화살표: 모바일에서 손가락으로 누르기 쉽게 */
+  #p-quotes .wq-nav {
+    width: 38px !important; height: 38px !important; flex-shrink: 0 !important;
+    font-size: 1.3rem !important;
   }
-  #p-quotes .wq-fold-card:first-child { margin-top: 0 !important; }
-  #p-quotes .wq-fold-card.open {
-    margin: 7px 0 !important;
-    box-shadow: 3px 7px 0 rgba(46,31,14,.16), 0 12px 28px rgba(46,31,14,.14) !important;
-  }
-  /* qcard 기본 레이아웃(플렉스/고정높이) 해제 → 자연스러운 흐름 */
-  #p-quotes .wq-fold-card .qcard-inner {
-    display: block !important; height: auto !important; min-height: 0 !important;
-    padding: 11px 14px !important; box-sizing: border-box !important;
-  }
-  #p-quotes .wq-fold-card .qcard-bar,
-  #p-quotes .wq-fold-card .qcard-share-btn { display: none !important; }
-
-  /* 헤더(=폴더 탭): 슬림하게, 구분선 제거 */
-  #p-quotes .wq-fold-card .wq-bh {
-    display: flex !important; align-items: center !important; gap: 9px !important;
-    margin: 0 !important; padding: 0 22px 0 0 !important; border-bottom: none !important;
-    position: relative;
-  }
-  #p-quotes .wq-fold-card .wq-bc {
-    width: 22px !important; height: 30px !important; flex-shrink: 0 !important;
-    border-radius: 4px !important; box-shadow: 1px 1.5px 0 rgba(46,31,14,.16) !important;
-  }
-  #p-quotes .wq-fold-card .wq-bm { gap: 1px !important; }
-  #p-quotes .wq-fold-card .wq-bt { font-weight: 800 !important; font-size: .8rem !important;
-    line-height: 1.25 !important; -webkit-line-clamp: 1 !important; }
-  #p-quotes .wq-fold-card .wq-ba { font-size: .62rem !important; opacity: .72; }
-  #p-quotes .wq-fold-chev {
-    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-    font-size: 1.05rem; line-height: 1; color: rgba(46,31,14,.42);
-    transition: transform .3s; font-weight: 700;
-  }
-  #p-quotes .wq-fold-card.open .wq-fold-chev { transform: translateY(-50%) rotate(90deg); }
-
-  /* 데스크톱 플렉스 레이아웃만 무력화(높이 제어와는 분리) */
-  #p-quotes .wq-fold-card .wq-bh + div { flex: none !important; min-height: 0 !important; }
-  /* 본문(=인용문): grid 0fr→1fr 로 부드럽게 펼침(고정 max-height 트랜지션의 끼임 회피) */
-  #p-quotes .wq-fold-card .wq-fold-body {
-    display: grid !important; grid-template-rows: 0fr !important;
-    max-height: none !important; overflow: hidden !important; opacity: 0;
-    transition: grid-template-rows .4s cubic-bezier(.2,.7,.3,1), opacity .32s, margin .3s;
-  }
-  #p-quotes .wq-fold-card.open .wq-fold-body {
-    grid-template-rows: 1fr !important; opacity: 1 !important; margin-top: 11px !important;
-  }
-  #p-quotes .wq-fold-card .wq-fold-bodyin { min-height: 0; overflow: hidden; }
-  #p-quotes .wq-fold-card .qcard-text { max-height: none !important; -webkit-line-clamp: unset !important; display: block !important; }
-  #p-quotes .wq-fold-card .qcard-text.collapsed { -webkit-line-clamp: unset !important; }
-  #p-quotes .wq-fold-card .qcard-quote-mark { font-size: 1.6rem !important; }
-  #p-quotes .wq-fold-card .qcard-expand { display: none !important; }
-
-  /* 뾰로롱 팝 */
-  @keyframes wqpop { 0% { transform: translateY(0) scale(1); } 42% { transform: translateY(-3px) scale(1.022); } 100% { transform: translateY(0) scale(1); } }
-  #p-quotes .wq-fold-card.wq-pop { animation: wqpop .44s cubic-bezier(.34,1.56,.64,1); }
-
-  /* 6색 파스텔 틴트(크림브라운과 어울리게) */
-  #p-quotes .wq-tint-0 { --wqf-bg: #f4ead4; --wqf-bd: #cdbb93; }
-  #p-quotes .wq-tint-1 { --wqf-bg: #eedcd6; --wqf-bd: #d3b3a6; }
-  #p-quotes .wq-tint-2 { --wqf-bg: #e1e3f0; --wqf-bd: #b6bad4; }
-  #p-quotes .wq-tint-3 { --wqf-bg: #f1e7c2; --wqf-bd: #d4c486; }
-  #p-quotes .wq-tint-4 { --wqf-bg: #ecdcc8; --wqf-bd: #cdb393; }
-  #p-quotes .wq-tint-5 { --wqf-bg: #dde6ec; --wqf-bd: #aebfca; }
+}
 }

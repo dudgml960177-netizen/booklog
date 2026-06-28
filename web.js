@@ -155,8 +155,6 @@
   function applyQuoteCarousel() {
     var feed = document.getElementById('q-feed');
     if (!feed) return;
-    // 모바일: 손가락으로 넘기는 카드 덱(폴더형)
-    if (window.innerWidth < 880) { try { if (applyQuoteDeckMobile()) return; } catch (e) {} }
     // 빈 상태(empty-state)면 캐러셀 적용 안 함
     var cards = Array.from(feed.querySelectorAll(':scope > .qcard'));
     if (!cards.length) return;
@@ -274,77 +272,6 @@
         inner.appendChild(footer);
       }
     });
-  }
-
-  // ── 모바일 문장 폴더: 가로 카드가 폴더처럼 겹쳐 쌓이고, 탭하면 뾰로롱 펼쳐짐 ──
-  function applyQuoteDeckMobile() {
-    var feed = document.getElementById('q-feed');
-    if (!feed) return false;
-    var cards = Array.from(feed.querySelectorAll(':scope > .qcard'));
-    if (!cards.length) return false;
-
-    // 책 제목+표지(=상단 헤더)와 인용문(=본문)으로 분리하기 위해 먼저 재구성
-    try { restructureWebQuoteCards(feed); } catch (e) {}
-
-    feed.innerHTML = '';
-    var fold = document.createElement('div');
-    fold.className = 'wq-fold';
-
-    function tintOf(s) { var h = 0; s = s || ''; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) % 100000; return h % 6; }
-
-    cards.forEach(function (card, i) {
-      card.classList.add('wq-fold-card');
-      var titleEl = card.querySelector('.wq-bt');
-      card.classList.add('wq-tint-' + tintOf(titleEl ? titleEl.textContent : String(i)));
-      card.style.zIndex = String(i + 1);
-
-      var inner = card.querySelector('.qcard-inner');
-      var head = inner && inner.querySelector('.wq-bh');
-      if (inner && head) {
-        // 헤더(책 표지/제목/저자) 다음의 모든 요소를 본문 래퍼로 이동
-        // grid(0fr→1fr) 펼침을 위해 본문은 .wq-fold-body > .wq-fold-bodyin 구조
-        var body = document.createElement('div');
-        body.className = 'wq-fold-body';
-        var bodyin = document.createElement('div');
-        bodyin.className = 'wq-fold-bodyin';
-        var node = head.nextSibling;
-        while (node) { var nx = node.nextSibling; bodyin.appendChild(node); node = nx; }
-        body.appendChild(bodyin);
-        inner.appendChild(body);
-        // 펼침 표시(셰브론)
-        var chev = document.createElement('span');
-        chev.className = 'wq-fold-chev';
-        chev.innerHTML = '&#8250;';
-        head.appendChild(chev);
-      }
-      fold.appendChild(card);
-    });
-    feed.appendChild(fold);
-
-    function toggle(card) {
-      var wasOpen = card.classList.contains('open');
-      fold.querySelectorAll('.wq-fold-card.open').forEach(function (o) {
-        o.classList.remove('open'); o.style.zIndex = o.dataset.z || o.style.zIndex;
-      });
-      if (!wasOpen) {
-        card.dataset.z = card.style.zIndex;
-        card.style.zIndex = '999';
-        card.classList.add('open');
-        // 뾰로롱 팝 애니메이션 재시작
-        card.classList.remove('wq-pop'); void card.offsetWidth; card.classList.add('wq-pop');
-        setTimeout(function () { card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, 80);
-      }
-    }
-
-    fold.addEventListener('click', function (e) {
-      var card = e.target.closest('.wq-fold-card');
-      if (!card) return;
-      // 공유 버튼 등은 토글에서 제외
-      if (e.target.closest('.qcard-share-btn')) return;
-      toggle(card);
-    });
-
-    return true;
   }
 
   if (typeof window.renderQuotes === 'function') {
