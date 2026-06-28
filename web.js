@@ -488,13 +488,15 @@
     else if (mode === 'spines') { target = det; }
     else { target = card; }
     if (mode === 'both' && det) {
-      // 카드가 펼친 책등 전체를 담도록 높이 확보 (overflow:hidden 해제)
+      // 히트맵·책등 중 더 긴 쪽에 맞춰 카드 높이 확보(강제 height X → 히트맵 잘림 방지)
       setS(card, 'overflow', 'visible');
-      var needH = det.offsetTop + det.offsetHeight + 14; // 펼친 뒤 reflow된 높이
-      setS(card, 'minHeight', needH + 'px'); setS(card, 'height', needH + 'px');
+      var needH = det.offsetTop + det.offsetHeight + 14; // 펼친 책등 전체 높이
+      setS(card, 'minHeight', Math.max(card.offsetHeight, needH) + 'px');
     }
+    // 캡처 직전 reflow된 실제 크기로 전체를 담기
+    var capW = Math.ceil(target.scrollWidth), capH = Math.ceil(target.scrollHeight);
     try {
-      var canvas = await window.html2canvas(target, { scale: 3, backgroundColor: mode === 'spines' ? null : '#f2ece0', useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: -window.scrollY });
+      var canvas = await window.html2canvas(target, { scale: 3, backgroundColor: mode === 'spines' ? null : '#f2ece0', useCORS: true, allowTaint: true, logging: false, width: capW, height: capH, windowWidth: Math.max(document.documentElement.clientWidth, capW + 100), scrollX: 0, scrollY: -window.scrollY });
       var a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'Booklog_tracker_' + mode + '.png'; a.click();
     } catch (err) { alert('캡처 실패: ' + (err && err.message || err)); }
     saved.forEach(function (p) { p[0].style[p[1]] = p[2]; });
