@@ -516,7 +516,7 @@
   }
 
   /* 트래커 '자세히' — 해당 기간(주/월/연)에 읽은 책을 '책등(spine) 스택'으로 */
-  function openWebTrackerModal() {
+  function openWebTrackerModal(forceRefresh) {
     function pad(n) { return String(n).padStart(2, '0'); }
     function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
     var P = (typeof timerPeriod !== 'undefined' && timerPeriod) || 'month';
@@ -585,7 +585,12 @@
     if (!card) return;
     function resetH() { if (card._mhTimer) clearTimeout(card._mhTimer); card._mhTimer = setTimeout(function () { card.style.minHeight = ''; }, 340); }
     var det = card.querySelector('.wt-detail');
-    if (det && det.classList.contains('on')) { det.classList.remove('on'); resetH(); return; } // 다시 누르면 닫기
+    if (forceRefresh) {
+      // 주/월/연 전환 시: 열려 있을 때만 새 기간으로 갱신(닫혀 있으면 그대로)
+      if (!det || !det.classList.contains('on')) return;
+    } else if (det && det.classList.contains('on')) {
+      det.classList.remove('on'); resetH(); return; // 다시 누르면 닫기
+    }
     if (!det) { det = document.createElement('div'); det.className = 'wt-detail'; card.appendChild(det); }
     det.innerHTML = '<div class="wt-dhead"><div><div class="wt-dtitle">' + label + '</div><div class="wt-dsub">' + sub + '</div></div>' +
       '<button class="wt-close" aria-label="닫기">✕</button></div>' +
@@ -818,7 +823,7 @@
   }
   if (typeof window.buildTrackerGrid === 'function') {
     var _btg = window.buildTrackerGrid;
-    window.buildTrackerGrid = function () { var r = _btg.apply(this, arguments); try { renderWebTracker(); } catch (e) {} return r; };
+    window.buildTrackerGrid = function () { var r = _btg.apply(this, arguments); try { renderWebTracker(); } catch (e) {} try { openWebTrackerModal(true); } catch (e) {} return r; };
   }
 
   if (typeof window.buildMilestone === 'function') {
