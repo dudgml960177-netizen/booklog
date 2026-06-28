@@ -47,7 +47,6 @@
     if (!panel) return;
     var hero = document.getElementById('web-hero');
     var quote = document.getElementById('web-quote');
-    if (window.innerWidth < 880) { if (hero) hero.remove(); if (quote) quote.remove(); return; }
 
     // 이어 읽기 히어로
     var reading = B().filter(function (b) { return b.status === '읽는중'; });
@@ -282,7 +281,7 @@
 
   /* ════════ 통계·기록 에디토리얼 (도넛 게이지 + 컬러 카드 + 둥근 막대) ════════ */
   // allBooks/allQuotes/goals는 let 전역 → window.가 아니라 bare로 접근
-  function isWeb() { return window.innerWidth >= 880; }
+  function isWeb() { return true; } // 에디토리얼을 모바일에도 적용(브레이크포인트 해제)
   function B() { try { return (typeof allBooks !== 'undefined' && allBooks) || []; } catch (e) { return []; } }
   function Q() { try { return (typeof allQuotes !== 'undefined' && allQuotes) || []; } catch (e) { return []; } }
   function G() { try { return (typeof goals !== 'undefined' && goals) || {}; } catch (e) { return {}; } }
