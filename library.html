@@ -147,11 +147,11 @@
 
     /* 휴식 중 간판 */
     .tbl-rest{
-      position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
-      background:#f5f0e8;border:1px solid var(--border2);border-radius:8px;
-      padding:.06rem .3rem;font-size:.54rem;color:var(--tx3);
-      white-space:nowrap;z-index:3;
-      box-shadow:0 1px 4px rgba(30,15,0,.1);
+      position:absolute;top:52px;left:50%;transform:translateX(-50%);
+      background:#fff6e6;border:1px solid var(--acc);border-radius:8px;
+      padding:.06rem .34rem;font-size:.54rem;color:var(--acc2);font-weight:600;
+      white-space:nowrap;z-index:5;
+      box-shadow:0 1px 4px rgba(30,15,0,.12);
       letter-spacing:.01em;
     }
 
@@ -453,7 +453,7 @@ function makeSeatCell(m){
     :'';
   return `<div class="tbl-cell">
     ${bubble}
-    <div class="tbl-av"${avStyle}>${av}${badge}${restBadge}</div>
+    <div class="tbl-av"${avStyle}>${av}${badge}</div>${restBadge}
     <div class="tbl-name">${esc(name)}</div>
     ${makeBookCard(m)}
     ${kickBtn}
