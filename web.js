@@ -290,19 +290,26 @@
     var fold = document.createElement('div');
     fold.className = 'wq-fold';
 
+    function tintOf(s) { var h = 0; s = s || ''; for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) % 100000; return h % 6; }
+
     cards.forEach(function (card, i) {
       card.classList.add('wq-fold-card');
-      card.classList.add('wq-tint-' + (i % 6));
+      var titleEl = card.querySelector('.wq-bt');
+      card.classList.add('wq-tint-' + tintOf(titleEl ? titleEl.textContent : String(i)));
       card.style.zIndex = String(i + 1);
 
       var inner = card.querySelector('.qcard-inner');
       var head = inner && inner.querySelector('.wq-bh');
       if (inner && head) {
         // 헤더(책 표지/제목/저자) 다음의 모든 요소를 본문 래퍼로 이동
+        // grid(0fr→1fr) 펼침을 위해 본문은 .wq-fold-body > .wq-fold-bodyin 구조
         var body = document.createElement('div');
         body.className = 'wq-fold-body';
+        var bodyin = document.createElement('div');
+        bodyin.className = 'wq-fold-bodyin';
         var node = head.nextSibling;
-        while (node) { var nx = node.nextSibling; body.appendChild(node); node = nx; }
+        while (node) { var nx = node.nextSibling; bodyin.appendChild(node); node = nx; }
+        body.appendChild(bodyin);
         inner.appendChild(body);
         // 펼침 표시(셰브론)
         var chev = document.createElement('span');
