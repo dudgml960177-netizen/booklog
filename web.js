@@ -12,7 +12,14 @@
     var t = topTab(p);
     if (t && typeof sw === 'function') sw(p, t);
     setActive(p);
+    closeWebSide(); // 모바일 드로어면 닫기
   };
+
+  // 모바일 사이드바 드로어 토글
+  function openWebSide() { var s = document.querySelector('.web-side'), b = document.getElementById('ws-backdrop'); if (s) s.classList.add('open'); if (b) b.classList.add('on'); }
+  function closeWebSide() { var s = document.querySelector('.web-side'), b = document.getElementById('ws-backdrop'); if (s) s.classList.remove('open'); if (b) b.classList.remove('on'); }
+  window.toggleWebSide = function () { var s = document.querySelector('.web-side'); if (s && s.classList.contains('open')) closeWebSide(); else openWebSide(); };
+  window.closeWebSide = closeWebSide;
 
   // 설정 톱니바퀴 메뉴
   window.toggleWebSettings = function (e) { if (e) e.stopPropagation(); var m = document.getElementById('ws-settings-menu'); if (m) m.classList.toggle('on'); };
