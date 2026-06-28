@@ -127,10 +127,16 @@
   var WQ_GAP = 14;
   var WQ_VISIBLE = 3;
 
-  function wqStep() { return WQ_VISIBLE * (WQ_CARD_W + WQ_GAP); }
+  function wqVisible() { return window.innerWidth < 880 ? 1 : WQ_VISIBLE; } // 모바일은 1장씩
+  function wqStep() {
+    var track = document.getElementById('wq-track');
+    var first = track && track.querySelector('.qcard');
+    var cw = first ? first.offsetWidth : WQ_CARD_W;
+    return wqVisible() * (cw + WQ_GAP);
+  }
 
   function wqUpdateNav(total) {
-    var maxPage = Math.max(0, Math.ceil(total / WQ_VISIBLE) - 1);
+    var maxPage = Math.max(0, Math.ceil(total / wqVisible()) - 1);
     var prev = document.getElementById('wq-prev');
     var next = document.getElementById('wq-next');
     if (prev) prev.disabled = wqPage <= 0;
@@ -141,14 +147,13 @@
     var track = document.getElementById('wq-track');
     if (!track) return;
     var total = track.querySelectorAll('.qcard').length;
-    var maxPage = Math.max(0, Math.ceil(total / WQ_VISIBLE) - 1);
+    var maxPage = Math.max(0, Math.ceil(total / wqVisible()) - 1);
     wqPage = Math.max(0, Math.min(wqPage + dir, maxPage));
     track.style.transform = 'translateX(-' + (wqPage * wqStep()) + 'px)';
     wqUpdateNav(total);
   }
 
   function applyQuoteCarousel() {
-    if (window.innerWidth < 880) return;
     var feed = document.getElementById('q-feed');
     if (!feed) return;
     // 빈 상태(empty-state)면 캐러셀 적용 안 함

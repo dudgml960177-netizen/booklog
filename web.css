@@ -2007,4 +2007,8 @@
   .wt-detail { position: static !important; transform: none !important; opacity: 1 !important;
     margin-top: 12px !important; border-top: 1.5px solid rgba(46,31,14,.25); padding-top: 12px !important; }
   .wt-detail:not(.on) { display: none !important; }
+
+  /* 문장 캐러셀: 모바일은 1장씩 가로 (트랙폭에 맞춰 카드 폭) */
+  #p-quotes .qcard { width: calc(100vw - 118px) !important; min-height: 300px !important; }
+  #p-quotes .wq-track-wrap { padding: 6px 0 12px !important; }
 }
