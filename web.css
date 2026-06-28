@@ -2008,7 +2008,32 @@
     margin-top: 12px !important; border-top: 1.5px solid rgba(46,31,14,.25); padding-top: 12px !important; }
   .wt-detail:not(.on) { display: none !important; }
 
-  /* 문장 캐러셀: 모바일은 1장씩 가로 (트랙폭에 맞춰 카드 폭) */
-  #p-quotes .qcard { width: calc(100vw - 118px) !important; min-height: 300px !important; }
+  /* 문장 덱(폴더형): 손가락으로 휘리릭 넘기고 탭하면 크게 */
+  #p-quotes .wq-deck { display: flex; flex-direction: column; align-items: center; width: 100%; }
+  #p-quotes .wq-deck-stack { position: relative; width: min(84vw, 350px); height: 444px; margin: 8px auto 0; touch-action: pan-y; }
+  #p-quotes .wq-deck-card {
+    position: absolute !important; top: 0; left: 0;
+    width: 100% !important; height: 100% !important; min-height: 0 !important;
+    margin: 0 !important; transform-origin: 50% 100%;
+    transition: transform .32s cubic-bezier(.2,.7,.3,1), opacity .3s;
+    will-change: transform; cursor: grab; user-select: none; -webkit-user-select: none;
+    box-shadow: 3px 5px 0 rgba(46,31,14,.16), 0 8px 22px rgba(46,31,14,.12) !important;
+  }
+  #p-quotes .wq-deck-card:active { cursor: grabbing; }
+  #p-quotes .wq-deck-counter { margin-top: 16px; font-weight: 800; font-size: .74rem; letter-spacing: .1em; color: var(--tx2, #6b5638); }
+  #p-quotes .wq-deck-hint { margin-top: 5px; font-size: .66rem; letter-spacing: .02em; color: var(--tx3, #a08c6e); }
+
+  /* 탭 확대(뿅) 오버레이 */
+  .wq-zoom-back { position: fixed; inset: 0; z-index: 5000; display: flex; align-items: center; justify-content: center;
+    padding: 26px; background: rgba(28,18,6,.58); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+    opacity: 0; transition: opacity .24s; }
+  .wq-zoom-back.on { opacity: 1; }
+  .wq-zoom-card { width: min(90vw, 400px) !important; max-height: 84vh !important; height: auto !important; overflow: auto !important;
+    transform: scale(.84); transition: transform .26s cubic-bezier(.2,.8,.3,1);
+    box-shadow: 5px 8px 0 rgba(46,31,14,.2), 0 16px 40px rgba(0,0,0,.32) !important; }
+  .wq-zoom-back.on .wq-zoom-card { transform: scale(1); }
+  .wq-zoom-card .qcard-text { max-height: none !important; -webkit-line-clamp: unset !important; display: block !important; }
+
+  /* (구) 가로 트랙은 모바일에서 미사용 */
   #p-quotes .wq-track-wrap { padding: 6px 0 12px !important; }
 }

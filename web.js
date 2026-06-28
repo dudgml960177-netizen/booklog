@@ -155,6 +155,8 @@
   function applyQuoteCarousel() {
     var feed = document.getElementById('q-feed');
     if (!feed) return;
+    // 모바일: 손가락으로 넘기는 카드 덱(폴더형)
+    if (window.innerWidth < 880) { try { if (applyQuoteDeckMobile()) return; } catch (e) {} }
     // 빈 상태(empty-state)면 캐러셀 적용 안 함
     var cards = Array.from(feed.querySelectorAll(':scope > .qcard'));
     if (!cards.length) return;
@@ -193,8 +195,8 @@
   }
 
   // 문장 카드 DOM 재구성: 책표지+제목+저자 → 상단 / 텍스트 중간 / 페이지+태그 → 하단
-  function restructureWebQuoteCards() {
-    var track = document.getElementById('wq-track');
+  function restructureWebQuoteCards(root) {
+    var track = root || document.getElementById('wq-track');
     if (!track) return;
     track.querySelectorAll('.qcard').forEach(function(card) {
       if (card.dataset.wstyled) return;
@@ -272,6 +274,127 @@
         inner.appendChild(footer);
       }
     });
+  }
+
+  // ── 모바일 문장 덱: 손가락으로 휘리릭 넘기고, 탭하면 크게 ──
+  function applyQuoteDeckMobile() {
+    var feed = document.getElementById('q-feed');
+    if (!feed) return false;
+    var cards = Array.from(feed.querySelectorAll(':scope > .qcard'));
+    if (!cards.length) return false;
+
+    feed.innerHTML = '';
+    var deck = document.createElement('div');
+    deck.className = 'wq-deck';
+
+    var stack = document.createElement('div');
+    stack.className = 'wq-deck-stack';
+    cards.forEach(function (c) { c.classList.add('wq-deck-card'); stack.appendChild(c); });
+    deck.appendChild(stack);
+
+    var counter = document.createElement('div');
+    counter.className = 'wq-deck-counter';
+    deck.appendChild(counter);
+
+    var hint = document.createElement('div');
+    hint.className = 'wq-deck-hint';
+    hint.textContent = '밀어서 넘기기 · 탭하면 크게';
+    deck.appendChild(hint);
+
+    feed.appendChild(deck);
+    try { restructureWebQuoteCards(stack); } catch (e) {}
+
+    var order = cards.slice();      // 링(순환) 순서. order[0]이 맨 위
+    var n = cards.length;
+    var pos = 0;                    // 진행 위치(카운터용)
+
+    function layout() {
+      order.forEach(function (c, i) {
+        if (i > 3) { c.style.display = 'none'; return; }
+        c.style.display = '';
+        c.style.zIndex = String(100 - i);
+        c.style.transform = 'translateY(' + (i * 9) + 'px) scale(' + (1 - i * 0.045).toFixed(3) + ')';
+        c.style.opacity = i > 2 ? '0' : '1';
+        c.style.pointerEvents = i === 0 ? 'auto' : 'none';
+      });
+      counter.textContent = (pos % n + 1) + ' / ' + n;
+    }
+    layout();
+
+    var startX = 0, startY = 0, dragging = false, moved = false, top = null, horiz = false;
+
+    function onStart(e) {
+      top = order[0];
+      if (!top) return;
+      var t = e.touches ? e.touches[0] : e;
+      startX = t.clientX; startY = t.clientY;
+      dragging = true; moved = false; horiz = false;
+      top.style.transition = 'none';
+    }
+    function onMove(e) {
+      if (!dragging || !top) return;
+      var t = e.touches ? e.touches[0] : e;
+      var dx = t.clientX - startX, dy = t.clientY - startY;
+      if (!horiz && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) horiz = true;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) moved = true;
+      if (horiz) {
+        if (e.cancelable) e.preventDefault();
+        top.style.transform = 'translate(' + dx + 'px,' + (dy * 0.12).toFixed(1) + 'px) rotate(' + (dx * 0.04).toFixed(2) + 'deg)';
+        top.style.opacity = String(Math.max(0.25, 1 - Math.abs(dx) / 420));
+      }
+    }
+    function onEnd(e) {
+      if (!dragging || !top) return;
+      dragging = false;
+      var c = top; top = null;
+      var t = e.changedTouches ? e.changedTouches[0] : e;
+      var dx = t.clientX - startX;
+      c.style.transition = '';
+      if (horiz && Math.abs(dx) > 64) {
+        var dir = dx > 0 ? 1 : -1;
+        c.style.transform = 'translate(' + (dir * 520) + 'px, 36px) rotate(' + (dir * 16) + 'deg)';
+        c.style.opacity = '0';
+        setTimeout(function () {
+          order.push(order.shift());   // 맨 위 카드를 맨 뒤로
+          pos = pos + 1;
+          c.style.transition = 'none';
+          layout();
+          // 다음 프레임에 트랜지션 복구
+          requestAnimationFrame(function () { requestAnimationFrame(function () { c.style.transition = ''; }); });
+        }, 280);
+      } else if (!moved) {
+        c.style.transform = ''; c.style.opacity = '';
+        openQuoteZoom(c);
+      } else {
+        c.style.transform = 'translateY(0) scale(1)';
+        c.style.opacity = '1';
+      }
+    }
+
+    stack.addEventListener('touchstart', onStart, { passive: true });
+    stack.addEventListener('touchmove', onMove, { passive: false });
+    stack.addEventListener('touchend', onEnd, { passive: true });
+    stack.addEventListener('touchcancel', onEnd, { passive: true });
+    // 데스크톱(좁은 창)에서도 마우스로 테스트 가능하게
+    stack.addEventListener('mousedown', function (e) { onStart(e); var mm = function (ev) { onMove(ev); }; var mu = function (ev) { onEnd(ev); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); }; document.addEventListener('mousemove', mm); document.addEventListener('mouseup', mu); });
+
+    return true;
+  }
+
+  function openQuoteZoom(card) {
+    var back = document.createElement('div');
+    back.className = 'wq-zoom-back';
+    var clone = card.cloneNode(true);
+    clone.className = 'qcard wq-zoom-card';
+    clone.removeAttribute('style');
+    // 전체 텍스트 노출
+    clone.querySelectorAll('.qcard-text.collapsed').forEach(function (el) { el.classList.remove('collapsed'); });
+    var exp = clone.querySelector('.qcard-expand'); if (exp) exp.style.display = 'none';
+    back.appendChild(clone);
+    document.body.appendChild(back);
+    requestAnimationFrame(function () { back.classList.add('on'); });
+    function close() { back.classList.remove('on'); setTimeout(function () { back.remove(); }, 240); }
+    back.addEventListener('click', function (e) { if (e.target === back || e.target === clone) close(); });
   }
 
   if (typeof window.renderQuotes === 'function') {
